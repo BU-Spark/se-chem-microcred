@@ -1,0 +1,150 @@
+:root {
+  /* Global Theme Variables (Light Mode is default) */
+  --page-bg: #f0f4f8;
+  --page-bg-gradient-start: #e6f4ff;
+  --page-bg-gradient-end: #89b2fa;
+  --text-color: #2c3e50;
+  --primary-accent: #0060c7;
+  --secondary-accent: #28a745;
+  --card-bg: #bdd5ff;
+  --card-border: #78a0c8;
+  --link-color: var(--primary-accent);
+  --code-bg: #e9ecef;
+}
+
+html {
+  color-scheme: light;
+}
+
+html.dark {
+  color-scheme: dark;
+  /* Dark Mode Theme Overrides */
+  --page-bg: #1a202c;
+  --page-bg-gradient-start: #191425;
+  --page-bg-gradient-end: #0D1117;
+  --text-color: #e2e8f0;
+  --primary-accent: #a246f8;
+  --secondary-accent: #f595c6;
+  --card-bg: #191425;
+  --card-border: #2c3034;
+  --link-color: var(--primary-accent);
+  --code-bg: #2c3034;
+}
+
+body {
+  background-image: linear-gradient(to bottom, var(--page-bg-gradient-start), var(--page-bg-gradient-end));
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  color: var(--text-color);
+  font-family: var(--font-outfit), Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* Apply dark mode variables to body when html.dark is present */
+html.dark body {
+  color: var(--text-color);
+}
+
+.main-content-container {
+  width: 100%;
+  max-width: 70rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  flex-grow: 1; /* Ensure main content can grow */
+  display: flex; /* Added to allow children to flex if needed */
+  flex-direction: column; /* Added for default stacking */
+}
+
+@media (min-width: 640px) {
+  .main-content-container {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .main-content-container {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ErrorBoundary Fallback UI Styling */
+.error-boundary {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1; /* Ensure it can take up space if it's the main content */
+  padding: 2rem;
+  text-align: center;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border: 1px solid var(--card-border);
+  border-radius: 8px;
+  margin: 2rem; /* Add some margin if it's inside another container */
+}
+
+html.dark .error-boundary {
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border-color: var(--card-border);
+}
+
+.error-boundary h2 {
+  font-size: 1.75rem;
+  margin-bottom: 1rem;
+  color: var(--secondary-accent);
+}
+
+html.dark .error-boundary h2 {
+  color: var(--secondary-accent);
+}
+
+.error-boundary details {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: var(--code-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 4px;
+  max-width: 600px;
+  overflow-x: auto; /* For long error messages */
+}
+
+html.dark .error-boundary details {
+  background-color: var(--code-bg);
+  border-color: var(--card-border);
+}
+
+.error-boundary summary {
+  cursor: pointer;
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+}
+
+.error-boundary pre {
+  white-space: pre-wrap; /* Wrap long lines */
+  word-break: break-all; /* Break long words/strings */
+  font-size: 0.875rem;
+  text-align: left;
+}

@@ -1,0 +1,125 @@
+/* 
+  Styling for app/page.tsx - CSS Modules 
+  This is a minimal set of styles for the starter page.
+  Students are encouraged to adapt or replace this with their chosen styling solution.
+*/
+
+/* This module uses global theme variables from app/globals.css. */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  flex: 1; /* Allows this container to grow and fill its parent (.main-content-container) */
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+.heroSection {
+  text-align: center;
+  padding: 4rem 1rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+:global(.dark) .heroSection {
+  border-bottom-color: var(--card-border);
+}
+
+.title {
+  font-size: 3.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  background: linear-gradient(120deg, var(--primary-accent), var(--secondary-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+:global(.dark) .title {
+  background: linear-gradient(120deg, var(--primary-accent), var(--secondary-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subtitle {
+  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  color: var(--text-color);
+  opacity: 0.8;
+}
+
+:global(.dark) .subtitle {
+  color: var(--text-color);
+}
+
+.ctaButtons {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 3rem;
+}
+
+/* Container for the columns of feature cards */
+.featuresContainer {
+  display: flex;
+  gap: 2rem; /* Gap between columns */
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+  align-items: start;
+}
+
+.featureColumn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Styles for .featureCard, .featureIcon, .featureTitle, .featureDescription, */
+/* .featureDetails, .detailsVisible, and .expanded have been moved to */
+/* app/components/FeatureCard/FeatureCard.module.css */
+
+.themeToggleContainer {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.footer {
+  text-align: center;
+  padding: 2rem 1rem;
+  margin-top: auto;
+  border-top: 1px solid var(--card-border); /* Use global generic variable */
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+
+:global(.dark) .footer {
+  border-top-color: var(--card-border); /* Use global generic variable */
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .title {
+    font-size: 2.8rem;
+  }
+  .subtitle {
+    font-size: 1.2rem;
+  }
+  /* Adjust .featuresContainer for mobile, not .featuresSection */
+  .featuresContainer {
+    padding: 2rem 0.5rem;
+    flex-direction: column; /* Stack columns on narrower screens */
+    /* The gap between columns becomes a vertical gap on narrower screens */
+  }
+  .heroSection {
+    padding: 3rem 0.5rem;
+  }
+}
+
+/* Style the main HTML element within this module's scope using a local class */
+.pageMain {
+  flex-grow: 1;
+}

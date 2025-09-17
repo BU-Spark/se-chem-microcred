@@ -1,0 +1,97 @@
+.button {
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Variants using CSS variables from the global scope */
+.primary {
+  background-color: var(--primary-accent);
+  color: #ffffff; /* Text color for primary buttons */
+  border: 1px solid transparent;
+}
+
+.primary:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--primary-accent) 90%, black);
+}
+
+:global(html.dark) .primary {
+  background-color: var(--primary-accent);
+  color: #ffffff; /* Ensure text is white in dark mode */
+}
+
+:global(html.dark) .primary:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--primary-accent) 90%, white);
+}
+
+.secondary {
+  background-color: var(--card-bg);
+  color: var(--primary-accent);
+  border: 1px solid var(--primary-accent);
+}
+
+.secondary:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--card-bg) 90%, black);
+  border-color: color-mix(in srgb, var(--primary-accent) 80%, black);
+}
+
+:global(html.dark) .secondary {
+  background-color: var(--card-bg);
+  color: #ffffff; /* Ensure text is white in dark mode */
+  border: 1px solid var(--primary-accent);
+}
+
+:global(html.dark) .secondary:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--card-bg) 90%, white);
+  border-color: color-mix(in srgb, var(--primary-accent) 80%, white);
+}
+
+/* Outline variant is essentially a secondary button in terms of color scheme */
+.outline {
+  background-color: transparent;
+  color: var(--primary-accent);
+  border: 1px solid var(--primary-accent);
+}
+
+.outline:not(:disabled):hover {
+  background-color: var(--primary-accent);
+  color: #ffffff; /* Text color for hovered outline buttons */
+}
+
+:global(html.dark) .outline {
+  color: var(--primary-accent);
+  border-color: var(--primary-accent);
+}
+
+:global(html.dark) .outline:not(:disabled):hover {
+  background-color: var(--primary-accent);
+  color: var(--page-bg);
+}
+
+/* Sizes */
+.small {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+.medium {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+}
+
+.large {
+  padding: 1rem 2rem;
+  font-size: 1.125rem;
+}

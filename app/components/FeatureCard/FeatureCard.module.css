@@ -1,0 +1,200 @@
+.featureCard {
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  padding: 2rem;
+  text-align: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition:
+    transform 0.2s ease-in-out,
+    box-shadow 0.2s ease-in-out,
+    max-height 0.3s ease-in-out,
+    border-color 0.2s ease-in-out,
+    background-image 0.2s ease-in-out;
+  cursor: pointer;
+  overflow: hidden;
+  background-image: linear-gradient(var(--card-bg), var(--card-bg));
+  background-origin: padding-box;
+  background-clip: padding-box;
+}
+
+.featureCard.expanded {
+  border-width: 2px;
+  border-color: transparent;
+  padding: calc(2rem - 1px);
+  background-image: linear-gradient(var(--card-bg), var(--card-bg)),
+    linear-gradient(120deg, var(--primary-accent), var(--secondary-accent));
+  background-origin: padding-box, border-box;
+  background-clip: padding-box, border-box;
+}
+
+:global(html.dark) .featureCard {
+  background-color: var(--card-bg);
+  border-color: var(--card-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background-image: linear-gradient(var(--card-bg), var(--card-bg));
+}
+
+/* Explicitly set expanded border color for dark mode */
+:global(html.dark) .featureCard.expanded {
+  border-color: transparent;
+  background-image: linear-gradient(var(--card-bg), var(--card-bg)),
+    linear-gradient(120deg, var(--primary-accent), var(--secondary-accent));
+}
+
+.featureCard:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+}
+
+:global(html.dark) .featureCard:hover {
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.featureIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: var(--primary-accent);
+}
+
+:global(html.dark) .featureIcon {
+  color: var(--primary-accent);
+}
+
+.featureTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.75rem;
+  text-align: center;
+}
+
+.featureDescription {
+  font-size: 1rem;
+  opacity: 0.8;
+  line-height: 1.6;
+  margin-bottom: 1rem;
+}
+
+.featureDetails {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition:
+    max-height 0.3s ease-out,
+    opacity 0.2s ease-out 0.05s,
+    transform 0.2s ease-out;
+  text-align: left;
+  border-top: 1px dashed var(--card-border);
+  padding-top: 0;
+  margin-top: 0;
+  transform: translateY(-10px);
+}
+
+:global(html.dark) .featureDetails {
+  border-top-color: var(--card-border);
+}
+
+.featureDetails.detailsVisible {
+  max-height: 400px;
+  overflow-y: auto;
+  opacity: 1;
+  padding-top: 1rem;
+  margin-top: 1rem;
+  transform: translateY(0);
+  /* Subtle scrollbar styling for WebKit browsers */
+  scrollbar-width: thin; /* For Firefox */
+  scrollbar-color: var(--card-border) transparent;
+}
+
+.featureDetails.detailsVisible::-webkit-scrollbar {
+  width: 8px;
+}
+
+.featureDetails.detailsVisible::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.featureDetails.detailsVisible::-webkit-scrollbar-thumb {
+  background-color: var(--card-border);
+  border-radius: 10px;
+  border: 2px solid transparent; /* Creates padding around thumb */
+  background-clip: content-box;
+}
+
+:global(html.dark) .featureDetails.detailsVisible {
+  scrollbar-color: var(--card-border) transparent;
+}
+
+:global(html.dark) .featureDetails.detailsVisible::-webkit-scrollbar-thumb {
+  background-color: var(--card-border);
+}
+
+.featureDetails p {
+  font-size: 0.95rem;
+  line-height: 1.7;
+  opacity: 0.9;
+}
+
+.featureLink {
+  color: var(--link-color);
+  text-decoration: none; /* Remove underline by default */
+}
+
+:global(html.dark) .featureLink {
+  color: var(--link-color);
+}
+
+.featureLink:hover {
+  text-decoration: underline; /* Add underline on hover for visual feedback */
+}
+
+.detailListItem {
+  margin-bottom: 0.5rem; /* Adjust as needed */
+  font-size: 0.95rem; /* Match paragraph font size */
+  line-height: 1.7; /* Match paragraph line height */
+}
+
+/* Ensure the last item in a list doesn't have extra margin if not desired, though usually fine */
+.detailListItem:last-child {
+  margin-bottom: 0;
+}
+
+.detailSubheading {
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+/* Style for links within subheadings to have a gradient text */
+.detailSubheading > a.featureLink {
+  background: linear-gradient(120deg, var(--primary-accent), var(--secondary-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent; /* Fallback for browsers that don't support -webkit-text-fill-color */
+}
+
+:global(html.dark) .detailSubheading > a.featureLink {
+  background: linear-gradient(120deg, var(--primary-accent), var(--secondary-accent));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent; /* Fallback for browsers that don't support -webkit-text-fill-color */
+}
+
+/* Underline for gradient heading links on hover */
+.detailSubheading > a.featureLink:hover {
+  text-decoration: none; /* Override general .featureLink:hover which adds text-decoration underline */
+  border-bottom: 1px solid var(--primary-accent);
+  /* The gradient text properties are inherited from the non-hover state */
+}
+
+/* Dark mode underline for gradient heading links on hover */
+:global(html.dark) .detailSubheading > a.featureLink:hover {
+  border-bottom-color: var(--primary-accent);
+}
+
+.detailIntroParagraph {
+  margin-bottom: 0.5rem;
+}
