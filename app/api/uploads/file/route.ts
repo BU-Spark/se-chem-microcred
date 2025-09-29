@@ -1,0 +1,13 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+export async function POST(request: NextRequest) {
+  const payload = await request.json().catch(() => ({}));
+  return NextResponse.json(
+    {
+      payload,
+      signedUrl: null,
+      message: 'File upload handling is not yet implemented.',
+    },
+    { status: 202 },
+  );
+}
