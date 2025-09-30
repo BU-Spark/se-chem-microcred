@@ -8,6 +8,6 @@ export async function POST(request: NextRequest) {
       uploadId: null,
       message: 'Mux upload handling is not yet implemented.',
     },
-    { status: 202 },
+    { status: 202 }
   );
 }

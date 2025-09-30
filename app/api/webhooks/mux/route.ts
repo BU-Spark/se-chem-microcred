@@ -7,6 +7,6 @@ export async function POST(request: NextRequest) {
       payload,
       message: 'Mux webhook handling is not yet implemented.',
     },
-    { status: 202 },
+    { status: 202 }
   );
 }

@@ -1,8 +1,7 @@
-export default function BadgesPage() {
+export default function BadgeWalletPage() {
   return (
-    <main>
-      <h1>Badge Wallet</h1>
-      <p>Earned micro-credentials will show here.</p>
-    </main>
+    <div>
+      <h1>This is the Badge Wallet page</h1>
+    </div>
   );
 }

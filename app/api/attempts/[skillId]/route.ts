@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: { skillId: string } },
-) {
+export async function GET(_request: NextRequest, { params }: { params: { skillId: string } }) {
   const { skillId } = params;
   return NextResponse.json({
     skillId,
@@ -21,6 +18,6 @@ export async function POST(request: NextRequest, { params }: { params: { skillId
       payload,
       message: 'Recording skill attempts is not yet implemented.',
     },
-    { status: 202 },
+    { status: 202 }
   );
 }

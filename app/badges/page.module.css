@@ -1,0 +1,118 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1rem 0 3rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.title {
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.description {
+  color: rgba(15, 23, 42, 0.7);
+  line-height: 1.6;
+}
+
+.badgeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1.25rem;
+}
+
+.badgeCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 1.5rem;
+  position: relative;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+}
+
+.badgeIcon {
+  font-size: 2.5rem;
+}
+
+.badgeName {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.badgeMeta {
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.badgeActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.button {
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #0060c7, #28a745);
+  color: #fff;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.buttonSecondary {
+  background: rgba(15, 23, 42, 0.08);
+  color: rgba(15, 23, 42, 0.75);
+}
+
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  padding: 1.5rem;
+}
+
+.timelineItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.timelineDate {
+  font-size: 0.8rem;
+  color: rgba(15, 23, 42, 0.5);
+}
+
+html.dark .header,
+html.dark .badgeCard,
+html.dark .timeline {
+  background: rgba(15, 23, 42, 0.45);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: rgba(226, 232, 240, 0.9);
+}
+
+html.dark .description,
+html.dark .badgeMeta,
+html.dark .timelineDate {
+  color: rgba(226, 232, 240, 0.7);
+}
+
+html.dark .buttonSecondary {
+  background: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+}

@@ -1,4 +1,5 @@
 :root {
+  --font-outfit: 'Arial';
   /* Global Theme Variables (Light Mode is default) */
   --page-bg: #f0f4f8;
   --page-bg-gradient-start: #e6f4ff;
