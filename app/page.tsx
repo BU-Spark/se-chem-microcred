@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -91,14 +91,30 @@ function initialsFromName(name?: string | null) {
 
 export default function HomePage() {
   const router = useRouter();
-  const { isLoaded, isSignedIn, user } = useAuth();
+  const { isLoaded, isSignedIn, user, signOut } = useAuth();
   const pathname = usePathname();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.replace('/sign-in');
     }
   }, [isLoaded, isSignedIn, router]);
+
+  const handleSignOut = async () => {
+    if (isSigningOut) {
+      return;
+    }
+
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.replace('/sign-in');
+    } catch (error) {
+      console.error('Failed to sign out', error);
+      setIsSigningOut(false);
+    }
+  };
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -162,7 +178,12 @@ export default function HomePage() {
             );
           })}
         </nav>
-        <div className={styles.brandFooter}>checkd.</div>
+        <div className={styles.sidebarFooter}>
+          <button type="button" onClick={handleSignOut} className={styles.signOffButton} disabled={isSigningOut}>
+            {isSigningOut ? 'Signing off…' : 'Sign off'}
+          </button>
+          <div className={styles.brandFooter}>checkd.</div>
+        </div>
       </aside>
 
       <main className={styles.main}>

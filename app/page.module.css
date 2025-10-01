@@ -61,9 +61,37 @@
 }
 
 .brandFooter {
-  margin-top: auto;
   font-size: 0.85rem;
   opacity: 0.85;
+}
+
+.sidebarFooter {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.signOffButton {
+  padding: 0.55rem 1.35rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease, background-color 0.2s ease;
+}
+
+.signOffButton:hover {
+  filter: brightness(1.05);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.signOffButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  filter: none;
 }
 
 .main {

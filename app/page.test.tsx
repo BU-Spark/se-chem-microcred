@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import HomePage from './page';
 
 const mockReplace = jest.fn();
@@ -38,7 +38,7 @@ describe('Home Page', () => {
     mockUsePathname.mockReset();
     mockUsePathname.mockReturnValue('/');
     mockUseAuth.mockReset();
-    mockUseAuth.mockReturnValue(createAuthState());
+    mockUseAuth.mockImplementation(() => createAuthState());
   });
 
   it('renders the signed-in dashboard when authentication is ready', () => {
@@ -50,6 +50,7 @@ describe('Home Page', () => {
     expect(screen.getByRole('heading', { name: 'Pick up where you left off' })).toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: 'Start' })).toHaveLength(3);
     expect(screen.getAllByRole('link', { name: 'Continue' })).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
   });
 
   it('highlights the active navigation item based on the current pathname', () => {
@@ -65,7 +66,7 @@ describe('Home Page', () => {
   });
 
   it('redirects to sign-in when the user is not authenticated after loading', async () => {
-    mockUseAuth.mockReturnValue(
+    mockUseAuth.mockImplementation(() =>
       createAuthState({
         isSignedIn: false,
         user: null,
@@ -78,5 +79,27 @@ describe('Home Page', () => {
       expect(mockReplace).toHaveBeenCalledWith('/sign-in');
     });
     expect(container.firstChild).toBeNull();
+  });
+
+  it('signs off when the button is pressed', async () => {
+    const signOutMock = jest.fn().mockResolvedValue(undefined);
+    mockUseAuth.mockImplementation(() =>
+      createAuthState({
+        signOut: signOutMock,
+      })
+    );
+
+    render(<HomePage />);
+
+    const button = screen.getByRole('button', { name: 'Sign off' });
+    fireEvent.click(button);
+
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+    expect(button).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Signing off…' })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/sign-in');
+    });
   });
 });
