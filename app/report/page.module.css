@@ -1,0 +1,118 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1rem 0 3rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+}
+
+.title {
+  font-size: 1.8rem;
+  font-weight: 600;
+}
+
+.description {
+  color: rgba(15, 23, 42, 0.7);
+  line-height: 1.6;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+}
+
+.cardTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.metricList {
+  display: grid;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.metricList strong {
+  font-weight: 600;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+}
+
+.table thead {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.table tbody tr:nth-child(even) {
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.actionButton {
+  padding: 0.5rem 0.9rem;
+  border-radius: 0.75rem;
+  background: rgba(0, 96, 199, 0.15);
+  color: #003f88;
+  border: none;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+html.dark .header,
+html.dark .card {
+  background: rgba(15, 23, 42, 0.45);
+  border-color: rgba(148, 163, 184, 0.25);
+  color: rgba(226, 232, 240, 0.9);
+}
+
+html.dark .description {
+  color: rgba(226, 232, 240, 0.75);
+}
+
+html.dark .table thead {
+  background: rgba(148, 163, 184, 0.2);
+}
+
+html.dark .table tbody tr:nth-child(even) {
+  background: rgba(148, 163, 184, 0.12);
+}
+
+html.dark .actionButton {
+  background: rgba(162, 70, 248, 0.2);
+  color: #f5e7ff;
+}

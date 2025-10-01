@@ -61,72 +61,34 @@
 }
 
 .brandFooter {
+  margin-top: auto;
   font-size: 0.85rem;
   opacity: 0.85;
-}
-
-.sidebarFooter {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.signOffButton {
-  padding: 0.55rem 1.35rem;
-  border-radius: 999px;
-  border: none;
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-  font-weight: 600;
-  cursor: pointer;
-  transition: filter 0.2s ease, background-color 0.2s ease;
-}
-
-.signOffButton:hover {
-  filter: brightness(1.05);
-  background: rgba(255, 255, 255, 0.28);
-}
-
-.signOffButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  filter: none;
 }
 
 .main {
   flex: 1;
   background: #ffffff;
   border-radius: 1.5rem;
-  padding: 2rem;
+  padding: 2rem 2.5rem;
   display: flex;
   flex-direction: column;
   gap: 2.5rem;
   box-shadow: 0 25px 45px rgba(15, 23, 42, 0.12);
 }
 
-.topRow {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1.5rem;
-}
-
-.alert {
-  flex: 1;
-  background: rgba(209, 250, 229, 0.6);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  border-radius: 1rem;
-  padding: 1rem 1.25rem;
-  display: flex;
+.backLink {
+  display: inline-flex;
   align-items: center;
-  gap: 0.75rem;
-  font-size: 0.95rem;
-  color: #0f5132;
+  gap: 0.4rem;
+  color: #1f5fab;
+  font-weight: 600;
 }
 
-.alertIcon {
-  font-size: 1.4rem;
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
 }
 
 .brandMark {
@@ -135,35 +97,50 @@
   font-size: 1.25rem;
 }
 
+.lessonTitle {
+  font-size: 2.1rem;
+  font-weight: 600;
+  margin-top: 1.5rem;
+}
+
 .section {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.75rem;
 }
 
 .sectionTitle {
-  font-size: 1.2rem;
+  font-size: 1.3rem;
   font-weight: 600;
 }
 
-.cardRow {
-  display: grid;
-  gap: 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+.paragraph,
+.list {
+  font-size: 0.95rem;
+  color: #374151;
+  line-height: 1.6;
 }
 
-.card {
-  background: #f5f7fb;
-  border-radius: 1rem;
-  padding: 1rem;
+.timeline {
+  display: flex;
+  gap: 1.5rem;
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.timelineItem {
+  flex: 1;
+  min-width: 200px;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.75rem;
+  background: #f5f7fb;
+  border-radius: 1rem;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  min-height: 250px;
+  padding: 1rem;
 }
 
-.cardMedia {
+.timelineMedia {
   border-radius: 0.9rem;
   background: linear-gradient(135deg, #cbd5f5, #e8ebf6);
   display: flex;
@@ -172,31 +149,37 @@
   color: rgba(31, 95, 171, 0.8);
   font-weight: 600;
   font-size: 0.9rem;
-  height: 130px;
+  height: 100px;
   overflow: hidden;
 }
 
-.cardMediaImage {
+.timelineMediaImage {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.cardTitle {
-  font-size: 1rem;
+.timelineHeading {
   font-weight: 600;
+  font-size: 1rem;
 }
 
-.cardStatus,
-.cardMeta {
+.timelineMeta {
   font-size: 0.85rem;
   color: #4b5563;
 }
 
-.cardButton {
-  margin-top: auto;
+.timelineCheckpoints {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #1f5fab;
+}
+
+.primaryButton {
   align-self: flex-start;
-  padding: 0.55rem 1.35rem;
+  padding: 0.75rem 1.75rem;
   border-radius: 999px;
   border: none;
   background: #1f5fab;
@@ -204,18 +187,10 @@
   font-weight: 600;
   cursor: pointer;
   transition: filter 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
 }
 
-.cardButton:hover {
+.primaryButton:hover {
   filter: brightness(0.92);
-}
-
-.secondaryAction {
-  background: #3c83d6;
 }
 
 @media (max-width: 960px) {
@@ -237,15 +212,5 @@
 
   .navItem {
     padding: 0.45rem 0.7rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .topRow {
-    flex-direction: column;
-  }
-
-  .brandMark {
-    align-self: flex-start;
   }
 }

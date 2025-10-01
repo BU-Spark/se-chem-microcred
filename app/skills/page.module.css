@@ -1,0 +1,155 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 1rem 0 3rem;
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  background: rgba(255, 255, 255, 0.45);
+  border-radius: 1rem;
+  padding: 1.5rem;
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.1);
+}
+
+.heroTitle {
+  font-size: 2rem;
+  font-weight: 600;
+}
+
+.heroDescription {
+  color: rgba(15, 23, 42, 0.7);
+  line-height: 1.6;
+}
+
+.skillGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.25rem;
+}
+
+.skillCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+  background: rgba(255, 255, 255, 0.55);
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.skillCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px rgba(15, 23, 42, 0.12);
+}
+
+.skillTitle {
+  font-weight: 600;
+  font-size: 1.2rem;
+}
+
+.skillMeta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.statusBadge {
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-weight: 600;
+  background: rgba(0, 96, 199, 0.1);
+  color: #004085;
+}
+
+.statusBadgeCompleted {
+  background: rgba(40, 167, 69, 0.15);
+  color: #1d6630;
+}
+
+.statusBadgeLocked {
+  background: rgba(148, 163, 184, 0.2);
+  color: #334155;
+}
+
+.progressBar {
+  height: 0.45rem;
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.1);
+  overflow: hidden;
+}
+
+.progressValue {
+  height: 100%;
+  background: linear-gradient(135deg, #0060c7, #28a745);
+  transition: width 0.3s ease;
+}
+
+.skillDescription {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: rgba(15, 23, 42, 0.7);
+}
+
+.skillFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.6);
+}
+
+.callout {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.45);
+  border: 1px dashed rgba(15, 23, 42, 0.2);
+}
+
+.callout strong {
+  font-weight: 600;
+}
+
+html.dark .hero,
+html.dark .skillCard,
+html.dark .callout {
+  background: rgba(15, 23, 42, 0.4);
+  border-color: rgba(148, 163, 184, 0.2);
+  color: rgba(226, 232, 240, 0.9);
+}
+
+html.dark .heroDescription,
+html.dark .skillDescription,
+html.dark .skillMeta,
+html.dark .skillFooter {
+  color: rgba(226, 232, 240, 0.8);
+}
+
+html.dark .statusBadge {
+  background: rgba(162, 70, 248, 0.2);
+  color: #f8e8ff;
+}
+
+html.dark .statusBadgeCompleted {
+  background: rgba(40, 167, 69, 0.25);
+  color: #bef7d0;
+}
+
+html.dark .statusBadgeLocked {
+  background: rgba(100, 116, 139, 0.35);
+  color: #e2e8f0;
+}
+
+html.dark .progressBar {
+  background: rgba(148, 163, 184, 0.25);
+}

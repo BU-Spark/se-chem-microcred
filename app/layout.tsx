@@ -1,17 +1,11 @@
 import type { Metadata } from 'next';
-import { Outfit } from 'next/font/google';
 import './globals.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
-const outfit = Outfit({
-  subsets: ['latin'],
-  variable: '--font-outfit',
-});
-
 export const metadata: Metadata = {
-  title: 'Spark! Next.js Template',
-  description: 'Spark! Next.js Template',
-  keywords: ['Next.js', 'React', 'TypeScript', 'Template'],
+  title: 'ChemSkills Demo',
+  description: 'Student demo for micro-credential experience.',
+  keywords: ['Chemistry', 'Micro-credential', 'Student Experience'],
 };
 
 export default function RootLayout({
@@ -20,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${outfit.variable}`}>
+    <html lang="en">
       <body>
         <ErrorBoundary>
           <div className="main-content-container">{children}</div>
