@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(_request: NextRequest, { params }: { params: { skillId: string } }) {
-  const { skillId } = params;
+interface SkillProgressContext {
+  params: Promise<{ skillId: string }>;
+}
+
+export async function GET(_request: NextRequest, context: SkillProgressContext) {
+  const { skillId } = await context.params;
   return NextResponse.json({
     skillId,
     status: 'pending',

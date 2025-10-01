@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET(_request: NextRequest, { params }: { params: { skillId: string } }) {
-  const { skillId } = params;
+interface SkillRouteContext {
+  params: Promise<{ skillId: string }>;
+}
+
+export async function GET(_request: NextRequest, context: SkillRouteContext) {
+  const { skillId } = await context.params;
   return NextResponse.json({
     skillId,
     attempts: [],
@@ -9,8 +13,8 @@ export async function GET(_request: NextRequest, { params }: { params: { skillId
   });
 }
 
-export async function POST(request: NextRequest, { params }: { params: { skillId: string } }) {
-  const { skillId } = params;
+export async function POST(request: NextRequest, context: SkillRouteContext) {
+  const { skillId } = await context.params;
   const payload = await request.json().catch(() => ({}));
   return NextResponse.json(
     {
