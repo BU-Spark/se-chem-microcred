@@ -1,0 +1,16 @@
+<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sapphire-base" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#d1ebff" />
+      <stop offset="50%" stop-color="#56a4ff" />
+      <stop offset="100%" stop-color="#2b5fae" />
+    </linearGradient>
+  </defs>
+  <path d="M120 20 L210 110 L120 220 L30 110 Z" fill="url(#sapphire-base)" />
+  <path d="M120 40 L188 110 L120 200 L52 110 Z" stroke="#ffffff" stroke-width="2" opacity="0.4" />
+  <ellipse cx="92" cy="118" rx="18" ry="13" fill="#ffffff" />
+  <ellipse cx="148" cy="118" rx="18" ry="13" fill="#ffffff" />
+  <ellipse cx="92" cy="120" rx="8" ry="7" fill="#294f86" />
+  <ellipse cx="148" cy="120" rx="8" ry="7" fill="#294f86" />
+  <path d="M94 150 Q120 168 146 150" stroke="#294f86" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>

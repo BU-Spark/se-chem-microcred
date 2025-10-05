@@ -1,0 +1,27 @@
+<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="ruby-base" cx="50%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#ffd2d6" />
+      <stop offset="55%" stop-color="#e76574" />
+      <stop offset="100%" stop-color="#bf3048" />
+    </radialGradient>
+    <linearGradient id="ruby-shadow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f497a2" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="#7c1f2e" stop-opacity="0.4" />
+    </linearGradient>
+  </defs>
+  <path
+    d="M120 20 C160 60 200 110 200 150 C200 195 164 220 120 220 C76 220 40 195 40 150 C40 110 80 60 120 20Z"
+    fill="url(#ruby-base)"
+  />
+  <path
+    d="M120 28 C157 67 186 110 186 147 C186 182 155 206 120 206 C85 206 54 182 54 147 C54 112 83 68 120 28Z"
+    fill="url(#ruby-shadow)"
+    opacity="0.55"
+  />
+  <ellipse cx="90" cy="120" rx="16" ry="13" fill="#ffffff" />
+  <ellipse cx="150" cy="120" rx="16" ry="13" fill="#ffffff" />
+  <ellipse cx="94" cy="122" rx="7" ry="7" fill="#7b1d2f" />
+  <ellipse cx="154" cy="122" rx="7" ry="7" fill="#7b1d2f" />
+  <path d="M96 148 Q120 168 144 148" stroke="#7b1d2f" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>

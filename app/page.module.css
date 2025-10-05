@@ -8,6 +8,8 @@
 
 .sidebar {
   width: 240px;
+  flex: 0 0 240px;
+  min-width: 240px;
   background: #1f5fab;
   border-radius: 1.5rem;
   color: #f8fbff;
