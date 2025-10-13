@@ -36,7 +36,7 @@ async function clearExistingData() {
     prisma.courseContact.deleteMany(),
     prisma.enrollment.deleteMany(),
     prisma.lesson.deleteMany(),
-    prisma.student.deleteMany(),
+    prisma.user.deleteMany(),
     prisma.course.deleteMany(),
   ]);
 }
@@ -54,7 +54,7 @@ async function seedDemo() {
     },
   });
 
-  const student = await prisma.student.create({
+  const student = await prisma.user.create({
     data: {
       email: 'student@example.edu',
       name: 'Student Demo',

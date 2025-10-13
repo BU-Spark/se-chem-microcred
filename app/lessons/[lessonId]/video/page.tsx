@@ -4,7 +4,7 @@ import { useParams } from 'next/navigation';
 import { useAuth } from '../../../hooks/useAuth';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
-import { FALLBACK_LESSON } from '../page';
+import { FALLBACK_LESSON } from '../fallbackLesson';
 
 export default function LessonVideoRoute() {
   const params = useParams<{ lessonId: string }>();

@@ -36,6 +36,12 @@ const SECTION_CONFIG: SectionConfig[] = [
   },
 ];
 
+const BADGE_STATUS_LABEL: Record<BadgeRecord['status'], string> = {
+  COMPLETED: 'Completed',
+  READY_FOR_ASSESSMENT: 'Ready for assessment',
+  LEARNING: 'Still learning',
+};
+
 function initialsFromName(name?: string | null) {
   if (!name) {
     return 'ST';
@@ -78,16 +84,7 @@ function isBadgeInSection(badge: BadgeRecord | null, sectionStatus: BadgeStatus)
 }
 
 function formatBadgeStatus(status: BadgeRecord['status']) {
-  switch (status) {
-    case 'COMPLETED':
-      return 'Completed';
-    case 'READY_FOR_ASSESSMENT':
-      return 'Ready for assessment';
-    case 'LEARNING':
-      return 'Still learning';
-    default:
-      return status.replace(/_/g, ' ').toLowerCase();
-  }
+  return BADGE_STATUS_LABEL[status];
 }
 
 export default function BadgeWalletPage() {

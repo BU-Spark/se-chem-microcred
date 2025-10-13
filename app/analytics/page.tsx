@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
@@ -11,7 +11,7 @@ type ProgressItem = {
   id: string;
   value: string;
   label: string;
-  icon: JSX.Element;
+  icon: ReactNode;
   iconClassName: string;
 };
 

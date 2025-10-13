@@ -233,7 +233,7 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo' }: Lesson
         </div>
       </div>
     );
-  }, [modalType, currentCheckpoint, questions, selectedAnswers, handleAnswerSelect]);
+  }, [modalType, currentCheckpoint, selectedAnswers, handleAnswerSelect]);
 
   return (
     <div className={styles.page}>

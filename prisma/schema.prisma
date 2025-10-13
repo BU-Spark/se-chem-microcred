@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Student {
+model User {
   id                  String               @id @default(cuid())
   email               String               @unique
   name                String?
@@ -25,6 +25,8 @@ model Student {
   avatar              AvatarSetting?
   surveyResponses     SurveyResponse[]
   analytics           StudentAnalytics?
+
+  @@map("Student")
 }
 
 model AvatarSetting {
@@ -36,7 +38,7 @@ model AvatarSetting {
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
 
-  student Student @relation(fields: [studentId], references: [id])
+  student User @relation(fields: [studentId], references: [id])
 }
 
 enum AvatarBase {
@@ -100,7 +102,7 @@ model Enrollment {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  student Student @relation(fields: [studentId], references: [id])
+  student User @relation(fields: [studentId], references: [id])
   course  Course  @relation(fields: [courseId], references: [id])
 
   @@unique([studentId, courseId])
@@ -212,7 +214,7 @@ model LessonProgress {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  student   Student              @relation(fields: [studentId], references: [id])
+  student   User                 @relation(fields: [studentId], references: [id])
   lesson    Lesson               @relation(fields: [lessonId], references: [id])
   segments  SegmentProgress[]
   responses CheckpointResponse[]
@@ -260,7 +262,7 @@ model CheckpointResponse {
 
   checkpoint     LessonCheckpoint    @relation(fields: [checkpointId], references: [id])
   question       CheckpointQuestion? @relation(fields: [questionId], references: [id])
-  student        Student             @relation(fields: [studentId], references: [id])
+  student        User                @relation(fields: [studentId], references: [id])
   lessonProgress LessonProgress?     @relation(fields: [lessonProgressId], references: [id])
 }
 
@@ -306,7 +308,7 @@ model StudentBadge {
   updatedAt DateTime    @updatedAt
   score     Int?
 
-  student Student @relation(fields: [studentId], references: [id])
+  student User @relation(fields: [studentId], references: [id])
   badge   Badge   @relation(fields: [badgeId], references: [id])
 
   @@unique([studentId, badgeId])
@@ -325,7 +327,7 @@ model StudentAnalytics {
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
-  student Student @relation(fields: [studentId], references: [id])
+  student User @relation(fields: [studentId], references: [id])
 }
 
 enum BadgeStatus {
@@ -357,7 +359,7 @@ model SurveyResponse {
   submittedAt DateTime @default(now())
 
   prompt  SurveyPrompt @relation(fields: [promptId], references: [id])
-  student Student      @relation(fields: [studentId], references: [id])
+  student User         @relation(fields: [studentId], references: [id])
 }
 
 enum SurveyContext {

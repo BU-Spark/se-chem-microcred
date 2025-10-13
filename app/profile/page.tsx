@@ -101,8 +101,8 @@ export default function ProfilePage() {
   const displayName = studentData?.student.name || user?.name || `${lastName}, ${firstName}`;
   const greetingName = isFallback ? 'Student' : firstName;
   const fullPrimaryName = isFallback ? 'Last Name, First Name' : `${lastName}, ${firstName}`;
-  const studentEmail = studentData?.student.email || user?.emailAddresses?.[0]?.emailAddress || 'student@bu.edu';
-  const buid = studentData?.student.buid || (user?.id ? user.id.slice(0, 8).padEnd(8, 'X').toUpperCase() : 'UXXXXXXX');
+  const studentEmail = studentData?.student.email || user?.email || 'student@bu.edu';
+  const buid = studentData?.student.buid || 'UXXXXXXX';
   const createdAt = studentData?.student.createdAt
     ? new Date(studentData.student.createdAt).toLocaleDateString()
     : 'XX/XX/XXXX';

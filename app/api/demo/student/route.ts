@@ -154,7 +154,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing email query parameter.' }, { status: 400 });
   }
 
-  const student = await prisma.student.findUnique({
+  const student = await prisma.user.findUnique({
     where: { email },
     include: {
       avatar: true,
@@ -179,7 +179,7 @@ export async function GET(request: Request) {
     },
   });
 
-  const [lessonProgresses, lessons, studentBadges, surveyPrompts] = await Promise.all([
+  const [lessonProgresses, lessons, studentBadges] = await Promise.all([
     fetchLessonProgress(student.id),
     enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
     prisma.studentBadge.findMany({
@@ -198,19 +198,20 @@ export async function GET(request: Request) {
         },
       },
     }),
-    prisma.surveyPrompt.findMany({
-      where: {
-        OR: [
-          { lessonId: { in: lessons.map((lesson) => lesson.id) } },
-          { badgeId: { in: studentBadges.map((badge) => badge.badgeId) } },
-        ],
-      },
-      include: {
-        lesson: { select: { slug: true, title: true } },
-        badge: { select: { slug: true, name: true } },
-      },
-    }),
   ]);
+
+  const surveyPrompts = await prisma.surveyPrompt.findMany({
+    where: {
+      OR: [
+        { lessonId: { in: lessons.map((lesson) => lesson.id) } },
+        { badgeId: { in: studentBadges.map((badge) => badge.badgeId) } },
+      ],
+    },
+    include: {
+      lesson: { select: { slug: true, title: true } },
+      badge: { select: { slug: true, name: true } },
+    },
+  });
 
   const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
   const lessonCatalog = lessons.map((lesson) => formatLesson({ lesson, progress: progressByLessonId.get(lesson.id) }));
