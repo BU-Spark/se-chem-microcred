@@ -11,11 +11,14 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "prepare": "husky"
+    "prepare": "husky",
+    "db:seed": "prisma db seed"
   },
   "dependencies": {
+    "@prisma/client": "^6.17.0",
     "clsx": "^2.1.1",
     "next": "^15.3.2",
+    "prisma": "^6.17.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -52,5 +55,8 @@
       "eslint --fix",
       "prettier --write"
     ]
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }

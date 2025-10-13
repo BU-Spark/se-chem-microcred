@@ -1,0 +1,379 @@
+.page {
+  display: flex;
+  gap: 2rem;
+  min-height: calc(100vh - 80px);
+  padding: 2.5rem 1.5rem 3rem;
+  background: #e9eef6;
+}
+
+.sidebar {
+  width: 240px;
+  flex: 0 0 240px;
+  min-width: 240px;
+  background: #1f5fab;
+  border-radius: 1.5rem;
+  color: #f8fbff;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.profileSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  text-align: center;
+}
+
+.profileSummaryAvatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: grid;
+  place-items: center;
+  font-size: 1.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.profileSummaryName {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.navList {
+  display: grid;
+  gap: 0.8rem;
+  font-size: 0.95rem;
+}
+
+.navItem {
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.75rem;
+  transition: background-color 0.2s ease;
+}
+
+.navItemActive,
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sidebarFooter {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.signOffButton {
+  padding: 0.55rem 1.35rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease, background-color 0.2s ease;
+}
+
+.signOffButton:hover {
+  filter: brightness(1.05);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.signOffButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  filter: none;
+}
+
+.brandFooter {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.main {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 1.5rem;
+  padding: 2.75rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+  box-shadow: 0 25px 45px rgba(15, 23, 42, 0.12);
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.greeting {
+  font-size: 2rem;
+  font-weight: 600;
+  font-style: italic;
+  color: #111827;
+}
+
+.brandMark {
+  font-weight: 700;
+  font-size: 1.35rem;
+  color: #1f5fab;
+}
+
+.profileCard {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 1.5rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 24px 46px rgba(15, 23, 42, 0.08);
+  padding: 2.25rem;
+  display: grid;
+  grid-template-columns: 1.4fr auto 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.infoColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  color: #1f2937;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1f3698;
+}
+
+.nameBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.primaryName {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.roleLabel {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.metaLine {
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 1rem 2.5rem;
+  font-size: 0.95rem;
+}
+
+.detailLabel {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.detailValue {
+  margin-top: 0.3rem;
+  color: #4b5563;
+}
+
+.avatarColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatarFrame {
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 6px solid rgba(148, 163, 184, 0.35);
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 40%, #e4f1ff 0%, #f7fbff 60%, #ffffff 100%);
+}
+
+.avatarImage {
+  border-radius: 50%;
+  width: 180px;
+  height: 180px;
+  object-fit: cover;
+}
+
+.editAvatarLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.95rem;
+  color: #1f5fab;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.editAvatarLink:hover {
+  text-decoration: underline;
+}
+
+.editIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.courseColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.courseSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.courseMeta {
+  font-size: 0.95rem;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.contactList {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.contactItem {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.contactAvatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+}
+
+.contactInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.contactName {
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.contactEmail {
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.cardDivider {
+  width: 1px;
+  align-self: stretch;
+  background: linear-gradient(180deg, rgba(148, 163, 184, 0) 0%, rgba(148, 163, 184, 0.5) 50%, rgba(148, 163, 184, 0) 100%);
+}
+
+.editInfoRow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.editInfoButton {
+  padding: 0.75rem 2.4rem;
+  border-radius: 999px;
+  border: none;
+  background: #1f5fab;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  box-shadow: 0 18px 36px rgba(31, 95, 171, 0.24);
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.editInfoButton:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+.editInfoButton:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 1100px) {
+  .profileCard {
+    grid-template-columns: 1fr;
+    text-align: center;
+  }
+
+  .infoColumn {
+    order: 1;
+    align-items: center;
+  }
+
+  .cardDivider,
+  .courseColumn {
+    display: none;
+  }
+
+  .avatarColumn {
+    order: 0;
+  }
+}
+
+@media (max-width: 960px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .navList {
+    display: flex;
+    gap: 0.65rem;
+  }
+
+  .navItem {
+    padding: 0.45rem 0.7rem;
+  }
+
+  .main {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .headerRow {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .editInfoRow {
+    justify-content: center;
+  }
+}

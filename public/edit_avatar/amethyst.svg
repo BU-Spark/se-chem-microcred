@@ -1,0 +1,16 @@
+<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="amethyst-base" x1="40%" y1="0%" x2="60%" y2="100%">
+      <stop offset="0%" stop-color="#efe0ff" />
+      <stop offset="60%" stop-color="#9a7bff" />
+      <stop offset="100%" stop-color="#5b3abf" />
+    </linearGradient>
+  </defs>
+  <path d="M120 20 L170 210 L70 210 Z" fill="url(#amethyst-base)" />
+  <path d="M120 36 L160 198 L80 198 Z" stroke="#ffffff" stroke-width="2" opacity="0.35" />
+  <ellipse cx="102" cy="110" rx="16" ry="12" fill="#ffffff" />
+  <ellipse cx="138" cy="110" rx="16" ry="12" fill="#ffffff" />
+  <circle cx="104" cy="112" r="7" fill="#4d2a9c" />
+  <circle cx="140" cy="112" r="7" fill="#4d2a9c" />
+  <path d="M106 148 Q120 160 134 148" stroke="#4d2a9c" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>

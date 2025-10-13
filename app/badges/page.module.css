@@ -1,118 +1,443 @@
 .page {
   display: flex;
+  gap: 2rem;
+  min-height: calc(100vh - 80px);
+  padding: 2.5rem 1.5rem 3rem;
+  background: #e9eef6;
+}
+
+.sidebar {
+  width: 240px;
+  flex: 0 0 240px;
+  min-width: 240px;
+  background: #1f5fab;
+  border-radius: 1.5rem;
+  color: #f8fbff;
+  padding: 2rem 1.5rem;
+  display: flex;
   flex-direction: column;
   gap: 2rem;
-  padding: 1rem 0 3rem;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
-.header {
+.profileSummary {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  background: rgba(255, 255, 255, 0.45);
-  border-radius: 1rem;
-  padding: 1.5rem;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  align-items: center;
+  text-align: center;
 }
 
-.title {
-  font-size: 1.8rem;
-  font-weight: 600;
-}
-
-.description {
-  color: rgba(15, 23, 42, 0.7);
-  line-height: 1.6;
-}
-
-.badgeGrid {
+.profileSummaryAvatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-  gap: 1.25rem;
+  place-items: center;
+  font-size: 1.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
 }
 
-.badgeCard {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 1rem;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  padding: 1.5rem;
-  position: relative;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
-}
-
-.badgeIcon {
-  font-size: 2.5rem;
-}
-
-.badgeName {
+.profileSummaryName {
   font-weight: 600;
   font-size: 1.1rem;
 }
 
-.badgeMeta {
-  font-size: 0.85rem;
-  color: rgba(15, 23, 42, 0.6);
+.navList {
+  display: grid;
+  gap: 0.8rem;
+  font-size: 0.95rem;
 }
 
-.badgeActions {
+.navItem {
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.75rem;
+  transition: background-color 0.2s ease;
+}
+
+.navItemActive,
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sidebarFooter {
+  margin-top: auto;
   display: flex;
-  gap: 0.5rem;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-.button {
-  padding: 0.4rem 0.75rem;
+.signOffButton {
+  padding: 0.55rem 1.35rem;
   border-radius: 999px;
   border: none;
-  background: linear-gradient(135deg, #0060c7, #28a745);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease, background-color 0.2s ease;
+}
+
+.signOffButton:hover {
+  filter: brightness(1.05);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.signOffButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  filter: none;
+}
+
+.brandFooter {
   font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.main {
+  flex: 1;
+  background: #ffffff;
+  border-radius: 1.5rem;
+  padding: 2.75rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  box-shadow: 0 25px 45px rgba(15, 23, 42, 0.12);
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.pageTitle {
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.brandMark {
+  font-weight: 700;
+  font-size: 1.35rem;
+  color: #1f5fab;
+}
+
+.walletSections {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 1.5rem 1rem 5rem;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.walletSection {
+  position: relative;
+  border-radius: 2.75rem;
+  padding: 2.5rem 2.75rem 3.25rem;
+  background: linear-gradient(180deg, #1560aa 0%, #1a4f89 100%);
+  color: #f8fbff;
+  box-shadow: 0 30px 50px rgba(15, 23, 42, 0.35);
+  overflow: hidden;
+  transform-origin: center;
+  transition: transform 0.4s cubic-bezier(0.23, 1, 0.32, 1), box-shadow 0.4s ease;
+  pointer-events: none;
+  width: 100%;
+}
+
+.walletSection:not(:first-child) {
+  margin-top: -3.75rem;
+}
+
+.walletSection > * {
+  pointer-events: auto;
+}
+
+.walletSection::before {
+  content: '';
+  position: absolute;
+  inset: 1.65rem 2.4rem 2.4rem;
+  border-radius: 2.2rem;
+  background: linear-gradient(180deg, rgba(32, 112, 198, 0.55) 0%, rgba(15, 61, 117, 0.35) 100%);
+  opacity: 0.85;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.walletSection::after {
+  content: '';
+  position: absolute;
+  inset: 2.2rem 2.15rem 3.25rem;
+  border-radius: 2.1rem;
+  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.25), transparent 50%),
+    radial-gradient(circle at 70% 45%, rgba(83, 150, 232, 0.22), transparent 60%),
+    radial-gradient(circle at 50% 90%, rgba(10, 35, 75, 0.65), transparent 80%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.walletSectionElevated {
+  transform: translateY(-12px) scale(1.02);
+  box-shadow: 0 42px 70px rgba(15, 23, 42, 0.46);
+}
+
+.walletSectionCollapsed {
+  padding-top: 2.3rem;
+  padding-bottom: 2.55rem;
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.26);
+}
+
+.walletSectionCollapsed:not(:first-child) {
+  margin-top: -1.35rem;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+  z-index: 1;
+}
+
+.sectionTitle {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.sectionTitle h2 {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #d3f064;
+}
+
+.sectionTitle p {
+  font-size: 0.95rem;
+  color: rgba(248, 251, 255, 0.85);
+}
+
+.toggleButton {
+  background: rgba(12, 32, 68, 0.24);
+  border: 2px solid rgba(211, 240, 100, 0.75);
+  border-radius: 50%;
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  min-height: 46px;
+  aspect-ratio: 1 / 1;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #d3f064;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.toggleButtonOpen {
+  transform: rotate(180deg);
+  background: rgba(12, 32, 68, 0.38);
+}
+
+.badgeGrid {
+  position: relative;
+  margin-top: 2rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.75rem 1.5rem;
+  justify-items: center;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  z-index: 1;
+}
+
+.badgeToken {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 65%),
+    linear-gradient(135deg, rgba(10, 35, 75, 0.35), rgba(10, 35, 75, 0.65));
+  display: grid;
+  place-items: center;
+  color: #f8fbff;
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: center;
+  padding: 0.5rem;
+  line-height: 1.15;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.3),
+    0 10px 24px rgba(12, 32, 68, 0.45);
+  z-index: 1;
+}
+
+.badgeToken:hover {
+  transform: translateY(-6px) scale(1.02);
+  box-shadow: 0 18px 30px rgba(12, 32, 68, 0.45);
+}
+
+.badgeTokenActive {
+  transform: translateY(-12px) scale(1.1);
+  box-shadow:
+    inset 0 0 0 2px rgba(255, 255, 255, 0.3),
+    0 36px 56px rgba(12, 32, 68, 0.55);
+}
+
+.badgeToken::after {
+  content: '';
+  position: absolute;
+  inset: 14% 12%;
+  border-radius: 50%;
+  border: 2px dashed rgba(255, 255, 255, 0.35);
+}
+
+.badgeName {
+  position: relative;
+  z-index: 1;
+}
+
+.badgeModal {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.9);
+  background: #ffffff;
+  color: #1f2937;
+  padding: 1.75rem 2rem;
+  border-radius: 1.75rem;
+  box-shadow: 0 30px 50px rgba(15, 23, 42, 0.4);
+  width: min(320px, 90%);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+  z-index: 15;
+}
+
+.badgeModalVisible {
+  opacity: 1;
+  transform: translate(-50%, -58%) scale(1);
+  pointer-events: auto;
+}
+
+.badgeModal h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.badgeModal p {
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+.badgeStatus {
+  font-weight: 600;
+  color: #1560aa;
+}
+
+.modalActions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.modalActionPrimary {
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: none;
+  background: #1f5fab;
+  color: #ffffff;
+  font-weight: 600;
   cursor: pointer;
 }
 
-.buttonSecondary {
-  background: rgba(15, 23, 42, 0.08);
-  color: rgba(15, 23, 42, 0.75);
+.modalActionSecondary {
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  border: 2px solid #1f5fab;
+  background: transparent;
+  color: #1f5fab;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.45);
-  border-radius: 1rem;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  padding: 1.5rem;
+@media (max-width: 960px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+  }
+
+  .navList {
+    display: flex;
+    gap: 0.65rem;
+  }
+
+  .navItem {
+    padding: 0.45rem 0.7rem;
+  }
+
+  .main {
+    padding: 2rem;
+  }
+
+  .badgeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .badgeToken {
+    width: 100px;
+    height: 100px;
+  }
 }
 
-.timelineItem {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
+@media (max-width: 640px) {
+  .headerRow {
+    flex-direction: column;
+    gap: 1rem;
+  }
 
-.timelineDate {
-  font-size: 0.8rem;
-  color: rgba(15, 23, 42, 0.5);
-}
+  .walletSections {
+    padding-bottom: 3rem;
+  }
 
-html.dark .header,
-html.dark .badgeCard,
-html.dark .timeline {
-  background: rgba(15, 23, 42, 0.45);
-  border-color: rgba(148, 163, 184, 0.25);
-  color: rgba(226, 232, 240, 0.9);
-}
+  .walletSection:not(:first-child) {
+    margin-top: 2rem;
+  }
 
-html.dark .description,
-html.dark .badgeMeta,
-html.dark .timelineDate {
-  color: rgba(226, 232, 240, 0.7);
-}
+  .walletSectionCollapsed:not(:first-child) {
+    margin-top: 1.75rem;
+  }
 
-html.dark .buttonSecondary {
-  background: rgba(148, 163, 184, 0.2);
-  color: #e2e8f0;
+  .badgeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.35rem;
+  }
+
+  .badgeToken {
+    width: 96px;
+    height: 96px;
+  }
+
+  .modalActions {
+    justify-content: center;
+  }
 }

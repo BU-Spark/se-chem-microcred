@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from './hooks/useAuth';
+import { useStudentData, type LessonRecord } from './hooks/useStudentData';
 import styles from './page.module.css';
 
 interface LessonCard {
@@ -18,7 +19,7 @@ interface LessonCard {
   href?: string;
 }
 
-const upNextLessons: LessonCard[] = [
+const fallbackUpNext: LessonCard[] = [
   {
     id: 'bunsen-burners-1',
     title: 'Bunsen Burners',
@@ -50,7 +51,7 @@ const upNextLessons: LessonCard[] = [
   },
 ];
 
-const continueLessons: LessonCard[] = [
+const fallbackContinue: LessonCard[] = [
   {
     id: 'bunsen-burners-progress',
     title: 'Bunsen Burners',
@@ -89,11 +90,66 @@ function initialsFromName(name?: string | null) {
   return initials.join('') || 'ST';
 }
 
+function formatDueDate(dueDate: string | null) {
+  if (!dueDate) {
+    return null;
+  }
+  const date = new Date(dueDate);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
+function lessonRecordToCard(record: LessonRecord): LessonCard {
+  const due = formatDueDate(record.dueDate);
+  const metaParts: string[] = [];
+  if (due) {
+    metaParts.push(`Due: ${due}`);
+  }
+  if (record.estimatedMinutes) {
+    metaParts.push(`${record.estimatedMinutes} min`);
+  }
+
+  return {
+    id: record.id,
+    title: record.title,
+    status: record.status === 'IN_PROGRESS' ? `${Math.max(record.percentComplete, 1)}% complete` : 'Not started',
+    meta: metaParts.join(' • ') || 'No due date',
+    actionLabel: record.status === 'IN_PROGRESS' ? 'Continue' : 'Start',
+    variant: record.status === 'IN_PROGRESS' ? 'continue' : 'start',
+    image: record.thumbnailUrl ?? undefined,
+    href: `/lessons/${record.slug}`,
+  };
+}
+
 export default function HomePage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user, signOut } = useAuth();
+  const { data: studentData } = useStudentData(user?.email);
   const pathname = usePathname();
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const displayName = studentData?.student.name || user?.name || 'Lastname, Student';
+
+  const upNextLessons = useMemo(() => {
+    if (!studentData) {
+      return fallbackUpNext;
+    }
+    return studentData.lessons.upNext.map(lessonRecordToCard);
+  }, [studentData]);
+
+  const continueLessons = useMemo(() => {
+    if (!studentData) {
+      return fallbackContinue;
+    }
+    return studentData.lessons.inProgress.map(lessonRecordToCard);
+  }, [studentData]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -119,8 +175,6 @@ export default function HomePage() {
   if (!isLoaded || !isSignedIn) {
     return null;
   }
-
-  const displayName = user?.name || 'Lastname, Student';
 
   const renderCard = (lesson: LessonCard) => {
     const buttonClass =

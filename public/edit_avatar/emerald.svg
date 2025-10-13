@@ -1,0 +1,16 @@
+<svg width="240" height="240" viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="emerald-base" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#c7f5c1" />
+      <stop offset="60%" stop-color="#48b678" />
+      <stop offset="100%" stop-color="#26704c" />
+    </linearGradient>
+  </defs>
+  <path d="M120 25 L185 60 L185 150 L120 215 L55 150 L55 60 Z" fill="url(#emerald-base)" />
+  <path d="M120 32 L177 64 L177 146 L120 207 L63 146 L63 64 Z" fill="#ffffff" opacity="0.25" />
+  <rect x="72" y="96" width="32" height="22" rx="10" fill="#ffffff" />
+  <rect x="136" y="96" width="32" height="22" rx="10" fill="#ffffff" />
+  <circle cx="92" cy="107" r="8" fill="#23573b" />
+  <circle cx="156" cy="107" r="8" fill="#23573b" />
+  <path d="M100 148 Q120 164 140 148" stroke="#23573b" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>

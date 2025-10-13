@@ -1,0 +1,368 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  name                String?
+  buid                String?              @unique
+  gender              String?
+  raceEthnicity       String?
+  parentalEducation   String?
+  pellGrantQualified  Boolean?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  enrollments         Enrollment[]
+  badgeProgress       StudentBadge[]
+  lessonProgress      LessonProgress[]
+  checkpointResponses CheckpointResponse[]
+  avatar              AvatarSetting?
+  surveyResponses     SurveyResponse[]
+  analytics           StudentAnalytics?
+
+  @@map("Student")
+}
+
+model AvatarSetting {
+  id        String           @id @default(cuid())
+  studentId String           @unique
+  base      AvatarBase
+  face      AvatarFace
+  accessory AvatarAccessory?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  student User @relation(fields: [studentId], references: [id])
+}
+
+enum AvatarBase {
+  RUBY
+  EMERALD
+  SAPPHIRE
+  AMETHYST
+}
+
+enum AvatarFace {
+  SMILE
+  SURPRISED
+  MISCHIEF
+}
+
+enum AvatarAccessory {
+  LEAF
+  FEDORA
+  PROPELLER
+  NONE
+}
+
+model Course {
+  id          String          @id @default(cuid())
+  code        String
+  section     String?
+  title       String
+  description String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  enrollments Enrollment[]
+  lessons     Lesson[]
+  contacts    CourseContact[]
+
+  @@unique([code, section])
+}
+
+model CourseContact {
+  id        String            @id @default(cuid())
+  courseId  String
+  type      CourseContactType
+  name      String
+  email     String
+  avatarUrl String?
+  createdAt DateTime          @default(now())
+  updatedAt DateTime          @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id])
+}
+
+enum CourseContactType {
+  INSTRUCTOR
+  CHECKER
+}
+
+model Enrollment {
+  id        String     @id @default(cuid())
+  studentId String
+  courseId  String
+  role      CourseRole @default(STUDENT)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  student User @relation(fields: [studentId], references: [id])
+  course  Course  @relation(fields: [courseId], references: [id])
+
+  @@unique([studentId, courseId])
+}
+
+enum CourseRole {
+  STUDENT
+  INSTRUCTOR
+  CHECKER
+}
+
+model Lesson {
+  id                String             @id @default(cuid())
+  courseId          String
+  slug              String             @unique
+  title             String
+  summary           String
+  description       String?
+  thumbnailUrl      String?
+  estimatedMinutes  Int?
+  dueDate           DateTime?
+  sortOrder         Int                @default(0)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  course            Course             @relation(fields: [courseId], references: [id])
+  segments          LessonSegment[]
+  checkpoints       LessonCheckpoint[]
+  skills            LessonSkill[]
+  badgeRequirements BadgeRequirement[] @relation("BadgeLessonRequirement")
+  progress          LessonProgress[]
+  surveys           SurveyPrompt[]
+}
+
+model LessonSkill {
+  id        String @id @default(cuid())
+  lessonId  String
+  sortOrder Int
+  text      String
+
+  lesson Lesson @relation(fields: [lessonId], references: [id])
+
+  @@unique([lessonId, sortOrder])
+}
+
+model LessonSegment {
+  id           String   @id @default(cuid())
+  lessonId     String
+  sortOrder    Int
+  title        String
+  summary      String?
+  duration     Int?
+  videoUrl     String?
+  thumbnailUrl String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  lesson          Lesson             @relation(fields: [lessonId], references: [id])
+  checkpoints     LessonCheckpoint[]
+  segmentProgress SegmentProgress[]
+
+  @@unique([lessonId, sortOrder])
+}
+
+model LessonCheckpoint {
+  id            String   @id @default(cuid())
+  lessonId      String
+  segmentId     String?
+  sortOrder     Int
+  title         String
+  description   String?
+  label         String?
+  meta          String?
+  questionCount Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lesson    Lesson               @relation(fields: [lessonId], references: [id])
+  segment   LessonSegment?       @relation(fields: [segmentId], references: [id])
+  questions CheckpointQuestion[]
+  responses CheckpointResponse[]
+
+  @@unique([lessonId, sortOrder])
+}
+
+model CheckpointQuestion {
+  id           String   @id @default(cuid())
+  checkpointId String
+  sortOrder    Int
+  prompt       String
+  options      Json
+  correctIndex Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  checkpoint LessonCheckpoint     @relation(fields: [checkpointId], references: [id])
+  responses  CheckpointResponse[]
+
+  @@unique([checkpointId, sortOrder])
+}
+
+model LessonProgress {
+  id              String       @id @default(cuid())
+  studentId       String
+  lessonId        String
+  status          LessonStatus @default(NOT_STARTED)
+  startedAt       DateTime?
+  completedAt     DateTime?
+  percentComplete Int          @default(0)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  student   User                 @relation(fields: [studentId], references: [id])
+  lesson    Lesson               @relation(fields: [lessonId], references: [id])
+  segments  SegmentProgress[]
+  responses CheckpointResponse[]
+
+  @@unique([studentId, lessonId])
+}
+
+enum LessonStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model SegmentProgress {
+  id               String        @id @default(cuid())
+  lessonProgressId String
+  segmentId        String
+  status           SegmentStatus @default(NOT_STARTED)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  lessonProgress LessonProgress @relation(fields: [lessonProgressId], references: [id])
+  segment        LessonSegment  @relation(fields: [segmentId], references: [id])
+
+  @@unique([lessonProgressId, segmentId])
+}
+
+enum SegmentStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+}
+
+model CheckpointResponse {
+  id               String   @id @default(cuid())
+  checkpointId     String
+  questionId       String?
+  studentId        String
+  lessonProgressId String?
+  selectedIndex    Int?
+  isCorrect        Boolean?
+  createdAt        DateTime @default(now())
+
+  checkpoint     LessonCheckpoint    @relation(fields: [checkpointId], references: [id])
+  question       CheckpointQuestion? @relation(fields: [questionId], references: [id])
+  student        User                @relation(fields: [studentId], references: [id])
+  lessonProgress LessonProgress?     @relation(fields: [lessonProgressId], references: [id])
+}
+
+model Badge {
+  id              String             @id @default(cuid())
+  slug            String             @unique
+  name            String
+  description     String?
+  category        BadgeCategory?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  requirements    BadgeRequirement[]
+  studentProgress StudentBadge[]
+  surveys         SurveyPrompt[]
+}
+
+enum BadgeCategory {
+  SAFETY
+  EQUIPMENT
+  WASTE
+  OTHER
+}
+
+model BadgeRequirement {
+  id        String   @id @default(cuid())
+  badgeId   String
+  lessonId  String?
+  summary   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  badge  Badge   @relation(fields: [badgeId], references: [id])
+  lesson Lesson? @relation("BadgeLessonRequirement", fields: [lessonId], references: [id])
+}
+
+model StudentBadge {
+  id        String      @id @default(cuid())
+  studentId String
+  badgeId   String
+  status    BadgeStatus @default(LEARNING)
+  awardedAt DateTime?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  score     Int?
+
+  student User @relation(fields: [studentId], references: [id])
+  badge   Badge   @relation(fields: [badgeId], references: [id])
+
+  @@unique([studentId, badgeId])
+}
+
+model StudentAnalytics {
+  id                       String   @id @default(cuid())
+  studentId                String   @unique
+  hoursLearning            Int      @default(0)
+  badgesCompleted          Int      @default(0)
+  badgesReadyForAssessment Int      @default(0)
+  badgesNotAttempted       Int      @default(0)
+  questionsAnswered        Int      @default(0)
+  averageAssessmentScore   Int      @default(0)
+  highestAssessmentScore   Int      @default(0)
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  student User @relation(fields: [studentId], references: [id])
+}
+
+enum BadgeStatus {
+  LEARNING
+  READY_FOR_ASSESSMENT
+  COMPLETED
+}
+
+model SurveyPrompt {
+  id        String        @id @default(cuid())
+  context   SurveyContext
+  lessonId  String?
+  badgeId   String?
+  question  String
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  lesson    Lesson?          @relation(fields: [lessonId], references: [id])
+  badge     Badge?           @relation(fields: [badgeId], references: [id])
+  responses SurveyResponse[]
+}
+
+model SurveyResponse {
+  id          String   @id @default(cuid())
+  promptId    String
+  studentId   String
+  rating      Int
+  comment     String?
+  submittedAt DateTime @default(now())
+
+  prompt  SurveyPrompt @relation(fields: [promptId], references: [id])
+  student User         @relation(fields: [studentId], references: [id])
+}
+
+enum SurveyContext {
+  LESSON
+  BADGE
+}
