@@ -4,16 +4,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
+import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
 type BadgeStatus = 'completed' | 'assessment' | 'learning';
-
-type Badge = {
-  id: string;
-  name: string;
-  status: BadgeStatus;
-  description: string;
-};
 
 type SectionConfig = {
   status: BadgeStatus;
@@ -42,40 +36,6 @@ const SECTION_CONFIG: SectionConfig[] = [
   },
 ];
 
-const MOCK_BADGES: Badge[] = [
-  {
-    id: 'waste-handling',
-    name: 'Waste Handling Badge',
-    status: 'learning',
-    description:
-      'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.',
-  },
-  {
-    id: 'bunsen-burner',
-    name: 'Bunsen Burner Badge',
-    status: 'completed',
-    description: 'Complete the Bunsen burner assessment to prove safe usage and understanding of flame control.',
-  },
-  {
-    id: 'vent-hood',
-    name: 'Vent Hood Badge',
-    status: 'completed',
-    description: 'Maintain safe ventilation practices and demonstrate proper hood operation.',
-  },
-  {
-    id: 'waste-sorting',
-    name: 'Waste Sorting Badge',
-    status: 'assessment',
-    description: 'Get ready to show how to sort and label laboratory waste streams effectively.',
-  },
-  {
-    id: 'chemical-storage',
-    name: 'Chemical Storage Badge',
-    status: 'learning',
-    description: 'Organize, store, and monitor chemical inventory to maintain compliance with safety protocols.',
-  },
-];
-
 function initialsFromName(name?: string | null) {
   if (!name) {
     return 'ST';
@@ -101,15 +61,40 @@ function ChevronIcon({ direction = 'down' }: { direction?: 'down' | 'up' }) {
   );
 }
 
-function formatStatusTitle(title: string) {
-  const withoutBadges = title.replace(/\bBadges\b/i, '').trim();
-  return withoutBadges.length ? withoutBadges : title;
+function isBadgeInSection(badge: BadgeRecord | null, sectionStatus: BadgeStatus) {
+  if (!badge) {
+    return false;
+  }
+  switch (sectionStatus) {
+    case 'completed':
+      return badge.status === 'COMPLETED';
+    case 'assessment':
+      return badge.status === 'READY_FOR_ASSESSMENT';
+    case 'learning':
+      return badge.status === 'LEARNING';
+    default:
+      return false;
+  }
+}
+
+function formatBadgeStatus(status: BadgeRecord['status']) {
+  switch (status) {
+    case 'COMPLETED':
+      return 'Completed';
+    case 'READY_FOR_ASSESSMENT':
+      return 'Ready for assessment';
+    case 'LEARNING':
+      return 'Still learning';
+    default:
+      return status.replace(/_/g, ' ').toLowerCase();
+  }
 }
 
 export default function BadgeWalletPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { isLoaded, isSignedIn, user, signOut } = useAuth();
+  const { data: studentData } = useStudentData(user?.email);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
   const initialOpenSection = useMemo(() => {
@@ -156,19 +141,24 @@ export default function BadgeWalletPage() {
     { label: 'Settings', href: '/settings' },
   ];
 
-  const displayName = user?.name || 'Lastname, Student';
+  const displayName = studentData?.student.name || user?.name || 'Lastname, Student';
 
-  const badgesByStatus = useMemo(() => {
-    return SECTION_CONFIG.reduce(
-      (acc, section) => {
-        acc[section.status] = MOCK_BADGES.filter((badge) => badge.status === section.status);
-        return acc;
-      },
-      {} as Record<BadgeStatus, Badge[]>
-    );
-  }, []);
+  const badgesByStatus = useMemo(
+    () =>
+      ({
+        completed: studentData?.badges.completed ?? [],
+        assessment: studentData?.badges.readyForAssessment ?? [],
+        learning: studentData?.badges.learning ?? [],
+      }) satisfies Record<BadgeStatus, BadgeRecord[]>,
+    [studentData]
+  );
 
-  const activeBadge = MOCK_BADGES.find((badge) => badge.id === activeBadgeId) ?? null;
+  const allBadges: BadgeRecord[] = useMemo(
+    () => [...badgesByStatus.completed, ...badgesByStatus.assessment, ...badgesByStatus.learning],
+    [badgesByStatus]
+  );
+
+  const activeBadge = allBadges.find((badge) => badge.id === activeBadgeId) ?? null;
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -199,7 +189,7 @@ export default function BadgeWalletPage() {
     setActiveBadgeId(null);
   };
 
-  const renderBadgeTokens = (badges: Badge[]) => {
+  const renderBadgeTokens = (badges: BadgeRecord[]) => {
     if (!badges.length) {
       return (
         <div style={{ color: 'rgba(248, 251, 255, 0.75)', fontSize: '0.95rem' }}>No badges in this section yet.</div>
@@ -263,12 +253,12 @@ export default function BadgeWalletPage() {
             const sectionClassName = [
               styles.walletSection,
               !isExpanded ? styles.walletSectionCollapsed : '',
-              isExpanded && activeBadge?.status === section.status ? styles.walletSectionElevated : '',
+              isExpanded && isBadgeInSection(activeBadge, section.status) ? styles.walletSectionElevated : '',
             ]
               .filter(Boolean)
               .join(' ');
             const baseZ = index + 1;
-            const elevatedBoost = isExpanded && activeBadge?.status === section.status ? 6 : 0;
+            const elevatedBoost = isExpanded && isBadgeInSection(activeBadge, section.status) ? 6 : 0;
 
             return (
               <section key={section.status} className={sectionClassName} style={{ zIndex: baseZ + elevatedBoost }}>
@@ -296,12 +286,12 @@ export default function BadgeWalletPage() {
                   </div>
                 )}
 
-                {isExpanded && activeBadge && activeBadge.status === section.status && (
+                {isExpanded && activeBadge && isBadgeInSection(activeBadge, section.status) && (
                   <article ref={modalRef} className={[styles.badgeModal, styles.badgeModalVisible].join(' ')}>
                     <h3>{activeBadge.name}</h3>
                     <div>
                       <span className={styles.badgeStatus}>Status: </span>
-                      <span>{formatStatusTitle(section.title)}</span>
+                      <span>{formatBadgeStatus(activeBadge.status)}</span>
                     </div>
                     <p>{activeBadge.description}</p>
                     <div className={styles.modalActions}>

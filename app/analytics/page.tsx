@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
+import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
 type ProgressItem = {
@@ -133,6 +134,7 @@ export default function AnalyticsPage() {
   const router = useRouter();
   const pathname = usePathname();
   const { isLoaded, isSignedIn, user, signOut } = useAuth();
+  const { data: studentData } = useStudentData(user?.email);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
@@ -145,9 +147,15 @@ export default function AnalyticsPage() {
     return null;
   }
 
-  const displayName = user?.name || 'Lastname, Student';
-  const completedPercent = 70;
-  const availablePercent = 30;
+  const displayName = studentData?.student.name || user?.name || 'Lastname, Student';
+  const totalBadges =
+    (studentData?.badges.completed.length ?? 0) +
+    (studentData?.badges.readyForAssessment.length ?? 0) +
+    (studentData?.badges.learning.length ?? 0);
+  const completedPercent =
+    totalBadges > 0 ? Math.round(((studentData?.badges.completed.length ?? 0) / totalBadges) * 100) : 0;
+  const availablePercent = Math.max(0, 100 - completedPercent);
+  const analytics = studentData?.analytics;
 
   const navItems = [
     { label: 'Home', href: '/' },
@@ -161,35 +169,35 @@ export default function AnalyticsPage() {
   const progressItems: ProgressItem[] = [
     {
       id: 'hours-learning',
-      value: '10',
+      value: analytics ? String(analytics.hoursLearning) : '0',
       label: 'hours spent learning',
       icon: <ClockIcon />,
       iconClassName: `${styles.progressIcon} ${styles.iconPrimary}`,
     },
     {
       id: 'badges-completed',
-      value: '4',
+      value: String(studentData?.badges.completed.length ?? 0),
       label: 'badges completed',
       icon: <BadgeCheckIcon />,
       iconClassName: `${styles.progressIcon} ${styles.iconSuccess}`,
     },
     {
       id: 'badges-reassess',
-      value: '2',
+      value: String(studentData?.badges.readyForAssessment.length ?? analytics?.badgesReadyForAssessment ?? 0),
       label: 'badges ready to be reassessed',
       icon: <ClipboardIcon />,
       iconClassName: `${styles.progressIcon} ${styles.iconAccent}`,
     },
     {
       id: 'badges-not-attempted',
-      value: '2',
+      value: String(analytics?.badgesNotAttempted ?? 0),
       label: 'badges not yet attempted',
       icon: <CrossBadgeIcon />,
       iconClassName: `${styles.progressIcon} ${styles.iconMuted}`,
     },
     {
       id: 'questions-answered',
-      value: '30',
+      value: String(analytics?.questionsAnswered ?? 0),
       label: 'questions answered',
       icon: <NotebookIcon />,
       iconClassName: `${styles.progressIcon} ${styles.iconWarning}`,
@@ -197,9 +205,21 @@ export default function AnalyticsPage() {
   ];
 
   const scoreItems: ScoreItem[] = [
-    { id: 'avg-score', value: 70, label: 'Average assessment score' },
-    { id: 'highest-badge', value: 70, label: 'Highest scoring badge' },
-    { id: 'lowest-badge', value: 70, label: 'Lowest scoring badge' },
+    {
+      id: 'avg-score',
+      value: analytics?.averageAssessmentScore ?? 0,
+      label: 'Average assessment score',
+    },
+    {
+      id: 'highest-badge',
+      value: analytics?.highestAssessmentScore ?? 0,
+      label: 'Highest scoring badge',
+    },
+    {
+      id: 'badges-completed-percent',
+      value: completedPercent,
+      label: 'Badge completion rate',
+    },
   ];
 
   const handleSignOut = async () => {

@@ -5,15 +5,27 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
+import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
+const FALLBACK_INSTRUCTORS = [
+  {
+    id: 'instructor',
+    name: 'Last Name, First Name',
+    email: 'prof@bu.edu',
+    type: 'INSTRUCTOR',
+    avatarUrl: '/edit_avatar/emerald.svg',
+  },
+];
 
-type Contact = {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-  avatar: string;
-};
+const FALLBACK_CHECKERS = [
+  {
+    id: 'checker',
+    name: 'Last Name, First Name',
+    email: 'ta@bu.edu',
+    type: 'CHECKER',
+    avatarUrl: '/edit_avatar/amethyst.svg',
+  },
+];
 
 function initialsFromName(name?: string | null) {
   if (!name) {
@@ -45,10 +57,25 @@ function parseName(fullName?: string | null) {
   return { first, last, isFallback: false };
 }
 
+function avatarAssetForBase(base?: string | null) {
+  switch (base) {
+    case 'RUBY':
+      return '/edit_avatar/ruby.svg';
+    case 'EMERALD':
+      return '/edit_avatar/emerald.svg';
+    case 'AMETHYST':
+      return '/edit_avatar/amethyst.svg';
+    case 'SAPPHIRE':
+    default:
+      return '/edit_avatar/sapphire.svg';
+  }
+}
+
 export default function ProfilePage() {
   const router = useRouter();
   const pathname = usePathname();
   const { isLoaded, isSignedIn, user, signOut } = useAuth();
+  const { data: studentData } = useStudentData(user?.email);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
@@ -70,29 +97,28 @@ export default function ProfilePage() {
     { label: 'Settings', href: '/settings' },
   ];
 
-  const { first: firstName, last: lastName, isFallback } = parseName(user?.name);
-  const displayName = user?.name || `${lastName}, ${firstName}`;
+  const { first: firstName, last: lastName, isFallback } = parseName(studentData?.student.name || user?.name);
+  const displayName = studentData?.student.name || user?.name || `${lastName}, ${firstName}`;
   const greetingName = isFallback ? 'Student' : firstName;
   const fullPrimaryName = isFallback ? 'Last Name, First Name' : `${lastName}, ${firstName}`;
-  const studentEmail = user?.emailAddresses?.[0]?.emailAddress || 'student@bu.edu';
-  const buid = user?.id ? user.id.slice(0, 8).padEnd(8, 'X').toUpperCase() : 'UXXXXXXX';
+  const studentEmail = studentData?.student.email || user?.emailAddresses?.[0]?.emailAddress || 'student@bu.edu';
+  const buid = studentData?.student.buid || (user?.id ? user.id.slice(0, 8).padEnd(8, 'X').toUpperCase() : 'UXXXXXXX');
+  const createdAt = studentData?.student.createdAt
+    ? new Date(studentData.student.createdAt).toLocaleDateString()
+    : 'XX/XX/XXXX';
+  const gender = studentData?.student.gender || 'Female';
+  const raceEthnicity = studentData?.student.raceEthnicity || 'Asian';
+  const parentalEducation = studentData?.student.parentalEducation || 'Masters degree';
+  const pellGrantQualified =
+    studentData?.student.pellGrantQualified == null ? 'Yes' : studentData.student.pellGrantQualified ? 'Yes' : 'No';
 
-  const contacts: Contact[] = [
-    {
-      id: 'instructor',
-      name: 'Last Name, First Name',
-      email: 'prof@bu.edu',
-      role: 'Instructor',
-      avatar: '/edit_avatar/emerald.svg',
-    },
-    {
-      id: 'checker',
-      name: 'Last Name, First Name',
-      email: 'ta@bu.edu',
-      role: 'Checker',
-      avatar: '/edit_avatar/amethyst.svg',
-    },
-  ];
+  const instructorContacts =
+    studentData?.course?.contacts.filter((contact) => contact.type === 'INSTRUCTOR') ?? FALLBACK_INSTRUCTORS;
+  const checkerContacts =
+    studentData?.course?.contacts.filter((contact) => contact.type === 'CHECKER') ?? FALLBACK_CHECKERS;
+  const courseTitle = studentData?.course?.title || 'Chem101';
+  const courseSection = studentData?.course?.section || 'K1';
+  const avatarSrc = avatarAssetForBase(studentData?.student.avatar?.base);
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -147,7 +173,7 @@ export default function ProfilePage() {
               <div className={styles.nameBlock}>
                 <div className={styles.primaryName}>{fullPrimaryName}</div>
                 <div className={styles.roleLabel}>Student</div>
-                <div className={styles.metaLine}>Date Created: XX/XX/XXXX</div>
+                <div className={styles.metaLine}>Date Created: {createdAt}</div>
               </div>
             </div>
             <div className={styles.detailGrid}>
@@ -161,32 +187,26 @@ export default function ProfilePage() {
               </div>
               <div>
                 <div className={styles.detailLabel}>Gender:</div>
-                <div className={styles.detailValue}>Female</div>
+                <div className={styles.detailValue}>{gender}</div>
               </div>
               <div>
                 <div className={styles.detailLabel}>Race/Ethnicity:</div>
-                <div className={styles.detailValue}>Asian</div>
+                <div className={styles.detailValue}>{raceEthnicity}</div>
               </div>
               <div>
                 <div className={styles.detailLabel}>Parental Education:</div>
-                <div className={styles.detailValue}>Masters degree</div>
+                <div className={styles.detailValue}>{parentalEducation}</div>
               </div>
               <div>
                 <div className={styles.detailLabel}>Pell Grant Qualified?</div>
-                <div className={styles.detailValue}>Yes</div>
+                <div className={styles.detailValue}>{pellGrantQualified}</div>
               </div>
             </div>
           </div>
 
           <div className={styles.avatarColumn}>
             <div className={styles.avatarFrame}>
-              <Image
-                src="/edit_avatar/sapphire.svg"
-                alt="Student avatar"
-                width={180}
-                height={180}
-                className={styles.avatarImage}
-              />
+              <Image src={avatarSrc} alt="Student avatar" width={180} height={180} className={styles.avatarImage} />
             </div>
             <Link href="/edit_avatar" className={styles.editAvatarLink}>
               Edit avatar <PenIcon />
@@ -199,18 +219,23 @@ export default function ProfilePage() {
             <div className={styles.courseSection}>
               <h2 className={styles.sectionTitle}>Course Info:</h2>
               <div className={styles.courseMeta}>
-                Chem101
+                {courseTitle}
                 <br />
-                Section: K1
+                Section: {courseSection}
               </div>
             </div>
             <div className={styles.courseSection}>
               <h2 className={styles.sectionTitle}>Instructor</h2>
               <div className={styles.contactList}>
-                {contacts.slice(0, 1).map((contact) => (
+                {instructorContacts.map((contact) => (
                   <div key={contact.id} className={styles.contactItem}>
                     <div className={styles.contactAvatar}>
-                      <Image src={contact.avatar} alt={contact.name} width={60} height={60} />
+                      <Image
+                        src={contact.avatarUrl ?? '/edit_avatar/emerald.svg'}
+                        alt={contact.name}
+                        width={60}
+                        height={60}
+                      />
                     </div>
                     <div className={styles.contactInfo}>
                       <span className={styles.contactName}>{contact.name}</span>
@@ -223,10 +248,15 @@ export default function ProfilePage() {
             <div className={styles.courseSection}>
               <h2 className={styles.sectionTitle}>Checker</h2>
               <div className={styles.contactList}>
-                {contacts.slice(1).map((contact) => (
+                {checkerContacts.map((contact) => (
                   <div key={contact.id} className={styles.contactItem}>
                     <div className={styles.contactAvatar}>
-                      <Image src={contact.avatar} alt={contact.name} width={60} height={60} />
+                      <Image
+                        src={contact.avatarUrl ?? '/edit_avatar/amethyst.svg'}
+                        alt={contact.name}
+                        width={60}
+                        height={60}
+                      />
                     </div>
                     <div className={styles.contactInfo}>
                       <span className={styles.contactName}>{contact.name}</span>

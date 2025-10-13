@@ -1,0 +1,155 @@
+.page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #eff4fb 0%, #fdfdff 100%);
+  padding: 3rem clamp(1.5rem, 4vw, 4rem);
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.titleGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.pageTitle {
+  font-size: clamp(2rem, 2.8vw, 2.6rem);
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.pageSubtitle {
+  color: #475569;
+  font-size: 1rem;
+}
+
+.formCard {
+  background: #ffffff;
+  border-radius: 1.75rem;
+  padding: 2.5rem;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
+  display: grid;
+  gap: 2rem;
+}
+
+.fieldRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1.5rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.95rem;
+}
+
+.field label {
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.field input,
+.field textarea {
+  padding: 0.7rem 0.8rem;
+  border-radius: 0.9rem;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  background: rgba(248, 250, 255, 0.9);
+  font: inherit;
+}
+
+.field textarea {
+  min-height: 120px;
+}
+
+.cueList {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.cueItem {
+  padding: 1rem 1.25rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  background: rgba(245, 248, 255, 0.9);
+  display: grid;
+  gap: 0.75rem;
+}
+
+.cueHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.cueActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.button {
+  border-radius: 999px;
+  padding: 0.65rem 1.4rem;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.buttonPrimary {
+  background: #1f5fab;
+  color: #ffffff;
+  box-shadow: 0 18px 36px rgba(31, 95, 171, 0.2);
+}
+
+.buttonSecondary {
+  background: rgba(15, 67, 142, 0.08);
+  color: #1f5fab;
+}
+
+.buttonGhost {
+  background: transparent;
+  color: #dc2626;
+}
+
+.button:active {
+  transform: translateY(1px);
+}
+
+.previewCard {
+  background: #ffffff;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  display: grid;
+  gap: 1rem;
+}
+
+.previewTitle {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.previewList {
+  display: grid;
+  gap: 0.65rem;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+@media (max-width: 640px) {
+  .formCard {
+    padding: 1.75rem;
+  }
+}

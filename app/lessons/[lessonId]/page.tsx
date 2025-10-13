@@ -5,91 +5,48 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
+import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 
-interface LessonCheckpoint {
-  id: string;
-  title: string;
-  duration: string;
-  checkpointLabel: string;
-  checkpointMeta: string;
-  image?: string;
-}
-
-interface LessonContent {
-  id: string;
-  title: string;
-  about: string;
-  skills: string[];
-  checkpoints: LessonCheckpoint[];
-}
-
-const placeholderImage =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAABit0H5AAAACXBIWXMAAAsTAAALEwEAmpwYAAAF5ElEQVR4nO3cQW6bMBRAUT5t//9nnuJlsqS2HApRtf7CfJbFg4lQz+xX86IRERERERERERERGRP4gGrA7jw2cfZsv3xQNAOV6A3SxPg+wJprbV8MgRwBr4FUwPobnYz1UBBqefgdgPgC66P4U9AFbA+jJ0BjWZ/AVeAEObwfsBx8C3sB9gBnQ9V9gCtwPuwFjYOfgNrHg78Be0PhPwHp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYDtwK3wHzYGfgPLA6N8A6sNzM0aW90U/K6EFe87Qp9e3t54J/3ORERERERERERERkd/5ALAeGdKyv4AAAAASUVORK5CYII=';
-
-const lessonCatalog: Record<string, LessonContent> = {
-  'bunsen-burners': {
-    id: 'bunsen-burners',
-    title: 'Bunsen Burners',
-    about:
-      'Get hands-on with Bunsen burners while reviewing flame safety, equipment setup, and lab etiquette. This unit walks through each phase of the demonstration with instructor checkpoints to confirm understanding.',
-    skills: [
-      'Identify burner parts and functions',
-      'Adjust flame height for desired heat',
-      'Demonstrate proper safety checks',
-    ],
-    checkpoints: [
-      {
-        id: 'part-1',
-        title: 'Part 1',
-        duration: '1.4 minutes long',
-        checkpointLabel: 'Checkpoint',
-        checkpointMeta: '3 questions',
-        image: placeholderImage,
-      },
-      {
-        id: 'part-2',
-        title: 'Part 2',
-        duration: '1.4 minutes long',
-        checkpointLabel: 'Checkpoint',
-        checkpointMeta: '3 questions',
-        image: placeholderImage,
-      },
-      {
-        id: 'part-3',
-        title: 'Part 3',
-        duration: '1.4 minutes long',
-        checkpointLabel: 'Final checkpoint',
-        checkpointMeta: '3 questions',
-        image: placeholderImage,
-      },
-    ],
-  },
-  default: {
-    id: 'sample-lesson',
-    title: 'Sample Lesson',
-    about:
-      'This is a placeholder lesson overview. Replace with real lesson copy when content is ready. Keep the sections below updated so students know what to expect.',
-    skills: ['Outline the main objectives', 'Summarize prerequisite knowledge', 'Describe the assessment checkpoints'],
-    checkpoints: [
-      {
-        id: 'part-a',
-        title: 'Segment A',
-        duration: '1 minute long',
-        checkpointLabel: 'Checkpoint',
-        checkpointMeta: '2 questions',
-        image: placeholderImage,
-      },
-      {
-        id: 'part-b',
-        title: 'Segment B',
-        duration: '1 minute long',
-        checkpointLabel: 'Final checkpoint',
-        checkpointMeta: '2 questions',
-        image: placeholderImage,
-      },
-    ],
-  },
+export const FALLBACK_LESSON: LessonRecord = {
+  id: 'sample-lesson',
+  slug: 'sample-lesson',
+  title: 'Sample Lesson',
+  summary: 'Lesson summary unavailable.',
+  description:
+    'This is a placeholder lesson overview. Replace with real lesson copy when content is ready. Keep the sections below updated so students know what to expect.',
+  thumbnailUrl:
+    'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAABit0H5AAAACXBIWXMAAAsTAAALEwEAmpwYAAAF5ElEQVR4nO3cQW6bMBRAUT5t//9nnuJlsqS2HApRtf7CfJbFg4lQz+xX86IRERERERERERERGRP4gGrA7jw2cfZsv3xQNAOV6A3SxPg+wJprbV8MgRwBr4FUwPobnYz1UBBqefgdgPgC66P4U9AFbA+jJ0BjWZ/AVeAEObwfsBx8C3sB9gBnQ9V9gCtwPuwFjYOfgNrHg78Be0PhPwHp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYDtwK3wHzYGfgPLA6N8A6sNzM0aW90U/K6EFe87Qp9e3t54J/3ORERERERERERERkd/5ALAeGdKyv4AAAAASUVORK5CYII=',
+  estimatedMinutes: 0,
+  dueDate: null,
+  sortOrder: 0,
+  status: 'NOT_STARTED',
+  percentComplete: 0,
+  segments: [
+    {
+      id: 'segment-a',
+      title: 'Segment A',
+      summary: 'Segment overview goes here.',
+      duration: 1,
+      videoUrl: null,
+      thumbnailUrl: null,
+      status: 'NOT_STARTED',
+      checkpointIds: [],
+    },
+  ],
+  checkpoints: [
+    {
+      id: 'checkpoint-a',
+      title: 'Checkpoint A',
+      label: 'Checkpoint',
+      meta: '2 questions',
+      description: null,
+      questionCount: 2,
+      segmentId: null,
+      questions: [],
+    },
+  ],
+  skills: ['Outline the main objectives', 'Summarize prerequisite knowledge', 'Describe the assessment checkpoints'],
 };
 
 const navLinks = [
@@ -115,6 +72,7 @@ export default function LessonDetailPage() {
   const params = useParams<{ lessonId: string }>();
   const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useAuth();
+  const { data: studentData } = useStudentData(user?.email);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -126,8 +84,23 @@ export default function LessonDetailPage() {
     return null;
   }
 
-  const lesson = lessonCatalog[params.lessonId ?? ''] ?? lessonCatalog.default;
-  const displayName = user?.name || 'Student Demo';
+  const lessonRecord = studentData?.lessons.catalog.find((entry) => entry.slug === params.lessonId) ?? FALLBACK_LESSON;
+  const displayName = studentData?.student.name || user?.name || 'Student Demo';
+
+  const timelineItems = lessonRecord.segments.map((segment, index) => {
+    const [firstCheckpointId] = segment.checkpointIds;
+    const checkpoint = lessonRecord.checkpoints.find((item) => item.id === firstCheckpointId);
+    const minutes = segment.duration ? `${segment.duration} minute${segment.duration === 1 ? '' : 's'} long` : '';
+
+    return {
+      id: segment.id,
+      title: segment.title || `Part ${index + 1}`,
+      duration: minutes || 'Segment duration TBD',
+      checkpointLabel: checkpoint?.label || 'Checkpoint',
+      checkpointMeta: checkpoint?.meta || `${checkpoint?.questionCount ?? 0} questions`,
+      image: segment.thumbnailUrl || lessonRecord.thumbnailUrl,
+    };
+  });
 
   return (
     <div className={styles.page}>
@@ -159,17 +132,17 @@ export default function LessonDetailPage() {
           <div className={styles.brandMark}>checkd.</div>
         </div>
 
-        <h1 className={styles.lessonTitle}>{lesson.title}</h1>
+        <h1 className={styles.lessonTitle}>{lessonRecord.title}</h1>
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>About this unit</h2>
-          <p className={styles.paragraph}>{lesson.about}</p>
+          <p className={styles.paragraph}>{lessonRecord.description}</p>
         </section>
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Skills you’ll learn</h2>
           <ul className={styles.list}>
-            {lesson.skills.map((skill) => (
+            {lessonRecord.skills.map((skill) => (
               <li key={skill}>{skill}</li>
             ))}
           </ul>
@@ -178,7 +151,7 @@ export default function LessonDetailPage() {
         <section className={styles.section}>
           <div className={styles.sectionTitle}>Lesson outline</div>
           <div className={styles.timeline}>
-            {lesson.checkpoints.map((item, index) => (
+            {timelineItems.map((item, index) => (
               <div key={item.id} className={styles.timelineItem}>
                 <div className={styles.timelineMedia}>
                   {item.image ? (
@@ -207,9 +180,9 @@ export default function LessonDetailPage() {
           </div>
         </section>
 
-        <button type="button" className={styles.primaryButton}>
+        <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
           Start Lesson
-        </button>
+        </Link>
       </main>
     </div>
   );
