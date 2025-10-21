@@ -3,9 +3,9 @@
 
   /* Light Theme */
   --page-bg: #ffffff;
-  /* ← 纯白 */
+  /* Pure white background */
   --page-bg-gradient-start: #ffffff;
-  /* 若仍被引用，也是白到白 */
+  /* If referenced elsewhere, still white-to-white */
   --page-bg-gradient-end: #ffffff;
 
   --text-color: #2c3e50;
@@ -38,11 +38,11 @@ html.dark {
   --code-bg: #2c3034;
 }
 
-/* 关键：去掉背景渐变，统一用纯色 */
+/* Key: remove background gradient and use a solid color */
 body {
   background-color: var(--page-bg);
   background-image: none;
-  /* ← 禁用渐变 */
+  /* Disable gradient */
   background-repeat: no-repeat;
   background-attachment: initial;
 
@@ -64,19 +64,19 @@ html.dark body {
 .main-content-container {
   width: 100%;
   max-width: none;
-  /* ← 不再限制版心宽度 */
+  /* No longer cap content width */
   margin-left: 0;
-  /* ← 不再居中 */
+  /* Remove automatic centering */
   margin-right: 0;
   padding-left: 0;
-  /* ← 去掉左右内边距 */
+  /* Remove horizontal padding */
   padding-right: 0;
   flex-grow: 1;
   display: flex;
   flex-direction: column;
 }
 
-/* 这些媒体查询就不需要再加左右 padding 了，直接删掉或保留为空 */
+/* These media queries no longer add horizontal padding; leave empty or remove */
 @media (min-width: 640px) {
   .main-content-container {}
 }

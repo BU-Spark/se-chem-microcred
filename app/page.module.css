@@ -4,17 +4,17 @@
 .page {
   display: flex;
   gap: 0;
-  /* 侧栏与主区无缝拼接 */
+  /* Seamless join between sidebar and main content */
   min-height: calc(100vh - 80px);
-  /* 如无顶栏，可改 100vh */
+  /* If there's no top bar, use 100vh */
   padding: 0;
-  /* 去外层留白，避免“白色大卡片”感 */
+  /* Remove outer whitespace to avoid a large white card look */
   background: #ffffff;
-  /* 页面即为背景 */
+  /* Page surface doubles as background */
 }
 
 /* =========================
-   Sidebar（直角矩形）
+   Sidebar (square corners)
    ========================= */
 .sidebar {
   width: 240px;
@@ -23,17 +23,17 @@
 
   background: #1f5fab;
   border-radius: 0;
-  /* ← 直角 */
+  /* Square corners */
   color: #f8fbff;
   padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
 
-  /* 与主内容之间的分隔线 */
+  /* Divider between sidebar and main content */
   border-right: 1px solid rgba(15, 23, 42, 0.12);
   box-shadow: none;
-  /* 去掉卡片化阴影 */
+  /* Remove card-style shadow */
 }
 
 .profile {
@@ -113,7 +113,7 @@
 }
 
 /* =========================
-   Main（去卡片化：无圆角/无阴影）
+   Main (card-free: no radius / no shadow)
    ========================= */
 .main {
   flex: 1;
@@ -122,7 +122,7 @@
   box-shadow: none;
 
   padding: 2rem 2rem 3rem;
-  /* 版心内边距 */
+  /* Primary content padding */
   display: flex;
   flex-direction: column;
   gap: 2.5rem;
@@ -181,7 +181,7 @@
 
 .card {
   background: #f7f8fb;
-  /* 轻浅灰，更贴设计 */
+  /* Light gray tone that matches the design */
   border-radius: 1rem;
   padding: 1rem;
   display: flex;
@@ -261,7 +261,7 @@
     align-items: center;
     width: 100%;
 
-    /* 顶部横条形态：直角+底部分隔线 */
+    /* Top bar variant: square corners + bottom divider */
     border-radius: 0;
     border-right: none;
     border-bottom: 1px solid rgba(15, 23, 42, 0.12);
