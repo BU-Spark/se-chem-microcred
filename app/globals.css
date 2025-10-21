@@ -1,16 +1,20 @@
 :root {
   --font-outfit: 'Arial';
-  /* Global Theme Variables (Light Mode is default) */
-  --page-bg: #f0f4f8;
-  --page-bg-gradient-start: #e6f4ff;
-  --page-bg-gradient-end: #89b2fa;
+
+  /* Light Theme */
+  --page-bg: #ffffff;
+  /* ← 纯白 */
+  --page-bg-gradient-start: #ffffff;
+  /* 若仍被引用，也是白到白 */
+  --page-bg-gradient-end: #ffffff;
+
   --text-color: #2c3e50;
   --primary-accent: #0060c7;
   --secondary-accent: #28a745;
-  --card-bg: #bdd5ff;
-  --card-border: #78a0c8;
+  --card-bg: #ffffff;
+  --card-border: #e5e7eb;
   --link-color: var(--primary-accent);
-  --code-bg: #e9ecef;
+  --code-bg: #f3f4f6;
 }
 
 html {
@@ -19,10 +23,12 @@ html {
 
 html.dark {
   color-scheme: dark;
-  /* Dark Mode Theme Overrides */
+
+  /* Dark Theme */
   --page-bg: #1a202c;
-  --page-bg-gradient-start: #191425;
-  --page-bg-gradient-end: #0D1117;
+  --page-bg-gradient-start: #1a202c;
+  --page-bg-gradient-end: #1a202c;
+
   --text-color: #e2e8f0;
   --primary-accent: #a246f8;
   --secondary-accent: #f595c6;
@@ -32,10 +38,14 @@ html.dark {
   --code-bg: #2c3034;
 }
 
+/* 关键：去掉背景渐变，统一用纯色 */
 body {
-  background-image: linear-gradient(to bottom, var(--page-bg-gradient-start), var(--page-bg-gradient-end));
+  background-color: var(--page-bg);
+  background-image: none;
+  /* ← 禁用渐变 */
   background-repeat: no-repeat;
-  background-attachment: fixed;
+  background-attachment: initial;
+
   color: var(--text-color);
   font-family: var(--font-outfit), Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -43,9 +53,7 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  transition:
-    background-color 0.2s ease,
-    color 0.2s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Apply dark mode variables to body when html.dark is present */
@@ -55,29 +63,28 @@ html.dark body {
 
 .main-content-container {
   width: 100%;
-  max-width: 70rem;
-  margin-left: auto;
-  margin-right: auto;
-  padding-left: 1rem;
-  padding-right: 1rem;
-  flex-grow: 1; /* Ensure main content can grow */
-  display: flex; /* Added to allow children to flex if needed */
-  flex-direction: column; /* Added for default stacking */
+  max-width: none;
+  /* ← 不再限制版心宽度 */
+  margin-left: 0;
+  /* ← 不再居中 */
+  margin-right: 0;
+  padding-left: 0;
+  /* ← 去掉左右内边距 */
+  padding-right: 0;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
 
+/* 这些媒体查询就不需要再加左右 padding 了，直接删掉或保留为空 */
 @media (min-width: 640px) {
-  .main-content-container {
-    padding-left: 1.5rem;
-    padding-right: 1.5rem;
-  }
+  .main-content-container {}
 }
 
 @media (min-width: 1024px) {
-  .main-content-container {
-    padding-left: 2rem;
-    padding-right: 2rem;
-  }
+  .main-content-container {}
 }
+
 
 * {
   box-sizing: border-box;
@@ -90,20 +97,20 @@ a {
   text-decoration: none;
 }
 
-/* ErrorBoundary Fallback UI Styling */
+/* ErrorBoundary Fallback */
 .error-boundary {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  flex-grow: 1; /* Ensure it can take up space if it's the main content */
+  flex-grow: 1;
   padding: 2rem;
   text-align: center;
   background-color: var(--card-bg);
   color: var(--text-color);
   border: 1px solid var(--card-border);
   border-radius: 8px;
-  margin: 2rem; /* Add some margin if it's inside another container */
+  margin: 2rem;
 }
 
 html.dark .error-boundary {
@@ -129,7 +136,7 @@ html.dark .error-boundary h2 {
   border: 1px solid var(--card-border);
   border-radius: 4px;
   max-width: 600px;
-  overflow-x: auto; /* For long error messages */
+  overflow-x: auto;
 }
 
 html.dark .error-boundary details {
@@ -144,8 +151,8 @@ html.dark .error-boundary details {
 }
 
 .error-boundary pre {
-  white-space: pre-wrap; /* Wrap long lines */
-  word-break: break-all; /* Break long words/strings */
+  white-space: pre-wrap;
+  word-break: break-all;
   font-size: 0.875rem;
   text-align: left;
 }

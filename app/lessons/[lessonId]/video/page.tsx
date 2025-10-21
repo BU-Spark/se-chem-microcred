@@ -14,6 +14,7 @@ export default function LessonVideoRoute() {
     studentData?.lessons.catalog.find((entry) => entry.slug === (params.lessonId ?? '')) ?? FALLBACK_LESSON;
 
   const studentName = studentData?.student.name || user?.name || 'Student Demo';
+  const studentEmail = studentData?.student.email || user?.email || 'student@example.edu';
 
-  return <LessonVideoPage lesson={lessonRecord} studentName={studentName} />;
+  return <LessonVideoPage lesson={lessonRecord} studentName={studentName} studentEmail={studentEmail} />;
 }

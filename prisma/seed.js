@@ -20,6 +20,7 @@ const placeholderLessonImage =
 async function clearExistingData() {
   await prisma.$transaction([
     prisma.checkpointResponse.deleteMany(),
+    prisma.checkpointAttempt.deleteMany(),
     prisma.checkpointQuestion.deleteMany(),
     prisma.lessonCheckpoint.deleteMany(),
     prisma.segmentProgress.deleteMany(),
@@ -134,6 +135,7 @@ async function seedDemo() {
           summary: 'Review the equipment and ignite the burner safely.',
           duration: 6,
           videoUrl: 'https://www.youtube.com/watch?v=zxQyTK8quyY',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
           thumbnailUrl: 'https://images.unsplash.com/photo-1521790797524-b2497295b8a0?auto=format&fit=crop&w=200&q=80',
         },
         {
@@ -141,6 +143,7 @@ async function seedDemo() {
           summary: 'Adjust flame height and color for optimal heat.',
           duration: 7,
           videoUrl: 'https://www.youtube.com/watch?v=Nhk7pyoNf3k',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
           thumbnailUrl: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=200&q=80',
         },
         {
@@ -148,6 +151,7 @@ async function seedDemo() {
           summary: 'Properly power down and store burner equipment.',
           duration: 5,
           videoUrl: 'https://www.youtube.com/watch?v=tj5l0y7muf4',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
           thumbnailUrl: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=200&q=80',
         },
       ],
@@ -158,6 +162,8 @@ async function seedDemo() {
           meta: '3 questions',
           questionCount: 3,
           segmentIndex: 0,
+          timeOffsetSeconds: 80,
+          snapshotUrl: 'https://images.unsplash.com/photo-1513379733131-47fc74b45fc7?auto=format&fit=crop&w=320&q=80',
           questions: [
             {
               prompt: 'Which step must you complete before opening the gas valve?',
@@ -182,6 +188,8 @@ async function seedDemo() {
           meta: '3 questions',
           questionCount: 3,
           segmentIndex: 1,
+          timeOffsetSeconds: 220,
+          snapshotUrl: 'https://images.unsplash.com/photo-1495305379050-64540d6ee95a?auto=format&fit=crop&w=320&q=80',
           questions: [
             {
               prompt: 'Which control adjusts the flame height on most burners?',
@@ -206,6 +214,8 @@ async function seedDemo() {
           meta: '3 questions',
           questionCount: 3,
           segmentIndex: 2,
+          timeOffsetSeconds: 360,
+          snapshotUrl: 'https://images.unsplash.com/photo-1520275126937-9506f7dd123c?auto=format&fit=crop&w=320&q=80',
           questions: [
             {
               prompt: 'What should you do before leaving the burner unattended?',
@@ -244,14 +254,16 @@ async function seedDemo() {
           title: 'Waste Categories Overview',
           summary: 'Understand the main waste streams in the lab.',
           duration: 8,
-          videoUrl: 'https://www.youtube.com/watch?v=z2Xk9Jk0h8w',
+          videoUrl: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
           thumbnailUrl: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=200&q=80',
         },
         {
           title: 'Labeling & Storage',
           summary: 'Prepare containers and maintain storage logs.',
           duration: 9,
-          videoUrl: 'https://www.youtube.com/watch?v=X4d3ZcRLLcI',
+          videoUrl: 'https://www.youtube.com/watch?v=Hc79sDi3f0U',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
           thumbnailUrl: 'https://images.unsplash.com/photo-1580894899372-64032616e35e?auto=format&fit=crop&w=200&q=80',
         },
       ],
@@ -262,6 +274,8 @@ async function seedDemo() {
           meta: '3 questions',
           questionCount: 3,
           segmentIndex: 0,
+          timeOffsetSeconds: 120,
+          snapshotUrl: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=320&q=80',
           questions: [
             {
               prompt: 'A solvent contaminated with heavy metals belongs in which container?',
@@ -301,6 +315,7 @@ async function seedDemo() {
           summary: 'Inspect and prepare the hood for operation.',
           duration: 7,
           videoUrl: 'https://www.youtube.com/watch?v=AEKKd6jM2rI',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
           thumbnailUrl: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=200&q=80',
         },
         {
@@ -308,6 +323,7 @@ async function seedDemo() {
           summary: 'Arrange tools and samples to maintain airflow.',
           duration: 8,
           videoUrl: 'https://www.youtube.com/watch?v=1gHn_tJQAFg',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
           thumbnailUrl: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=200&q=80',
         },
         {
@@ -315,6 +331,7 @@ async function seedDemo() {
           summary: 'Leave the hood ready for the next user.',
           duration: 6,
           videoUrl: 'https://www.youtube.com/watch?v=DGKiTCPGr0k',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
           thumbnailUrl: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=200&q=80',
         },
       ],
@@ -325,6 +342,8 @@ async function seedDemo() {
           meta: '3 questions',
           questionCount: 3,
           segmentIndex: 0,
+          timeOffsetSeconds: 100,
+          snapshotUrl: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=320&q=80',
           questions: [
             {
               prompt: 'What is the ideal sash height indicator?',
@@ -374,6 +393,7 @@ async function seedDemo() {
           summary: segmentSeed.summary,
           duration: segmentSeed.duration,
           videoUrl: segmentSeed.videoUrl,
+          muxPlaybackId: segmentSeed.muxPlaybackId,
           thumbnailUrl: segmentSeed.thumbnailUrl,
         },
       });
@@ -401,6 +421,8 @@ async function seedDemo() {
           label: checkpointSeed.label,
           meta: checkpointSeed.meta,
           questionCount: checkpointSeed.questionCount,
+          timeOffsetSeconds: checkpointSeed.timeOffsetSeconds ?? checkpointIndex * 60,
+          snapshotUrl: checkpointSeed.snapshotUrl,
         },
       });
 

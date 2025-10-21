@@ -5,6 +5,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
 }
 
 model User {
@@ -25,6 +26,7 @@ model User {
   avatar              AvatarSetting?
   surveyResponses     SurveyResponse[]
   analytics           StudentAnalytics?
+  CheckpointAttempt   CheckpointAttempt[]
 
   @@map("Student")
 }
@@ -102,8 +104,8 @@ model Enrollment {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  student User @relation(fields: [studentId], references: [id])
-  course  Course  @relation(fields: [courseId], references: [id])
+  student User   @relation(fields: [studentId], references: [id])
+  course  Course @relation(fields: [courseId], references: [id])
 
   @@unique([studentId, courseId])
 }
@@ -148,16 +150,17 @@ model LessonSkill {
 }
 
 model LessonSegment {
-  id           String   @id @default(cuid())
-  lessonId     String
-  sortOrder    Int
-  title        String
-  summary      String?
-  duration     Int?
-  videoUrl     String?
-  thumbnailUrl String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id            String   @id @default(cuid())
+  lessonId      String
+  sortOrder     Int
+  title         String
+  summary       String?
+  duration      Int?
+  videoUrl      String?
+  muxPlaybackId String?
+  thumbnailUrl  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   lesson          Lesson             @relation(fields: [lessonId], references: [id])
   checkpoints     LessonCheckpoint[]
@@ -167,22 +170,25 @@ model LessonSegment {
 }
 
 model LessonCheckpoint {
-  id            String   @id @default(cuid())
-  lessonId      String
-  segmentId     String?
-  sortOrder     Int
-  title         String
-  description   String?
-  label         String?
-  meta          String?
-  questionCount Int
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String   @id @default(cuid())
+  lessonId          String
+  segmentId         String?
+  sortOrder         Int
+  title             String
+  description       String?
+  label             String?
+  meta              String?
+  questionCount     Int
+  timeOffsetSeconds Int      @default(0)
+  snapshotUrl       String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   lesson    Lesson               @relation(fields: [lessonId], references: [id])
   segment   LessonSegment?       @relation(fields: [segmentId], references: [id])
   questions CheckpointQuestion[]
   responses CheckpointResponse[]
+  attempts  CheckpointAttempt[]
 
   @@unique([lessonId, sortOrder])
 }
@@ -214,10 +220,11 @@ model LessonProgress {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  student   User                 @relation(fields: [studentId], references: [id])
-  lesson    Lesson               @relation(fields: [lessonId], references: [id])
-  segments  SegmentProgress[]
-  responses CheckpointResponse[]
+  student           User                 @relation(fields: [studentId], references: [id])
+  lesson            Lesson               @relation(fields: [lessonId], references: [id])
+  segments          SegmentProgress[]
+  responses         CheckpointResponse[]
+  CheckpointAttempt CheckpointAttempt[]
 
   @@unique([studentId, lessonId])
 }
@@ -252,6 +259,7 @@ enum SegmentStatus {
 
 model CheckpointResponse {
   id               String   @id @default(cuid())
+  attemptId        String?
   checkpointId     String
   questionId       String?
   studentId        String
@@ -260,10 +268,28 @@ model CheckpointResponse {
   isCorrect        Boolean?
   createdAt        DateTime @default(now())
 
+  attempt        CheckpointAttempt?  @relation(fields: [attemptId], references: [id])
   checkpoint     LessonCheckpoint    @relation(fields: [checkpointId], references: [id])
   question       CheckpointQuestion? @relation(fields: [questionId], references: [id])
   student        User                @relation(fields: [studentId], references: [id])
   lessonProgress LessonProgress?     @relation(fields: [lessonProgressId], references: [id])
+}
+
+model CheckpointAttempt {
+  id               String    @id @default(cuid())
+  checkpointId     String
+  userId           String
+  lessonProgressId String?
+  startedAt        DateTime  @default(now())
+  completedAt      DateTime?
+  isPassing        Boolean?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  checkpoint     LessonCheckpoint     @relation(fields: [checkpointId], references: [id])
+  user           User                 @relation(fields: [userId], references: [id])
+  lessonProgress LessonProgress?      @relation(fields: [lessonProgressId], references: [id])
+  responses      CheckpointResponse[]
 }
 
 model Badge {
@@ -308,8 +334,8 @@ model StudentBadge {
   updatedAt DateTime    @updatedAt
   score     Int?
 
-  student User @relation(fields: [studentId], references: [id])
-  badge   Badge   @relation(fields: [badgeId], references: [id])
+  student User  @relation(fields: [studentId], references: [id])
+  badge   Badge @relation(fields: [badgeId], references: [id])
 
   @@unique([studentId, badgeId])
 }

@@ -4,6 +4,11 @@ import { useEffect, useRef } from 'react';
 
 type YoutubePlayerInstance = {
   destroy: () => void;
+  playVideo: () => void;
+  pauseVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
 };
 
 type YoutubeReadyEvent = {
@@ -22,6 +27,13 @@ type YoutubeApi = {
     }
   ) => YoutubePlayerInstance;
 };
+
+declare global {
+  interface Window {
+    YT?: YoutubeApi;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
 
 export interface YoutubePlayerProps {
   videoId: string;
@@ -94,11 +106,4 @@ export function YoutubePlayer({ videoId, startSeconds, onReady }: YoutubePlayerP
   }, [videoId, startSeconds, onReady]);
 
   return <div className="yt-embed" ref={playerRef} />;
-}
-
-declare global {
-  interface Window {
-    YT?: YoutubeApi;
-    onYouTubeIframeAPIReady: () => void;
-  }
 }

@@ -88,6 +88,7 @@ export interface LessonRecord {
     summary: string | null;
     duration: number | null;
     videoUrl: string | null;
+    muxPlaybackId: string | null;
     thumbnailUrl: string | null;
     status: SegmentStatus;
     checkpointIds: string[];
@@ -100,6 +101,8 @@ export interface LessonRecord {
     description: string | null;
     questionCount: number;
     segmentId: string | null;
+    timeOffsetSeconds: number;
+    snapshotUrl: string | null;
     questions: Array<{
       id: string;
       prompt: string;

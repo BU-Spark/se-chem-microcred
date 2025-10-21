@@ -91,6 +91,7 @@ function formatLesson({
       summary: segment.summary,
       duration: segment.duration,
       videoUrl: segment.videoUrl,
+      muxPlaybackId: segment.muxPlaybackId,
       thumbnailUrl: segment.thumbnailUrl,
       status: segmentStatusMap.get(segment.id) ?? SegmentStatus.NOT_STARTED,
       checkpointIds: checkpointsBySegment[segment.id] ?? [],
@@ -103,6 +104,8 @@ function formatLesson({
       description: checkpoint.description,
       questionCount: checkpoint.questionCount,
       segmentId: checkpoint.segmentId,
+      timeOffsetSeconds: checkpoint.timeOffsetSeconds,
+      snapshotUrl: checkpoint.snapshotUrl,
       questions: checkpoint.questions.map((question) => ({
         id: question.id,
         prompt: question.prompt,
