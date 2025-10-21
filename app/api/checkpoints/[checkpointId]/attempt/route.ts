@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import type { Prisma } from '@prisma/client';
 import prisma from '../../../../../lib/prisma';
 import { FALLBACK_LESSON } from '../../../../lessons/[lessonId]/fallbackLesson';
 
@@ -15,6 +16,13 @@ type RouteContext = {
     checkpointId: string;
   }>;
 };
+
+type LessonCheckpointWithQuestions = Prisma.LessonCheckpointGetPayload<{
+  include: {
+    questions: true;
+    lesson: true;
+  };
+}>;
 
 function evaluateAttempt(
   answers: AttemptRequestBody['answers'],
@@ -63,7 +71,7 @@ export async function POST(request: Request, context: RouteContext) {
   const fallbackCheckpoint = FALLBACK_LESSON.checkpoints.find((checkpoint) => checkpoint.id === checkpointId);
 
   let user: Awaited<ReturnType<typeof prisma.user.findUnique>> | null = null;
-  let checkpoint: Awaited<ReturnType<typeof prisma.lessonCheckpoint.findUnique>> | null = null;
+  let checkpoint: LessonCheckpointWithQuestions | null = null;
   let lessonProgress: Awaited<ReturnType<typeof prisma.lessonProgress.findFirst>> | null = null;
 
   try {
