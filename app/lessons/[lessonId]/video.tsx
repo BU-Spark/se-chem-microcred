@@ -654,6 +654,18 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
   const currentQuestion =
     totalCheckpointQuestions > 0 ? (currentCheckpointQuestions[activeQuestionIndex] ?? null) : null;
   const canAdvance = currentQuestion ? selectedAnswers[currentQuestion.id] != null : false;
+  const rangeStyle = useMemo(
+    () =>
+      ({
+        '--progress': `${duration > 0 ? Math.min(100, Math.max(0, (currentTime / duration) * 100)) : 0}%`,
+        '--unlocked': `${
+          Number.isFinite(hardMaxSeek) && duration > 0
+            ? Math.min(100, Math.max(0, (hardMaxSeek / duration) * 100))
+            : 100
+        }%`,
+      }) as CSSProperties,
+    [currentTime, duration, hardMaxSeek]
+  );
   const isFinalQuestion = currentQuestion ? activeQuestionIndex === totalCheckpointQuestions - 1 : false;
 
   return (
