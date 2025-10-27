@@ -156,6 +156,9 @@
   font-weight: 700;
   color: #1f5fab;
   font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
 .section {
@@ -176,23 +179,31 @@
 .cardRow {
   display: grid;
   gap: 1.5rem;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(260px, 260px));
+  justify-content: flex-start;
+}
+
+.emptyState {
+  font-size: 0.95rem;
+  color: #4b5563;
 }
 
 .card {
   background: #f7f8fb;
   /* Light gray tone that matches the design */
-  border-radius: 1rem;
+  border-radius: 0;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 0.9rem;
   border: 1px solid rgba(148, 163, 184, 0.3);
-  min-height: 250px;
+  width: 260px;
+  min-height: 260px;
+  justify-content: space-between;
 }
 
 .cardMedia {
-  border-radius: 0.9rem;
+  border-radius: 0;
   background: #e9edf6;
   display: flex;
   align-items: center;
@@ -200,7 +211,7 @@
   color: rgba(31, 95, 171, 0.8);
   font-weight: 600;
   font-size: 0.9rem;
-  height: 130px;
+  height: 140px;
   overflow: hidden;
 }
 

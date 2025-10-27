@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { useStudentData } from '../../hooks/useStudentData';
-import { FALLBACK_LESSON } from './fallbackLesson';
 import styles from './page.module.css';
 
 const navLinks = [
@@ -32,7 +31,7 @@ export default function LessonDetailPage() {
   const params = useParams<{ lessonId: string }>();
   const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useAuth();
-  const { data: studentData } = useStudentData(user?.email);
+  const { data: studentData, isLoading } = useStudentData(user?.email);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -44,23 +43,25 @@ export default function LessonDetailPage() {
     return null;
   }
 
-  const lessonRecord = studentData?.lessons.catalog.find((entry) => entry.slug === params.lessonId) ?? FALLBACK_LESSON;
+  const lessonRecord = studentData?.lessons.catalog.find((entry) => entry.slug === params.lessonId);
   const displayName = studentData?.student.name || user?.name || 'Student Demo';
 
-  const timelineItems = lessonRecord.segments.map((segment, index) => {
-    const [firstCheckpointId] = segment.checkpointIds;
-    const checkpoint = lessonRecord.checkpoints.find((item) => item.id === firstCheckpointId);
-    const minutes = segment.duration ? `${segment.duration} minute${segment.duration === 1 ? '' : 's'} long` : '';
+  const timelineItems =
+    lessonRecord?.segments.map((segment, index) => {
+      const [firstCheckpointId] = segment.checkpointIds;
+      const checkpoint = lessonRecord.checkpoints.find((item) => item.id === firstCheckpointId);
+      const minutes = segment.duration ? `${segment.duration} minute${segment.duration === 1 ? '' : 's'} long` : '';
 
-    return {
-      id: segment.id,
-      title: segment.title || `Part ${index + 1}`,
-      duration: minutes || 'Segment duration TBD',
-      checkpointLabel: checkpoint?.label || 'Checkpoint',
-      checkpointMeta: checkpoint?.meta || `${checkpoint?.questionCount ?? 0} questions`,
-      image: segment.thumbnailUrl || lessonRecord.thumbnailUrl,
-    };
-  });
+      return {
+        id: segment.id,
+        title: segment.title || `Part ${index + 1}`,
+        duration: minutes || 'Segment duration TBD',
+        checkpointLabel: checkpoint?.label || 'Checkpoint',
+        checkpointMeta: checkpoint?.meta || `${checkpoint?.questionCount ?? 0} questions`,
+        image: segment.thumbnailUrl || lessonRecord.thumbnailUrl,
+      };
+    }) ?? [];
+  const lessonTitle = lessonRecord?.title ?? (isLoading ? 'Loading lesson…' : 'Lesson unavailable');
 
   return (
     <div className={styles.page}>
@@ -92,57 +93,74 @@ export default function LessonDetailPage() {
           <div className={styles.brandMark}>checkd.</div>
         </div>
 
-        <h1 className={styles.lessonTitle}>{lessonRecord.title}</h1>
+        <h1 className={styles.lessonTitle}>{lessonTitle}</h1>
 
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>About this unit</h2>
-          <p className={styles.paragraph}>{lessonRecord.description}</p>
-        </section>
+        {lessonRecord ? (
+          <>
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>About this unit</h2>
+              <p className={styles.paragraph}>{lessonRecord.description}</p>
+            </section>
 
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Skills you’ll learn</h2>
-          <ul className={styles.list}>
-            {lessonRecord.skills.map((skill) => (
-              <li key={skill}>{skill}</li>
-            ))}
-          </ul>
-        </section>
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Skills you’ll learn</h2>
+              <ul className={styles.list}>
+                {lessonRecord.skills.map((skill) => (
+                  <li key={skill}>{skill}</li>
+                ))}
+              </ul>
+            </section>
 
-        <section className={styles.section}>
-          <div className={styles.sectionTitle}>Lesson outline</div>
-          <div className={styles.timeline}>
-            {timelineItems.map((item, index) => (
-              <div key={item.id} className={styles.timelineItem}>
-                <div className={styles.timelineMedia}>
-                  {item.image ? (
-                    <Image
-                      src={item.image}
-                      alt={item.title}
-                      width={200}
-                      height={120}
-                      className={styles.timelineMediaImage}
-                    />
-                  ) : (
-                    <span>Segment preview</span>
-                  )}
-                </div>
-                <div className={styles.timelineHeading}>{item.title}</div>
-                <div className={styles.timelineMeta}>{item.duration}</div>
-                <div className={styles.timelineCheckpoints}>
-                  <span>{item.checkpointLabel}</span>
-                  <span>•</span>
-                  <span>{item.checkpointMeta}</span>
-                  <span>•</span>
-                  <span>Part {index + 1}</span>
-                </div>
+            <section className={styles.section}>
+              <div className={styles.sectionTitle}>Lesson outline</div>
+              <div className={styles.timeline}>
+                {timelineItems.map((item, index) => (
+                  <div key={item.id} className={styles.timelineItem}>
+                    <div className={styles.timelineMedia}>
+                      {item.image ? (
+                        <Image
+                          src={item.image}
+                          alt={item.title}
+                          width={200}
+                          height={120}
+                          className={styles.timelineMediaImage}
+                        />
+                      ) : (
+                        <span>Segment preview</span>
+                      )}
+                    </div>
+                    <div className={styles.timelineHeading}>{item.title}</div>
+                    <div className={styles.timelineMeta}>{item.duration}</div>
+                    <div className={styles.timelineCheckpoints}>
+                      <span>{item.checkpointLabel}</span>
+                      <span>•</span>
+                      <span>{item.checkpointMeta}</span>
+                      <span>•</span>
+                      <span>Part {index + 1}</span>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </section>
 
-        <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
-          Start Lesson
-        </Link>
+            <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
+              Start Lesson
+            </Link>
+          </>
+        ) : (
+          <section className={styles.section}>
+            <p className={styles.paragraph}>
+              {isLoading
+                ? 'Loading lesson details…'
+                : 'We could not find a lesson that matches this page. Please head back to the lesson list.'}
+            </p>
+            {!isLoading && (
+              <Link href="/" className={styles.primaryButton}>
+                Browse Lessons
+              </Link>
+            )}
+          </section>
+        )}
       </main>
     </div>
   );

@@ -1,7 +1,5 @@
 import { NextResponse } from 'next/server';
-import type { Prisma } from '@prisma/client';
 import prisma from '../../../../../lib/prisma';
-import { FALLBACK_LESSON } from '../../../../lessons/[lessonId]/fallbackLesson';
 
 interface AttemptRequestBody {
   email?: string;
@@ -16,13 +14,6 @@ type RouteContext = {
     checkpointId: string;
   }>;
 };
-
-type LessonCheckpointWithQuestions = Prisma.LessonCheckpointGetPayload<{
-  include: {
-    questions: true;
-    lesson: true;
-  };
-}>;
 
 function evaluateAttempt(
   answers: AttemptRequestBody['answers'],
@@ -68,55 +59,31 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const email = payload.email.trim().toLowerCase();
-  const fallbackCheckpoint = FALLBACK_LESSON.checkpoints.find((checkpoint) => checkpoint.id === checkpointId);
-
-  let user: Awaited<ReturnType<typeof prisma.user.findUnique>> | null = null;
-  let checkpoint: LessonCheckpointWithQuestions | null = null;
-  let lessonProgress: Awaited<ReturnType<typeof prisma.lessonProgress.findFirst>> | null = null;
-
-  try {
-    const [userRecord, checkpointRecord] = await Promise.all([
-      prisma.user.findUnique({ where: { email } }),
-      prisma.lessonCheckpoint.findUnique({
-        where: { id: checkpointId },
-        include: {
-          questions: {
-            orderBy: { sortOrder: 'asc' },
-          },
-          lesson: true,
+  const [user, checkpoint] = await Promise.all([
+    prisma.user.findUnique({ where: { email } }),
+    prisma.lessonCheckpoint.findUnique({
+      where: { id: checkpointId },
+      include: {
+        questions: {
+          orderBy: { sortOrder: 'asc' },
         },
-      }),
-    ]);
+        lesson: true,
+      },
+    }),
+  ]);
 
-    user = userRecord;
-    checkpoint = checkpointRecord;
-
-    if (user && checkpoint) {
-      lessonProgress =
-        (await prisma.lessonProgress.findFirst({
-          where: { studentId: user.id, lessonId: checkpoint.lessonId },
-        })) ?? null;
-    }
-  } catch (error) {
-    if (!fallbackCheckpoint) {
-      throw error;
-    }
+  if (!user) {
+    return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   }
 
-  if (!user || !checkpoint) {
-    if (!fallbackCheckpoint) {
-      return NextResponse.json({ error: 'Checkpoint not found.' }, { status: 404 });
-    }
-
-    const evaluation = evaluateAttempt(payload.answers, fallbackCheckpoint.questions);
-    const isPassing = evaluation.every((entry) => entry.isCorrect);
-
-    return NextResponse.json({
-      attemptId: `fallback-${Date.now()}`,
-      isPassing,
-      questions: evaluation,
-    });
+  if (!checkpoint) {
+    return NextResponse.json({ error: 'Checkpoint not found.' }, { status: 404 });
   }
+
+  const lessonProgress =
+    (await prisma.lessonProgress.findFirst({
+      where: { studentId: user.id, lessonId: checkpoint.lessonId },
+    })) ?? null;
 
   const evaluation = evaluateAttempt(payload.answers, checkpoint.questions);
   const isPassing = evaluation.every((entry) => entry.isCorrect);

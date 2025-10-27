@@ -7,25 +7,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
-const FALLBACK_INSTRUCTORS = [
-  {
-    id: 'instructor',
-    name: 'Last Name, First Name',
-    email: 'prof@bu.edu',
-    type: 'INSTRUCTOR',
-    avatarUrl: '/edit_avatar/emerald.svg',
-  },
-];
-
-const FALLBACK_CHECKERS = [
-  {
-    id: 'checker',
-    name: 'Last Name, First Name',
-    email: 'ta@bu.edu',
-    type: 'CHECKER',
-    avatarUrl: '/edit_avatar/amethyst.svg',
-  },
-];
 
 function initialsFromName(name?: string | null) {
   if (!name) {
@@ -46,11 +27,11 @@ function PenIcon() {
 
 function parseName(fullName?: string | null) {
   if (!fullName) {
-    return { first: 'First Name', last: 'Last Name', isFallback: true };
+    return { first: 'Student', last: '', isFallback: true };
   }
   const tokens = fullName.trim().split(/\s+/);
   if (tokens.length === 1) {
-    return { first: tokens[0], last: 'Last Name', isFallback: false };
+    return { first: tokens[0], last: '', isFallback: false };
   }
   const first = tokens[0];
   const last = tokens[tokens.length - 1];
@@ -97,27 +78,30 @@ export default function ProfilePage() {
     { label: 'Settings', href: '/settings' },
   ];
 
-  const { first: firstName, last: lastName, isFallback } = parseName(studentData?.student.name || user?.name);
-  const displayName = studentData?.student.name || user?.name || `${lastName}, ${firstName}`;
+  const rawDisplayName = studentData?.student.name ?? user?.name ?? null;
+  const { first: firstName, isFallback } = parseName(rawDisplayName);
+  const displayName = rawDisplayName ?? 'Student';
   const greetingName = isFallback ? 'Student' : firstName;
-  const fullPrimaryName = isFallback ? 'Last Name, First Name' : `${lastName}, ${firstName}`;
-  const studentEmail = studentData?.student.email || user?.email || 'student@bu.edu';
-  const buid = studentData?.student.buid || 'UXXXXXXX';
+  const fullPrimaryName = rawDisplayName ?? 'Name not provided';
+  const studentEmail = studentData?.student.email || user?.email || 'Not provided';
+  const buid = studentData?.student.buid || 'Not provided';
   const createdAt = studentData?.student.createdAt
     ? new Date(studentData.student.createdAt).toLocaleDateString()
-    : 'XX/XX/XXXX';
-  const gender = studentData?.student.gender || 'Female';
-  const raceEthnicity = studentData?.student.raceEthnicity || 'Asian';
-  const parentalEducation = studentData?.student.parentalEducation || 'Masters degree';
+    : 'Not available';
+  const gender = studentData?.student.gender || 'Not provided';
+  const raceEthnicity = studentData?.student.raceEthnicity || 'Not provided';
+  const parentalEducation = studentData?.student.parentalEducation || 'Not provided';
   const pellGrantQualified =
-    studentData?.student.pellGrantQualified == null ? 'Yes' : studentData.student.pellGrantQualified ? 'Yes' : 'No';
+    studentData?.student.pellGrantQualified == null
+      ? 'Not provided'
+      : studentData.student.pellGrantQualified
+        ? 'Yes'
+        : 'No';
 
-  const instructorContacts =
-    studentData?.course?.contacts.filter((contact) => contact.type === 'INSTRUCTOR') ?? FALLBACK_INSTRUCTORS;
-  const checkerContacts =
-    studentData?.course?.contacts.filter((contact) => contact.type === 'CHECKER') ?? FALLBACK_CHECKERS;
-  const courseTitle = studentData?.course?.title || 'Chem101';
-  const courseSection = studentData?.course?.section || 'K1';
+  const instructorContacts = studentData?.course?.contacts.filter((contact) => contact.type === 'INSTRUCTOR') ?? [];
+  const checkerContacts = studentData?.course?.contacts.filter((contact) => contact.type === 'CHECKER') ?? [];
+  const courseTitle = studentData?.course?.title || 'Course information not available';
+  const courseSection = studentData?.course?.section || 'Not provided';
   const avatarSrc = avatarAssetForBase(studentData?.student.avatar?.base);
 
   const handleSignOut = async () => {
@@ -227,43 +211,51 @@ export default function ProfilePage() {
             <div className={styles.courseSection}>
               <h2 className={styles.sectionTitle}>Instructor</h2>
               <div className={styles.contactList}>
-                {instructorContacts.map((contact) => (
-                  <div key={contact.id} className={styles.contactItem}>
-                    <div className={styles.contactAvatar}>
-                      <Image
-                        src={contact.avatarUrl ?? '/edit_avatar/emerald.svg'}
-                        alt={contact.name}
-                        width={60}
-                        height={60}
-                      />
+                {instructorContacts.length === 0 ? (
+                  <div className={styles.emptyState}>No instructors listed.</div>
+                ) : (
+                  instructorContacts.map((contact) => (
+                    <div key={contact.id} className={styles.contactItem}>
+                      <div className={styles.contactAvatar}>
+                        <Image
+                          src={contact.avatarUrl ?? '/edit_avatar/emerald.svg'}
+                          alt={contact.name}
+                          width={60}
+                          height={60}
+                        />
+                      </div>
+                      <div className={styles.contactInfo}>
+                        <span className={styles.contactName}>{contact.name}</span>
+                        <span className={styles.contactEmail}>{contact.email}</span>
+                      </div>
                     </div>
-                    <div className={styles.contactInfo}>
-                      <span className={styles.contactName}>{contact.name}</span>
-                      <span className={styles.contactEmail}>{contact.email}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
             <div className={styles.courseSection}>
               <h2 className={styles.sectionTitle}>Checker</h2>
               <div className={styles.contactList}>
-                {checkerContacts.map((contact) => (
-                  <div key={contact.id} className={styles.contactItem}>
-                    <div className={styles.contactAvatar}>
-                      <Image
-                        src={contact.avatarUrl ?? '/edit_avatar/amethyst.svg'}
-                        alt={contact.name}
-                        width={60}
-                        height={60}
-                      />
+                {checkerContacts.length === 0 ? (
+                  <div className={styles.emptyState}>No checkers listed.</div>
+                ) : (
+                  checkerContacts.map((contact) => (
+                    <div key={contact.id} className={styles.contactItem}>
+                      <div className={styles.contactAvatar}>
+                        <Image
+                          src={contact.avatarUrl ?? '/edit_avatar/amethyst.svg'}
+                          alt={contact.name}
+                          width={60}
+                          height={60}
+                        />
+                      </div>
+                      <div className={styles.contactInfo}>
+                        <span className={styles.contactName}>{contact.name}</span>
+                        <span className={styles.contactEmail}>{contact.email}</span>
+                      </div>
                     </div>
-                    <div className={styles.contactInfo}>
-                      <span className={styles.contactName}>{contact.name}</span>
-                      <span className={styles.contactEmail}>{contact.email}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
           </aside>

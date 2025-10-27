@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import checkedLogo from '../assets/checked_logo.png';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from './hooks/useAuth';
@@ -19,67 +20,7 @@ interface LessonCard {
   href?: string;
 }
 
-const fallbackUpNext: LessonCard[] = [
-  {
-    id: 'bunsen-burners-1',
-    title: 'Bunsen Burners',
-    status: 'Not started',
-    meta: 'Due: XX/XX/XXXX XX:XXpm',
-    actionLabel: 'Start',
-    variant: 'start',
-    image:
-      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAABit0H5AAAACXBIWXMAAAsTAAALEwEAmpwYAAAF5ElEQVR4nO3cQW6bMBRAUT5t//9nnuJlsqS2HApRtf7CfJbFg4lQz+xX86IRERERERERERERGRP4gGrA7jw2cfZsv3xQNAOV6A3SxPg+wJprbV8MgRwBr4FUwPobnYz1UBBqefgdgPgC66P4U9AFbA+jJ0BjWZ/AVeAEObwfsBx8C3sB9gBnQ9V9gCtwPuwFjYOfgNrHg78Be0PhPwHp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYDtwK3wHzYGfgPLA6N8A6sNzM0aW90U/K6EFe87Qp9e3t54J/3ORERERERERERERkd/5ALAeGdKyv4AAAAASUVORK5CYII=',
-    href: '/lessons/bunsen-burners',
-  },
-  {
-    id: 'bunsen-burners-2',
-    title: 'Bunsen Burners',
-    status: 'Not started',
-    meta: 'Due: XX/XX/XXXX XX:XXpm',
-    actionLabel: 'Start',
-    variant: 'start',
-    href: '/lessons/bunsen-burners',
-  },
-  {
-    id: 'bunsen-burners-3',
-    title: 'Bunsen Burners',
-    status: 'Not started',
-    meta: 'Due: XX/XX/XXXX XX:XXpm',
-    actionLabel: 'Start',
-    variant: 'start',
-    href: '/lessons/bunsen-burners',
-  },
-];
-
-const fallbackContinue: LessonCard[] = [
-  {
-    id: 'bunsen-burners-progress',
-    title: 'Bunsen Burners',
-    status: '75% of lesson, 20 minutes remaining',
-    meta: '5 out of 8 questions answered',
-    actionLabel: 'Continue',
-    variant: 'continue',
-    href: '/lessons/bunsen-burners',
-  },
-  {
-    id: 'waste-handling-progress',
-    title: 'Waste Handling',
-    status: '75% of lesson, 20 minutes remaining',
-    meta: '5 out of 8 questions answered',
-    actionLabel: 'Continue',
-    variant: 'continue',
-    href: '/lessons/bunsen-burners',
-  },
-  {
-    id: 'vent-hood-safety-progress',
-    title: 'Vent Hood Safety',
-    status: '75% of lesson, 20 minutes remaining',
-    meta: '5 out of 8 questions answered',
-    actionLabel: 'Continue',
-    variant: 'continue',
-    href: '/lessons/bunsen-burners',
-  },
-];
+const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
 
 function initialsFromName(name?: string | null) {
   if (!name) {
@@ -123,7 +64,7 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
     meta: metaParts.join(' • ') || 'No due date',
     actionLabel: record.status === 'IN_PROGRESS' ? 'Continue' : 'Start',
     variant: record.status === 'IN_PROGRESS' ? 'continue' : 'start',
-    image: record.thumbnailUrl ?? undefined,
+    image: record.thumbnailUrl ?? DEFAULT_LESSON_IMAGE,
     href: `/lessons/${record.slug}`,
   };
 }
@@ -131,24 +72,18 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
 export default function HomePage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user, signOut } = useAuth();
-  const { data: studentData } = useStudentData(user?.email);
+  const { data: studentData, isLoading } = useStudentData(user?.email);
   const pathname = usePathname();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const displayName = studentData?.student.name || user?.name || 'Lastname, Student';
+  const displayName = studentData?.student.name || user?.name || 'Student';
 
   const upNextLessons = useMemo(() => {
-    if (!studentData) {
-      return fallbackUpNext;
-    }
-    return studentData.lessons.upNext.map(lessonRecordToCard);
+    return studentData?.lessons.upNext.map(lessonRecordToCard) ?? [];
   }, [studentData]);
 
   const continueLessons = useMemo(() => {
-    if (!studentData) {
-      return fallbackContinue;
-    }
-    return studentData.lessons.inProgress.map(lessonRecordToCard);
+    return studentData?.lessons.inProgress.map(lessonRecordToCard) ?? [];
   }, [studentData]);
 
   useEffect(() => {
@@ -183,11 +118,13 @@ export default function HomePage() {
     return (
       <div key={lesson.id} className={styles.card}>
         <div className={styles.cardMedia}>
-          {lesson.image ? (
-            <Image src={lesson.image} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
-          ) : (
-            <span>Lesson preview</span>
-          )}
+          <Image
+            src={lesson.image ?? DEFAULT_LESSON_IMAGE}
+            alt="Lesson preview"
+            width={320}
+            height={200}
+            className={styles.cardMediaImage}
+          />
         </div>
         <div>
           <div className={styles.cardTitle}>{lesson.title}</div>
@@ -245,17 +182,31 @@ export default function HomePage() {
           <div className={styles.alert}>
             <span>Alert INFO.</span>
           </div>
-          <div className={styles.brandMark}>checkd.</div>
+          <div className={styles.brandMark}>
+            <Image src={checkedLogo} alt="checkd logo" width={80} height={24} />
+          </div>
         </div>
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Up next</h2>
-          <div className={styles.cardRow}>{upNextLessons.map(renderCard)}</div>
+          {isLoading ? (
+            <div className={styles.emptyState}>Loading lessons…</div>
+          ) : upNextLessons.length === 0 ? (
+            <div className={styles.emptyState}>No lessons ready to start.</div>
+          ) : (
+            <div className={styles.cardRow}>{upNextLessons.map(renderCard)}</div>
+          )}
         </section>
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Pick up where you left off</h2>
-          <div className={styles.cardRow}>{continueLessons.map(renderCard)}</div>
+          {isLoading ? (
+            <div className={styles.emptyState}>Loading your progress…</div>
+          ) : continueLessons.length === 0 ? (
+            <div className={styles.emptyState}>There are no in-progress lessons right now.</div>
+          ) : (
+            <div className={styles.cardRow}>{continueLessons.map(renderCard)}</div>
+          )}
         </section>
       </main>
     </div>

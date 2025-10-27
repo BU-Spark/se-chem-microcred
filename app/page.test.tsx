@@ -4,6 +4,7 @@ import HomePage from './page';
 const mockReplace = jest.fn();
 const mockUsePathname = jest.fn();
 const mockUseAuth = jest.fn();
+const mockUseStudentData = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
@@ -12,6 +13,10 @@ jest.mock('next/navigation', () => ({
 
 jest.mock('./hooks/useAuth', () => ({
   useAuth: () => mockUseAuth(),
+}));
+
+jest.mock('./hooks/useStudentData', () => ({
+  useStudentData: () => mockUseStudentData(),
 }));
 
 function createAuthState(overrides = {}) {
@@ -32,6 +37,26 @@ function createAuthState(overrides = {}) {
   };
 }
 
+function createLesson(id: string, overrides = {}) {
+  return {
+    id,
+    slug: `${id}-slug`,
+    title: `Lesson ${id}`,
+    summary: 'Summary',
+    description: 'Description',
+    thumbnailUrl: null,
+    estimatedMinutes: 10,
+    dueDate: new Date().toISOString(),
+    sortOrder: 0,
+    status: 'NOT_STARTED',
+    percentComplete: 0,
+    segments: [],
+    checkpoints: [],
+    skills: [],
+    ...overrides,
+  };
+}
+
 describe('Home Page', () => {
   beforeEach(() => {
     mockReplace.mockClear();
@@ -39,6 +64,27 @@ describe('Home Page', () => {
     mockUsePathname.mockReturnValue('/');
     mockUseAuth.mockReset();
     mockUseAuth.mockImplementation(() => createAuthState());
+    mockUseStudentData.mockReset();
+    mockUseStudentData.mockReturnValue({
+      data: {
+        student: {
+          name: 'Student Demo',
+          email: 'student@example.edu',
+        },
+        lessons: {
+          upNext: [createLesson('up-1'), createLesson('up-2'), createLesson('up-3')],
+          inProgress: [
+            createLesson('in-1', { status: 'IN_PROGRESS', percentComplete: 75 }),
+            createLesson('in-2', { status: 'IN_PROGRESS', percentComplete: 50 }),
+            createLesson('in-3', { status: 'IN_PROGRESS', percentComplete: 20 }),
+          ],
+          catalog: [],
+        },
+      },
+      isLoading: false,
+      error: null,
+      refresh: jest.fn(),
+    });
   });
 
   it('renders the signed-in dashboard when authentication is ready', () => {
