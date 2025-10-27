@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import HomePage from './page';
+import type { LessonRecord } from './hooks/useStudentData';
 
 const mockReplace = jest.fn();
 const mockUsePathname = jest.fn();
@@ -37,8 +38,8 @@ function createAuthState(overrides = {}) {
   };
 }
 
-function createLesson(id: string, overrides = {}) {
-  return {
+function createLesson(id: string, overrides: Partial<LessonRecord> = {}): LessonRecord {
+  const baseLesson: LessonRecord = {
     id,
     slug: `${id}-slug`,
     title: `Lesson ${id}`,
@@ -53,6 +54,10 @@ function createLesson(id: string, overrides = {}) {
     segments: [],
     checkpoints: [],
     skills: [],
+  };
+
+  return {
+    ...baseLesson,
     ...overrides,
   };
 }
@@ -65,6 +70,13 @@ describe('Home Page', () => {
     mockUseAuth.mockReset();
     mockUseAuth.mockImplementation(() => createAuthState());
     mockUseStudentData.mockReset();
+    const upNextLessons = [createLesson('up-1'), createLesson('up-2'), createLesson('up-3')];
+    const inProgressLessons = [
+      createLesson('in-1', { status: 'IN_PROGRESS', percentComplete: 75 }),
+      createLesson('in-2', { status: 'IN_PROGRESS', percentComplete: 50 }),
+      createLesson('in-3', { status: 'IN_PROGRESS', percentComplete: 20 }),
+    ];
+
     mockUseStudentData.mockReturnValue({
       data: {
         student: {
@@ -72,13 +84,9 @@ describe('Home Page', () => {
           email: 'student@example.edu',
         },
         lessons: {
-          upNext: [createLesson('up-1'), createLesson('up-2'), createLesson('up-3')],
-          inProgress: [
-            createLesson('in-1', { status: 'IN_PROGRESS', percentComplete: 75 }),
-            createLesson('in-2', { status: 'IN_PROGRESS', percentComplete: 50 }),
-            createLesson('in-3', { status: 'IN_PROGRESS', percentComplete: 20 }),
-          ],
-          catalog: [],
+          upNext: upNextLessons,
+          inProgress: inProgressLessons,
+          catalog: [...upNextLessons, ...inProgressLessons],
         },
       },
       isLoading: false,
