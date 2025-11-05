@@ -142,6 +142,8 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
   const [networkError, setNetworkError] = useState<string | null>(null);
   const playerStateRef = useRef<number | null>(null);
   const lastSeekRef = useRef<number | null>(null);
+  const [furthestTime, setFurthestTime] = useState(0);
+  const furthestTimeRef = useRef(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [thumbnailCache, setThumbnailCache] = useState<Record<string, string>>({});
@@ -151,6 +153,28 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const modalStateRef = useRef<ModalState>('none');
   const visibilityTimerRef = useRef<number | null>(null);
+  const updateFurthestTime = useCallback((time: number, force = false) => {
+    if (!Number.isFinite(time)) {
+      return;
+    }
+
+    setFurthestTime((prev) => {
+      if (!force && time <= prev + 0.1) {
+        return prev;
+      }
+      furthestTimeRef.current = time;
+      return time;
+    });
+  }, []);
+
+  const resolveMaxSeekableTime = useCallback(() => {
+    const limit = furthestTimeRef.current;
+    if (!Number.isFinite(duration)) {
+      return limit;
+    }
+    return Math.min(limit, duration);
+  }, [duration]);
+
   const clearHideTimer = useCallback(() => {
     if (visibilityTimerRef.current != null && typeof window !== 'undefined') {
       window.clearTimeout(visibilityTimerRef.current);
@@ -190,20 +214,6 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
     }
     return firstIncompleteCheckpoint;
   }, [orderedCheckpoints, activeCheckpointId, firstIncompleteCheckpoint]);
-
-  const completedThroughTime = useMemo(() => {
-    const lastCompleted = [...orderedCheckpoints]
-      .reverse()
-      .find((checkpoint) => completedCheckpointIds.includes(checkpoint.id));
-    return lastCompleted?.timeOffsetSeconds ?? 0;
-  }, [orderedCheckpoints, completedCheckpointIds]);
-
-  const hardMaxSeek = useMemo(() => {
-    if (!firstIncompleteCheckpoint) {
-      return Number.POSITIVE_INFINITY;
-    }
-    return Math.max(firstIncompleteCheckpoint.timeOffsetSeconds - 0.001, 0);
-  }, [firstIncompleteCheckpoint]);
 
   const youtubeId = useMemo(() => extractYouTubeId(lesson.segments[0]?.videoUrl), [lesson.segments]);
   const primaryVideoUrl = useMemo(() => lesson.segments[0]?.videoUrl ?? null, [lesson.segments]);
@@ -273,17 +283,18 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
     }
   }, []);
 
-  const seekTo = useCallback((time: number, allowSeekAhead = true) => {
+  const seekTo = useCallback((time: number, allowSeekAhead = true, force = false) => {
     if (!Number.isFinite(time)) {
       return;
     }
-    lastSeekRef.current = time;
-    setCurrentTime(time);
+    const maxAllowed = force ? Math.max(0, time) : Math.max(0, Math.min(time, furthestTimeRef.current));
+    lastSeekRef.current = maxAllowed;
+    setCurrentTime(maxAllowed);
     const player = playerRef.current;
     if (!player || typeof player.seekTo !== 'function') {
       return;
     }
-    player.seekTo(time, allowSeekAhead);
+    player.seekTo(maxAllowed, allowSeekAhead);
   }, []);
 
   const openCheckpointModal = useCallback(
@@ -293,7 +304,8 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
         return;
       }
 
-      seekTo(checkpoint.timeOffsetSeconds, true);
+      updateFurthestTime(checkpoint.timeOffsetSeconds, true);
+      seekTo(checkpoint.timeOffsetSeconds, true, true);
       if (checkpoint.questions.length === 0) {
         setCompletedCheckpointIds((prev) => (prev.includes(checkpoint.id) ? prev : [...prev, checkpoint.id]));
         setActiveCheckpointId(null);
@@ -311,7 +323,7 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
       ensurePlayerPaused();
       setActiveQuestionIndex(0);
     },
-    [ensurePlayerPaused, orderedCheckpoints, seekTo]
+    [ensurePlayerPaused, orderedCheckpoints, seekTo, updateFurthestTime]
   );
 
   useEffect(() => {
@@ -406,6 +418,10 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
   useEffect(() => () => clearHideTimer(), [clearHideTimer]);
 
   useEffect(() => {
+    furthestTimeRef.current = furthestTime;
+  }, [furthestTime]);
+
+  useEffect(() => {
     modalStateRef.current = modalState;
   }, [modalState]);
 
@@ -432,6 +448,7 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
 
         if (playing) {
           setCurrentTime(time);
+          updateFurthestTime(time);
           if (typeof player.getDuration === 'function') {
             setDuration(player.getDuration());
           }
@@ -442,21 +459,18 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
         if (firstIncompleteCheckpoint && playing) {
           const trigger = firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD;
           if (time >= trigger) {
-            seekTo(firstIncompleteCheckpoint.timeOffsetSeconds, true);
+            updateFurthestTime(firstIncompleteCheckpoint.timeOffsetSeconds, true);
+            seekTo(firstIncompleteCheckpoint.timeOffsetSeconds, true, true);
             player.pauseVideo?.();
             openCheckpointModal(firstIncompleteCheckpoint.id);
             return;
           }
         }
-
-        if (Number.isFinite(hardMaxSeek) && time > hardMaxSeek + 0.25) {
-          seekTo(hardMaxSeek, true);
-        }
       }
     }, 250);
 
     return () => window.clearInterval(interval);
-  }, [firstIncompleteCheckpoint, hardMaxSeek, modalState, openCheckpointModal, playerReady, seekTo]);
+  }, [firstIncompleteCheckpoint, modalState, openCheckpointModal, playerReady, seekTo, updateFurthestTime]);
 
   useEffect(() => {
     if (modalState === 'none') {
@@ -477,7 +491,8 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
       const baseTime = resumeBaseTime ?? currentCheckpoint?.timeOffsetSeconds ?? null;
       if (baseTime != null) {
         const targetTime = baseTime + resumeOffset;
-        seekTo(targetTime, true);
+        updateFurthestTime(targetTime, true);
+        seekTo(targetTime, true, true);
       }
       setActiveCheckpointId(null);
       setModalState('none');
@@ -490,7 +505,7 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
         playerRef.current?.playVideo?.();
       });
     },
-    [currentCheckpoint, seekTo]
+    [currentCheckpoint, seekTo, updateFurthestTime]
   );
 
   const submitAttempt = useCallback(async () => {
@@ -619,13 +634,13 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
 
   const rangeStyle = useMemo(() => {
     const progressPct = duration > 0 ? Math.min(100, Math.max(0, (currentTime / Math.max(duration, 1)) * 100)) : 0;
-    const unlockedPct =
-      Number.isFinite(hardMaxSeek) && duration > 0 ? Math.min(100, Math.max(0, (hardMaxSeek / duration) * 100)) : 100;
+    const unlockedLimit = resolveMaxSeekableTime();
+    const unlockedPct = duration > 0 ? Math.min(100, Math.max(0, (unlockedLimit / duration) * 100)) : 0;
     return {
       '--progress': `${progressPct}%`,
       '--unlocked': `${unlockedPct}%`,
     } satisfies RangeStyleVars;
-  }, [currentTime, duration, hardMaxSeek]);
+  }, [currentTime, duration, resolveMaxSeekableTime]);
 
   const handleMouseMoveVideo = useCallback(() => {
     if (modalState !== 'none') {
@@ -775,12 +790,11 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
                   min={0}
                   max={Math.max(duration, 1)}
                   step={0.1}
-                  value={Math.min(currentTime, Math.max(duration, 1))}
+                  value={Math.min(currentTime, Math.max(duration, 1), resolveMaxSeekableTime())}
                   style={rangeStyle}
                   onChange={(e) => {
                     const raw = Number(e.currentTarget.value);
-                    const isForwardSkip = raw > hardMaxSeek && raw > completedThroughTime;
-                    const val = isForwardSkip ? Math.min(raw, hardMaxSeek) : raw;
+                    const val = Math.max(0, Math.min(raw, resolveMaxSeekableTime()));
 
                     if (raw !== val) {
                       e.currentTarget.value = String(val);
