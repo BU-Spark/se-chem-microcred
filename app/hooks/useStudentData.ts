@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type LessonStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 type SegmentStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
-type BadgeStatus = 'COMPLETED' | 'READY_FOR_ASSESSMENT' | 'LEARNING';
+type BadgeStatus = 'COMPLETED' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'LEARNING';
 
 export interface StudentData {
   student: {
@@ -52,6 +52,7 @@ export interface StudentData {
   badges: {
     completed: BadgeRecord[];
     readyForAssessment: BadgeRecord[];
+    readyForFinalization: BadgeRecord[];
     learning: BadgeRecord[];
   };
   surveys: {
@@ -64,8 +65,16 @@ export interface StudentData {
     badge: Array<{
       id: string;
       question: string;
+      badgeId: string | null;
       badgeSlug: string | null;
       badgeName: string | null;
+    }>;
+    pendingBadge: Array<{
+      promptId: string;
+      badgeId: string;
+      badgeSlug: string | null;
+      badgeName: string | null;
+      question: string;
     }>;
   };
 }

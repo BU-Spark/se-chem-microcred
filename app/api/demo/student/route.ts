@@ -11,6 +11,7 @@ function groupBadgesByStatus(badges: Array<ReturnType<typeof formatBadge>>) {
     {
       [BadgeStatus.COMPLETED]: [] as ReturnType<typeof formatBadge>[],
       [BadgeStatus.READY_FOR_ASSESSMENT]: [] as ReturnType<typeof formatBadge>[],
+      [BadgeStatus.READY_FOR_FINALIZATION]: [] as ReturnType<typeof formatBadge>[],
       [BadgeStatus.LEARNING]: [] as ReturnType<typeof formatBadge>[],
     }
   );
@@ -182,7 +183,7 @@ export async function GET(request: Request) {
     },
   });
 
-  const [lessonProgresses, lessons, studentBadges] = await Promise.all([
+  const [lessonProgresses, lessons, studentBadges, passingCheckpointAttempts, surveyResponses] = await Promise.all([
     fetchLessonProgress(student.id),
     enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
     prisma.studentBadge.findMany({
@@ -201,6 +202,23 @@ export async function GET(request: Request) {
         },
       },
     }),
+    prisma.checkpointAttempt.findMany({
+      where: {
+        userId: student.id,
+        isPassing: true,
+      },
+      select: {
+        checkpointId: true,
+      },
+    }),
+    prisma.surveyResponse.findMany({
+      where: {
+        studentId: student.id,
+      },
+      select: {
+        promptId: true,
+      },
+    }),
   ]);
 
   const surveyPrompts = await prisma.surveyPrompt.findMany({
@@ -212,9 +230,18 @@ export async function GET(request: Request) {
     },
     include: {
       lesson: { select: { slug: true, title: true } },
-      badge: { select: { slug: true, name: true } },
+      badge: { select: { id: true, slug: true, name: true } },
     },
   });
+
+  const badgeSurveyPromptMap = surveyPrompts.reduce<Map<string, string[]>>((acc, prompt) => {
+    if (prompt.context === SurveyContext.BADGE && prompt.badgeId) {
+      const list = acc.get(prompt.badgeId) ?? [];
+      list.push(prompt.id);
+      acc.set(prompt.badgeId, list);
+    }
+    return acc;
+  }, new Map());
 
   const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
   const lessonCatalog = lessons.map((lesson) => formatLesson({ lesson, progress: progressByLessonId.get(lesson.id) }));
@@ -227,7 +254,72 @@ export async function GET(request: Request) {
     .filter((lesson) => lesson.status === LessonStatus.IN_PROGRESS)
     .sort((a, b) => (a.dueDate && b.dueDate ? Date.parse(a.dueDate) - Date.parse(b.dueDate) : 0));
 
-  const badgeGroups = groupBadgesByStatus(studentBadges.map(formatBadge));
+  const checkpointsByLessonId = new Map<string, string[]>(
+    lessons.map((lesson) => [lesson.id, lesson.checkpoints.map((checkpoint) => checkpoint.id)])
+  );
+  const passingCheckpointIds = new Set(passingCheckpointAttempts.map((attempt) => attempt.checkpointId));
+
+  const surveyPromptIdsCompleted = new Set(surveyResponses.map((response) => response.promptId));
+
+  const normalizedStudentBadges = studentBadges.map((entry) => {
+    const requirementLessonIds = entry.badge.requirements
+      .map((requirement) => requirement.lessonId)
+      .filter((lessonId): lessonId is string => Boolean(lessonId));
+
+    if (requirementLessonIds.length === 0) {
+      return entry;
+    }
+
+    const hasInProgressRequirement = requirementLessonIds.some((lessonId) => {
+      const progress = progressByLessonId.get(lessonId);
+      return progress?.status === LessonStatus.IN_PROGRESS;
+    });
+
+    const allRequirementsCompleted = requirementLessonIds.every((lessonId) => {
+      const progress = progressByLessonId.get(lessonId);
+      if (!progress || progress.status !== LessonStatus.COMPLETED) {
+        return false;
+      }
+
+      const checkpointIds = checkpointsByLessonId.get(lessonId) ?? [];
+      if (checkpointIds.length === 0) {
+        return true;
+      }
+
+      return checkpointIds.every((checkpointId) => passingCheckpointIds.has(checkpointId));
+    });
+
+    let status = entry.status;
+
+    if (status === BadgeStatus.LEARNING) {
+      if (hasInProgressRequirement) {
+        status = BadgeStatus.LEARNING;
+      } else if (allRequirementsCompleted) {
+        status = BadgeStatus.READY_FOR_ASSESSMENT;
+      }
+    }
+
+    if (status === BadgeStatus.READY_FOR_ASSESSMENT && allRequirementsCompleted && !hasInProgressRequirement) {
+      status = BadgeStatus.READY_FOR_ASSESSMENT;
+    }
+
+    if (status === BadgeStatus.READY_FOR_FINALIZATION) {
+      const promptIds = badgeSurveyPromptMap.get(entry.badgeId) ?? [];
+      const surveyComplete = promptIds.length > 0 && promptIds.every((id) => surveyPromptIdsCompleted.has(id));
+      if (surveyComplete) {
+        status = BadgeStatus.COMPLETED;
+      }
+    }
+
+    return status === entry.status
+      ? entry
+      : {
+          ...entry,
+          status,
+        };
+  });
+
+  const badgeGroups = groupBadgesByStatus(normalizedStudentBadges.map(formatBadge));
 
   const lessonSurveyPrompts = surveyPrompts
     .filter((prompt) => prompt.context === SurveyContext.LESSON)
@@ -245,6 +337,17 @@ export async function GET(request: Request) {
       question: prompt.question,
       badgeSlug: prompt.badge?.slug ?? null,
       badgeName: prompt.badge?.name ?? null,
+      badgeId: prompt.badgeId ?? null,
+    }));
+
+  const pendingBadgeSurveys = badgeSurveyPrompts
+    .filter((prompt) => prompt.badgeId && !surveyPromptIdsCompleted.has(prompt.id))
+    .map((prompt) => ({
+      promptId: prompt.id,
+      badgeId: prompt.badgeId as string,
+      badgeSlug: prompt.badgeSlug,
+      badgeName: prompt.badgeName,
+      question: prompt.question,
     }));
 
   return NextResponse.json({
@@ -301,11 +404,13 @@ export async function GET(request: Request) {
     badges: {
       completed: badgeGroups[BadgeStatus.COMPLETED],
       readyForAssessment: badgeGroups[BadgeStatus.READY_FOR_ASSESSMENT],
+      readyForFinalization: badgeGroups[BadgeStatus.READY_FOR_FINALIZATION],
       learning: badgeGroups[BadgeStatus.LEARNING],
     },
     surveys: {
       lesson: lessonSurveyPrompts,
       badge: badgeSurveyPrompts,
+      pendingBadge: pendingBadgeSurveys,
     },
   });
 }

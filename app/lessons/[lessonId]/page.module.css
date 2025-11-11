@@ -1,216 +1,230 @@
-.page {
-  display: flex;
-  gap: 2rem;
-  min-height: calc(100vh - 80px);
-  padding: 2.5rem 1.5rem 3rem;
-  background: #e9eef6;
-}
-
-.sidebar {
-  width: 240px;
-  background: #1f5fab;
-  border-radius: 1.5rem;
-  color: #f8fbff;
-  padding: 2rem 1.5rem;
+/* IMPORTANT: do not override the global shell (.page/.sidebar/.main) */
+/* Use a local wrapper inside <main> only */
+.root {
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  gap: 1.75rem;
 }
 
-.profile {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  align-items: center;
-  text-align: center;
-}
-
-.avatar {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  display: grid;
-  place-items: center;
-  font-size: 1.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.name {
-  font-weight: 600;
-  font-size: 1.1rem;
-}
-
-.navList {
-  display: grid;
-  gap: 0.8rem;
-  font-size: 0.95rem;
-}
-
-.navItem {
-  padding: 0.55rem 0.85rem;
-  border-radius: 0.75rem;
-  transition: background-color 0.2s ease;
-}
-
-.navItemActive,
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.brandFooter {
-  margin-top: auto;
-  font-size: 0.85rem;
-  opacity: 0.85;
-}
-
-.main {
-  flex: 1;
-  background: #ffffff;
-  border-radius: 1.5rem;
-  padding: 2rem 2.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2.5rem;
-  box-shadow: 0 25px 45px rgba(15, 23, 42, 0.12);
-}
-
-.backLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: #1f5fab;
-  font-weight: 600;
-}
-
+/* Header (Back + brand at top-right) */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
 }
 
-.brandMark {
-  font-weight: 700;
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
   color: #1f5fab;
-  font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .lessonTitle {
-  font-size: 2.1rem;
-  font-weight: 600;
-  margin-top: 1.5rem;
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: #1f2937;
+  letter-spacing: -0.01em;
 }
 
 .section {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: .75rem;
 }
 
-.sectionTitle {
-  font-size: 1.3rem;
-  font-weight: 600;
+.sectionHeading {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #111827;
 }
 
-.paragraph,
-.list {
-  font-size: 0.95rem;
+.body,
+.bullets {
+  font-size: .98rem;
   color: #374151;
-  line-height: 1.6;
+  line-height: 1.65;
 }
 
-.timeline {
+.bullets {
+  padding-left: 1.25rem;
+}
+
+.bullets li {
+  margin: .2rem 0;
+}
+
+/* ================= Timeline / Track ================= */
+.track {
   display: flex;
-  gap: 1.5rem;
-  align-items: stretch;
+  align-items: flex-start;
   flex-wrap: wrap;
+  /* wrap on small screens */
+  gap: 1.25rem 2.25rem;
+  /* (row, column) */
 }
 
-.timelineItem {
-  flex: 1;
-  min-width: 200px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  background: #f5f7fb;
-  border-radius: 1rem;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  padding: 1rem;
-}
-
-.timelineMedia {
-  border-radius: 0.9rem;
-  background: linear-gradient(135deg, #cbd5f5, #e8ebf6);
+.trackGroup {
   display: flex;
   align-items: center;
-  justify-content: center;
-  color: rgba(31, 95, 171, 0.8);
-  font-weight: 600;
-  font-size: 0.9rem;
-  height: 100px;
-  overflow: hidden;
+  gap: 1rem;
 }
 
-.timelineMediaImage {
+/* Lesson card */
+.card {
+  width: 260px;
+  /* fixed like Figma */
+  display: flex;
+  flex-direction: column;
+  gap: .6rem;
+  background: #f5f7fb;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, .35);
+  padding: 12px;
+}
+
+/* Square preview */
+.media {
+  position: relative;
   width: 100%;
-  height: 100%;
+  aspect-ratio: 1 / 1;
+  /* ✅ perfect square */
+  border-radius: 12px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #cbd5f5, #e8ebf6);
+}
+
+.mediaImg {
   object-fit: cover;
 }
 
-.timelineHeading {
-  font-weight: 600;
-  font-size: 1rem;
+.mediaImg:not(img) {
+  width: 100%;
+  height: 100%;
 }
 
-.timelineMeta {
-  font-size: 0.85rem;
+.mediaPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: rgba(31, 95, 171, .8);
+  font-weight: 600;
+  font-size: .9rem;
+}
+
+.cardTitle {
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #111827;
+}
+
+.cardMeta {
+  font-size: .88rem;
   color: #4b5563;
 }
 
-.timelineCheckpoints {
+.cardFoot {
   display: flex;
-  gap: 0.5rem;
   align-items: center;
-  font-size: 0.85rem;
+  gap: .45rem;
+  font-size: .9rem;
+  color: #1f5fab;
+  flex-wrap: wrap;
+}
+
+.dot {
+  color: #9ca3af;
+}
+
+/* Connector between cards */
+.connector {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  min-width: 120px;
+}
+
+.node {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid #3b82f6;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, .15);
+}
+
+.line {
+  flex: 1 0 72px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(59, 130, 246, .5), rgba(59, 130, 246, .15));
+  border-radius: 1px;
+}
+
+/* Terminal (final checkpoint) */
+.terminal {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: .6rem 1rem;
+  margin-left: .5rem;
+}
+
+.terminalIcon {
+  width: 48px;
+  height: 48px;
+}
+
+.terminalLabel {
+  display: grid;
+}
+
+.terminalMeta {
+  font-size: .92rem;
   color: #1f5fab;
 }
 
+/* Primary CTA */
 .primaryButton {
   align-self: flex-start;
-  padding: 0.75rem 1.75rem;
+  padding: .85rem 1.85rem;
   border-radius: 999px;
   border: none;
   background: #1f5fab;
-  color: #ffffff;
-  font-weight: 600;
+  color: #fff;
+  font-weight: 700;
   cursor: pointer;
-  transition: filter 0.2s ease;
+  transition: filter .2s ease;
 }
 
 .primaryButton:hover {
-  filter: brightness(0.92);
+  filter: brightness(.96);
 }
 
-@media (max-width: 960px) {
-  .page {
-    flex-direction: column;
+/* ================= Responsive ================= */
+@media (max-width: 1140px) {
+  .card {
+    width: 240px;
   }
 
-  .sidebar {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
+  .connector {
+    min-width: 90px;
+  }
+}
+
+@media (max-width: 900px) {
+  .track {
+    gap: 1.25rem 1.25rem;
+  }
+
+  .trackGroup {
     width: 100%;
   }
 
-  .navList {
-    display: flex;
-    gap: 0.65rem;
+  .connector {
+    display: none;
   }
 
-  .navItem {
-    padding: 0.45rem 0.7rem;
-  }
+  /* stack cards on small screens */
 }

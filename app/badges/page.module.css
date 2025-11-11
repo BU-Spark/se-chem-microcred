@@ -1,112 +1,14 @@
-.page {
-  display: flex;
-  gap: 2rem;
-  min-height: calc(100vh - 80px);
-  padding: 2.5rem 1.5rem 3rem;
-  background: #e9eef6;
-}
+/* Wallet page styles ONLY — no overrides of global .sidebar/.main */
 
-.sidebar {
-  width: 240px;
-  flex: 0 0 240px;
-  min-width: 240px;
-  background: #1f5fab;
-  border-radius: 1.5rem;
-  color: #f8fbff;
-  padding: 2rem 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-}
-
-.profileSummary {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  align-items: center;
-  text-align: center;
-}
-
-.profileSummaryAvatar {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  display: grid;
-  place-items: center;
-  font-size: 1.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.profileSummaryName {
-  font-weight: 600;
-  font-size: 1.1rem;
-}
-
-.navList {
-  display: grid;
-  gap: 0.8rem;
-  font-size: 0.95rem;
-}
-
-.navItem {
-  padding: 0.55rem 0.85rem;
-  border-radius: 0.75rem;
-  transition: background-color 0.2s ease;
-}
-
-.navItemActive,
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.sidebarFooter {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.signOffButton {
-  padding: 0.55rem 1.35rem;
-  border-radius: 999px;
-  border: none;
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-  font-weight: 600;
-  cursor: pointer;
-  transition: filter 0.2s ease, background-color 0.2s ease;
-}
-
-.signOffButton:hover {
-  filter: brightness(1.05);
-  background: rgba(255, 255, 255, 0.28);
-}
-
-.signOffButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  filter: none;
-}
-
-.brandFooter {
-  font-size: 0.85rem;
-  opacity: 0.85;
-}
-
-.main {
-  flex: 1;
-  background: #ffffff;
-  border-radius: 1.5rem;
-  padding: 2.75rem 3rem;
+/* Local wrapper to space content inside global <main> */
+.walletRoot {
   display: flex;
   flex-direction: column;
   gap: 2.5rem;
-  box-shadow: 0 25px 45px rgba(15, 23, 42, 0.12);
+  padding: 2.5rem 3rem 3rem;
 }
 
+/* Header */
 .headerRow {
   display: flex;
   justify-content: space-between;
@@ -119,12 +21,9 @@
   color: #111827;
 }
 
-.brandMark {
-  font-weight: 700;
-  font-size: 1.35rem;
-  color: #1f5fab;
-}
-
+/* =========================
+   Wallet sections stack
+   ========================= */
 .walletSections {
   position: relative;
   display: flex;
@@ -139,7 +38,7 @@
   position: relative;
   border-radius: 2.75rem;
   padding: 2.5rem 2.75rem 3.25rem;
-  background: linear-gradient(180deg, #1560aa 0%, #1a4f89 100%);
+  background: linear-gradient(180deg, #2b5ea9 0%, #1a4f89 100%);
   color: #f8fbff;
   box-shadow: 0 30px 50px rgba(15, 23, 42, 0.35);
   overflow: hidden;
@@ -153,7 +52,7 @@
   margin-top: -3.75rem;
 }
 
-.walletSection > * {
+.walletSection>* {
   pointer-events: auto;
 }
 
@@ -173,7 +72,8 @@
   position: absolute;
   inset: 2.2rem 2.15rem 3.25rem;
   border-radius: 2.1rem;
-  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.25), transparent 50%),
+  background:
+    radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.25), transparent 50%),
     radial-gradient(circle at 70% 45%, rgba(83, 150, 232, 0.22), transparent 60%),
     radial-gradient(circle at 50% 90%, rgba(10, 35, 75, 0.65), transparent 80%);
   pointer-events: none;
@@ -195,6 +95,7 @@
   margin-top: -1.35rem;
 }
 
+/* Section header + toggle */
 .sectionHeader {
   display: flex;
   justify-content: space-between;
@@ -213,6 +114,7 @@
   font-size: 1.45rem;
   font-weight: 700;
   color: #d3f064;
+  /* lime */
 }
 
 .sectionTitle p {
@@ -228,8 +130,6 @@
   height: 46px;
   min-width: 46px;
   min-height: 46px;
-  aspect-ratio: 1 / 1;
-  padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -245,6 +145,7 @@
   background: rgba(12, 32, 68, 0.38);
 }
 
+/* Badges grid */
 .badgeGrid {
   position: relative;
   margin-top: 2rem;
@@ -263,7 +164,8 @@
   width: 110px;
   height: 110px;
   border-radius: 50%;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 65%),
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(255, 255, 255, 0.05) 65%),
     linear-gradient(135deg, rgba(10, 35, 75, 0.35), rgba(10, 35, 75, 0.65));
   display: grid;
   place-items: center;
@@ -306,6 +208,7 @@
   z-index: 1;
 }
 
+/* Modal on token */
 .badgeModal {
   position: absolute;
   top: 50%;
@@ -374,28 +277,17 @@
   cursor: pointer;
 }
 
+.modalHelperText {
+  font-size: 0.9rem;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+/* =========================
+   Responsive (wallet only)
+   ========================= */
 @media (max-width: 960px) {
-  .page {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-  }
-
-  .navList {
-    display: flex;
-    gap: 0.65rem;
-  }
-
-  .navItem {
-    padding: 0.45rem 0.7rem;
-  }
-
-  .main {
+  .walletRoot {
     padding: 2rem;
   }
 

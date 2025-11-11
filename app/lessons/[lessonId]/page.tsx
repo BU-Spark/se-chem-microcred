@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useParams, usePathname } from 'next/navigation';
@@ -8,7 +8,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useStudentData } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 
-const navLinks = [
+const NAV = [
   { href: '/', label: 'Home' },
   { href: '/profile', label: 'Profile' },
   { href: '/analytics', label: 'My Analytics' },
@@ -18,149 +18,196 @@ const navLinks = [
 ];
 
 function initialsFromName(name?: string | null) {
-  if (!name) {
-    return 'ST';
-  }
+  if (!name) return 'ST';
   const parts = name.trim().split(/\s+/);
-  const initials = parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase());
-  return initials.join('') || 'ST';
+  return (
+    parts
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase() ?? '')
+      .join('') || 'ST'
+  );
 }
 
 export default function LessonDetailPage() {
+  // ✅ Hooks are always called in the same order
   const router = useRouter();
   const params = useParams<{ lessonId: string }>();
   const pathname = usePathname();
+
   const { isLoaded, isSignedIn, user } = useAuth();
-  const { data: studentData, isLoading } = useStudentData(user?.email);
+  const { data: studentData, isLoading } = useStudentData(user?.email ?? null);
 
+  // Redirect only via effect (do not early-return before hooks finish)
+  const signedOut = isLoaded && !isSignedIn;
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace('/sign-in');
-    }
-  }, [isLoaded, isSignedIn, router]);
+    if (signedOut) router.replace('/sign-in');
+  }, [signedOut, router]);
 
-  if (!isLoaded || !isSignedIn) {
-    return null;
-  }
-
-  const lessonRecord = studentData?.lessons.catalog.find((entry) => entry.slug === params.lessonId);
   const displayName = studentData?.student.name || user?.name || 'Student Demo';
+  const lessonRecord = studentData?.lessons.catalog.find((e) => e.slug === params.lessonId);
 
-  const timelineItems =
-    lessonRecord?.segments.map((segment, index) => {
-      const [firstCheckpointId] = segment.checkpointIds;
-      const checkpoint = lessonRecord.checkpoints.find((item) => item.id === firstCheckpointId);
-      const minutes = segment.duration ? `${segment.duration} minute${segment.duration === 1 ? '' : 's'} long` : '';
-
+  // Build timeline items from your existing data
+  const timeline = useMemo(() => {
+    if (!lessonRecord) return [];
+    return lessonRecord.segments.map((seg, idx) => {
+      const [firstCheckpointId] = seg.checkpointIds;
+      const cp = lessonRecord.checkpoints.find((c) => c.id === firstCheckpointId);
+      const minutes = seg.duration != null ? `${seg.duration} minute${seg.duration === 1 ? '' : 's'} long` : '';
       return {
-        id: segment.id,
-        title: segment.title || `Part ${index + 1}`,
+        id: seg.id,
+        title: seg.title || `Part ${idx + 1}`,
         duration: minutes || 'Segment duration TBD',
-        checkpointLabel: checkpoint?.label || 'Checkpoint',
-        checkpointMeta: checkpoint?.meta || `${checkpoint?.questionCount ?? 0} questions`,
-        image: segment.thumbnailUrl || lessonRecord.thumbnailUrl,
+        cpLabel: cp?.label || 'Checkpoint',
+        cpMeta: cp?.meta || `${cp?.questionCount ?? 0} questions`,
+        img: seg.thumbnailUrl || lessonRecord.thumbnailUrl || '',
+        partIndex: idx + 1,
       };
-    }) ?? [];
-  const lessonTitle = lessonRecord?.title ?? (isLoading ? 'Loading lesson…' : 'Lesson unavailable');
+    });
+  }, [lessonRecord]);
+
+  // While auth is resolving or redirecting: render nothing (keeps hook order safe)
+  if (!isLoaded || signedOut) return null;
+
+  const title = lessonRecord?.title ?? (isLoading ? 'Loading lesson…' : 'Lesson unavailable');
 
   return (
-    <div className={styles.page}>
-      <aside className={styles.sidebar}>
-        <div className={styles.profile}>
-          <div className={styles.avatar}>{initialsFromName(displayName)}</div>
-          <div className={styles.name}>{displayName}</div>
+    <div className="page">
+      {/* ✅ pure global shell (no module .page) */}
+      {/* Sidebar */}
+      <aside className="sidebar">
+        <div className="profile">
+          <div className="avatar">{initialsFromName(displayName)}</div>
+          <div className="name">{displayName}</div>
         </div>
-        <nav className={styles.navList}>
-          {navLinks.map((link) => {
-            const isActive =
-              link.href === '/' ? pathname.startsWith('/lessons') || pathname === '/' : pathname === link.href;
-            const className = `${styles.navItem} ${isActive ? styles.navItemActive : ''}`.trim();
+
+        <nav className="navList" aria-label="Main">
+          {NAV.map((item) => {
+            const active =
+              item.href === '/' ? pathname.startsWith('/lessons') || pathname === '/' : pathname === item.href;
+            const cls = `navItem${active ? ' navItemActive' : ''}`;
             return (
-              <Link key={link.href} href={link.href} className={className}>
-                {link.label}
+              <Link key={item.href} href={item.href} className={cls}>
+                {item.label}
               </Link>
             );
           })}
         </nav>
-        <div className={styles.brandFooter}>checkd.</div>
+
+        <div className="sidebarFooter">
+          <button className="signOffButton" type="button" onClick={() => router.push('/sign-in')}>
+            Sign off
+          </button>
+          <div className="brandFooter">checkd.</div>
+        </div>
       </aside>
 
-      <main className={styles.main}>
-        <div className={styles.header}>
-          <Link href="/" className={styles.backLink}>
-            ← Back
-          </Link>
-          <div className={styles.brandMark}>checkd.</div>
-        </div>
+      {/* Main */}
+      <main className="main">
+        <div className={styles.root}>
+          <header className={styles.header}>
+            <Link href="/" className={styles.backLink}>
+              ← Back
+            </Link>
+            <div className="brandMark">checkd.</div>
+          </header>
 
-        <h1 className={styles.lessonTitle}>{lessonTitle}</h1>
+          <h1 className={styles.lessonTitle}>{title}</h1>
 
-        {lessonRecord ? (
-          <>
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>About this unit</h2>
-              <p className={styles.paragraph}>{lessonRecord.description}</p>
-            </section>
+          {lessonRecord ? (
+            <>
+              <section className={styles.section}>
+                <h2 className={styles.sectionHeading}>About this unit:</h2>
+                <p className={styles.body}>{lessonRecord.description}</p>
+              </section>
 
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Skills you’ll learn</h2>
-              <ul className={styles.list}>
-                {lessonRecord.skills.map((skill) => (
-                  <li key={skill}>{skill}</li>
-                ))}
-              </ul>
-            </section>
+              <section className={styles.section}>
+                <h2 className={styles.sectionHeading}>Skills you’ll learn</h2>
+                <ul className={styles.bullets}>
+                  {lessonRecord.skills.map((s) => (
+                    <li key={s}>{s}</li>
+                  ))}
+                </ul>
+              </section>
 
-            <section className={styles.section}>
-              <div className={styles.sectionTitle}>Lesson outline</div>
-              <div className={styles.timeline}>
-                {timelineItems.map((item, index) => (
-                  <div key={item.id} className={styles.timelineItem}>
-                    <div className={styles.timelineMedia}>
-                      {item.image ? (
-                        <Image
-                          src={item.image}
-                          alt={item.title}
-                          width={200}
-                          height={120}
-                          className={styles.timelineMediaImage}
-                        />
-                      ) : (
-                        <span>Segment preview</span>
+              <section className={styles.section}>
+                <h2 className={styles.sectionHeading}>Lesson outline</h2>
+
+                {/* Track: card → connector → card … then terminal */}
+                <div className={styles.track}>
+                  {timeline.map((item, idx) => (
+                    <div key={item.id} className={styles.trackGroup}>
+                      <div className={styles.card}>
+                        <div className={styles.media}>
+                          {item.img ? (
+                            <Image src={item.img} alt={item.title} fill sizes="160px" className={styles.mediaImg} />
+                          ) : (
+                            <span className={styles.mediaPlaceholder}>Preview</span>
+                          )}
+                        </div>
+
+                        <div className={styles.cardTitle}>{item.title}</div>
+                        <div className={styles.cardMeta}>{item.duration}</div>
+                        <div className={styles.cardFoot}>
+                          <span>{item.cpLabel}</span>
+                          <span className={styles.dot}>•</span>
+                          <span>{item.cpMeta}</span>
+                          <span className={styles.dot}>•</span>
+                          <span>Part {item.partIndex}</span>
+                        </div>
+                      </div>
+
+                      {/* connector to next */}
+                      {idx < timeline.length - 1 && (
+                        <div className={styles.connector} aria-hidden>
+                          <span className={styles.node} />
+                          <span className={styles.line} />
+                          <span className={styles.node} />
+                        </div>
                       )}
                     </div>
-                    <div className={styles.timelineHeading}>{item.title}</div>
-                    <div className={styles.timelineMeta}>{item.duration}</div>
-                    <div className={styles.timelineCheckpoints}>
-                      <span>{item.checkpointLabel}</span>
-                      <span>•</span>
-                      <span>{item.checkpointMeta}</span>
-                      <span>•</span>
-                      <span>Part {index + 1}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </section>
+                  ))}
 
-            <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
-              Start Lesson
-            </Link>
-          </>
-        ) : (
-          <section className={styles.section}>
-            <p className={styles.paragraph}>
-              {isLoading
-                ? 'Loading lesson details…'
-                : 'We could not find a lesson that matches this page. Please head back to the lesson list.'}
-            </p>
-            {!isLoading && (
-              <Link href="/" className={styles.primaryButton}>
-                Browse Lessons
+                  {/* Terminal “Final check point” */}
+                  {timeline.length > 0 && (
+                    <div className={styles.terminal} aria-label="Final checkpoint">
+                      <svg viewBox="0 0 48 48" className={styles.terminalIcon} aria-hidden="true">
+                        <circle cx="24" cy="24" r="22" fill="white" />
+                        <circle cx="24" cy="24" r="22" stroke="#3b82f6" strokeWidth="2" fill="none" />
+                        <path
+                          d="M16 25l6 6 10-12"
+                          fill="none"
+                          stroke="#22c55e"
+                          strokeWidth="3.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                      <div className={styles.terminalLabel}>
+                        <div>Final check point</div>
+                        <div className={styles.terminalMeta}>3 questions</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
+                Start Lesson
               </Link>
-            )}
-          </section>
-        )}
+            </>
+          ) : (
+            <section className={styles.section}>
+              <p className={styles.body}>
+                {isLoading ? 'Loading lesson details…' : 'We could not find this lesson. Please head back to the list.'}
+              </p>
+              {!isLoading && (
+                <Link href="/" className={styles.primaryButton}>
+                  Browse Lessons
+                </Link>
+              )}
+            </section>
+          )}
+        </div>
       </main>
     </div>
   );

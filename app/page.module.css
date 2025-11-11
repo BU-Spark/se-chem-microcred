@@ -152,6 +152,27 @@
   font-size: 1.4rem;
 }
 
+.alert button {
+  margin-left: auto;
+  padding: 0.45rem 1.25rem;
+  border-radius: 999px;
+  border: none;
+  background: #1f5fab;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.alert[data-active='false'] {
+  background: rgba(227, 233, 246, 0.6);
+  border-color: rgba(31, 95, 171, 0.25);
+  color: #1f2937;
+}
+
+.alert[data-active='false'] button {
+  display: none;
+}
+
 .brandMark {
   font-weight: 700;
   color: #1f5fab;
@@ -200,6 +221,92 @@
   width: 260px;
   min-height: 260px;
   justify-content: space-between;
+}
+
+.surveyOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.surveyModal {
+  position: relative;
+  width: min(420px, 92%);
+  background: #ffffff;
+  border-radius: 1.75rem;
+  padding: 2.25rem 2.5rem;
+  box-shadow: 0 45px 60px rgba(15, 23, 42, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+}
+
+.surveyClose {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.5rem;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.surveyTitle {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.surveyQuestion {
+  font-size: 1rem;
+  color: #374151;
+}
+
+.surveyFaces {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.surveyFace {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 2px solid rgba(31, 95, 171, 0.25);
+  background: #f1f5f9;
+  color: #1f5fab;
+  font-weight: 600;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.surveyFaceSelected {
+  transform: translateY(-4px);
+  border-color: #1f5fab;
+  background: rgba(31, 95, 171, 0.16);
+}
+
+.surveySubmit {
+  align-self: flex-end;
+  padding: 0.7rem 1.8rem;
+  border-radius: 999px;
+  border: none;
+  background: #1f5fab;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.surveySubmit:hover {
+  filter: brightness(0.95);
 }
 
 .cardMedia {

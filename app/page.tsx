@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import checkedLogo from '../assets/checked_logo.png';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from './hooks/useAuth';
 import { useStudentData, type LessonRecord } from './hooks/useStudentData';
 import styles from './page.module.css';
@@ -71,12 +71,40 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
 
 export default function HomePage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user, signOut } = useAuth();
-  const { data: studentData, isLoading } = useStudentData(user?.email);
+  const { data: studentData, isLoading, refresh } = useStudentData(user?.email);
   const pathname = usePathname();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [activeSurvey, setActiveSurvey] = useState<{
+    promptId: string;
+    badgeId: string;
+    badgeSlug: string | null;
+    badgeName: string | null;
+    question: string;
+  } | null>(null);
+  const [surveyRating, setSurveyRating] = useState(3);
 
-  const displayName = studentData?.student.name || user?.name || 'Student';
+  const displayName = studentData?.student?.name || user?.name || 'Student';
+  const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
+
+  useEffect(() => {
+    const slug = searchParams.get('surveyBadge');
+    if (!slug) {
+      return;
+    }
+    const match = pendingSurveyBadges.find((entry) => entry.badgeSlug === slug) ?? pendingSurveyBadges[0] ?? null;
+    if (match) {
+      setActiveSurvey(match);
+      setSurveyRating(3);
+    }
+  }, [pendingSurveyBadges, searchParams]);
+
+  useEffect(() => {
+    if (pendingSurveyBadges.length === 0) {
+      setActiveSurvey(null);
+    }
+  }, [pendingSurveyBadges]);
 
   const upNextLessons = useMemo(() => {
     return studentData?.lessons.upNext.map(lessonRecordToCard) ?? [];
@@ -106,6 +134,63 @@ export default function HomePage() {
       setIsSigningOut(false);
     }
   };
+
+  const closeSurveyModal = useCallback(() => {
+    setActiveSurvey(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('surveyBadge');
+    const nextPath = params.size ? `${pathname}?${params.toString()}` : pathname;
+    router.replace(nextPath, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const handleStartSurvey = useCallback(
+    (target?: {
+      promptId: string;
+      badgeId: string;
+      badgeSlug: string | null;
+      badgeName: string | null;
+      question: string;
+    }) => {
+      const surveyTarget = target ?? pendingSurveyBadges[0];
+      if (!surveyTarget) {
+        return;
+      }
+
+      setActiveSurvey(surveyTarget);
+      setSurveyRating(3);
+
+      const params = new URLSearchParams(searchParams.toString());
+      if (surveyTarget.badgeSlug) {
+        params.set('surveyBadge', surveyTarget.badgeSlug);
+      }
+      const nextPath = `${pathname}?${params.toString()}`;
+      router.replace(nextPath, { scroll: false });
+    },
+    [pendingSurveyBadges, pathname, router, searchParams]
+  );
+
+  const handleSubmitSurvey = useCallback(async () => {
+    if (!activeSurvey || !studentData?.student.email) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/badges/${activeSurvey.badgeId}/survey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: studentData.student.email, rating: surveyRating }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to submit survey');
+      }
+
+      await refresh();
+      closeSurveyModal();
+    } catch (error) {
+      console.error('Failed to submit survey', error);
+    }
+  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -145,8 +230,8 @@ export default function HomePage() {
   };
 
   return (
-    <div className={styles.page}>
-      <aside className={styles.sidebar}>
+    <div className={`page ${styles.page}`}>
+      <aside className={`sidebar ${styles.sidebar}`}>
         <div className={styles.profile}>
           <div className={styles.avatar}>{initialsFromName(displayName)}</div>
           <div className={styles.name}>{displayName}</div>
@@ -177,10 +262,22 @@ export default function HomePage() {
         </div>
       </aside>
 
-      <main className={styles.main}>
+      <main className={`main ${styles.main}`}>
         <div className={styles.topRow}>
-          <div className={styles.alert}>
-            <span>Alert INFO.</span>
+          <div className={styles.alert} data-active={pendingSurveyBadges.length > 0}>
+            {pendingSurveyBadges.length > 0 ? (
+              <>
+                <span>
+                  Complete feedback survey to finalize your badge. You can find it under &quot;Ready to be
+                  Finalized&quot; in your Badge Wallet.
+                </span>
+                <button type="button" onClick={() => handleStartSurvey()}>
+                  Start Survey
+                </button>
+              </>
+            ) : (
+              <span>Welcome back!</span>
+            )}
           </div>
           <div className={styles.brandMark}>
             <Image src={checkedLogo} alt="checkd logo" width={80} height={24} />
@@ -209,6 +306,40 @@ export default function HomePage() {
           )}
         </section>
       </main>
+
+      {activeSurvey ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true">
+          <div className={styles.surveyModal}>
+            <button type="button" className={styles.surveyClose} onClick={closeSurveyModal}>
+              Do this later
+            </button>
+            <h2 className={styles.surveyTitle}>Tell us about your experience.</h2>
+            <p className={styles.surveyQuestion}>{activeSurvey.question}</p>
+            <div className={styles.surveyFaces}>
+              {[1, 2, 3, 4, 5].map((value) => {
+                const isSelected = surveyRating === value;
+                const faceClass = [styles.surveyFace, isSelected ? styles.surveyFaceSelected : '']
+                  .filter(Boolean)
+                  .join(' ');
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    className={faceClass}
+                    onClick={() => setSurveyRating(value)}
+                    aria-pressed={isSelected}
+                  >
+                    {value}
+                  </button>
+                );
+              })}
+            </div>
+            <button type="button" className={styles.surveySubmit} onClick={handleSubmitSurvey}>
+              Submit
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

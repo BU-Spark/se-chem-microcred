@@ -512,7 +512,7 @@ async function seedDemo() {
       category: BadgeCategory.EQUIPMENT,
       lessonSlug: 'bunsen-burners',
       studentStatus: {
-        status: BadgeStatus.COMPLETED,
+        status: BadgeStatus.READY_FOR_FINALIZATION,
         awardedAt: new Date('2025-02-22T17:00:00.000Z'),
         score: 92,
       },
@@ -582,7 +582,7 @@ async function seedDemo() {
     },
   });
 
-  const badgeSurvey = await prisma.surveyPrompt.create({
+  await prisma.surveyPrompt.create({
     data: {
       context: SurveyContext.BADGE,
       badgeId: badgeRecords.find((badge) => badge.slug === 'bunsen-burner-badge')?.id,
@@ -596,14 +596,6 @@ async function seedDemo() {
       studentId: student.id,
       rating: 4,
       comment: 'Feeling much more confident lighting the burner!',
-    },
-  });
-
-  await prisma.surveyResponse.create({
-    data: {
-      promptId: badgeSurvey.id,
-      studentId: student.id,
-      rating: 5,
     },
   });
 

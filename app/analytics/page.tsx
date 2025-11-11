@@ -237,8 +237,8 @@ export default function AnalyticsPage() {
   };
 
   return (
-    <div className={styles.page}>
-      <aside className={styles.sidebar}>
+    <div className={`page ${styles.page}`}>
+      <aside className={`sidebar ${styles.sidebar}`}>
         <div className={styles.profile}>
           <div className={styles.avatar}>{initialsFromName(displayName)}</div>
           <div className={styles.name}>{displayName}</div>
@@ -262,7 +262,7 @@ export default function AnalyticsPage() {
         </div>
       </aside>
 
-      <main className={styles.main}>
+      <main className={`main ${styles.main}`}>
         <header className={styles.headerRow}>
           <div className={styles.titleBlock}>
             <h1 className={styles.pageTitle}>Student&apos;s Analytics</h1>

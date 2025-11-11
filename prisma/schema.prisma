@@ -359,6 +359,7 @@ model StudentAnalytics {
 enum BadgeStatus {
   LEARNING
   READY_FOR_ASSESSMENT
+  READY_FOR_FINALIZATION
   COMPLETED
 }
 

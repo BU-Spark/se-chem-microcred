@@ -6,10 +6,12 @@ const mockReplace = jest.fn();
 const mockUsePathname = jest.fn();
 const mockUseAuth = jest.fn();
 const mockUseStudentData = jest.fn();
+const mockUseSearchParams = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
   usePathname: () => mockUsePathname(),
+  useSearchParams: () => mockUseSearchParams(),
 }));
 
 jest.mock('./hooks/useAuth', () => ({
@@ -67,6 +69,8 @@ describe('Home Page', () => {
     mockReplace.mockClear();
     mockUsePathname.mockReset();
     mockUsePathname.mockReturnValue('/');
+    mockUseSearchParams.mockReset();
+    mockUseSearchParams.mockReturnValue(new URLSearchParams());
     mockUseAuth.mockReset();
     mockUseAuth.mockImplementation(() => createAuthState());
     mockUseStudentData.mockReset();
@@ -87,6 +91,17 @@ describe('Home Page', () => {
           upNext: upNextLessons,
           inProgress: inProgressLessons,
           catalog: [...upNextLessons, ...inProgressLessons],
+        },
+        badges: {
+          completed: [],
+          readyForAssessment: [],
+          readyForFinalization: [],
+          learning: [],
+        },
+        surveys: {
+          lesson: [],
+          badge: [],
+          pendingBadge: [],
         },
       },
       isLoading: false,
