@@ -632,14 +632,14 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
     }
   }, [isMuted, modalState, scheduleHide]);
 
-  const rangeStyle = useMemo(() => {
+  const rangeStyle = useMemo<RangeStyleVars>(() => {
     const progressPct = duration > 0 ? Math.min(100, Math.max(0, (currentTime / Math.max(duration, 1)) * 100)) : 0;
     const unlockedLimit = resolveMaxSeekableTime();
     const unlockedPct = duration > 0 ? Math.min(100, Math.max(0, (unlockedLimit / duration) * 100)) : 0;
     return {
       '--progress': `${progressPct}%`,
       '--unlocked': `${unlockedPct}%`,
-    } satisfies RangeStyleVars;
+    };
   }, [currentTime, duration, resolveMaxSeekableTime]);
 
   const handleMouseMoveVideo = useCallback(() => {
