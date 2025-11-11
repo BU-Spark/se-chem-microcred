@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import checkedLogo from '../assets/checked_logo.png';
 import Link from 'next/link';
@@ -69,7 +69,7 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
   };
 }
 
-export default function HomePage() {
+function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user, signOut } = useAuth();
@@ -341,5 +341,13 @@ export default function HomePage() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={null}>
+      <HomePageContent />
+    </Suspense>
   );
 }
