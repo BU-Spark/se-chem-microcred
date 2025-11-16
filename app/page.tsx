@@ -1,7 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
+import Image, { type StaticImageData } from 'next/image';
 import checkedLogo from '../assets/checked_logo.png';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -9,6 +9,11 @@ import { useAuth } from './hooks/useAuth';
 import { useStudentData, type LessonRecord } from './hooks/useStudentData';
 import styles from './page.module.css';
 import surveyAlarmXIcon from '../assets/survey_alarm/survey_alarm_x_icon.png';
+import veryUnhappy from '../assets/survey_faces/very_unhappy.png';
+import slightlyUnhappy from '../assets/survey_faces/slightly_unhappy.png';
+import neutral from '../assets/survey_faces/neutral.png';
+import slightlyHappy from '../assets/survey_faces/slightly_happy.png';
+import veryHappy from '../assets/survey_faces/very_happy.png';
 
 interface LessonCard {
   id: string;
@@ -70,6 +75,23 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
   };
 }
 
+function getFaceFilter(value: number, isSelected: boolean): string {
+  // Selected state → everything should look lime-ish (#C9DB50)
+  if (isSelected) {
+    // turn blue to lime; for the lime icon this is a small tweak
+    return 'hue-rotate(-140deg) saturate(130%) brightness(1.05)';
+  }
+
+  // Default state:
+  // faces 1,2,3,5 are already brand blue; do nothing
+  if (value !== 4) {
+    return 'none';
+  }
+
+  // Face 4 (slightly_happy) source is lime; shift it to blue for default
+  return 'hue-rotate(140deg) saturate(110%) brightness(0.95)';
+}
+
 function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -85,6 +107,22 @@ function HomePageContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
+
+  const FACE_IMAGES: Record<number, StaticImageData> = {
+    1: veryUnhappy,
+    2: slightlyUnhappy,
+    3: neutral,
+    4: slightlyHappy,
+    5: veryHappy,
+  };
+
+  const FACE_ALTS: Record<number, string> = {
+    1: 'Very unhappy',
+    2: 'Slightly unhappy',
+    3: 'Neutral',
+    4: 'Slightly happy',
+    5: 'Very happy',
+  };
 
   const displayName = studentData?.student?.name || user?.name || 'Student';
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
@@ -212,11 +250,14 @@ function HomePageContent() {
             className={styles.cardMediaImage}
           />
         </div>
-        <div>
+
+        {/* ⭐ new wrapper for text block */}
+        <div className={styles.cardTextBlock}>
           <div className={styles.cardTitle}>{lesson.title}</div>
           <div className={styles.cardStatus}>{lesson.status}</div>
           <div className={styles.cardMeta}>{lesson.meta}</div>
         </div>
+
         {lesson.href ? (
           <Link href={lesson.href} className={buttonClass}>
             {lesson.actionLabel}
@@ -324,22 +365,29 @@ function HomePageContent() {
             <div className={styles.surveyFaces}>
               {[1, 2, 3, 4, 5].map((value) => {
                 const isSelected = surveyRating === value;
-                const faceClass = [styles.surveyFace, isSelected ? styles.surveyFaceSelected : '']
+                const buttonClass = [styles.surveyFace, isSelected ? styles.surveyFaceSelected : '']
                   .filter(Boolean)
                   .join(' ');
+
                 return (
                   <button
                     key={value}
                     type="button"
-                    className={faceClass}
+                    className={buttonClass}
                     onClick={() => setSurveyRating(value)}
                     aria-pressed={isSelected}
                   >
-                    {value}
+                    <Image
+                      src={FACE_IMAGES[value]}
+                      alt={FACE_ALTS[value]}
+                      className={styles.surveyFaceImage}
+                      style={{ filter: getFaceFilter(value, isSelected) }} // ⭐ only ONE filter
+                    />
                   </button>
                 );
               })}
             </div>
+
             <button type="button" className={styles.surveySubmit} onClick={handleSubmitSurvey}>
               Submit
             </button>

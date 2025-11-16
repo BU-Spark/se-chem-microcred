@@ -205,9 +205,18 @@
 }
 
 .sectionTitle {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #111827;
+  font-family: 'Lato', sans-serif;
+  /* match figma */
+  font-size: 36px;
+  /* 36px from figma */
+  font-weight: 700;
+  /* bold (figma) */
+  line-height: 100%;
+  /* figma */
+  letter-spacing: 0;
+  /* figma */
+  color: #000000;
+  /* figma */
 }
 
 /* =========================
@@ -216,7 +225,7 @@
 .cardRow {
   display: grid;
   gap: 1.5rem;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 260px));
+  grid-template-columns: repeat(auto-fill, minmax(389px, 389px));
   justify-content: flex-start;
 }
 
@@ -231,29 +240,37 @@
   border-radius: 0;
   padding: 0;
 
-  width: 260px;
-  min-height: auto;
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  align-items: flex-start;
+  /* text aligned with image left edge */
 }
+
 
 .cardMedia {
   width: 100%;
   aspect-ratio: 1 / 1;
   background: #dedede;
-
   display: flex;
   align-items: center;
   justify-content: center;
-
-  color: rgba(31, 95, 171, 0.8);
-  font-weight: 600;
-  font-size: 0.9rem;
   overflow: hidden;
   border-radius: 0;
+
+  margin-bottom: 24px;
+  /* ⭐ space between image and title block */
 }
 
+.cardTextBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  /* ⭐ tight vertical gap like in Figma */
+  margin-bottom: 24px;
+  /* ⭐ space between meta and button */
+}
 
 .cardMediaImage {
   width: 100%;
@@ -262,36 +279,69 @@
 }
 
 .cardTitle {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111827;
+  font-family: 'Lato', sans-serif;
+  /* match figma */
+  font-size: 32px;
+  /* 36px from figma */
+  font-weight: 400;
+  /* bold (figma) */
+  line-height: 100%;
+  /* figma */
+  letter-spacing: 0;
+  /* figma */
+  color: #000000;
+  /* figma */
 }
 
 .cardStatus,
 .cardMeta {
-  font-size: 0.85rem;
-  color: #4b5563;
+  font-family: 'Open Sans', sans-serif;
+  /* match figma */
+  font-size: 16px;
+  /* 36px from figma */
+  font-weight: 400;
+  /* bold (figma) */
+  line-height: 100%;
+  /* figma */
+  letter-spacing: 0;
+  /* figma */
+  color: #000000;
+  /* figma */
+  margin-left: 5px;
 }
 
 .cardButton {
-  margin-top: 0.75rem;
-  align-self: flex-start;
-  padding: 0.55rem 1.35rem;
-  border-radius: 999px;
-  border: none;
-  background: #1f5fab;
-  color: #ffffff;
-  font-weight: 600;
-  cursor: pointer;
-  transition: filter 0.2s ease;
-  display: inline-flex;
+  width: 152px;
+  /* Figma width */
+  height: 59px;
+  /* Figma height */
+
+  background: #2E6AA9;
+  /* Figma button color */
+  border-radius: 19px;
+  /* Figma border radius */
+
+  display: flex;
   align-items: center;
   justify-content: center;
+
+  border: none;
+  cursor: pointer;
   text-decoration: none;
+
+  font-family: 'Lato', sans-serif;
+  /* match design system */
+  font-size: 24px;
+  /* common Figma button size */
+  font-weight: 400;
+  /* bold */
+  color: white;
+
+  transition: filter 0.15s ease;
 }
 
 .cardButton:hover {
-  filter: brightness(0.92);
+  filter: brightness(0.95);
 }
 
 .secondaryAction {
@@ -348,28 +398,45 @@
 .surveyFaces {
   display: flex;
   justify-content: space-between;
-  gap: 0.75rem;
+  gap: 1.5rem;
 }
 
 .surveyFace {
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  border: 2px solid rgba(31, 95, 171, 0.25);
-  background: #f1f5f9;
-  color: #1f5fab;
-  font-weight: 600;
-  display: grid;
-  place-items: center;
+  background: none;
+  border: none;
+  padding: 0;
   cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
 }
 
 .surveyFaceSelected {
   transform: translateY(-4px);
-  border-color: #1f5fab;
-  background: rgba(31, 95, 171, 0.16);
+  /* small lift for selected */
 }
+
+/* Icon size – tweak if needed (64–72px works well) */
+.surveyFaceImage {
+  width: 36px;
+  height: 36px;
+  display: block;
+}
+
+
+/* For the slightly_happy icon: source is yellow -> force it to blue in default state */
+.surveyFaceImageForceBlue {
+  /* Approx filter: yellow -> blue */
+  filter: hue-rotate(-140deg) saturate(130%);
+}
+
+/* When selected: turn faces into yellow (#C9DB50) */
+.surveyFaceImageSelected {
+  /* Approx filter: blue -> yellow */
+  filter: hue-rotate(60deg) saturate(140%);
+}
+
 
 .surveySubmit {
   align-self: flex-end;
