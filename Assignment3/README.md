@@ -1,27 +1,54 @@
-# Assignment 3 – CI Pipeline Deliverable
+# Assignment 3 – CI Pipeline
 
 ## CI Tool
-- **GitHub Actions** workflow leveraging in `.github/workflows/ci.yml`.
+- **GitHub Actions** CI workflow defined in `.github/workflows/ci.yml`.
+
+---
 
 ## Implemented Tasks
-1. **ESLint** – runs `npm run lint -- --max-warnings=0` and fails on any lint error/warning.
-2. **Jest Unit Tests** – runs `npm run test -- --runInBand --ci app/page.test.tsx`, so our custom `app/page.test.tsx` file executes inside CI with coverage enabled and logs published in Actions.
-3. **Next.js Build** – runs `npm run build` only after linting and tests succeed, guaranteeing the bundle is produced from vetted code.
 
-## How to Trigger
-- Any `push` or `pull_request` targeting `main` or `dev` fires automatically because `.github/workflows/ci.yml` already lives in the repo (keep the rest of the assignment files inside `Assignment3/` for grading).
-- Run manually in GitHub via **Actions → Assignment3 CI → Run workflow** (enabled through `workflow_dispatch`).
+1. **ESLint (Code Quality Check)**  
+   - CI command:  
+     ```bash
+     npm run lint -- --max-warnings=0
+     ```  
+   - The pipeline fails on any ESLint error or warning, enforcing a strict style and static analysis gate.
 
-## Before Pushing or Committing
-- Run `npm run lint -- --max-warnings=0` locally to catch formatting and syntax issues early.
-- Run `npm run test -- --runInBand --coverage app/page.test.tsx` so the same unit tests that CI uses (`app/page.test.tsx`) stay green prior to pushing any branch or opening a pull request.
+2. **Jest Unit Tests (Behavior Verification)**  
+   - CI command:  
+     ```bash
+     npm run test -- --runInBand --ci app/page.test.tsx
+     ```  
+   - Ensures the custom test file `app/page.test.tsx` is executed inside CI, with logs visible in the GitHub Actions run and coverage enabled.
 
-## Demo Instructions
-1. Point GitHub to `.github/workflows/ci.yml` (already present in this repo) by pushing any commit/PR.
-2. In GitHub, open the **Actions** tab, pick the latest `Assignment3 CI` run, and start a screen recording (QuickTime, Loom, etc.).
-3. Narrate the queued run, show the sequential `Run ESLint`, `Run Jest tests`, and `Build Next.js app` logs, and highlight that the job stops on failure.
-4. Conclude with a ~10 second recap interpreting the pass/fail status and where artifacts/logs live.
+3. **Next.js Build (Build Verification)**  
+   - CI command:  
+     ```bash
+     npm run build
+     ```  
+   - Only runs **after** linting and tests succeed, guaranteeing that the production build is created from vetted, passing code.
+
+---
+
+## How to Trigger the Pipeline
+
+- **Automatically**  
+  - Any `push` or `pull_request` targeting the `main` or `dev` branches triggers the CI workflow, since `.github/workflows/ci.yml` is already present in the repository.
+  - All Assignment-3-specific files are kept inside the `Assignment3/` directory for grading, while CI configuration lives independently under `.github/workflows/`.
+
+- **Manually**  
+  - In GitHub, navigate to:  
+    `Actions → Assignment3 CI → Run workflow`  
+  - Choose a branch and click **Run workflow** (enabled via the `workflow_dispatch` option).
+
+---
 
 ## Challenges
-- The Codespace/CLI environment cannot capture or upload an actual video, so only written demo instructions are provided.
-- Existing `npm run lint` uses `--fix`; adding `--max-warnings=0` via CLI ensures the CI job still fails on violations without altering project scripts.
+- **Aligning Local Developer Experience With CI Strictness**
+- The existing npm run lint script uses eslint . --fix, which is convenient for local development but inappropriate for CI, where we want lint errors to cause the job to fail rather than be automatically fixed.
+To handle this without modifying the project’s scripts, the CI pipeline appends --max-warnings=0 to force strict lint behavior.
+
+- **Clarifying Responsibility Between Local Hooks and CI Pipeline**
+- The project uses Husky and lint-staged, meaning tests may run automatically during git commit. Understanding how these local hooks interact with CI and ensuring tests run reliably in both contexts required separation of local validation and CI verification.
+
+---

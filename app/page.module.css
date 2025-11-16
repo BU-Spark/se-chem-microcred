@@ -135,43 +135,59 @@
   gap: 1.5rem;
 }
 
+.alertWrapper {
+  display: flex;
+  justify-content: flex-start;
+  width: 654px;
+}
+
 .alert {
-  flex: 1;
-  background: rgba(209, 250, 229, 0.6);
-  border: 1px solid rgba(16, 185, 129, 0.4);
-  border-radius: 1rem;
-  padding: 1rem 1.25rem;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  font-size: 0.95rem;
-  color: #0f5132;
-}
+  gap: 20px;
 
-.alertIcon {
-  font-size: 1.4rem;
-}
+  width: 654px;
+  height: 102px;
 
-.alert button {
-  margin-left: auto;
-  padding: 0.45rem 1.25rem;
-  border-radius: 999px;
-  border: none;
-  background: #1f5fab;
-  color: #ffffff;
-  font-weight: 600;
+  background: #ffffff;
+  border: 3px solid #dedede;
+  border-radius: 18px;
+  padding: 0 24px;
+
+  color: #285a9a;
   cursor: pointer;
 }
 
-.alert[data-active='false'] {
-  background: rgba(227, 233, 246, 0.6);
-  border-color: rgba(31, 95, 171, 0.25);
-  color: #1f2937;
+/* X icon */
+.alertIcon {
+  width: 31px;
+  height: 28.41px;
+  object-fit: contain;
 }
 
-.alert[data-active='false'] button {
-  display: none;
+.alertText {
+  width: 549px;
+  height: 49px;
+  line-height: 1.35;
+  display: flex;
+  align-items: center;
 }
+
+
+.alert[data-active='false'] {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #111827;
+}
+
+.brandLogo {
+  height: 32px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
 
 .brandMark {
   font-weight: 700;
@@ -210,19 +226,81 @@
 }
 
 .card {
-  background: #f7f8fb;
-  /* Light gray tone that matches the design */
+  background: transparent;
+  border: none;
   border-radius: 0;
-  padding: 1rem;
+  padding: 0;
+
+  width: 260px;
+  min-height: auto;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
-  border: 1px solid rgba(148, 163, 184, 0.3);
-  width: 260px;
-  min-height: 260px;
-  justify-content: space-between;
+  gap: 0.75rem;
 }
 
+.cardMedia {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #dedede;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  color: rgba(31, 95, 171, 0.8);
+  font-weight: 600;
+  font-size: 0.9rem;
+  overflow: hidden;
+  border-radius: 0;
+}
+
+
+.cardMediaImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cardTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.cardStatus,
+.cardMeta {
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.cardButton {
+  margin-top: 0.75rem;
+  align-self: flex-start;
+  padding: 0.55rem 1.35rem;
+  border-radius: 999px;
+  border: none;
+  background: #1f5fab;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.cardButton:hover {
+  filter: brightness(0.92);
+}
+
+.secondaryAction {
+  background: #3c83d6;
+}
+
+/* =========================
+   Survey Modal
+   ========================= */
 .surveyOverlay {
   position: fixed;
   inset: 0;
@@ -307,62 +385,6 @@
 
 .surveySubmit:hover {
   filter: brightness(0.95);
-}
-
-.cardMedia {
-  border-radius: 0;
-  background: #e9edf6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: rgba(31, 95, 171, 0.8);
-  font-weight: 600;
-  font-size: 0.9rem;
-  height: 140px;
-  overflow: hidden;
-}
-
-.cardMediaImage {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.cardTitle {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #111827;
-}
-
-.cardStatus,
-.cardMeta {
-  font-size: 0.85rem;
-  color: #4b5563;
-}
-
-.cardButton {
-  margin-top: auto;
-  align-self: flex-start;
-  padding: 0.55rem 1.35rem;
-  border-radius: 999px;
-  border: none;
-  background: #1f5fab;
-  color: #ffffff;
-  font-weight: 600;
-  cursor: pointer;
-  transition: filter 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-}
-
-.cardButton:hover {
-  filter: brightness(0.92);
-}
-
-.secondaryAction {
-  background: #3c83d6;
 }
 
 /* =========================

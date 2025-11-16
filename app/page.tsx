@@ -8,6 +8,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from './hooks/useAuth';
 import { useStudentData, type LessonRecord } from './hooks/useStudentData';
 import styles from './page.module.css';
+import surveyAlarmXIcon from '../assets/survey_alarm/survey_alarm_x_icon.png';
 
 interface LessonCard {
   id: string;
@@ -264,23 +265,28 @@ function HomePageContent() {
 
       <main className={`main ${styles.main}`}>
         <div className={styles.topRow}>
-          <div className={styles.alert} data-active={pendingSurveyBadges.length > 0}>
-            {pendingSurveyBadges.length > 0 ? (
-              <>
-                <span>
-                  Complete feedback survey to finalize your badge. You can find it under &quot;Ready to be
-                  Finalized&quot; in your Badge Wallet.
-                </span>
-                <button type="button" onClick={() => handleStartSurvey()}>
-                  Start Survey
-                </button>
-              </>
-            ) : (
-              <span>Welcome back!</span>
-            )}
+          <div className={styles.alertWrapper}>
+            <div
+              className={styles.alert}
+              data-active={pendingSurveyBadges.length > 0}
+              onClick={pendingSurveyBadges.length > 0 ? () => handleStartSurvey() : undefined}
+            >
+              {pendingSurveyBadges.length > 0 ? (
+                <>
+                  <Image src={surveyAlarmXIcon} alt="Survey reminder" className={styles.alertIcon} />
+                  <span className={styles.alertText}>
+                    Complete feedback survey to finalize this badge. You can find the survey under “Ready to be
+                    Finalized” in your Badge Wallet
+                  </span>
+                </>
+              ) : (
+                <span className={styles.alertText}>Welcome back!</span>
+              )}
+            </div>
           </div>
+
           <div className={styles.brandMark}>
-            <Image src={checkedLogo} alt="checkd logo" width={80} height={24} />
+            <Image src={checkedLogo} alt="checkd logo" className={styles.brandLogo} width={80} height={24} />
           </div>
         </div>
 
