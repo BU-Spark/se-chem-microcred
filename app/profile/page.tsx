@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../hooks/useAuth';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
+import editIcon from '../../assets/profile/edit.png';
 
 const NAV_ITEMS = [
   { label: 'Home', href: '/' },
@@ -59,12 +60,35 @@ function avatarAsset(base?: string | null) {
   }
 }
 
-function PenIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.9} stroke="#1f5fab" className={styles.editIcon}>
-      <path d="m14.8 5.2 3.3 3.3M5 19l1.4-4.9 8.4-8.4 3.3 3.3-8.4 8.4Z" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+function splitLastFirst(name?: string | null) {
+  if (!name) return { line1: 'Name not provided', line2: '' };
+
+  const parts = name.split(',').map((p) => p.trim());
+  if (parts.length === 1) {
+    return { line1: parts[0], line2: '' };
+  }
+  return { line1: parts[0], line2: parts[1] };
+}
+
+type Contact = {
+  name: string;
+  type: string;
+  avatarUrl?: string | null;
+};
+
+function getContactAvatarSrc(contact: Contact) {
+  if (contact.avatarUrl) {
+    return contact.avatarUrl;
+  }
+
+  if (contact.type === 'INSTRUCTOR') {
+    return '/edit_avatar/emerald.svg';
+  }
+  if (contact.type === 'CHECKER') {
+    return '/edit_avatar/amethyst.svg';
+  }
+
+  return '/edit_avatar/default.svg';
 }
 
 export default function ProfilePage() {
@@ -85,9 +109,9 @@ export default function ProfilePage() {
   }
 
   const displayName = studentData?.student.name ?? user?.name ?? 'Student';
-  const { first: firstName, isFallback } = parseName(studentData?.student.name ?? user?.name ?? null);
+  const { first: firstName, last: lastName, isFallback } = parseName(studentData?.student.name ?? user?.name ?? null);
+
   const greetingName = isFallback ? 'Student' : firstName;
-  const fullPrimaryName = studentData?.student.name ?? user?.name ?? 'Name not provided';
   const studentEmail = studentData?.student.email ?? user?.email ?? 'Not provided';
   const buid = studentData?.student.buid ?? 'Not provided';
   const createdAt = studentData?.student.createdAt
@@ -159,58 +183,85 @@ export default function ProfilePage() {
           </header>
 
           <section className={styles.profileCard}>
-            <div className={styles.infoColumn}>
-              <div>
-                <h2 className={styles.sectionTitle}>Student Info:</h2>
-                <div className={styles.nameBlock}>
-                  <div className={styles.primaryName}>{fullPrimaryName}</div>
-                  <div className={styles.roleLabel}>Student</div>
-                  <div className={styles.metaLine}>Date Created: {createdAt}</div>
+            {/* LEFT PANEL: student info + avatar */}
+            <div className={styles.leftPanel}>
+              <div className={styles.infoColumn}>
+                <div>
+                  <h2 className={styles.sectionTitle}>Student Info:</h2>
+
+                  {/* Name block: big name + subtitle (Student + Date) */}
+                  <div className={styles.nameBlock}>
+                    <div className={styles.primaryName}>
+                      {firstName}
+                      {lastName ? (
+                        <>
+                          <br />
+                          {lastName}
+                        </>
+                      ) : null}
+                    </div>
+
+                    <div className={styles.subtitleBlock}>
+                      <div className={styles.roleLabel}>Student</div>
+                      <div className={styles.metaLine}>Date Created: {createdAt}</div>
+                    </div>
+                  </div>
+
+                  {/* Email / BUID row */}
+                  <div className={styles.detailGridTop}>
+                    <div>
+                      <div className={styles.detailLabel}>Email:</div>
+                      <div className={styles.detailValue}>{studentEmail}</div>
+                    </div>
+                    <div>
+                      <div className={styles.detailLabel}>BUID:</div>
+                      <div className={styles.detailValue}>{buid}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Demographic Info section */}
+                <div className={styles.demographicSection}>
+                  <h3 className={styles.demographicTitle}>Demographic Info:</h3>
+                  <div className={styles.detailGrid}>
+                    <div>
+                      <div className={styles.detailLabel}>Gender:</div>
+                      <div className={styles.detailValue}>{gender}</div>
+                    </div>
+                    <div>
+                      <div className={styles.detailLabel}>Race/Ethnicity:</div>
+                      <div className={styles.detailValue}>{raceEthnicity}</div>
+                    </div>
+                    <div>
+                      <div className={styles.detailLabel}>Parental Education:</div>
+                      <div className={styles.detailValue}>{parentalEducation}</div>
+                    </div>
+                    <div>
+                      <div className={styles.detailLabel}>Pell Grant Qualified?</div>
+                      <div className={styles.detailValue}>{pellGrantQualified}</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              <div className={styles.detailGrid}>
-                <div>
-                  <div className={styles.detailLabel}>Email:</div>
-                  <div className={styles.detailValue}>{studentEmail}</div>
+              {/* Avatar column */}
+              <div className={styles.avatarColumn}>
+                <div className={styles.avatarFrame}>
+                  <Image src={avatarSrc} alt="Student avatar" fill className={styles.avatarImage} />
                 </div>
-                <div>
-                  <div className={styles.detailLabel}>BUID:</div>
-                  <div className={styles.detailValue}>{buid}</div>
-                </div>
-                <div>
-                  <div className={styles.detailLabel}>Gender:</div>
-                  <div className={styles.detailValue}>{gender}</div>
-                </div>
-                <div>
-                  <div className={styles.detailLabel}>Race/Ethnicity:</div>
-                  <div className={styles.detailValue}>{raceEthnicity}</div>
-                </div>
-                <div>
-                  <div className={styles.detailLabel}>Parental Education:</div>
-                  <div className={styles.detailValue}>{parentalEducation}</div>
-                </div>
-                <div>
-                  <div className={styles.detailLabel}>Pell Grant Qualified?</div>
-                  <div className={styles.detailValue}>{pellGrantQualified}</div>
-                </div>
+
+                <Link href="/edit_avatar" className={styles.editAvatarLink}>
+                  <span className={styles.editAvatarText}>Edit avatar</span>
+                  <Image src={editIcon} alt="Edit avatar" width={16} height={16} className={styles.editAvatarIcon} />
+                </Link>
               </div>
             </div>
 
-            <div className={styles.avatarColumn}>
-              <div className={styles.avatarFrame}>
-                <Image src={avatarSrc} alt="Student avatar" width={180} height={180} className={styles.avatarImage} />
-              </div>
-              <Link href="/edit_avatar" className={styles.editAvatarLink}>
-                Edit avatar <PenIcon />
-              </Link>
-            </div>
-
-            <span className={styles.cardDivider} aria-hidden="true" />
-
+            {/* RIGHT PANEL: course info with vertical divider */}
             <aside className={styles.courseColumn}>
+              {/* Course info */}
               <div className={styles.courseSection}>
-                <h2 className={styles.sectionTitle}>Course Info:</h2>
+                <h2 className={`${styles.sectionTitle} ${styles.courseInfoTitle}`}>Course Info:</h2>
                 <div className={styles.courseMeta}>
                   {courseTitle}
                   <br />
@@ -218,65 +269,80 @@ export default function ProfilePage() {
                 </div>
               </div>
 
+              {/* Instructor */}
               <div className={styles.courseSection}>
-                <h2 className={styles.sectionTitle}>Instructor</h2>
+                <h2 className={`${styles.sectionTitle} ${styles.instructorTitle}`}>Instructor</h2>
                 <div className={styles.contactList}>
                   {instructorContacts.length === 0 ? (
                     <div className={styles.emptyState}>No instructors listed.</div>
                   ) : (
-                    instructorContacts.map((contact) => (
-                      <div key={contact.id} className={styles.contactItem}>
-                        <div className={styles.contactAvatar}>
-                          <Image
-                            src={contact.avatarUrl ?? '/edit_avatar/emerald.svg'}
-                            alt={contact.name}
-                            width={60}
-                            height={60}
-                          />
+                    instructorContacts.map((contact) => {
+                      const { line1, line2 } = splitLastFirst(contact.name);
+                      return (
+                        <div key={contact.id} className={styles.contactItem}>
+                          <div className={styles.contactAvatar}>
+                            <Image src={getContactAvatarSrc(contact)} alt={contact.name} width={110} height={110} />
+                          </div>
+                          <div className={styles.contactInfo}>
+                            <span className={styles.contactName}>
+                              {line1}
+                              {line2 ? (
+                                <>
+                                  <br />
+                                  {line2}
+                                </>
+                              ) : null}
+                            </span>
+                            <span className={styles.contactEmail}>{contact.email}</span>
+                          </div>
                         </div>
-                        <div className={styles.contactInfo}>
-                          <span className={styles.contactName}>{contact.name}</span>
-                          <span className={styles.contactEmail}>{contact.email}</span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
 
+              {/* Checker */}
               <div className={styles.courseSection}>
-                <h2 className={styles.sectionTitle}>Checker</h2>
+                <h2 className={`${styles.sectionTitle} ${styles.checkerTitle}`}>Checker</h2>
                 <div className={styles.contactList}>
                   {checkerContacts.length === 0 ? (
                     <div className={styles.emptyState}>No checkers listed.</div>
                   ) : (
-                    checkerContacts.map((contact) => (
-                      <div key={contact.id} className={styles.contactItem}>
-                        <div className={styles.contactAvatar}>
-                          <Image
-                            src={contact.avatarUrl ?? '/edit_avatar/amethyst.svg'}
-                            alt={contact.name}
-                            width={60}
-                            height={60}
-                          />
+                    checkerContacts.map((contact) => {
+                      const { line1, line2 } = splitLastFirst(contact.name);
+                      return (
+                        <div key={contact.id} className={styles.contactItem}>
+                          <div className={styles.contactAvatar}>
+                            <Image src={getContactAvatarSrc(contact)} alt={contact.name} width={110} height={110} />
+                          </div>
+                          <div className={styles.contactInfo}>
+                            <span className={styles.contactName}>
+                              {line1}
+                              {line2 ? (
+                                <>
+                                  <br />
+                                  {line2}
+                                </>
+                              ) : null}
+                            </span>
+                            <span className={styles.contactEmail}>{contact.email}</span>
+                          </div>
                         </div>
-                        <div className={styles.contactInfo}>
-                          <span className={styles.contactName}>{contact.name}</span>
-                          <span className={styles.contactEmail}>{contact.email}</span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
             </aside>
-          </section>
 
-          <div className={styles.editInfoRow}>
-            <button type="button" className={styles.editInfoButton}>
-              Edit Info
-            </button>
-          </div>
+            {/* Edit Info button inside card, aligned to bottom-right */}
+            <div className={styles.editInfoRow}>
+              <button type="button" className={styles.editInfoButton}>
+                Edit Info
+              </button>
+            </div>
+          </section>
         </div>
       </main>
     </div>

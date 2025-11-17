@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-page-custom-font */
 import type { Metadata } from 'next';
 import './globals.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -8,13 +9,17 @@ export const metadata: Metadata = {
   keywords: ['Chemistry', 'Micro-credential', 'Student Experience'],
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        {/* 👇 Load Open Sans + Lato */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+      </head>
+
       <body>
         <ErrorBoundary>
           <div className="main-content-container">{children}</div>

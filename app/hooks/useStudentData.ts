@@ -32,7 +32,7 @@ export interface StudentData {
       type: string;
       name: string;
       email: string;
-      avatarUrl: string | null;
+      avatarUrl?: string | null;
     }>;
   } | null;
   analytics: {

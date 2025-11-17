@@ -381,7 +381,7 @@ export async function GET(request: Request) {
             type: contact.type,
             name: contact.name,
             email: contact.email,
-            avatarUrl: contact.avatarUrl,
+            avatarUrl: contact.avatarUrl ?? null,
           })),
         }
       : null,

@@ -2,14 +2,16 @@
 
 /* Optional: tiny sidebar tweaks without breaking the shell */
 .sidebarTweaks :global(.navItem.navItemActive) {
-  background: rgba(255, 255, 255, .16);
+  background: rgba(255, 255, 255, 0.16);
 }
 
+/* ===========================
+   Page Layout
+   =========================== */
 .pageContent {
   padding: 2.5rem 1.5rem 3rem;
 }
 
-/* Header */
 .headerRow {
   display: flex;
   justify-content: space-between;
@@ -22,92 +24,226 @@
   font-size: 2.4rem;
   font-weight: 700;
   font-style: italic;
-  color: #111827;
+  color: #000000;
   line-height: 1.1;
 }
 
-/* Card */
+/* ===========================
+   Main Profile Card
+   =========================== */
 .profileCard {
   background: #ffffff;
   border-radius: 1.25rem;
   border: 2px solid #e5e7eb;
   box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02);
   padding: 2rem 2rem 2.5rem;
+
   display: grid;
-  grid-template-columns: 1.2fr 2px 1fr;
-  /* left | rule | right */
-  gap: 2rem;
-  align-items: start;
+  grid-template-columns: minmax(480px, 2fr) minmax(260px, 1fr);
+  column-gap: 2.5rem;
+  align-items: flex-start;
 }
 
-/* Left column */
+/* ===========================
+   Left Panel
+   =========================== */
+.leftPanel {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 2.5rem;
+}
+
+/* Student Info Column */
 .infoColumn {
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
-  color: #1f2937;
+  color: #000000;
 }
 
 .sectionTitle {
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #1f3698;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
 }
 
+/* Name Block */
 .nameBlock {
   display: flex;
   flex-direction: column;
-  gap: .35rem;
+  gap: 3rem;
+}
+
+/* Subtitle block: "Student" + "Date Created" */
+.subtitleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .primaryName {
-  font-size: 2.2rem;
+  margin-top: 1rem;
+  font-size: 2.6rem;
   font-weight: 800;
-  color: #0f172a;
-  line-height: 1.1;
+  line-height: 1.05;
+  color: #000000;
 }
 
 .roleLabel {
-  font-weight: 600;
-  font-size: 1rem;
-  color: #111827;
+  font-weight: 400;
+  font-size: 24px;
+  color: #000000;
 }
 
 .metaLine {
-  font-size: .95rem;
-  color: #374151;
+  font-size: 0.95rem;
+  color: #000000;
+}
+
+/* Top Email/BUID row */
+.detailGridTop {
+  margin-top: 3rem;
+  display: grid;
+  grid-template-columns: 150px 150px;
+  gap: 0.75rem 2rem;
+  /* tighten Email / BUID horizontal spacing here */
+  font-size: 1rem;
+}
+
+/* ===========================
+   Demographic Section
+   =========================== */
+.demographicSection {
+  margin-top: 2rem;
+}
+
+.demographicTitle {
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+  margin-bottom: 0.9rem;
 }
 
 .detailGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(220px, 1fr));
-  gap: 1rem 3rem;
-  font-size: 1rem;
+  grid-template-columns: 275px 275px;
+  column-gap: 3rem;
+  row-gap: 1.2rem;
 }
 
 .detailLabel {
-  font-weight: 700;
-  color: #111827;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  letter-spacing: 0.2px;
 }
 
 .detailValue {
-  margin-top: .25rem;
-  color: #4b5563;
+  font-size: 16px;
+  font-weight: 400;
+  color: #0f172a;
+  font-family: 'Open Sans', sans-serif;
+  letter-spacing: 0.2px;
 }
 
-/* Divider */
-.cardRule {
-  width: 2px;
-  align-self: stretch;
-  background: #e5e7eb;
-  border-radius: 2px;
+/* ===========================
+   Avatar
+   =========================== */
+.avatarColumn {
+  margin-top: 0;
+  align-self: flex-start;
+  transform: translate(-325px, 0px);
+  /* fine-tune avatar position */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
 }
 
-/* Right column */
+.avatarFrame {
+  width: 342px;
+  height: 342px;
+  border-radius: 50%;
+  border: 6px solid rgba(148, 163, 184, 0.35);
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 50% 40%, #e4f1ff 0%, #f7fbff 60%, #ffffff 100%);
+}
+
+.avatarImage {
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.editAvatarLink {
+  font-family: 'Open Sans', sans-serif;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 16px;
+  color: #000000;
+  font-weight: 400;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.editAvatarText {
+  border-bottom: 1px solid #000000;
+  padding-bottom: 1px;
+}
+
+.editAvatarIcon {
+  width: 16px;
+  height: 16px;
+}
+
+/* ===========================
+   Right Panel (Course Info)
+   =========================== */
 .courseColumn {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.75rem;
+  /* spacing between Course Info / Instructor / Checker */
+  border-left: 2px solid #e5e7eb;
+  padding-left: 2.5rem;
+}
+
+.courseSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* Course Info title on the right */
+.courseInfoTitle {
+  font-size: 20px;
+  font-weight: 400;
+  color: #000000;
+  margin-bottom: 0.5rem;
+}
+
+/* Instructor title */
+.instructorTitle {
+  font-size: 20px;
+  font-weight: 400;
+  color: #000000;
+  margin-bottom: 0.3rem;
+}
+
+/* Checker title */
+.checkerTitle {
+  font-size: 20px;
+  font-weight: 400;
+  color: #000000;
+  margin-top: 1rem;
+  /* more space above Checker */
+  margin-bottom: 0.3rem;
 }
 
 .courseMeta {
@@ -116,6 +252,7 @@
   line-height: 1.4;
 }
 
+/* Instructor / Checker List */
 .contactList {
   display: grid;
   gap: 1rem;
@@ -124,99 +261,61 @@
 .contactItem {
   display: flex;
   align-items: center;
-  gap: .8rem;
+  gap: 0.8rem;
 }
 
 .contactAvatar {
-  width: 64px;
-  height: 64px;
+  width: 110px;
+  height: 110px;
   border-radius: 50%;
-  overflow: hidden;
   background: #f3f4f6;
-  box-shadow: 0 10px 18px rgba(15, 23, 42, .12);
+  overflow: hidden;
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
 }
 
 .contactInfo {
   display: flex;
   flex-direction: column;
-  gap: .15rem;
+  gap: 0.15rem;
 }
 
 .contactName {
-  font-weight: 700;
-  font-size: 1rem;
-  color: #111827;
+  font-size: 16px;
+  font-weight: 400;
+  color: #000000;
+  line-height: 1.25;
 }
 
 .contactEmail {
-  font-size: .9rem;
-  color: #4b5563;
+  font-size: 14px;
+  color: #000000;
 }
 
-/* Avatar inside left column */
-.avatarColumn {
-  margin-top: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: .6rem;
-}
-
-.avatarFrame {
-  width: 240px;
-  height: 240px;
-  border-radius: 50%;
-  border: 6px solid rgba(148, 163, 184, .35);
-  display: grid;
-  place-items: center;
-  background: radial-gradient(circle at 50% 40%, #e4f1ff 0%, #f7fbff 60%, #fff 100%);
-}
-
-.avatarImage {
-  width: 196px;
-  height: 196px;
-  border-radius: 50%;
-  object-fit: cover;
-}
-
-.editAvatarLink {
-  display: inline-flex;
-  align-items: center;
-  gap: .4rem;
-  font-size: .95rem;
-  color: #1f5fab;
-  font-weight: 600;
-  text-decoration: underline;
-}
-
-.editIcon {
-  width: 18px;
-  height: 18px;
-}
-
-/* Centered CTA */
+/* ===========================
+   Bottom Button
+   =========================== */
 .editInfoRow {
   grid-column: 1 / -1;
   display: flex;
-  justify-content: center;
-  margin-top: 1.25rem;
+  justify-content: flex-end;
+  margin-top: 2rem;
 }
 
 .editInfoButton {
-  padding: .9rem 2.2rem;
+  padding: 0.9rem 2.2rem;
   border-radius: 999px;
   border: none;
   background: #1f5fab;
-  color: #fff;
+  color: #ffffff;
   font-weight: 700;
   font-size: 1rem;
   cursor: pointer;
-  box-shadow: 0 18px 36px rgba(31, 95, 171, .22);
-  transition: transform .2s, filter .2s, box-shadow .2s;
+  box-shadow: 0 18px 36px rgba(31, 95, 171, 0.22);
+  transition: transform 0.2s, filter 0.2s, box-shadow 0.2s;
 }
 
 .editInfoButton:hover {
-  filter: brightness(.97);
+  filter: brightness(0.97);
   transform: translateY(-1px);
 }
 
@@ -224,20 +323,34 @@
   transform: translateY(0);
 }
 
-/* Responsive */
-@media (max-width: 1100px) {
+/* ===========================
+   Responsive
+   =========================== */
+@media (max-width: 900px) {
   .profileCard {
+    grid-template-columns: 1fr;
+    row-gap: 2rem;
+  }
+
+  .leftPanel {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1.5rem;
+  }
+
+  .courseColumn {
+    border-left: none;
+    padding-left: 0;
+  }
+
+  .detailGrid,
+  .detailGridTop {
     grid-template-columns: 1fr;
   }
 
-  .cardRule,
-  .courseColumn {
-    display: none;
-  }
-
-  .infoColumn {
-    align-items: center;
-    text-align: center;
+  .avatarColumn {
+    transform: translate(0, 0);
   }
 }
 
@@ -248,15 +361,5 @@
 
   .greeting {
     font-size: 2rem;
-  }
-
-  .avatarFrame {
-    width: 200px;
-    height: 200px;
-  }
-
-  .avatarImage {
-    width: 164px;
-    height: 164px;
   }
 }
