@@ -71,7 +71,7 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
     actionLabel: record.status === 'IN_PROGRESS' ? 'Continue' : 'Start',
     variant: record.status === 'IN_PROGRESS' ? 'continue' : 'start',
     image: record.thumbnailUrl ?? DEFAULT_LESSON_IMAGE,
-    href: `/lessons/${record.slug}`,
+    href: `/lessons/${record.slug}${record.status === 'IN_PROGRESS' ? '?resume=1' : ''}`,
   };
 }
 

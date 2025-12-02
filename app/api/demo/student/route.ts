@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { BadgeStatus, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
+import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import prisma from '../../../../lib/prisma';
 
 function groupBadgesByStatus(badges: Array<ReturnType<typeof formatBadge>>) {
@@ -55,9 +56,13 @@ function formatBadge(studentBadge: {
 function formatLesson({
   lesson,
   progress,
+  completedCheckpointIds = [],
+  resumeTimeSeconds = 0,
 }: {
   lesson: Awaited<ReturnType<typeof fetchLessons>>[number];
   progress?: Awaited<ReturnType<typeof fetchLessonProgress>> extends Array<infer T> ? T : never;
+  completedCheckpointIds?: string[];
+  resumeTimeSeconds?: number;
 }) {
   const segmentStatusMap = new Map<string, SegmentStatus>();
   if (progress) {
@@ -86,6 +91,8 @@ function formatLesson({
     sortOrder: lesson.sortOrder,
     status: progress?.status ?? LessonStatus.NOT_STARTED,
     percentComplete: progress?.percentComplete ?? 0,
+    completedCheckpointIds,
+    resumeTimeSeconds,
     segments: lesson.segments.map((segment) => ({
       id: segment.id,
       title: segment.title,
@@ -107,12 +114,7 @@ function formatLesson({
       segmentId: checkpoint.segmentId,
       timeOffsetSeconds: checkpoint.timeOffsetSeconds,
       snapshotUrl: checkpoint.snapshotUrl,
-      questions: checkpoint.questions.map((question) => ({
-        id: question.id,
-        prompt: question.prompt,
-        options: question.options,
-        correctIndex: question.correctIndex,
-      })),
+      questions: checkpoint.questions.map((question) => normalizeCheckpointQuestion(question)),
     })),
     skills: lesson.skills.map((skill) => skill.text),
   };
@@ -243,8 +245,26 @@ export async function GET(request: Request) {
     return acc;
   }, new Map());
 
+  const passingCheckpointIdsSet = new Set(passingCheckpointAttempts.map((attempt) => attempt.checkpointId));
   const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
-  const lessonCatalog = lessons.map((lesson) => formatLesson({ lesson, progress: progressByLessonId.get(lesson.id) }));
+  const lessonCatalog = lessons.map((lesson) => {
+    const completedCheckpointIds = lesson.checkpoints
+      .filter((checkpoint) => passingCheckpointIdsSet.has(checkpoint.id))
+      .map((checkpoint) => checkpoint.id);
+    const resumeTimeSeconds = completedCheckpointIds.reduce((max, checkpointId) => {
+      const checkpoint = lesson.checkpoints.find((cp) => cp.id === checkpointId);
+      if (!checkpoint) {
+        return max;
+      }
+      return Math.max(max, checkpoint.timeOffsetSeconds ?? 0);
+    }, 0);
+    return formatLesson({
+      lesson,
+      progress: progressByLessonId.get(lesson.id),
+      completedCheckpointIds,
+      resumeTimeSeconds,
+    });
+  });
 
   const upNextLessons = lessonCatalog
     .filter((lesson) => lesson.status === LessonStatus.NOT_STARTED)
@@ -257,7 +277,6 @@ export async function GET(request: Request) {
   const checkpointsByLessonId = new Map<string, string[]>(
     lessons.map((lesson) => [lesson.id, lesson.checkpoints.map((checkpoint) => checkpoint.id)])
   );
-  const passingCheckpointIds = new Set(passingCheckpointAttempts.map((attempt) => attempt.checkpointId));
 
   const surveyPromptIdsCompleted = new Set(surveyResponses.map((response) => response.promptId));
 
@@ -286,7 +305,7 @@ export async function GET(request: Request) {
         return true;
       }
 
-      return checkpointIds.every((checkpointId) => passingCheckpointIds.has(checkpointId));
+      return checkpointIds.every((checkpointId) => passingCheckpointIdsSet.has(checkpointId));
     });
 
     let status = entry.status;
@@ -328,6 +347,7 @@ export async function GET(request: Request) {
       question: prompt.question,
       lessonSlug: prompt.lesson?.slug ?? null,
       lessonTitle: prompt.lesson?.title ?? null,
+      completed: surveyPromptIdsCompleted.has(prompt.id),
     }));
 
   const badgeSurveyPrompts = surveyPrompts
@@ -338,6 +358,7 @@ export async function GET(request: Request) {
       badgeSlug: prompt.badge?.slug ?? null,
       badgeName: prompt.badge?.name ?? null,
       badgeId: prompt.badgeId ?? null,
+      completed: surveyPromptIdsCompleted.has(prompt.id),
     }));
 
   const pendingBadgeSurveys = badgeSurveyPrompts

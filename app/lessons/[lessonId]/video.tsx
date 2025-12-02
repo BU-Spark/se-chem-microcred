@@ -3,14 +3,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
+import veryUnhappyFace from '../../../assets/survey_faces/very_unhappy.png';
+import slightlyUnhappyFace from '../../../assets/survey_faces/slightly_unhappy.png';
+import neutralFace from '../../../assets/survey_faces/neutral.png';
+import slightlyHappyFace from '../../../assets/survey_faces/slightly_happy.png';
+import veryHappyFace from '../../../assets/survey_faces/very_happy.png';
 
-type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonComplete';
+const ENABLE_QEV_SKIP = (process.env.NEXT_PUBLIC_ENABLE_QEV_SKIP || 'true').toLowerCase() === 'true';
+
+type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonSurvey' | 'lessonComplete';
 type RangeStyleVars = CSSProperties & {
   '--progress': string;
   '--unlocked': string;
 };
+type QuestionType = 'multipleChoice' | 'shortAnswer';
+
+type SelectedAnswerState =
+  | { kind: 'multipleChoice'; selectedIndex: number }
+  | { kind: 'shortAnswer'; raw: string; value: number | null; hasError: boolean };
 
 type YouTubePlayer = {
   playVideo(): void;
@@ -53,20 +66,40 @@ interface AttemptSummary {
   questions: Array<{
     questionId: string;
     prompt: string;
-    options: unknown;
+    options: string[];
     selectedIndex: number | null;
+    numericAnswer: number | null;
     correctIndex: number | null;
+    expectedAnswer: number | null;
+    tolerancePercent: number;
+    type: QuestionType;
     isCorrect: boolean;
   }>;
+}
+
+interface LessonSurveyPrompt {
+  id: string;
+  question: string;
+  completed: boolean;
 }
 
 interface LessonVideoPageProps {
   lesson: LessonRecord;
   studentName?: string | null;
   studentEmail: string;
+  lessonSurvey: LessonSurveyPrompt | null;
+  resumeRequested: boolean;
 }
 
 const CHECKPOINT_TRIGGER_THRESHOLD = 0.35;
+
+const LESSON_SURVEY_FACES = [
+  { value: 1, label: 'Very unhappy', icon: veryUnhappyFace },
+  { value: 2, label: 'Slightly unhappy', icon: slightlyUnhappyFace },
+  { value: 3, label: 'Neutral', icon: neutralFace },
+  { value: 4, label: 'Slightly happy', icon: slightlyHappyFace },
+  { value: 5, label: 'Very happy', icon: veryHappyFace },
+] as const;
 
 function initialsFromName(name?: string | null) {
   if (!name) {
@@ -123,7 +156,18 @@ function getCheckpointStartTime(checkpoints: LessonRecord['checkpoints'], id: st
   return prevCheckpoint?.timeOffsetSeconds ?? 0;
 }
 
-export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentEmail }: LessonVideoPageProps) {
+export function LessonVideoPage({
+  lesson,
+  studentName = 'Student Demo',
+  studentEmail,
+  lessonSurvey,
+  resumeRequested,
+}: LessonVideoPageProps) {
+  const router = useRouter();
+  const effectiveLessonSurvey = useMemo<LessonSurveyPrompt | null>(
+    () => lessonSurvey ?? { id: `auto-${lesson.slug}`, question: 'How was this lesson?', completed: false },
+    [lesson.slug, lessonSurvey]
+  );
   const playerRef = useRef<YouTubePlayer | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
   const playerElementId = useMemo(() => `youtube-player-${lesson.id}`, [lesson.id]);
@@ -133,19 +177,30 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
     [lesson.checkpoints]
   );
 
+  const initialCompletedIds = useMemo(() => lesson.completedCheckpointIds ?? [], [lesson.completedCheckpointIds]);
+  const resumeBaseTime = useMemo(
+    () => (resumeRequested ? Math.max(0, lesson.resumeTimeSeconds ?? 0) : 0),
+    [lesson.resumeTimeSeconds, resumeRequested]
+  );
+
   const [modalState, setModalState] = useState<ModalState>('none');
   const [activeCheckpointId, setActiveCheckpointId] = useState<string | null>(null);
-  const [completedCheckpointIds, setCompletedCheckpointIds] = useState<string[]>([]);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, number>>({});
+  const [completedCheckpointIds, setCompletedCheckpointIds] = useState<string[]>(initialCompletedIds);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, SelectedAnswerState>>({});
   const [attemptSummary, setAttemptSummary] = useState<AttemptSummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [networkError, setNetworkError] = useState<string | null>(null);
+  const [lessonSurveyRating, setLessonSurveyRating] = useState(3);
+  const [lessonSurveySubmitting, setLessonSurveySubmitting] = useState(false);
+  const [lessonSurveyError, setLessonSurveyError] = useState<string | null>(null);
+  const [lessonSurveyCompleted, setLessonSurveyCompleted] = useState(effectiveLessonSurvey?.completed ?? false);
   const playerStateRef = useRef<number | null>(null);
-  const lastSeekRef = useRef<number | null>(null);
-  const [furthestTime, setFurthestTime] = useState(0);
-  const furthestTimeRef = useRef(0);
-  const [currentTime, setCurrentTime] = useState(0);
+  const lastSeekRef = useRef<number | null>(resumeBaseTime);
+  const [furthestTime, setFurthestTime] = useState(resumeBaseTime);
+  const furthestTimeRef = useRef(resumeBaseTime);
+  const [currentTime, setCurrentTime] = useState(resumeBaseTime);
   const [duration, setDuration] = useState(0);
+  const [videoEnded, setVideoEnded] = useState(false);
   const [thumbnailCache, setThumbnailCache] = useState<Record<string, string>>({});
   const [isMuted, setIsMuted] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
@@ -153,6 +208,7 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const modalStateRef = useRef<ModalState>('none');
   const visibilityTimerRef = useRef<number | null>(null);
+  const lessonSurveyTriggeredRef = useRef<boolean>(effectiveLessonSurvey?.completed ?? false);
   const updateFurthestTime = useCallback((time: number, force = false) => {
     if (!Number.isFinite(time)) {
       return;
@@ -166,6 +222,18 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
       return time;
     });
   }, []);
+
+  useEffect(() => {
+    setCompletedCheckpointIds(initialCompletedIds);
+  }, [initialCompletedIds]);
+
+  useEffect(() => {
+    setFurthestTime(resumeBaseTime);
+    furthestTimeRef.current = resumeBaseTime;
+    setCurrentTime(resumeBaseTime);
+    lastSeekRef.current = resumeBaseTime;
+    setVideoEnded(false);
+  }, [resumeBaseTime]);
 
   const resolveMaxSeekableTime = useCallback(() => {
     const limit = furthestTimeRef.current;
@@ -206,6 +274,16 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
   const firstIncompleteCheckpoint = useMemo(
     () => orderedCheckpoints.find((checkpoint) => !completedCheckpointIds.includes(checkpoint.id)) ?? null,
     [orderedCheckpoints, completedCheckpointIds]
+  );
+  const allCheckpointsCompleted = useMemo(
+    () =>
+      orderedCheckpoints.length > 0 &&
+      orderedCheckpoints.every((checkpoint) => completedCheckpointIds.includes(checkpoint.id)),
+    [orderedCheckpoints, completedCheckpointIds]
+  );
+  const lessonReadyForSurvey = useMemo(
+    () => (orderedCheckpoints.length === 0 || allCheckpointsCompleted) && videoEnded,
+    [allCheckpointsCompleted, orderedCheckpoints.length, videoEnded]
   );
 
   const currentCheckpoint = useMemo(() => {
@@ -283,19 +361,25 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
     }
   }, []);
 
-  const seekTo = useCallback((time: number, allowSeekAhead = true, force = false) => {
-    if (!Number.isFinite(time)) {
-      return;
-    }
-    const maxAllowed = force ? Math.max(0, time) : Math.max(0, Math.min(time, furthestTimeRef.current));
-    lastSeekRef.current = maxAllowed;
-    setCurrentTime(maxAllowed);
-    const player = playerRef.current;
-    if (!player || typeof player.seekTo !== 'function') {
-      return;
-    }
-    player.seekTo(maxAllowed, allowSeekAhead);
-  }, []);
+  const seekTo = useCallback(
+    (time: number, allowSeekAhead = true, force = false) => {
+      if (!Number.isFinite(time)) {
+        return;
+      }
+      const maxAllowed = force ? Math.max(0, time) : Math.max(0, Math.min(time, furthestTimeRef.current));
+      lastSeekRef.current = maxAllowed;
+      setCurrentTime(maxAllowed);
+      if (duration > 0 && maxAllowed < Math.max(0, duration - 1)) {
+        setVideoEnded(false);
+      }
+      const player = playerRef.current;
+      if (!player || typeof player.seekTo !== 'function') {
+        return;
+      }
+      player.seekTo(maxAllowed, allowSeekAhead);
+    },
+    [duration]
+  );
 
   const openCheckpointModal = useCallback(
     (checkpointId: string) => {
@@ -383,6 +467,11 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
             }
             setIsMuted(playerRef.current?.isMuted?.() ?? false);
             setPlayerStatus(event.data);
+            if (event.data === api?.PlayerState?.ENDED) {
+              setVideoEnded(true);
+            } else if (event.data === api?.PlayerState?.PLAYING) {
+              setVideoEnded(false);
+            }
             if (modalStateRef.current === 'none') {
               setControlsVisible(true);
               scheduleHide();
@@ -426,6 +515,28 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
   }, [modalState]);
 
   useEffect(() => {
+    setLessonSurveyCompleted(effectiveLessonSurvey?.completed ?? false);
+    lessonSurveyTriggeredRef.current = effectiveLessonSurvey?.completed ?? false;
+  }, [effectiveLessonSurvey]);
+
+  useEffect(() => {
+    if (lessonSurveyCompleted) {
+      lessonSurveyTriggeredRef.current = true;
+    }
+  }, [lessonSurveyCompleted]);
+
+  useEffect(() => {
+    if (!effectiveLessonSurvey || lessonSurveyCompleted) {
+      return;
+    }
+    if (lessonReadyForSurvey && !lessonSurveyTriggeredRef.current) {
+      lessonSurveyTriggeredRef.current = true;
+      ensurePlayerPaused();
+      setModalState('lessonSurvey');
+    }
+  }, [ensurePlayerPaused, effectiveLessonSurvey, lessonReadyForSurvey, lessonSurveyCompleted]);
+
+  useEffect(() => {
     if (!playerReady) {
       return;
     }
@@ -456,6 +567,15 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
           setDuration(player.getDuration());
         }
 
+        if (Number.isFinite(time) && Number.isFinite(duration)) {
+          const nearEnd = duration > 0 && time >= Math.max(0, duration - 0.25);
+          if (nearEnd) {
+            setVideoEnded(true);
+          } else if (time < Math.max(0, duration - 1)) {
+            setVideoEnded(false);
+          }
+        }
+
         if (firstIncompleteCheckpoint && playing) {
           const trigger = firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD;
           if (time >= trigger) {
@@ -470,7 +590,7 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
     }, 250);
 
     return () => window.clearInterval(interval);
-  }, [firstIncompleteCheckpoint, modalState, openCheckpointModal, playerReady, seekTo, updateFurthestTime]);
+  }, [duration, firstIncompleteCheckpoint, modalState, openCheckpointModal, playerReady, seekTo, updateFurthestTime]);
 
   useEffect(() => {
     if (modalState === 'none') {
@@ -482,8 +602,27 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
     }
   }, [clearHideTimer, modalState, scheduleHide]);
 
-  const handleAnswerSelect = useCallback((questionId: string, answerIndex: number) => {
-    setSelectedAnswers((prev) => ({ ...prev, [questionId]: answerIndex }));
+  const handleChoiceSelect = useCallback((questionId: string, answerIndex: number) => {
+    setSelectedAnswers((prev) => ({
+      ...prev,
+      [questionId]: { kind: 'multipleChoice', selectedIndex: answerIndex },
+    }));
+  }, []);
+
+  const handleShortAnswerChange = useCallback((questionId: string, rawValue: string) => {
+    const trimmed = rawValue.trim();
+    const numericValue = trimmed === '' ? null : Number(trimmed);
+    const isValid = trimmed !== '' && Number.isFinite(numericValue);
+
+    setSelectedAnswers((prev) => ({
+      ...prev,
+      [questionId]: {
+        kind: 'shortAnswer',
+        raw: rawValue,
+        value: isValid ? (numericValue as number) : null,
+        hasError: trimmed !== '' && !isValid,
+      },
+    }));
   }, []);
 
   const resetAfterCheckpoint = useCallback(
@@ -522,10 +661,14 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: studentEmail,
-          answers: currentCheckpoint.questions.map((question) => ({
-            questionId: question.id,
-            selectedIndex: selectedAnswers[question.id] ?? null,
-          })),
+          answers: currentCheckpoint.questions.map((question) => {
+            const selected = selectedAnswers[question.id];
+            return {
+              questionId: question.id,
+              selectedIndex: selected?.kind === 'multipleChoice' ? selected.selectedIndex : null,
+              numericAnswer: selected?.kind === 'shortAnswer' ? selected.value : null,
+            };
+          }),
         }),
       });
 
@@ -564,6 +707,13 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
     if (!currentCheckpoint) {
       return;
     }
+    const activeQuestion = currentCheckpoint.questions[activeQuestionIndex];
+    if (activeQuestion?.type === 'shortAnswer') {
+      const selection = selectedAnswers[activeQuestion.id];
+      if (!selection || selection.kind !== 'shortAnswer' || selection.value == null || selection.hasError) {
+        return;
+      }
+    }
     const total = currentCheckpoint.questions.length;
     if (total === 0) {
       submitAttempt();
@@ -574,7 +724,7 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
       return;
     }
     submitAttempt();
-  }, [activeQuestionIndex, currentCheckpoint, submitAttempt]);
+  }, [activeQuestionIndex, currentCheckpoint, selectedAnswers, submitAttempt]);
 
   const handleTryAgain = useCallback(() => {
     setModalState('question');
@@ -632,6 +782,41 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
     }
   }, [isMuted, modalState, scheduleHide]);
 
+  const handleLessonSurveyFaceSelect = useCallback((value: number) => {
+    setLessonSurveyRating(value);
+  }, []);
+
+  const submitLessonSurvey = useCallback(async () => {
+    if (!effectiveLessonSurvey) {
+      return;
+    }
+    setLessonSurveySubmitting(true);
+    setLessonSurveyError(null);
+    try {
+      const response = await fetch(`/api/lessons/${lesson.id}/survey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: studentEmail,
+          rating: lessonSurveyRating,
+          videoCompleted: true,
+        }),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || 'Unable to submit survey.');
+      }
+      setLessonSurveyCompleted(true);
+      setModalState('lessonComplete');
+    } catch (error) {
+      setLessonSurveyError(
+        error instanceof Error ? error.message : 'Something went wrong while submitting your survey.'
+      );
+    } finally {
+      setLessonSurveySubmitting(false);
+    }
+  }, [effectiveLessonSurvey, lesson.id, lessonSurveyRating, studentEmail]);
+
   const rangeStyle = useMemo<RangeStyleVars>(() => {
     const progressPct = duration > 0 ? Math.min(100, Math.max(0, (currentTime / Math.max(duration, 1)) * 100)) : 0;
     const unlockedLimit = resolveMaxSeekableTime();
@@ -659,7 +844,12 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
   }, [clearHideTimer, modalState]);
 
   useEffect(() => {
-    if (modalState === 'question' || modalState === 'result' || modalState === 'lessonComplete') {
+    if (
+      modalState === 'question' ||
+      modalState === 'result' ||
+      modalState === 'lessonSurvey' ||
+      modalState === 'lessonComplete'
+    ) {
       ensurePlayerPaused();
     }
   }, [ensurePlayerPaused, modalState]);
@@ -668,8 +858,67 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
   const totalCheckpointQuestions = currentCheckpointQuestions.length;
   const currentQuestion =
     totalCheckpointQuestions > 0 ? (currentCheckpointQuestions[activeQuestionIndex] ?? null) : null;
-  const canAdvance = currentQuestion ? selectedAnswers[currentQuestion.id] != null : false;
+  const canAdvance = currentQuestion
+    ? (() => {
+        const selection = selectedAnswers[currentQuestion.id];
+        if (!selection) {
+          return false;
+        }
+        if (currentQuestion.type === 'shortAnswer') {
+          return selection.kind === 'shortAnswer' && selection.value != null && !selection.hasError;
+        }
+        return selection.kind === 'multipleChoice';
+      })()
+    : false;
   const isFinalQuestion = currentQuestion ? activeQuestionIndex === totalCheckpointQuestions - 1 : false;
+  const handleSkipToNextCheckpoint = useCallback(() => {
+    if (firstIncompleteCheckpoint) {
+      updateFurthestTime(firstIncompleteCheckpoint.timeOffsetSeconds, true);
+      seekTo(firstIncompleteCheckpoint.timeOffsetSeconds, true, true);
+      openCheckpointModal(firstIncompleteCheckpoint.id);
+      return;
+    }
+
+    ensurePlayerPaused();
+
+    if (effectiveLessonSurvey && !lessonSurveyCompleted) {
+      lessonSurveyTriggeredRef.current = true;
+      setVideoEnded(true);
+      setModalState('lessonSurvey');
+      return;
+    }
+
+    setModalState('lessonComplete');
+  }, [
+    ensurePlayerPaused,
+    firstIncompleteCheckpoint,
+    lessonSurvey,
+    lessonSurveyCompleted,
+    openCheckpointModal,
+    seekTo,
+    updateFurthestTime,
+  ]);
+  const handleShowQrCode = useCallback(() => {
+    router.push('/badges');
+  }, [router]);
+
+  const handleGoHome = useCallback(() => {
+    router.push('/');
+  }, [router]);
+  const handleUnlockProgressForTesting = useCallback(() => {
+    if (duration <= 0) {
+      return;
+    }
+    setFurthestTime(duration);
+    furthestTimeRef.current = duration;
+    setCompletedCheckpointIds(orderedCheckpoints.map((cp) => cp.id));
+    setActiveCheckpointId(null);
+    setSelectedAnswers({});
+    setAttemptSummary(null);
+    setNetworkError(null);
+    setModalState('none');
+    setActiveQuestionIndex(0);
+  }, [duration, orderedCheckpoints]);
 
   return (
     <div className={styles.page}>
@@ -732,6 +981,16 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
               <div className={styles.videoSegment}>{currentCheckpoint?.title ?? 'Checkpoint'}</div>
             </div>
           </div>
+          {ENABLE_QEV_SKIP ? (
+            <div className={styles.debugControls}>
+              <button type="button" onClick={handleSkipToNextCheckpoint}>
+                Skip to next checkpoint (demo)
+              </button>
+              <button type="button" onClick={handleUnlockProgressForTesting} disabled={duration <= 0}>
+                Unlock progress bar (testing)
+              </button>
+            </div>
+          ) : null}
 
           <div
             className={styles.videoWrapper}
@@ -817,8 +1076,18 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
                 />
               </div>
             </div>
+            {ENABLE_QEV_SKIP && (firstIncompleteCheckpoint || !lessonSurveyCompleted) ? (
+              <div className={styles.qevDemoSkip}>
+                <button type="button" onClick={handleSkipToNextCheckpoint}>
+                  Skip to next checkpoint (demo)
+                </button>
+                <button type="button" onClick={handleUnlockProgressForTesting} disabled={duration <= 0}>
+                  Unlock progress bar (testing)
+                </button>
+              </div>
+            ) : null}
 
-            {modalState !== 'none' ? (
+            {modalState !== 'none' && modalState !== 'lessonSurvey' ? (
               <div className={styles.overlay}>
                 <div className={styles.modalCard}>
                   {modalState === 'question' && currentCheckpoint ? (
@@ -834,26 +1103,63 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
                             {currentQuestion.prompt ?? 'Choose the correct answer.'}
                           </p>
                           <div style={{ display: 'grid', gap: '0.5rem' }}>
-                            {(Array.isArray(currentQuestion.options) ? (currentQuestion.options as string[]) : []).map(
-                              (option, optionIndex) => {
-                                const isSelected = selectedAnswers[currentQuestion.id] === optionIndex;
-                                const className = [
-                                  styles.controlButton,
-                                  isSelected ? styles.controlButtonPrimary : styles.controlButtonSecondary,
-                                ]
-                                  .filter(Boolean)
-                                  .join(' ');
-                                return (
-                                  <button
-                                    key={`${currentQuestion.id}-${optionIndex}`}
-                                    type="button"
-                                    className={className}
-                                    onClick={() => handleAnswerSelect(currentQuestion.id, optionIndex)}
-                                  >
-                                    {option}
-                                  </button>
-                                );
-                              }
+                            {currentQuestion.type === 'multipleChoice' ? (
+                              (Array.isArray(currentQuestion.options) ? currentQuestion.options : []).map(
+                                (option, optionIndex) => {
+                                  const selection = selectedAnswers[currentQuestion.id];
+                                  const isSelected =
+                                    selection?.kind === 'multipleChoice' && selection.selectedIndex === optionIndex;
+                                  const className = [
+                                    styles.controlButton,
+                                    isSelected ? styles.controlButtonPrimary : styles.controlButtonSecondary,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(' ');
+                                  return (
+                                    <button
+                                      key={`${currentQuestion.id}-${optionIndex}`}
+                                      type="button"
+                                      className={className}
+                                      onClick={() => handleChoiceSelect(currentQuestion.id, optionIndex)}
+                                    >
+                                      {option}
+                                    </button>
+                                  );
+                                }
+                              )
+                            ) : (
+                              <div className={styles.shortAnswerField}>
+                                <label
+                                  htmlFor={`${currentQuestion.id}-short-answer`}
+                                  className={styles.shortAnswerLabel}
+                                >
+                                  Your answer
+                                </label>
+                                <input
+                                  id={`${currentQuestion.id}-short-answer`}
+                                  type="text"
+                                  inputMode="decimal"
+                                  autoComplete="off"
+                                  className={styles.shortAnswerInput}
+                                  value={
+                                    selectedAnswers[currentQuestion.id]?.kind === 'shortAnswer'
+                                      ? selectedAnswers[currentQuestion.id].raw
+                                      : ''
+                                  }
+                                  onChange={(event) => handleShortAnswerChange(currentQuestion.id, event.target.value)}
+                                  placeholder="Enter a number"
+                                />
+                                <p className={styles.shortAnswerHelp}>
+                                  Enter a numeric response
+                                  {currentQuestion.tolerancePercent > 0
+                                    ? ` (±${currentQuestion.tolerancePercent}% accepted).`
+                                    : '.'}
+                                </p>
+                                {selectedAnswers[currentQuestion.id]?.kind === 'shortAnswer' &&
+                                selectedAnswers[currentQuestion.id].hasError ? (
+                                  <p className={styles.shortAnswerError}>Please enter a numeric answer.</p>
+                                ) : null}
+                              </div>
                             )}
                           </div>
                         </div>
@@ -929,22 +1235,15 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
                     <>
                       <h2 className={styles.modalTitle}>Lesson Completed</h2>
                       <p className={styles.modalDescription}>
-                        You’re all set! Show your assessor the QR code and complete the survey to get checkd.
+                        You’re all set! Show your assessor the QR code to finalize this lesson.
                       </p>
-                      <button type="button" className={styles.modalPrimary} onClick={() => resetAfterCheckpoint(0, 0)}>
-                        Start Survey
-                      </button>
                       <div className={styles.modalActions}>
-                        <button
-                          type="button"
-                          className={styles.modalSecondary}
-                          onClick={() => resetAfterCheckpoint(0, 0)}
-                        >
+                        <button type="button" className={styles.modalSecondary} onClick={handleShowQrCode}>
                           Show QR code
                         </button>
-                        <Link href="/" className={styles.modalSecondary}>
+                        <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
                           Home
-                        </Link>
+                        </button>
                       </div>
                     </>
                   ) : null}
@@ -954,6 +1253,43 @@ export function LessonVideoPage({ lesson, studentName = 'Student Demo', studentE
           </div>
         </div>
       </div>
+      {effectiveLessonSurvey && modalState === 'lessonSurvey' && (
+        <div className={styles.lessonSurveyOverlay}>
+          <div className={styles.lessonSurveyModal}>
+            <h2 className={styles.lessonSurveyTitle}>Tell us about this lesson</h2>
+            <p className={styles.lessonSurveyQuestion}>{effectiveLessonSurvey.question}</p>
+            {lessonSurveyError ? <p className={styles.lessonSurveyError}>{lessonSurveyError}</p> : null}
+            <div className={styles.lessonSurveyFaces}>
+              {LESSON_SURVEY_FACES.map((face) => {
+                const isSelected = lessonSurveyRating === face.value;
+                const faceClass = [styles.lessonSurveyFace, isSelected ? styles.lessonSurveyFaceSelected : '']
+                  .filter(Boolean)
+                  .join(' ');
+                return (
+                  <button
+                    key={face.value}
+                    type="button"
+                    className={faceClass}
+                    onClick={() => handleLessonSurveyFaceSelect(face.value)}
+                    aria-pressed={isSelected}
+                  >
+                    <Image src={face.icon} alt={face.label} width={56} height={56} />
+                    <span>{face.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <button
+              type="button"
+              className={styles.lessonSurveySubmit}
+              onClick={submitLessonSurvey}
+              disabled={lessonSurveySubmitting}
+            >
+              {lessonSurveySubmitting ? 'Submitting…' : 'Submit feedback'}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

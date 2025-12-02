@@ -3,7 +3,7 @@
 import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, useParams, usePathname } from 'next/navigation';
+import { useRouter, useParams, usePathname, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../hooks/useAuth';
 import { useStudentData } from '../../hooks/useStudentData';
 import styles from './page.module.css';
@@ -33,6 +33,7 @@ export default function LessonDetailPage() {
   const router = useRouter();
   const params = useParams<{ lessonId: string }>();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const { isLoaded, isSignedIn, user } = useAuth();
   const { data: studentData, isLoading } = useStudentData(user?.email ?? null);
@@ -69,6 +70,8 @@ export default function LessonDetailPage() {
   if (!isLoaded || signedOut) return null;
 
   const title = lessonRecord?.title ?? (isLoading ? 'Loading lesson…' : 'Lesson unavailable');
+
+  const resumeRequested = searchParams.get('resume') === '1';
 
   return (
     <div className="page">
@@ -191,8 +194,11 @@ export default function LessonDetailPage() {
                 </div>
               </section>
 
-              <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
-                Start Lesson
+              <Link
+                href={`/lessons/${lessonRecord.slug}/video${resumeRequested ? '?resume=1' : ''}`}
+                className={styles.primaryButton}
+              >
+                {resumeRequested ? 'Continue Lesson' : 'Start Lesson'}
               </Link>
             </>
           ) : (

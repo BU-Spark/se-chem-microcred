@@ -215,6 +215,25 @@
   font-weight: 500;
 }
 
+.debugControls {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 0.75rem;
+}
+
+.debugControls button {
+  border: 1px dashed rgba(31, 95, 171, 0.5);
+  background: rgba(248, 251, 255, 0.9);
+  color: #1f5fab;
+  border-radius: 999px;
+  padding: 0.45rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -283,6 +302,41 @@
   width: 100%;
   display: grid;
   gap: 1rem;
+}
+
+.shortAnswerField {
+  display: grid;
+  gap: 0.35rem;
+  text-align: left;
+}
+
+.shortAnswerLabel {
+  font-weight: 700;
+  color: #111827;
+}
+
+.shortAnswerInput {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  padding: 0.75rem 0.9rem;
+  font-size: 1rem;
+}
+
+.shortAnswerInput:focus {
+  outline: 2px solid #1f5fab;
+  outline-offset: 1px;
+}
+
+.shortAnswerHelp {
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.shortAnswerError {
+  color: #b91c1c;
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .questionList li {
@@ -368,6 +422,23 @@
 .qevBarHidden {
   opacity: 0;
   pointer-events: none;
+}
+
+.qevDemoSkip {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.qevDemoSkip button {
+  border: 1px dashed rgba(31, 95, 171, 0.4);
+  background: rgba(248, 251, 255, 0.8);
+  color: #1f5fab;
+  border-radius: 999px;
+  padding: 0.35rem 1.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .qevBtn {
@@ -730,4 +801,94 @@
 .summaryTime {
   font-weight: 600;
   color: #1f5fab;
+}
+.lessonSurveyOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 1rem;
+}
+
+.lessonSurveyModal {
+  width: min(480px, 100%);
+  background: #ffffff;
+  border-radius: 1.5rem;
+  padding: 2rem;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.35);
+  text-align: center;
+}
+
+.lessonSurveyTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: #1f2937;
+}
+
+.lessonSurveyQuestion {
+  font-size: 1rem;
+  color: #475569;
+  margin-bottom: 1.25rem;
+}
+
+.lessonSurveyError {
+  color: #b91c1c;
+  margin-bottom: 0.75rem;
+  font-weight: 600;
+}
+
+.lessonSurveyFaces {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.lessonSurveyFace {
+  flex: 1 1 80px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 1rem;
+  padding: 0.75rem;
+  background: #f8fbff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1f2937;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.lessonSurveyFaceSelected {
+  border-color: #1f5fab;
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(31, 95, 171, 0.2);
+}
+
+.lessonSurveyFaces button span {
+  display: block;
+}
+
+.lessonSurveySubmit {
+  width: 100%;
+  border: none;
+  border-radius: 999px;
+  padding: 0.85rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #1f5fab, #0f3c7a);
+  color: #ffffff;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.lessonSurveySubmit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

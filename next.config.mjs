@@ -16,6 +16,11 @@ const nextConfig = {
         hostname: 'dummyimage.com',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'api.qrserver.com',
+        pathname: '/v1/create-qr-code/**',
+      },
     ],
   },
 };

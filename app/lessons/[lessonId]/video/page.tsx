@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useAuth } from '../../../hooks/useAuth';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
 
 export default function LessonVideoRoute() {
   const params = useParams<{ lessonId: string }>();
+  const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useAuth();
   const { data: studentData, isLoading, error } = useStudentData(user?.email);
 
@@ -41,6 +42,16 @@ export default function LessonVideoRoute() {
 
   const studentName = studentData.student.name || user?.name || 'Student Demo';
   const studentEmail = studentData.student.email || user?.email || 'student@example.edu';
+  const lessonSurvey = studentData.surveys.lesson.find((survey) => survey.lessonSlug === lessonRecord.slug) ?? null;
+  const resumeRequested = searchParams.get('resume') === '1';
 
-  return <LessonVideoPage lesson={lessonRecord} studentName={studentName} studentEmail={studentEmail} />;
+  return (
+    <LessonVideoPage
+      lesson={lessonRecord}
+      studentName={studentName}
+      studentEmail={studentEmail}
+      lessonSurvey={lessonSurvey}
+      resumeRequested={resumeRequested}
+    />
+  );
 }

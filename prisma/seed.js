@@ -134,7 +134,7 @@ async function seedDemo() {
           title: 'Ignition & Setup',
           summary: 'Review the equipment and ignite the burner safely.',
           duration: 6,
-          videoUrl: 'https://www.youtube.com/watch?v=zxQyTK8quyY',
+          videoUrl: 'https://www.youtube.com/watch?v=5iTOphGnCtg',
           muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
           thumbnailUrl: 'https://images.unsplash.com/photo-1521790797524-b2497295b8a0?auto=format&fit=crop&w=200&q=80',
         },
@@ -176,9 +176,13 @@ async function seedDemo() {
               correctIndex: 1,
             },
             {
-              prompt: 'Where should you point the burner when igniting?',
-              options: ['Straight up', 'Toward a heat shield', 'Away from yourself and others'],
-              correctIndex: 2,
+              prompt: 'What should the regulator read (psi) before ignition?',
+              options: {
+                type: 'shortAnswer',
+                expectedAnswer: 1,
+                tolerancePercent: 5,
+              },
+              correctIndex: null,
             },
           ],
         },
@@ -202,9 +206,13 @@ async function seedDemo() {
               correctIndex: 0,
             },
             {
-              prompt: 'A noisy flame usually means:',
-              options: ['Too much gas', 'Too little air', 'Too much air'],
-              correctIndex: 2,
+              prompt: 'A noisy flame usually means your air intake is set to what percentage (aim for ±10%)?',
+              options: {
+                type: 'shortAnswer',
+                expectedAnswer: 70,
+                tolerancePercent: 10,
+              },
+              correctIndex: null,
             },
           ],
         },
@@ -364,9 +372,146 @@ async function seedDemo() {
         },
       ],
     },
+    {
+      slug: 'chemical-storage',
+      title: 'Chemical Storage Basics',
+      summary: 'Organize chemical inventory safely and efficiently.',
+      description:
+        'Master segregation rules, labeling requirements, and weekly inspections to prevent cross-contamination.',
+      estimatedMinutes: 35,
+      dueDate: new Date('2025-03-12T22:00:00.000Z'),
+      skills: ['Segregate incompatible chemicals', 'Inspect storage cabinets', 'Maintain inventory logs'],
+      segments: [
+        {
+          title: 'Segregation Rules',
+          summary: 'Review how to separate acids, bases, oxidizers, and flammables.',
+          duration: 9,
+          videoUrl: 'https://www.youtube.com/watch?v=1gHn_tJQAFg',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1509223197845-458d87318791?auto=format&fit=crop&w=200&q=80',
+        },
+        {
+          title: 'Labeling & Logging',
+          summary: 'Keep secondary containers labeled and log weekly inspections.',
+          duration: 8,
+          videoUrl: 'https://www.youtube.com/watch?v=DGKiTCPGr0k',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=200&q=80',
+        },
+      ],
+      checkpoints: [
+        {
+          title: 'Segregation Check',
+          label: 'Checkpoint',
+          meta: '2 questions',
+          questionCount: 2,
+          segmentIndex: 0,
+          timeOffsetSeconds: 90,
+          snapshotUrl: 'https://images.unsplash.com/photo-1449158743715-0a90ebb6d2d8?auto=format&fit=crop&w=320&q=80',
+          questions: [
+            {
+              prompt: 'Which pair must never share the same shelf?',
+              options: ['Bases & oxidizers', 'Acids & bases', 'Solvents & empty bottles'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'How often must peroxide formers be inspected?',
+              options: ['Monthly', 'Weekly', 'Before each use'],
+              correctIndex: 0,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: 'spill-response-drill',
+      title: 'Spill Response Drill',
+      summary: 'Run a tabletop drill for chemical spills and cleanup.',
+      description: 'Learn how to size up a spill, evacuate or remediate, and document the incident for EHS follow-up.',
+      estimatedMinutes: 30,
+      dueDate: new Date('2025-03-15T22:00:00.000Z'),
+      skills: ['Classify spills', 'Deploy spill kits', 'Document incidents'],
+      segments: [
+        {
+          title: 'Initial Response',
+          summary: 'Decide when to call 911 vs. clean locally.',
+          duration: 10,
+          videoUrl: 'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1509223468927-0a29a635b9bf?auto=format&fit=crop&w=200&q=80',
+        },
+      ],
+      checkpoints: [
+        {
+          title: 'Spill Size Review',
+          label: 'Checkpoint',
+          meta: '2 questions',
+          questionCount: 2,
+          segmentIndex: 0,
+          timeOffsetSeconds: 120,
+          snapshotUrl: 'https://images.unsplash.com/photo-1509223197845-458d87318791?auto=format&fit=crop&w=320&q=80',
+          questions: [
+            {
+              prompt: 'Which spill requires evacuation?',
+              options: ['Less than 100 mL of dilute acid', 'Mercury spill in hood', 'Broken thermometer in storage'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'What document must be updated after a cleanup?',
+              options: ['SOP binder', 'Spill log', 'Lab shipment manifest'],
+              correctIndex: 1,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: 'ppe-masterclass',
+      title: 'PPE Masterclass',
+      summary: 'Reinforce PPE selection and fit for advanced labs.',
+      description:
+        'This refresher covers advanced glove compatibility, respirator fit checks, and documentation for audits.',
+      estimatedMinutes: 25,
+      dueDate: new Date('2025-03-18T22:00:00.000Z'),
+      skills: ['Select PPE for tasks', 'Perform fit checks', 'Document PPE use'],
+      segments: [
+        {
+          title: 'Glove & Goggle Selection',
+          summary: 'Match PPE to the hazard with compatibility charts.',
+          duration: 9,
+          videoUrl: 'https://www.youtube.com/watch?v=AEKKd6jM2rI',
+          muxPlaybackId: 'V7A4p02m9b4Bp027DHBnpyXrEw0101',
+          thumbnailUrl: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=200&q=80',
+        },
+      ],
+      checkpoints: [
+        {
+          title: 'PPE Fit',
+          label: 'Checkpoint',
+          meta: '2 questions',
+          questionCount: 2,
+          segmentIndex: 0,
+          timeOffsetSeconds: 140,
+          snapshotUrl: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=320&q=80',
+          questions: [
+            {
+              prompt: 'Which glove material handles hydrofluoric acid best?',
+              options: ['Latex', 'Nitrile', 'Neoprene'],
+              correctIndex: 2,
+            },
+            {
+              prompt: 'How often should respirator users perform fit checks?',
+              options: ['Monthly', 'Each time they wear it', 'Yearly'],
+              correctIndex: 1,
+            },
+          ],
+        },
+      ],
+    },
   ];
 
   const lessonRecords = [];
+  const lessonProgressBySlug = new Map();
 
   for (const [index, lessonSeed] of lessonSeeds.entries()) {
     const lesson = await prisma.lesson.create({
@@ -450,6 +595,7 @@ async function seedDemo() {
       status: LessonStatus.IN_PROGRESS,
       percentComplete: 75,
       startedAt: new Date('2025-02-18T14:00:00.000Z'),
+      completedCheckpointIndices: [0, 1],
       segments: [
         { order: 0, status: SegmentStatus.COMPLETED },
         { order: 1, status: SegmentStatus.IN_PROGRESS },
@@ -458,12 +604,13 @@ async function seedDemo() {
     },
     {
       slug: 'waste-handling',
-      status: LessonStatus.NOT_STARTED,
-      percentComplete: 0,
+      status: LessonStatus.IN_PROGRESS,
+      percentComplete: 25,
       segments: [
-        { order: 0, status: SegmentStatus.NOT_STARTED },
+        { order: 0, status: SegmentStatus.IN_PROGRESS },
         { order: 1, status: SegmentStatus.NOT_STARTED },
       ],
+      completedCheckpointIndices: [0],
     },
     {
       slug: 'vent-hood-safety',
@@ -474,6 +621,30 @@ async function seedDemo() {
         { order: 1, status: SegmentStatus.NOT_STARTED },
         { order: 2, status: SegmentStatus.NOT_STARTED },
       ],
+    },
+    {
+      slug: 'chemical-storage',
+      status: LessonStatus.COMPLETED,
+      percentComplete: 100,
+      segments: [
+        { order: 0, status: SegmentStatus.COMPLETED },
+        { order: 1, status: SegmentStatus.COMPLETED },
+      ],
+      completedCheckpointIndices: 'all',
+    },
+    {
+      slug: 'spill-response-drill',
+      status: LessonStatus.COMPLETED,
+      percentComplete: 100,
+      segments: [{ order: 0, status: SegmentStatus.COMPLETED }],
+      completedCheckpointIndices: 'all',
+    },
+    {
+      slug: 'ppe-masterclass',
+      status: LessonStatus.COMPLETED,
+      percentComplete: 100,
+      segments: [{ order: 0, status: SegmentStatus.COMPLETED }],
+      completedCheckpointIndices: 'all',
     },
   ];
 
@@ -502,6 +673,57 @@ async function seedDemo() {
         },
       });
     }
+    lessonProgressBySlug.set(progressSeed.slug, progress);
+  }
+
+  for (const progressSeed of lessonProgressSeeds) {
+    if (!progressSeed.completedCheckpointIndices) {
+      continue;
+    }
+    const lessonEntry = lessonBySlug.get(progressSeed.slug);
+    if (!lessonEntry) {
+      continue;
+    }
+    const checkpoints = await prisma.lessonCheckpoint.findMany({
+      where: { lessonId: lessonEntry.lesson.id },
+      orderBy: { sortOrder: 'asc' },
+      include: {
+        questions: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+    });
+    const indices =
+      progressSeed.completedCheckpointIndices === 'all'
+        ? checkpoints.map((_, idx) => idx)
+        : progressSeed.completedCheckpointIndices;
+    const lessonProgress = lessonProgressBySlug.get(progressSeed.slug) ?? null;
+
+    for (const idx of indices) {
+      const checkpoint = checkpoints[idx];
+      if (!checkpoint) {
+        continue;
+      }
+      await prisma.checkpointAttempt.create({
+        data: {
+          checkpointId: checkpoint.id,
+          userId: student.id,
+          lessonProgressId: lessonProgress?.id ?? null,
+          isPassing: true,
+          completedAt: new Date(),
+          responses: {
+            create: checkpoint.questions.map((question) => ({
+              checkpointId: checkpoint.id,
+              questionId: question.id,
+              studentId: student.id,
+              lessonProgressId: lessonProgress?.id ?? null,
+              selectedIndex: question.correctIndex ?? 0,
+              isCorrect: true,
+            })),
+          },
+        },
+      });
+    }
   }
 
   const badgeSeeds = [
@@ -512,9 +734,7 @@ async function seedDemo() {
       category: BadgeCategory.EQUIPMENT,
       lessonSlug: 'bunsen-burners',
       studentStatus: {
-        status: BadgeStatus.READY_FOR_FINALIZATION,
-        awardedAt: new Date('2025-02-22T17:00:00.000Z'),
-        score: 92,
+        status: BadgeStatus.READY_FOR_ASSESSMENT,
       },
     },
     {
@@ -524,7 +744,7 @@ async function seedDemo() {
       category: BadgeCategory.SAFETY,
       lessonSlug: 'vent-hood-safety',
       studentStatus: {
-        status: BadgeStatus.READY_FOR_ASSESSMENT,
+        status: BadgeStatus.LEARNING,
       },
     },
     {
@@ -535,6 +755,39 @@ async function seedDemo() {
       lessonSlug: 'waste-handling',
       studentStatus: {
         status: BadgeStatus.LEARNING,
+      },
+    },
+    {
+      slug: 'chemical-storage-badge',
+      name: 'Chemical Storage Badge',
+      description: 'Demonstrate safe segregation and inspection of all storage cabinets.',
+      category: BadgeCategory.SAFETY,
+      lessonSlug: 'chemical-storage',
+      studentStatus: {
+        status: BadgeStatus.READY_FOR_ASSESSMENT,
+      },
+    },
+    {
+      slug: 'spill-response-badge',
+      name: 'Spill Response Badge',
+      description: 'Complete the spill response drill and pass the in-person assessment.',
+      category: BadgeCategory.SAFETY,
+      lessonSlug: 'spill-response-drill',
+      studentStatus: {
+        status: BadgeStatus.READY_FOR_FINALIZATION,
+        score: 95,
+      },
+    },
+    {
+      slug: 'ppe-master-badge',
+      name: 'PPE Master Badge',
+      description: 'Prove mastery of PPE selection, fit, and documentation.',
+      category: BadgeCategory.EQUIPMENT,
+      lessonSlug: 'ppe-masterclass',
+      studentStatus: {
+        status: BadgeStatus.COMPLETED,
+        awardedAt: new Date('2025-02-10T17:00:00.000Z'),
+        score: 98,
       },
     },
   ];

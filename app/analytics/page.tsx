@@ -30,6 +30,8 @@ function initialsFromName(name?: string | null) {
   return initials.join('') || 'ST';
 }
 
+/* ===== Icons ===== */
+
 function ClockIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor">
@@ -91,12 +93,26 @@ function LargeBadgeDialCheck() {
   );
 }
 
+/* ===== Circular score with entry animation ===== */
+
 function CircularScore({ value, label }: ScoreItem) {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    // trigger animation each mount / value change
+    const timeout = setTimeout(() => setDisplayValue(value), 50);
+    return () => clearTimeout(timeout);
+  }, [value]);
+
   const radius = 60;
   const strokeWidth = 10;
   const normalizedRadius = radius - strokeWidth / 2;
   const circumference = normalizedRadius * 2 * Math.PI;
-  const strokeDashoffset = useMemo(() => circumference - (value / 100) * circumference, [circumference, value]);
+
+  const strokeDashoffset = useMemo(
+    () => circumference - (displayValue / 100) * circumference,
+    [circumference, displayValue]
+  );
 
   return (
     <div className={styles.scoreCard}>
@@ -121,14 +137,17 @@ function CircularScore({ value, label }: ScoreItem) {
             strokeDasharray={`${circumference} ${circumference}`}
             strokeDashoffset={strokeDashoffset}
             transform={`rotate(-90 ${radius} ${radius})`}
+            className={styles.circularProgress}
           />
         </svg>
-        <div className={styles.circularStatValue}>{value}%</div>
+        <div className={styles.circularStatValue}>{displayValue}%</div>
       </div>
       <div className={styles.scoreLabel}>{label}</div>
     </div>
   );
 }
+
+/* ===== Page ===== */
 
 export default function AnalyticsPage() {
   const router = useRouter();
@@ -143,15 +162,12 @@ export default function AnalyticsPage() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  if (!isLoaded || !isSignedIn) {
-    return null;
-  }
-
   const displayName = studentData?.student.name || user?.name || 'Lastname, Student';
   const totalBadges =
     (studentData?.badges.completed.length ?? 0) +
     (studentData?.badges.readyForAssessment.length ?? 0) +
     (studentData?.badges.learning.length ?? 0);
+
   const completedPercent =
     totalBadges > 0 ? Math.round(((studentData?.badges.completed.length ?? 0) / totalBadges) * 100) : 0;
   const availablePercent = Math.max(0, 100 - completedPercent);
@@ -183,7 +199,7 @@ export default function AnalyticsPage() {
     },
     {
       id: 'badges-reassess',
-      value: String(studentData?.badges.readyForAssessment.length ?? analytics?.badgesReadyForAssessment ?? 0),
+      value: String(analytics?.badgesReadyForAssessment ?? studentData?.badges.readyForAssessment.length ?? 0),
       label: 'badges ready to be reassessed',
       icon: <ClipboardIcon />,
       iconClassName: `${styles.progressIcon} ${styles.iconAccent}`,
@@ -221,6 +237,27 @@ export default function AnalyticsPage() {
       label: 'Badge completion rate',
     },
   ];
+
+  // ===== Animated percentages for badge dial & bars =====
+  const [animatedCompleted, setAnimatedCompleted] = useState(0);
+  const [animatedAvailable, setAnimatedAvailable] = useState(0);
+
+  useEffect(() => {
+    // reset to 0 then animate to real value when page mounts / values change
+    setAnimatedCompleted(0);
+    setAnimatedAvailable(0);
+
+    const timeout = setTimeout(() => {
+      setAnimatedCompleted(completedPercent);
+      setAnimatedAvailable(availablePercent);
+    }, 50);
+
+    return () => clearTimeout(timeout);
+  }, [completedPercent, availablePercent]);
+
+  if (!isLoaded || !isSignedIn) {
+    return null;
+  }
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -271,7 +308,9 @@ export default function AnalyticsPage() {
           <div className={styles.brandMark}>checkd.</div>
         </header>
 
+        {/* Top row: two main cards */}
         <section className={styles.analyticsGrid}>
+          {/* Student's total progress */}
           <article className={styles.card}>
             <h2 className={styles.cardTitle}>Student&apos;s Total Progress</h2>
             <div className={styles.progressList}>
@@ -287,6 +326,7 @@ export default function AnalyticsPage() {
             </div>
           </article>
 
+          {/* Student's badge summary */}
           <article className={styles.card}>
             <div className={styles.badgeSummary}>
               <div>
@@ -296,9 +336,8 @@ export default function AnalyticsPage() {
                 className={styles.badgeDial}
                 style={
                   {
-                    // Using CSS variables keeps the conic gradient declarative in CSS.
-                    '--completed': completedPercent,
-                    '--available': availablePercent,
+                    '--completed': animatedCompleted,
+                    '--available': animatedAvailable,
                   } as CSSProperties
                 }
               >
@@ -310,7 +349,7 @@ export default function AnalyticsPage() {
                   <div className={styles.badgeBar}>
                     <div
                       className={`${styles.badgeFill} ${styles.badgeFillCompleted}`}
-                      style={{ width: `${completedPercent}%` }}
+                      style={{ width: `${animatedCompleted}%` }}
                     />
                   </div>
                   <span className={styles.badgePercentage}>{completedPercent}%</span>
@@ -320,7 +359,7 @@ export default function AnalyticsPage() {
                   <div className={styles.badgeBar}>
                     <div
                       className={`${styles.badgeFill} ${styles.badgeFillAvailable}`}
-                      style={{ width: `${availablePercent}%` }}
+                      style={{ width: `${animatedAvailable}%` }}
                     />
                   </div>
                   <span className={styles.badgePercentage}>{availablePercent}%</span>
@@ -330,6 +369,7 @@ export default function AnalyticsPage() {
           </article>
         </section>
 
+        {/* Bottom row: circular score cards */}
         <section className={styles.scoreRow}>
           {scoreItems.map((item) => (
             <CircularScore key={item.id} {...item} />

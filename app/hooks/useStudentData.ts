@@ -61,6 +61,7 @@ export interface StudentData {
       question: string;
       lessonSlug: string | null;
       lessonTitle: string | null;
+      completed: boolean;
     }>;
     badge: Array<{
       id: string;
@@ -68,6 +69,7 @@ export interface StudentData {
       badgeId: string | null;
       badgeSlug: string | null;
       badgeName: string | null;
+      completed: boolean;
     }>;
     pendingBadge: Array<{
       promptId: string;
@@ -91,6 +93,8 @@ export interface LessonRecord {
   sortOrder: number;
   status: LessonStatus;
   percentComplete: number;
+  completedCheckpointIds: string[];
+  resumeTimeSeconds: number;
   segments: Array<{
     id: string;
     title: string;
@@ -115,8 +119,11 @@ export interface LessonRecord {
     questions: Array<{
       id: string;
       prompt: string;
-      options: unknown;
+      options: string[];
       correctIndex: number | null;
+      type: 'multipleChoice' | 'shortAnswer';
+      expectedAnswer: number | null;
+      tolerancePercent: number;
     }>;
   }>;
   skills: string[];

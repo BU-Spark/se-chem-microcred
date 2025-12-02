@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
+import {
+  isAnswerWithinTolerance,
+  normalizeCheckpointQuestion,
+  parseNumericAnswer,
+  type NormalizedCheckpointQuestion,
+} from '../../../../../lib/checkpointQuestions';
 
 interface AttemptRequestBody {
   email?: string;
   answers?: Array<{
     questionId: string;
     selectedIndex: number | null;
+    numericAnswer?: number | null;
   }>;
 }
 
@@ -15,25 +22,58 @@ type RouteContext = {
   }>;
 };
 
-function evaluateAttempt(
-  answers: AttemptRequestBody['answers'],
-  questions: Array<{
-    id: string;
-    prompt: string;
-    options: unknown;
-    correctIndex: number | null;
-  }>
-) {
+class AttemptValidationError extends Error {
+  constructor(
+    message: string,
+    public code: 'MISSING_ANSWER' | 'NUMERIC_REQUIRED' | 'QUESTION_MISCONFIGURED'
+  ) {
+    super(message);
+  }
+}
+
+function evaluateAttempt(answers: AttemptRequestBody['answers'], questions: NormalizedCheckpointQuestion[]) {
   return questions.map((question) => {
     const answer = answers?.find((item) => item.questionId === question.id);
+
+    if (question.type === 'shortAnswer') {
+      if (!answer) {
+        throw new AttemptValidationError('Missing short answer response.', 'MISSING_ANSWER');
+      }
+      const numericAnswer = parseNumericAnswer(answer.numericAnswer ?? null);
+      if (numericAnswer === null) {
+        throw new AttemptValidationError('Numeric answer required.', 'NUMERIC_REQUIRED');
+      }
+      if (question.expectedAnswer == null) {
+        throw new AttemptValidationError('Short answer question missing expected answer.', 'QUESTION_MISCONFIGURED');
+      }
+      const isCorrect = isAnswerWithinTolerance(question.expectedAnswer, numericAnswer, question.tolerancePercent ?? 0);
+      return {
+        questionId: question.id,
+        prompt: question.prompt,
+        options: question.options,
+        selectedIndex: null,
+        numericAnswer,
+        correctIndex: null,
+        expectedAnswer: question.expectedAnswer,
+        tolerancePercent: question.tolerancePercent,
+        type: question.type,
+        isCorrect,
+      };
+    }
+
     const selectedIndex = typeof answer?.selectedIndex === 'number' ? answer.selectedIndex : null;
     const isCorrect = selectedIndex !== null && selectedIndex === (question.correctIndex ?? null);
+
     return {
       questionId: question.id,
       prompt: question.prompt,
       options: question.options,
       selectedIndex,
+      numericAnswer: null,
       correctIndex: question.correctIndex ?? null,
+      expectedAnswer: question.expectedAnswer,
+      tolerancePercent: question.tolerancePercent,
+      type: question.type,
       isCorrect,
     };
   });
@@ -85,7 +125,16 @@ export async function POST(request: Request, context: RouteContext) {
       where: { studentId: user.id, lessonId: checkpoint.lessonId },
     })) ?? null;
 
-  const evaluation = evaluateAttempt(payload.answers, checkpoint.questions);
+  let evaluation;
+  try {
+    const normalizedQuestions = checkpoint.questions.map((question) => normalizeCheckpointQuestion(question));
+    evaluation = evaluateAttempt(payload.answers, normalizedQuestions);
+  } catch (error) {
+    if (error instanceof AttemptValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    throw error;
+  }
   const isPassing = evaluation.every((entry) => entry.isCorrect);
 
   const attempt = await prisma.checkpointAttempt.create({

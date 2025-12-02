@@ -1,5 +1,3 @@
-
-
 .headerRow {
   display: flex;
   justify-content: space-between;
@@ -31,17 +29,19 @@
   align-self: flex-start;
 }
 
+/* Two main cards on top */
 .analyticsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(2, minmax(320px, 1fr));
   gap: 1.75rem;
 }
 
+/* Generic card */
 .card {
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  background: #ffffff;
   border-radius: 1.25rem;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.06);
   padding: 1.75rem;
   display: flex;
   flex-direction: column;
@@ -53,6 +53,8 @@
   font-size: 1.15rem;
   color: #1f3698;
 }
+
+/* ===== Left card: progress list ===== */
 
 .progressList {
   display: flex;
@@ -123,6 +125,8 @@
   color: #4b5563;
 }
 
+/* ===== Right card: badge summary dial ===== */
+
 .badgeDial {
   --completed: 70;
   --available: 30;
@@ -130,14 +134,14 @@
   height: 160px;
   border-radius: 50%;
   position: relative;
-  background: conic-gradient(
-    #bfd43b 0 calc(var(--completed) * 1%),
-    #de5b5b calc(var(--completed) * 1%) 100%
-  );
+  background: conic-gradient(#bfd43b 0 calc(var(--completed) * 1%),
+      #de5b5b calc(var(--completed) * 1%) 100%);
   color: #98c43a;
   display: grid;
   place-items: center;
   margin: 0 auto;
+  transition: background 1s ease-out;
+  /* animate when --completed changes */
 }
 
 .badgeDial::after {
@@ -193,6 +197,8 @@
 .badgeFill {
   height: 100%;
   border-radius: inherit;
+  transition: width 1s ease-out;
+  /* animate width change */
 }
 
 .badgeFillCompleted {
@@ -210,9 +216,12 @@
   text-align: right;
 }
 
+/* ===== Bottom row: circular score cards ===== */
+
 .scoreRow {
+  margin-top: 2rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
   gap: 1.5rem;
 }
 
@@ -242,6 +251,11 @@
   inset: 0;
 }
 
+.circularProgress {
+  transition: stroke-dashoffset 1s ease-out;
+  /* animate ring */
+}
+
 .circularStatValue {
   position: relative;
   font-size: 1.85rem;
@@ -253,6 +267,8 @@
   font-size: 0.95rem;
   color: #4b5563;
 }
+
+/* ===== Layout / Sidebar (copied from your original) ===== */
 
 @media (max-width: 960px) {
   .page {
@@ -292,8 +308,17 @@
   .badgeDial {
     margin: 0;
   }
+
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .scoreRow {
+    grid-template-columns: 1fr;
+  }
 }
 
+/* Sidebar & main wrapper */
 .sidebar {
   display: flex;
   flex-direction: column;
