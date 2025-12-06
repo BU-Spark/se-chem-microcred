@@ -4,6 +4,7 @@ import type { LessonRecord } from './hooks/useStudentData';
 
 const mockReplace = jest.fn();
 const mockUsePathname = jest.fn();
+const mockUseUser = jest.fn();
 const mockUseAuth = jest.fn();
 const mockUseStudentData = jest.fn();
 const mockUseSearchParams = jest.fn();
@@ -14,7 +15,8 @@ jest.mock('next/navigation', () => ({
   useSearchParams: () => mockUseSearchParams(),
 }));
 
-jest.mock('./hooks/useAuth', () => ({
+jest.mock('@clerk/nextjs', () => ({
+  useUser: () => mockUseUser(),
   useAuth: () => mockUseAuth(),
 }));
 
@@ -22,20 +24,24 @@ jest.mock('./hooks/useStudentData', () => ({
   useStudentData: () => mockUseStudentData(),
 }));
 
-function createAuthState(overrides = {}) {
+function createClerkState(overrides = {}) {
   return {
     isLoaded: true,
     isSignedIn: true,
     user: {
-      name: 'Student Demo',
-      email: 'student@example.edu',
+      fullName: 'Student Demo',
+      primaryEmailAddress: { emailAddress: 'student@example.edu' },
       createdAt: '2024-01-01T00:00:00.000Z',
     },
-    error: undefined,
-    signIn: jest.fn(),
-    signUp: jest.fn(),
+    ...overrides,
+  };
+}
+
+function createAuthState(overrides = {}) {
+  return {
+    isLoaded: true,
+    isSignedIn: true,
     signOut: jest.fn(),
-    clearError: jest.fn(),
     ...overrides,
   };
 }
@@ -71,8 +77,13 @@ describe('Home Page', () => {
     mockUsePathname.mockReturnValue('/');
     mockUseSearchParams.mockReset();
     mockUseSearchParams.mockReturnValue(new URLSearchParams());
+
+    mockUseUser.mockReset();
+    mockUseUser.mockImplementation(() => createClerkState());
+
     mockUseAuth.mockReset();
     mockUseAuth.mockImplementation(() => createAuthState());
+
     mockUseStudentData.mockReset();
     const upNextLessons = [createLesson('up-1'), createLesson('up-2'), createLesson('up-3')];
     const inProgressLessons = [
@@ -135,10 +146,15 @@ describe('Home Page', () => {
   });
 
   it('redirects to sign-in when the user is not authenticated after loading', async () => {
+    mockUseUser.mockImplementation(() =>
+      createClerkState({
+        isSignedIn: false,
+        user: null,
+      })
+    );
     mockUseAuth.mockImplementation(() =>
       createAuthState({
         isSignedIn: false,
-        user: null,
       })
     );
 

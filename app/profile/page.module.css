@@ -363,3 +363,267 @@
     font-size: 2rem;
   }
 }
+
+/* ---------- Sensitive info controls ---------- */
+
+.sensitiveValueMasked {
+  letter-spacing: 0.12em;
+}
+
+.sensitiveToggleRow {
+  margin-top: 0.75rem;
+}
+
+.sensitiveToggleButton {
+  border: none;
+  background: transparent;
+  color: #1f5fab;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.sensitiveStatusText {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+/* ---------- Inline links under Student Info ---------- */
+
+.inlineActionsRow {
+  margin-top: 1.25rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.inlineLink {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 0.95rem;
+  font-weight: 400;
+  color: #000000;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* Language popover */
+
+.languageMenu {
+  margin-top: 0.4rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+.languageOption {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  background: none;
+  padding: 0.2rem 0;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.languageTag {
+  font-size: 0.75rem;
+  color: #1f5fab;
+}
+
+/* ---------- Demographic edit modal ---------- */
+
+.demographicModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 80;
+}
+
+.demographicModal {
+  width: min(520px, 95%);
+  border-radius: 1.5rem;
+  background: #ffffff;
+  padding: 1.75rem 2rem 1.75rem;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.demographicModalTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.demographicModalHint {
+  font-size: 0.9rem;
+  color: #4b5563;
+  margin-bottom: 0.8rem;
+}
+
+.demographicModalField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.demographicModalField input,
+.demographicModalField select {
+  border-radius: 0.5rem;
+  border: 1px solid #d1d5db;
+  padding: 0.45rem 0.65rem;
+  font-size: 0.9rem;
+}
+
+.demographicModalLabel {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #111827;
+}
+
+.demographicModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.demographicModalCancel {
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.demographicModalSave {
+  border-radius: 999px;
+  border: none;
+  background: #1f5fab;
+  color: #ffffff;
+  padding: 0.5rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* ---------- Language modal (Change Language) ---------- */
+
+.languageModalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 80;
+}
+
+.languageModal {
+  width: min(520px, 95%);
+  border-radius: 1.5rem;
+  background: #ffffff;
+  padding: 1.75rem 2rem 1.75rem;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.languageModalTitle {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.2rem;
+}
+
+.languageModalHint {
+  font-size: 0.9rem;
+  color: #4b5563;
+  margin-bottom: 0.8rem;
+}
+
+.languageList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.languageOptionRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.6rem 0.4rem;
+  border-radius: 0.75rem;
+  cursor: pointer;
+}
+
+.languageOptionRow input[type='radio'] {
+  margin-top: 0.2rem;
+}
+
+.languageOptionLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.languageOptionTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.languageOptionDesc {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.languageTag {
+  font-size: 0.75rem;
+  color: #1f5fab;
+}
+
+/* actions at bottom of language modal */
+
+.languageModalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.languageModalCancel {
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  padding: 0.5rem 1.1rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.languageModalSave {
+  border-radius: 999px;
+  border: none;
+  background: #1f5fab;
+  color: #ffffff;
+  padding: 0.5rem 1.4rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
@@ -75,14 +75,12 @@ function formatBadgeStatus(status: BadgeRecord['status']) {
   return BADGE_STATUS_LABEL[status];
 }
 
-const COLLAPSED_GAP = 80;
-const ACTIVE_OFFSET = 220;
-
 export default function BadgeWalletPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { isLoaded, isSignedIn, user, signOut } = useAuth();
-  const { data: studentData } = useStudentData(user?.email);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useAuth();
+  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
@@ -90,9 +88,10 @@ export default function BadgeWalletPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
 
-  // 默认让第一个 section（Completed）是展开的，就像 Apple Wallet 打开时默认选中顶上的卡
-  const initialOpenSection = useMemo<BadgeStatus | null>(() => SECTION_CONFIG[0]?.status ?? null, []);
+  // 初始不展开任何 section（全部只露出头）
+  const initialOpenSection = useMemo<BadgeStatus | null>(() => null, []);
   const [openSection, setOpenSection] = useState<BadgeStatus | null>(initialOpenSection);
+
   const modalRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -101,11 +100,18 @@ export default function BadgeWalletPage() {
 
   useEffect(() => {
     if (!activeBadgeId) return;
+
     const handleClickAway = (event: MouseEvent) => {
-      if (!modalRef.current) return setActiveBadgeId(null);
-      if (event.target instanceof Node && modalRef.current.contains(event.target)) return;
+      if (!modalRef.current) {
+        setActiveBadgeId(null);
+        return;
+      }
+      if (event.target instanceof Node && modalRef.current.contains(event.target)) {
+        return;
+      }
       setActiveBadgeId(null);
     };
+
     window.addEventListener('mousedown', handleClickAway);
     return () => window.removeEventListener('mousedown', handleClickAway);
   }, [activeBadgeId]);
@@ -123,7 +129,7 @@ export default function BadgeWalletPage() {
     { label: 'Settings', href: '/settings' },
   ];
 
-  const displayName = studentData?.student.name || user?.name || 'Lastname, Student';
+  const displayName = studentData?.student.name || user?.fullName || 'Lastname, Student';
 
   const badgesByStatus = useMemo(
     () =>
@@ -230,6 +236,7 @@ export default function BadgeWalletPage() {
     return badges.map((badge) => {
       const isActive = activeBadgeId === badge.id;
       const tokenClassName = [styles.badgeToken, isActive ? styles.badgeTokenActive : ''].filter(Boolean).join(' ');
+
       return (
         <button
           type="button"
@@ -281,39 +288,13 @@ export default function BadgeWalletPage() {
             <div className="brandMark">checkd.</div>
           </header>
 
-          {/* Apple Wallet style stack */}
           <div className={styles.walletSections}>
             {SECTION_CONFIG.map((section, index) => {
               const badges = badgesByStatus[section.status];
               const isExpanded = openSection === section.status;
 
-              const openIndex = openSection ? SECTION_CONFIG.findIndex((entry) => entry.status === openSection) : -1;
-              const isAnyOpen = openIndex >= 0;
-
-              let stackIndex = index;
-              if (isAnyOpen) {
-                if (index === openIndex) {
-                  stackIndex = 0;
-                } else if (index < openIndex) {
-                  stackIndex = 1 + index;
-                } else {
-                  stackIndex = 1 + index - 1;
-                }
-              }
-
-              let translateY = 0;
-              if (!isAnyOpen) {
-                translateY = index * COLLAPSED_GAP;
-              } else {
-                if (stackIndex === 0) {
-                  translateY = 0;
-                } else {
-                  translateY = ACTIVE_OFFSET + (stackIndex - 1) * COLLAPSED_GAP;
-                }
-              }
-
-              const scale = isAnyOpen && stackIndex !== 0 ? 0.96 : 1;
-              const zIndex = isAnyOpen ? (stackIndex === 0 ? 100 : 100 - stackIndex) : 100 - index;
+              // Simplify stacking to prevent drift when toggling sections
+              const zIndexBoost = SECTION_CONFIG.length - index;
 
               const sectionClassName = [
                 styles.walletSection,
@@ -328,8 +309,8 @@ export default function BadgeWalletPage() {
                   key={section.status}
                   className={sectionClassName}
                   style={{
-                    zIndex,
-                    transform: `translateX(-50%) translateY(${translateY}px) scale(${scale})`,
+                    zIndex: zIndexBoost,
+                    transform: 'translateY(0) scale(1)',
                   }}
                   data-open={isExpanded ? 'true' : 'false'}
                 >
@@ -366,7 +347,6 @@ export default function BadgeWalletPage() {
             })}
           </div>
 
-          {/* Badge detail modal */}
           {activeBadge ? (
             <div className={styles.modalOverlay}>
               <article ref={modalRef} className={styles.badgeModal} role="dialog" aria-modal="true">
@@ -451,6 +431,7 @@ export default function BadgeWalletPage() {
                     </button>
                   )}
                 </div>
+
                 {activeBadge.status === 'COMPLETED' && exportStatus ? (
                   <p className={styles.modalHelperText}>{exportStatus}</p>
                 ) : null}
@@ -458,7 +439,6 @@ export default function BadgeWalletPage() {
             </div>
           ) : null}
 
-          {/* QR Code modal */}
           {qrBadge ? (
             <div className={styles.modalOverlay}>
               <div className={styles.qrModal} role="dialog" aria-modal="true">

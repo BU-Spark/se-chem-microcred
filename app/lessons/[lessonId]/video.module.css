@@ -197,6 +197,32 @@
   display: none !important;
 }
 
+.initOverlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+  pointer-events: all;
+}
+
+.initSpinner {
+  width: 64px;
+  height: 64px;
+  border: 6px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #1f5fab;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .videoHeader {
   display: flex;
   justify-content: space-between;
@@ -805,7 +831,7 @@
 .lessonSurveyOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.65);
+  background: rgba(15, 23, 42, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -814,81 +840,89 @@
 }
 
 .lessonSurveyModal {
-  width: min(480px, 100%);
+  position: relative;
+  width: min(420px, 92%);
   background: #ffffff;
-  border-radius: 1.5rem;
-  padding: 2rem;
-  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.35);
-  text-align: center;
+  border-radius: 1.75rem;
+  padding: 2.25rem 2.5rem;
+  box-shadow: 0 45px 60px rgba(15, 23, 42, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1.6rem;
+  text-align: left;
 }
 
 .lessonSurveyTitle {
-  font-size: 1.4rem;
+  font-size: 1.35rem;
   font-weight: 700;
-  margin-bottom: 0.5rem;
-  color: #1f2937;
+  margin: 0;
+  color: #111827;
 }
 
 .lessonSurveyQuestion {
   font-size: 1rem;
-  color: #475569;
-  margin-bottom: 1.25rem;
+  color: #374151;
+  margin: 0;
 }
 
 .lessonSurveyError {
   color: #b91c1c;
-  margin-bottom: 0.75rem;
+  margin: 0.25rem 0 0.5rem;
   font-weight: 600;
 }
 
 .lessonSurveyFaces {
   display: flex;
   justify-content: space-between;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
+  gap: 1.5rem;
 }
 
 .lessonSurveyFace {
-  flex: 1 1 80px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  border-radius: 1rem;
-  padding: 0.75rem;
-  background: #f8fbff;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #1f2937;
-  transition: border-color 0.2s ease, transform 0.2s ease;
+  justify-content: center;
+  transition: transform 0.2s ease;
 }
 
 .lessonSurveyFaceSelected {
-  border-color: #1f5fab;
   transform: translateY(-4px);
-  box-shadow: 0 12px 30px rgba(31, 95, 171, 0.2);
 }
 
-.lessonSurveyFaces button span {
+.lessonSurveyFaceImage {
+  width: 36px;
+  height: 36px;
   display: block;
 }
 
+.lessonSurveyFaceImageForceBlue {
+  filter: hue-rotate(-140deg) saturate(130%);
+}
+
+.lessonSurveyFaceImageSelected {
+  filter: hue-rotate(60deg) saturate(140%);
+}
+
 .lessonSurveySubmit {
-  width: 100%;
-  border: none;
+  align-self: flex-end;
+  padding: 0.7rem 1.8rem;
   border-radius: 999px;
-  padding: 0.85rem 1.5rem;
-  font-size: 1rem;
-  font-weight: 700;
-  background: linear-gradient(135deg, #1f5fab, #0f3c7a);
+  border: none;
+  background: #1f5fab;
   color: #ffffff;
+  font-weight: 600;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  transition: filter 0.2s ease;
 }
 
 .lessonSurveySubmit:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.lessonSurveySubmit:hover:not(:disabled) {
+  filter: brightness(0.95);
 }

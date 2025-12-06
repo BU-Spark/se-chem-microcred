@@ -47,23 +47,32 @@ export async function POST(request: Request, context: RouteContext) {
 
   const lesson = await prisma.lesson.findUnique({
     where: { id: lessonId },
-    select: { id: true },
+    select: { id: true, title: true },
   });
 
   if (!lesson) {
     return NextResponse.json({ error: 'Lesson not found.' }, { status: 404 });
   }
 
-  const surveyPrompt = await prisma.surveyPrompt.findFirst({
-    where: {
-      lessonId,
-      context: SurveyContext.LESSON,
-    },
-    select: { id: true },
-  });
+  let surveyPrompt =
+    (await prisma.surveyPrompt.findFirst({
+      where: {
+        lessonId,
+        context: SurveyContext.LESSON,
+      },
+      select: { id: true },
+    })) ?? null;
 
   if (!surveyPrompt) {
-    return NextResponse.json({ error: 'Lesson survey is not configured.' }, { status: 404 });
+    const question = lesson?.title ? `How was the lesson "${lesson.title}"?` : 'How was this lesson?';
+    surveyPrompt = await prisma.surveyPrompt.create({
+      data: {
+        context: SurveyContext.LESSON,
+        lessonId,
+        question,
+      },
+      select: { id: true },
+    });
   }
 
   let lessonProgress =

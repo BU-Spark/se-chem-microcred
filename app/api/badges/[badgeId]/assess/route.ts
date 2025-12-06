@@ -8,6 +8,8 @@ type RouteContext = {
   }>;
 };
 
+import { currentUser } from '@clerk/nextjs/server';
+
 export async function POST(request: Request, context: RouteContext) {
   const { badgeId } = await context.params;
 
@@ -15,19 +17,18 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Missing badge id.' }, { status: 400 });
   }
 
-  let payload: { email?: string };
+  const clerkUser = await currentUser();
+  if (!clerkUser || !clerkUser.emailAddresses?.[0]) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const email = clerkUser.emailAddresses[0].emailAddress.toLowerCase();
 
+  // We still parse the body to ensure it's valid JSON, even if we ignore the email in it
   try {
-    payload = (await request.json()) as { email?: string };
+    await request.json();
   } catch {
     return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
   }
-
-  if (!payload.email) {
-    return NextResponse.json({ error: 'Email is required.' }, { status: 400 });
-  }
-
-  const email = payload.email.trim().toLowerCase();
 
   const user = await prisma.user.findUnique({
     where: { email },

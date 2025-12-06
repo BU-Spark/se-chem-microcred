@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAuth, useUser } from '@clerk/nextjs';
 import styles from './AppHeader.module.css';
 
 const navLinks = [
@@ -15,7 +15,8 @@ const navLinks = [
 export function AppHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isLoaded, isSignedIn, user, signOut } = useAuth();
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const hideNavigation =
@@ -60,8 +61,8 @@ export function AppHeader() {
         {isLoaded && isSignedIn && user ? (
           <>
             <div className={styles.userMeta}>
-              <span>{user.name || user.email}</span>
-              <span>{new Date(user.createdAt).toLocaleDateString()}</span>
+              <span>{user.fullName || user.primaryEmailAddress?.emailAddress}</span>
+              <span>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : ''}</span>
             </div>
             <button type="button" className={styles.authButton} onClick={handleSignOut} disabled={isSigningOut}>
               {isSigningOut ? 'Signing out…' : 'Sign out'}

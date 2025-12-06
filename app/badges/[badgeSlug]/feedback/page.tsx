@@ -3,8 +3,8 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '../../../hooks/useAuth';
+import { useParams, usePathname, useRouter } from 'next/navigation';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../../../hooks/useStudentData';
 import styles from './page.module.css';
 
@@ -110,9 +110,11 @@ function initialsFromName(name?: string | null) {
 
 export default function BadgeFeedbackPage() {
   const params = useParams<{ badgeSlug: string }>();
-  const { isLoaded, isSignedIn, user } = useAuth();
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useAuth();
   const router = useRouter();
-  const { data: studentData } = useStudentData(user?.email);
+  const pathname = usePathname();
+  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
 
   const allBadges = useMemo(() => {
     if (!studentData) {
@@ -147,35 +149,47 @@ export default function BadgeFeedbackPage() {
     return null;
   }
 
-  const displayName = studentData?.student.name || user?.name || 'Student Demo';
+  const displayName = studentData?.student.name || user?.fullName || 'Student Demo';
   const lessonSlug = badge.requirements.find((req) => req.lessonSlug)?.lessonSlug;
 
   return (
-    <div className={styles.page}>
-      <div className={styles.main}>
-        <aside className={styles.sidebar}>
-          <div className={styles.profileCard}>
-            <div className={styles.profileAvatar}>{initialsFromName(displayName)}</div>
-            <div>
-              <div style={{ fontWeight: 600 }}>{displayName}</div>
-              <div style={{ opacity: 0.8 }}>Student</div>
-            </div>
-          </div>
+    <div className="page">
+      <aside className="sidebar">
+        <div className={`${styles.sidebarProfile} profile`}>
+          <div className={`${styles.sidebarAvatar} avatar`}>{initialsFromName(displayName)}</div>
+          <div className={`${styles.sidebarName} name`}>{displayName}</div>
+        </div>
 
-          <nav className={styles.navList} aria-label="Main">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`${styles.navItem} ${item.href === '/badges' ? styles.navItemActive : ''}`}
-              >
+        <nav className={`${styles.sidebarNavList} navList`} aria-label="Main">
+          {NAV_ITEMS.map((item) => {
+            const isActive = pathname === item.href || (item.href === '/badges' && pathname.startsWith('/badges'));
+            const cls = `navItem${isActive ? ' navItemActive' : ''} ${styles.sidebarNavItem} ${
+              isActive ? styles.sidebarNavItemActive : ''
+            }`.trim();
+            return (
+              <Link key={item.href} href={item.href} className={cls}>
                 {item.label}
               </Link>
-            ))}
-          </nav>
-        </aside>
+            );
+          })}
+        </nav>
 
-        <section className={styles.content}>
+        <div className="sidebarFooter">
+          <button
+            type="button"
+            className="signOffButton"
+            onClick={() => {
+              void signOut();
+            }}
+          >
+            Sign off
+          </button>
+          <div className="brandFooter">checkd.</div>
+        </div>
+      </aside>
+
+      <main className="main">
+        <div className={styles.pageContent}>
           <div className={styles.headerRow}>
             <h1 className={styles.title}>{content.title}</h1>
             <div className={styles.brandMark}>checkd.</div>
@@ -188,21 +202,23 @@ export default function BadgeFeedbackPage() {
             <p>{content.feedback}</p>
           </div>
 
-          <div className={styles.cooldown}>
-            <h3>Cooldown</h3>
-            <div className={styles.cooldownBar} />
-            <div className={styles.cooldownMeta}>
-              <div>
-                <div style={{ fontWeight: 600 }}>{content.cooldown.last}</div>
-                <div style={{ opacity: 0.7, fontSize: '0.9rem' }}>Last assessment</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>{content.cooldown.remaining}</div>
-              <div>
-                <div style={{ fontWeight: 600 }}>{content.cooldown.next}</div>
-                <div style={{ opacity: 0.7, fontSize: '0.9rem' }}>Next attempt window</div>
+          {badge.status === 'READY_FOR_ASSESSMENT' ? (
+            <div className={styles.cooldown}>
+              <h3>Cooldown</h3>
+              <div className={styles.cooldownBar} />
+              <div className={styles.cooldownMeta}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{content.cooldown.last}</div>
+                  <div style={{ opacity: 0.7, fontSize: '0.9rem' }}>Last assessment</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>{content.cooldown.remaining}</div>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{content.cooldown.next}</div>
+                  <div style={{ opacity: 0.7, fontSize: '0.9rem' }}>Next attempt window</div>
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
 
           <div className={styles.section}>
             <h3>Review</h3>
@@ -237,8 +253,8 @@ export default function BadgeFeedbackPage() {
               ))}
             </div>
           </div>
-        </section>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

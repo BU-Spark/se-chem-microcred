@@ -12,7 +12,7 @@ interface AttemptRequestBody {
   answers?: Array<{
     questionId: string;
     selectedIndex: number | null;
-    numericAnswer?: number | null;
+    numericAnswer?: number | string | null;
   }>;
 }
 
@@ -22,62 +22,34 @@ type RouteContext = {
   }>;
 };
 
-class AttemptValidationError extends Error {
-  constructor(
-    message: string,
-    public code: 'MISSING_ANSWER' | 'NUMERIC_REQUIRED' | 'QUESTION_MISCONFIGURED'
-  ) {
-    super(message);
-  }
-}
-
 function evaluateAttempt(answers: AttemptRequestBody['answers'], questions: NormalizedCheckpointQuestion[]) {
   return questions.map((question) => {
     const answer = answers?.find((item) => item.questionId === question.id);
-
-    if (question.type === 'shortAnswer') {
-      if (!answer) {
-        throw new AttemptValidationError('Missing short answer response.', 'MISSING_ANSWER');
-      }
-      const numericAnswer = parseNumericAnswer(answer.numericAnswer ?? null);
-      if (numericAnswer === null) {
-        throw new AttemptValidationError('Numeric answer required.', 'NUMERIC_REQUIRED');
-      }
-      if (question.expectedAnswer == null) {
-        throw new AttemptValidationError('Short answer question missing expected answer.', 'QUESTION_MISCONFIGURED');
-      }
-      const isCorrect = isAnswerWithinTolerance(question.expectedAnswer, numericAnswer, question.tolerancePercent ?? 0);
-      return {
-        questionId: question.id,
-        prompt: question.prompt,
-        options: question.options,
-        selectedIndex: null,
-        numericAnswer,
-        correctIndex: null,
-        expectedAnswer: question.expectedAnswer,
-        tolerancePercent: question.tolerancePercent,
-        type: question.type,
-        isCorrect,
-      };
-    }
-
     const selectedIndex = typeof answer?.selectedIndex === 'number' ? answer.selectedIndex : null;
-    const isCorrect = selectedIndex !== null && selectedIndex === (question.correctIndex ?? null);
+    const numericAnswer = parseNumericAnswer(answer?.numericAnswer);
 
+    const isCorrect =
+      question.type === 'shortAnswer'
+        ? numericAnswer != null &&
+          question.expectedAnswer != null &&
+          isAnswerWithinTolerance(question.expectedAnswer, numericAnswer, question.tolerancePercent)
+        : selectedIndex !== null && selectedIndex === (question.correctIndex ?? null);
     return {
       questionId: question.id,
       prompt: question.prompt,
       options: question.options,
-      selectedIndex,
-      numericAnswer: null,
-      correctIndex: question.correctIndex ?? null,
-      expectedAnswer: question.expectedAnswer,
-      tolerancePercent: question.tolerancePercent,
       type: question.type,
+      selectedIndex: question.type === 'multipleChoice' ? selectedIndex : null,
+      numericAnswer: question.type === 'shortAnswer' ? numericAnswer : null,
+      correctIndex: question.correctIndex ?? null,
+      expectedAnswer: question.expectedAnswer ?? null,
+      tolerancePercent: question.tolerancePercent,
       isCorrect,
     };
   });
 }
+
+import { currentUser } from '@clerk/nextjs/server';
 
 export async function POST(request: Request, context: RouteContext) {
   const { checkpointId } = await context.params;
@@ -85,6 +57,12 @@ export async function POST(request: Request, context: RouteContext) {
   if (!checkpointId) {
     return NextResponse.json({ error: 'Missing checkpoint id.' }, { status: 400 });
   }
+
+  const clerkUser = await currentUser();
+  if (!clerkUser || !clerkUser.emailAddresses?.[0]) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+  const email = clerkUser.emailAddresses[0].emailAddress.toLowerCase();
 
   let payload: AttemptRequestBody;
 
@@ -94,11 +72,9 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
   }
 
-  if (!payload.email || !payload.answers || !Array.isArray(payload.answers)) {
-    return NextResponse.json({ error: 'Request must include email and answers.' }, { status: 400 });
+  if (!payload.answers || !Array.isArray(payload.answers)) {
+    return NextResponse.json({ error: 'Request must include answers.' }, { status: 400 });
   }
-
-  const email = payload.email.trim().toLowerCase();
   const [user, checkpoint] = await Promise.all([
     prisma.user.findUnique({ where: { email } }),
     prisma.lessonCheckpoint.findUnique({
@@ -125,16 +101,8 @@ export async function POST(request: Request, context: RouteContext) {
       where: { studentId: user.id, lessonId: checkpoint.lessonId },
     })) ?? null;
 
-  let evaluation;
-  try {
-    const normalizedQuestions = checkpoint.questions.map((question) => normalizeCheckpointQuestion(question));
-    evaluation = evaluateAttempt(payload.answers, normalizedQuestions);
-  } catch (error) {
-    if (error instanceof AttemptValidationError) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-    throw error;
-  }
+  const normalizedQuestions = checkpoint.questions.map((question) => normalizeCheckpointQuestion(question));
+  const evaluation = evaluateAttempt(payload.answers, normalizedQuestions);
   const isPassing = evaluation.every((entry) => entry.isCorrect);
 
   const attempt = await prisma.checkpointAttempt.create({

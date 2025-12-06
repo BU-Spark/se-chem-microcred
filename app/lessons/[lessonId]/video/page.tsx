@@ -1,16 +1,15 @@
 'use client';
 
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
-import { useAuth } from '../../../hooks/useAuth';
+import { useParams } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
 
 export default function LessonVideoRoute() {
   const params = useParams<{ lessonId: string }>();
-  const searchParams = useSearchParams();
-  const { isLoaded, isSignedIn, user } = useAuth();
-  const { data: studentData, isLoading, error } = useStudentData(user?.email);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { data: studentData, isLoading, error } = useStudentData(user?.primaryEmailAddress?.emailAddress);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -40,18 +39,8 @@ export default function LessonVideoRoute() {
     );
   }
 
-  const studentName = studentData.student.name || user?.name || 'Student Demo';
-  const studentEmail = studentData.student.email || user?.email || 'student@example.edu';
-  const lessonSurvey = studentData.surveys.lesson.find((survey) => survey.lessonSlug === lessonRecord.slug) ?? null;
-  const resumeRequested = searchParams.get('resume') === '1';
+  const studentName = studentData.student.name || user?.fullName || 'Student Demo';
+  const studentEmail = studentData.student.email || user?.primaryEmailAddress?.emailAddress || 'student@example.edu';
 
-  return (
-    <LessonVideoPage
-      lesson={lessonRecord}
-      studentName={studentName}
-      studentEmail={studentEmail}
-      lessonSurvey={lessonSurvey}
-      resumeRequested={resumeRequested}
-    />
-  );
+  return <LessonVideoPage lesson={lessonRecord} studentName={studentName} studentEmail={studentEmail} />;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
@@ -29,8 +29,6 @@ function initialsFromName(name?: string | null) {
   const initials = parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase());
   return initials.join('') || 'ST';
 }
-
-/* ===== Icons ===== */
 
 function ClockIcon() {
   return (
@@ -93,26 +91,12 @@ function LargeBadgeDialCheck() {
   );
 }
 
-/* ===== Circular score with entry animation ===== */
-
 function CircularScore({ value, label }: ScoreItem) {
-  const [displayValue, setDisplayValue] = useState(0);
-
-  useEffect(() => {
-    // trigger animation each mount / value change
-    const timeout = setTimeout(() => setDisplayValue(value), 50);
-    return () => clearTimeout(timeout);
-  }, [value]);
-
   const radius = 60;
   const strokeWidth = 10;
   const normalizedRadius = radius - strokeWidth / 2;
   const circumference = normalizedRadius * 2 * Math.PI;
-
-  const strokeDashoffset = useMemo(
-    () => circumference - (displayValue / 100) * circumference,
-    [circumference, displayValue]
-  );
+  const strokeDashoffset = useMemo(() => circumference - (value / 100) * circumference, [circumference, value]);
 
   return (
     <div className={styles.scoreCard}>
@@ -137,23 +121,21 @@ function CircularScore({ value, label }: ScoreItem) {
             strokeDasharray={`${circumference} ${circumference}`}
             strokeDashoffset={strokeDashoffset}
             transform={`rotate(-90 ${radius} ${radius})`}
-            className={styles.circularProgress}
           />
         </svg>
-        <div className={styles.circularStatValue}>{displayValue}%</div>
+        <div className={styles.circularStatValue}>{value}%</div>
       </div>
       <div className={styles.scoreLabel}>{label}</div>
     </div>
   );
 }
 
-/* ===== Page ===== */
-
 export default function AnalyticsPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { isLoaded, isSignedIn, user, signOut } = useAuth();
-  const { data: studentData } = useStudentData(user?.email);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useAuth();
+  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
@@ -162,12 +144,15 @@ export default function AnalyticsPage() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  const displayName = studentData?.student.name || user?.name || 'Lastname, Student';
+  if (!isLoaded || !isSignedIn) {
+    return null;
+  }
+
+  const displayName = studentData?.student.name || user?.fullName || 'Lastname, Student';
   const totalBadges =
     (studentData?.badges.completed.length ?? 0) +
     (studentData?.badges.readyForAssessment.length ?? 0) +
     (studentData?.badges.learning.length ?? 0);
-
   const completedPercent =
     totalBadges > 0 ? Math.round(((studentData?.badges.completed.length ?? 0) / totalBadges) * 100) : 0;
   const availablePercent = Math.max(0, 100 - completedPercent);
@@ -199,7 +184,7 @@ export default function AnalyticsPage() {
     },
     {
       id: 'badges-reassess',
-      value: String(analytics?.badgesReadyForAssessment ?? studentData?.badges.readyForAssessment.length ?? 0),
+      value: String(studentData?.badges.readyForAssessment.length ?? analytics?.badgesReadyForAssessment ?? 0),
       label: 'badges ready to be reassessed',
       icon: <ClipboardIcon />,
       iconClassName: `${styles.progressIcon} ${styles.iconAccent}`,
@@ -237,27 +222,6 @@ export default function AnalyticsPage() {
       label: 'Badge completion rate',
     },
   ];
-
-  // ===== Animated percentages for badge dial & bars =====
-  const [animatedCompleted, setAnimatedCompleted] = useState(0);
-  const [animatedAvailable, setAnimatedAvailable] = useState(0);
-
-  useEffect(() => {
-    // reset to 0 then animate to real value when page mounts / values change
-    setAnimatedCompleted(0);
-    setAnimatedAvailable(0);
-
-    const timeout = setTimeout(() => {
-      setAnimatedCompleted(completedPercent);
-      setAnimatedAvailable(availablePercent);
-    }, 50);
-
-    return () => clearTimeout(timeout);
-  }, [completedPercent, availablePercent]);
-
-  if (!isLoaded || !isSignedIn) {
-    return null;
-  }
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -308,9 +272,7 @@ export default function AnalyticsPage() {
           <div className={styles.brandMark}>checkd.</div>
         </header>
 
-        {/* Top row: two main cards */}
         <section className={styles.analyticsGrid}>
-          {/* Student's total progress */}
           <article className={styles.card}>
             <h2 className={styles.cardTitle}>Student&apos;s Total Progress</h2>
             <div className={styles.progressList}>
@@ -326,7 +288,6 @@ export default function AnalyticsPage() {
             </div>
           </article>
 
-          {/* Student's badge summary */}
           <article className={styles.card}>
             <div className={styles.badgeSummary}>
               <div>
@@ -336,8 +297,9 @@ export default function AnalyticsPage() {
                 className={styles.badgeDial}
                 style={
                   {
-                    '--completed': animatedCompleted,
-                    '--available': animatedAvailable,
+                    // Using CSS variables keeps the conic gradient declarative in CSS.
+                    '--completed': completedPercent,
+                    '--available': availablePercent,
                   } as CSSProperties
                 }
               >
@@ -349,7 +311,7 @@ export default function AnalyticsPage() {
                   <div className={styles.badgeBar}>
                     <div
                       className={`${styles.badgeFill} ${styles.badgeFillCompleted}`}
-                      style={{ width: `${animatedCompleted}%` }}
+                      style={{ width: `${completedPercent}%` }}
                     />
                   </div>
                   <span className={styles.badgePercentage}>{completedPercent}%</span>
@@ -359,7 +321,7 @@ export default function AnalyticsPage() {
                   <div className={styles.badgeBar}>
                     <div
                       className={`${styles.badgeFill} ${styles.badgeFillAvailable}`}
-                      style={{ width: `${animatedAvailable}%` }}
+                      style={{ width: `${availablePercent}%` }}
                     />
                   </div>
                   <span className={styles.badgePercentage}>{availablePercent}%</span>
@@ -369,7 +331,6 @@ export default function AnalyticsPage() {
           </article>
         </section>
 
-        {/* Bottom row: circular score cards */}
         <section className={styles.scoreRow}>
           {scoreItems.map((item) => (
             <CircularScore key={item.id} {...item} />

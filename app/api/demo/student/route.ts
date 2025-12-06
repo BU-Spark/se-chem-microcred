@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { BadgeStatus, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
-import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import prisma from '../../../../lib/prisma';
+import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 
 function groupBadgesByStatus(badges: Array<ReturnType<typeof formatBadge>>) {
   return badges.reduce(
@@ -58,11 +58,15 @@ function formatLesson({
   progress,
   completedCheckpointIds = [],
   resumeTimeSeconds = 0,
+  answeredCount = 0,
+  answeredCheckpointIds = [],
 }: {
   lesson: Awaited<ReturnType<typeof fetchLessons>>[number];
   progress?: Awaited<ReturnType<typeof fetchLessonProgress>> extends Array<infer T> ? T : never;
   completedCheckpointIds?: string[];
   resumeTimeSeconds?: number;
+  answeredCount?: number;
+  answeredCheckpointIds?: string[];
 }) {
   const segmentStatusMap = new Map<string, SegmentStatus>();
   if (progress) {
@@ -79,6 +83,11 @@ function formatLesson({
     return acc;
   }, {});
 
+  let derivedStatus = progress?.status ?? LessonStatus.NOT_STARTED;
+  if (derivedStatus !== LessonStatus.COMPLETED && answeredCount > 0) {
+    derivedStatus = LessonStatus.IN_PROGRESS;
+  }
+
   return {
     id: lesson.id,
     slug: lesson.slug,
@@ -89,10 +98,11 @@ function formatLesson({
     estimatedMinutes: lesson.estimatedMinutes,
     dueDate: lesson.dueDate?.toISOString() ?? null,
     sortOrder: lesson.sortOrder,
-    status: progress?.status ?? LessonStatus.NOT_STARTED,
-    percentComplete: progress?.percentComplete ?? 0,
+    status: derivedStatus,
+    percentComplete: 0, // placeholder; recomputed later with checkpoints + survey
     completedCheckpointIds,
     resumeTimeSeconds,
+    answeredCheckpointIds,
     segments: lesson.segments.map((segment) => ({
       id: segment.id,
       title: segment.title,
@@ -152,13 +162,16 @@ async function fetchLessons(courseId: string) {
   });
 }
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const email = searchParams.get('email')?.toLowerCase();
+import { currentUser } from '@clerk/nextjs/server';
 
-  if (!email) {
-    return NextResponse.json({ error: 'Missing email query parameter.' }, { status: 400 });
+export async function GET() {
+  const user = await currentUser();
+
+  if (!user || !user.emailAddresses?.[0]) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  const email = user.emailAddresses[0].emailAddress.toLowerCase();
 
   const student = await prisma.user.findUnique({
     where: { email },
@@ -185,43 +198,51 @@ export async function GET(request: Request) {
     },
   });
 
-  const [lessonProgresses, lessons, studentBadges, passingCheckpointAttempts, surveyResponses] = await Promise.all([
-    fetchLessonProgress(student.id),
-    enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
-    prisma.studentBadge.findMany({
-      where: { studentId: student.id },
-      include: {
-        badge: {
-          include: {
-            requirements: {
-              include: {
-                lesson: {
-                  select: { slug: true, title: true },
+  const [lessonProgresses, lessons, studentBadges, passingCheckpointAttempts, surveyResponses, checkpointResponses] =
+    await Promise.all([
+      fetchLessonProgress(student.id),
+      enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
+      prisma.studentBadge.findMany({
+        where: { studentId: student.id },
+        include: {
+          badge: {
+            include: {
+              requirements: {
+                include: {
+                  lesson: {
+                    select: { slug: true, title: true },
+                  },
                 },
               },
             },
           },
         },
-      },
-    }),
-    prisma.checkpointAttempt.findMany({
-      where: {
-        userId: student.id,
-        isPassing: true,
-      },
-      select: {
-        checkpointId: true,
-      },
-    }),
-    prisma.surveyResponse.findMany({
-      where: {
-        studentId: student.id,
-      },
-      select: {
-        promptId: true,
-      },
-    }),
-  ]);
+      }),
+      prisma.checkpointAttempt.findMany({
+        where: {
+          userId: student.id,
+          isPassing: true,
+        },
+        select: {
+          checkpointId: true,
+        },
+      }),
+      prisma.surveyResponse.findMany({
+        where: {
+          studentId: student.id,
+        },
+        select: {
+          promptId: true,
+        },
+      }),
+      prisma.checkpointResponse.findMany({
+        where: { studentId: student.id },
+        select: {
+          checkpointId: true,
+          questionId: true,
+        },
+      }),
+    ]);
 
   const surveyPrompts = await prisma.surveyPrompt.findMany({
     where: {
@@ -244,26 +265,95 @@ export async function GET(request: Request) {
     }
     return acc;
   }, new Map());
+  const lessonSurveyPromptMap = surveyPrompts.reduce<Map<string, string[]>>((acc, prompt) => {
+    if (prompt.context === SurveyContext.LESSON && prompt.lessonId) {
+      const list = acc.get(prompt.lessonId) ?? [];
+      list.push(prompt.id);
+      acc.set(prompt.lessonId, list);
+    }
+    return acc;
+  }, new Map());
 
-  const passingCheckpointIdsSet = new Set(passingCheckpointAttempts.map((attempt) => attempt.checkpointId));
   const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
+  const surveyPromptIdsCompleted = new Set(surveyResponses.map((response) => response.promptId));
+  const passingCheckpointIds = new Set(passingCheckpointAttempts.map((attempt) => attempt.checkpointId));
+  const checkpointsByLessonId = new Map<string, string[]>(
+    lessons.map((lesson) => [lesson.id, lesson.checkpoints.map((checkpoint) => checkpoint.id)])
+  );
+  const answeredQuestionsByCheckpoint = checkpointResponses.reduce<Map<string, Set<string>>>((acc, response) => {
+    const set = acc.get(response.checkpointId) ?? new Set<string>();
+    set.add(response.questionId);
+    acc.set(response.checkpointId, set);
+    return acc;
+  }, new Map());
+
   const lessonCatalog = lessons.map((lesson) => {
-    const completedCheckpointIds = lesson.checkpoints
-      .filter((checkpoint) => passingCheckpointIdsSet.has(checkpoint.id))
-      .map((checkpoint) => checkpoint.id);
-    const resumeTimeSeconds = completedCheckpointIds.reduce((max, checkpointId) => {
-      const checkpoint = lesson.checkpoints.find((cp) => cp.id === checkpointId);
-      if (!checkpoint) {
-        return max;
-      }
-      return Math.max(max, checkpoint.timeOffsetSeconds ?? 0);
+    const totalQuestions = lesson.checkpoints.reduce((sum, cp) => sum + cp.questions.length, 0);
+    const answeredCount = lesson.checkpoints.reduce((sum, cp) => {
+      const answeredSet = answeredQuestionsByCheckpoint.get(cp.id);
+      return sum + (answeredSet ? Math.min(answeredSet.size, cp.questions.length) : 0);
     }, 0);
-    return formatLesson({
+    const allCheckpointsPassed =
+      lesson.checkpoints.length > 0 &&
+      lesson.checkpoints.every((checkpoint) => passingCheckpointIds.has(checkpoint.id));
+    const completedCheckpointIds = lesson.checkpoints
+      .filter((checkpoint) => passingCheckpointIds.has(checkpoint.id))
+      .map((checkpoint) => checkpoint.id);
+    const lessonSurveyPromptIds = lessonSurveyPromptMap.get(lesson.id) ?? [];
+    const lessonSurveyRequired = true; // surveys are always enabled in the demo
+    const lessonSurveyComplete =
+      lessonSurveyPromptIds.length > 0 ? lessonSurveyPromptIds.every((id) => surveyPromptIdsCompleted.has(id)) : false;
+
+    const answeredCheckpointIds = lesson.checkpoints
+      .filter((cp) => (answeredQuestionsByCheckpoint.get(cp.id)?.size ?? 0) > 0 || passingCheckpointIds.has(cp.id))
+      .map((cp) => cp.id);
+    const lastActiveCheckpoint = [...lesson.checkpoints]
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .filter((cp) => answeredQuestionsByCheckpoint.get(cp.id)?.size || passingCheckpointIds.has(cp.id))
+      .at(-1);
+    const resumeTimeSeconds = lastActiveCheckpoint ? (lastActiveCheckpoint.timeOffsetSeconds ?? 0) + 1 : 0;
+
+    const formatted = formatLesson({
       lesson,
-      progress: progressByLessonId.get(lesson.id),
+      progress: {
+        ...progressByLessonId.get(lesson.id),
+        status:
+          allCheckpointsPassed && lessonSurveyComplete
+            ? LessonStatus.COMPLETED
+            : answeredCount > 0
+              ? LessonStatus.IN_PROGRESS
+              : LessonStatus.NOT_STARTED,
+      },
       completedCheckpointIds,
-      resumeTimeSeconds,
+      resumeTimeSeconds:
+        allCheckpointsPassed && !lessonSurveyComplete
+          ? (lesson.checkpoints.at(-1)?.timeOffsetSeconds ?? 0) + 1
+          : resumeTimeSeconds,
+      answeredCount,
+      totalQuestions,
+      answeredCheckpointIds,
     });
+
+    // Recompute percentComplete based on passed checkpoints + lesson survey
+    const totalUnits = lesson.checkpoints.length + (lessonSurveyRequired ? 1 : 0);
+    const completedUnits = completedCheckpointIds.length + (lessonSurveyRequired && lessonSurveyComplete ? 1 : 0);
+    const percentComplete = totalUnits > 0 ? Math.min(100, Math.round((completedUnits / totalUnits) * 100)) : 0;
+
+    const formattedWithProgress = {
+      ...formatted,
+      percentComplete,
+    };
+
+    // If all checkpoints passed but lesson survey unfinished, cap percentComplete at 99 and keep IN_PROGRESS
+    if (allCheckpointsPassed && !lessonSurveyComplete) {
+      return {
+        ...formattedWithProgress,
+        status: LessonStatus.IN_PROGRESS,
+        percentComplete: Math.min(99, percentComplete || 99),
+      };
+    }
+
+    return formattedWithProgress;
   });
 
   const upNextLessons = lessonCatalog
@@ -273,12 +363,6 @@ export async function GET(request: Request) {
   const continueLessons = lessonCatalog
     .filter((lesson) => lesson.status === LessonStatus.IN_PROGRESS)
     .sort((a, b) => (a.dueDate && b.dueDate ? Date.parse(a.dueDate) - Date.parse(b.dueDate) : 0));
-
-  const checkpointsByLessonId = new Map<string, string[]>(
-    lessons.map((lesson) => [lesson.id, lesson.checkpoints.map((checkpoint) => checkpoint.id)])
-  );
-
-  const surveyPromptIdsCompleted = new Set(surveyResponses.map((response) => response.promptId));
 
   const normalizedStudentBadges = studentBadges.map((entry) => {
     const requirementLessonIds = entry.badge.requirements
@@ -305,7 +389,7 @@ export async function GET(request: Request) {
         return true;
       }
 
-      return checkpointIds.every((checkpointId) => passingCheckpointIdsSet.has(checkpointId));
+      return checkpointIds.every((checkpointId) => passingCheckpointIds.has(checkpointId));
     });
 
     let status = entry.status;
@@ -347,7 +431,6 @@ export async function GET(request: Request) {
       question: prompt.question,
       lessonSlug: prompt.lesson?.slug ?? null,
       lessonTitle: prompt.lesson?.title ?? null,
-      completed: surveyPromptIdsCompleted.has(prompt.id),
     }));
 
   const badgeSurveyPrompts = surveyPrompts
@@ -358,7 +441,6 @@ export async function GET(request: Request) {
       badgeSlug: prompt.badge?.slug ?? null,
       badgeName: prompt.badge?.name ?? null,
       badgeId: prompt.badgeId ?? null,
-      completed: surveyPromptIdsCompleted.has(prompt.id),
     }));
 
   const pendingBadgeSurveys = badgeSurveyPrompts

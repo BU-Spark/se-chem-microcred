@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth } from '@clerk/nextjs';
 import styles from './page.module.css';
 
 type Step = 'base' | 'face' | 'accessory';

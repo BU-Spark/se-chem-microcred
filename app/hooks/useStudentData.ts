@@ -95,6 +95,7 @@ export interface LessonRecord {
   percentComplete: number;
   completedCheckpointIds: string[];
   resumeTimeSeconds: number;
+  answeredCheckpointIds: string[];
   segments: Array<{
     id: string;
     title: string;

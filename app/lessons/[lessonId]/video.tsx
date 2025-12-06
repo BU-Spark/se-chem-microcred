@@ -168,20 +168,24 @@ export function LessonVideoPage({
     () => lessonSurvey ?? { id: `auto-${lesson.slug}`, question: 'How was this lesson?', completed: false },
     [lesson.slug, lessonSurvey]
   );
+
   const playerRef = useRef<YouTubePlayer | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
   const playerElementId = useMemo(() => `youtube-player-${lesson.id}`, [lesson.id]);
+  const playerStateRef = useRef<number | null>(null);
+  const [playerStatus, setPlayerStatus] = useState<number | null>(null);
 
   const orderedCheckpoints = useMemo(
     () => [...lesson.checkpoints].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds),
     [lesson.checkpoints]
   );
-
   const initialCompletedIds = useMemo(() => lesson.completedCheckpointIds ?? [], [lesson.completedCheckpointIds]);
-  const resumeBaseTime = useMemo(
-    () => (resumeRequested ? Math.max(0, lesson.resumeTimeSeconds ?? 0) : 0),
-    [lesson.resumeTimeSeconds, resumeRequested]
-  );
+
+  const resumeBaseTime = useMemo(() => {
+    const recorded = Math.max(0, lesson.resumeTimeSeconds ?? 0);
+    if (recorded > 0) return recorded;
+    return resumeRequested ? recorded : 0;
+  }, [lesson.resumeTimeSeconds, resumeRequested]);
 
   const [modalState, setModalState] = useState<ModalState>('none');
   const [activeCheckpointId, setActiveCheckpointId] = useState<string | null>(null);
@@ -190,30 +194,41 @@ export function LessonVideoPage({
   const [attemptSummary, setAttemptSummary] = useState<AttemptSummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [networkError, setNetworkError] = useState<string | null>(null);
+
   const [lessonSurveyRating, setLessonSurveyRating] = useState(3);
   const [lessonSurveySubmitting, setLessonSurveySubmitting] = useState(false);
   const [lessonSurveyError, setLessonSurveyError] = useState<string | null>(null);
   const [lessonSurveyCompleted, setLessonSurveyCompleted] = useState(effectiveLessonSurvey?.completed ?? false);
-  const playerStateRef = useRef<number | null>(null);
+
+  const suppressCheckpointIdRef = useRef<string | null>(null);
+  const scheduleCheckpointSuppression = useCallback((checkpointId: string, ms = 8000) => {
+    suppressCheckpointIdRef.current = checkpointId;
+    window.setTimeout(() => {
+      if (suppressCheckpointIdRef.current === checkpointId) {
+        suppressCheckpointIdRef.current = null;
+      }
+    }, ms);
+  }, []);
+
   const lastSeekRef = useRef<number | null>(resumeBaseTime);
   const [furthestTime, setFurthestTime] = useState(resumeBaseTime);
   const furthestTimeRef = useRef(resumeBaseTime);
   const [currentTime, setCurrentTime] = useState(resumeBaseTime);
   const [duration, setDuration] = useState(0);
+  const durationRef = useRef(0);
   const [videoEnded, setVideoEnded] = useState(false);
   const [thumbnailCache, setThumbnailCache] = useState<Record<string, string>>({});
   const [isMuted, setIsMuted] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
-  const [playerStatus, setPlayerStatus] = useState<number | null>(null);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const modalStateRef = useRef<ModalState>('none');
   const visibilityTimerRef = useRef<number | null>(null);
   const lessonSurveyTriggeredRef = useRef<boolean>(effectiveLessonSurvey?.completed ?? false);
+
   const updateFurthestTime = useCallback((time: number, force = false) => {
     if (!Number.isFinite(time)) {
       return;
     }
-
     setFurthestTime((prev) => {
       if (!force && time <= prev + 0.1) {
         return prev;
@@ -234,6 +249,10 @@ export function LessonVideoPage({
     lastSeekRef.current = resumeBaseTime;
     setVideoEnded(false);
   }, [resumeBaseTime]);
+
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
 
   const resolveMaxSeekableTime = useCallback(() => {
     const limit = furthestTimeRef.current;
@@ -256,11 +275,11 @@ export function LessonVideoPage({
     }
     clearHideTimer();
     visibilityTimerRef.current = window.setTimeout(() => {
-      if (modalState === 'none') {
+      if (modalStateRef.current === 'none') {
         setControlsVisible(false);
       }
     }, 1800) as unknown as number;
-  }, [clearHideTimer, modalState]);
+  }, [clearHideTimer]);
 
   const isPlaying = useMemo(() => {
     if (typeof window === 'undefined') {
@@ -275,12 +294,14 @@ export function LessonVideoPage({
     () => orderedCheckpoints.find((checkpoint) => !completedCheckpointIds.includes(checkpoint.id)) ?? null,
     [orderedCheckpoints, completedCheckpointIds]
   );
+
   const allCheckpointsCompleted = useMemo(
     () =>
       orderedCheckpoints.length > 0 &&
       orderedCheckpoints.every((checkpoint) => completedCheckpointIds.includes(checkpoint.id)),
     [orderedCheckpoints, completedCheckpointIds]
   );
+
   const lessonReadyForSurvey = useMemo(
     () => (orderedCheckpoints.length === 0 || allCheckpointsCompleted) && videoEnded,
     [allCheckpointsCompleted, orderedCheckpoints.length, videoEnded]
@@ -343,7 +364,7 @@ export function LessonVideoPage({
             setThumbnailCache((prev) => ({ ...prev, [cp.id]: url }));
           }
         } catch {
-          // silently skip on failure
+          console.warn('Failed to hydrate checkpoint thumbnail for', cp.id);
         }
       }
     };
@@ -361,25 +382,23 @@ export function LessonVideoPage({
     }
   }, []);
 
-  const seekTo = useCallback(
-    (time: number, allowSeekAhead = true, force = false) => {
-      if (!Number.isFinite(time)) {
-        return;
-      }
-      const maxAllowed = force ? Math.max(0, time) : Math.max(0, Math.min(time, furthestTimeRef.current));
-      lastSeekRef.current = maxAllowed;
-      setCurrentTime(maxAllowed);
-      if (duration > 0 && maxAllowed < Math.max(0, duration - 1)) {
-        setVideoEnded(false);
-      }
-      const player = playerRef.current;
-      if (!player || typeof player.seekTo !== 'function') {
-        return;
-      }
-      player.seekTo(maxAllowed, allowSeekAhead);
-    },
-    [duration]
-  );
+  const seekTo = useCallback((time: number, allowSeekAhead = true, force = false) => {
+    if (!Number.isFinite(time)) {
+      return;
+    }
+    const maxAllowed = force ? Math.max(0, time) : Math.max(0, Math.min(time, furthestTimeRef.current));
+    lastSeekRef.current = maxAllowed;
+    setCurrentTime(maxAllowed);
+    const durationVal = durationRef.current;
+    if (durationVal > 0 && maxAllowed < Math.max(0, durationVal - 1)) {
+      setVideoEnded(false);
+    }
+    const player = playerRef.current;
+    if (!player || typeof player.seekTo !== 'function') {
+      return;
+    }
+    player.seekTo(maxAllowed, allowSeekAhead);
+  }, []);
 
   const openCheckpointModal = useCallback(
     (checkpointId: string) => {
@@ -388,8 +407,10 @@ export function LessonVideoPage({
         return;
       }
 
+      console.log('[openCheckpointModal]', checkpointId);
       updateFurthestTime(checkpoint.timeOffsetSeconds, true);
       seekTo(checkpoint.timeOffsetSeconds, true, true);
+
       if (checkpoint.questions.length === 0) {
         setCompletedCheckpointIds((prev) => (prev.includes(checkpoint.id) ? prev : [...prev, checkpoint.id]));
         setActiveCheckpointId(null);
@@ -445,33 +466,39 @@ export function LessonVideoPage({
               return;
             }
             const readyPlayer = playerRef.current;
+
             if (readyPlayer && typeof readyPlayer.getDuration === 'function') {
               setDuration(readyPlayer.getDuration());
               const startTime = lastSeekRef.current ?? readyPlayer.getCurrentTime();
               seekTo(startTime, true);
             }
+
             setPlayerReady(true);
             setIsMuted(playerRef.current?.isMuted?.() ?? false);
+
             if (typeof window !== 'undefined') {
               const api = (window as { YT?: YouTubeApi }).YT;
               setPlayerStatus(api?.PlayerState?.PAUSED ?? null);
             }
+
             setControlsVisible(true);
             scheduleHide();
           },
+
           onStateChange: (event) => {
             playerStateRef.current = event.data;
             const api = (window as { YT?: YouTubeApi }).YT;
-            if (event.data === api?.PlayerState?.PLAYING && modalStateRef.current !== 'none') {
-              playerRef.current?.pauseVideo?.();
-            }
+            console.log('[YT state]', event.data, 'modal=', modalStateRef.current);
+
             setIsMuted(playerRef.current?.isMuted?.() ?? false);
             setPlayerStatus(event.data);
+
             if (event.data === api?.PlayerState?.ENDED) {
               setVideoEnded(true);
             } else if (event.data === api?.PlayerState?.PLAYING) {
               setVideoEnded(false);
             }
+
             if (modalStateRef.current === 'none') {
               setControlsVisible(true);
               scheduleHide();
@@ -502,7 +529,7 @@ export function LessonVideoPage({
       playerRef.current?.destroy();
       playerRef.current = null;
     };
-  }, [playerElementId, scheduleHide, youtubeId, seekTo]);
+  }, [playerElementId, youtubeId, scheduleHide, seekTo]);
 
   useEffect(() => () => clearHideTimer(), [clearHideTimer]);
 
@@ -576,7 +603,10 @@ export function LessonVideoPage({
           }
         }
 
-        if (firstIncompleteCheckpoint && playing) {
+        if (firstIncompleteCheckpoint && playing && modalState === 'none') {
+          if (suppressCheckpointIdRef.current === firstIncompleteCheckpoint.id) {
+            return;
+          }
           const trigger = firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD;
           if (time >= trigger) {
             updateFurthestTime(firstIncompleteCheckpoint.timeOffsetSeconds, true);
@@ -627,9 +657,13 @@ export function LessonVideoPage({
 
   const resetAfterCheckpoint = useCallback(
     (resumeBaseTime?: number, resumeOffset = 0.5) => {
+      console.log('[resetAfterCheckpoint]');
       const baseTime = resumeBaseTime ?? currentCheckpoint?.timeOffsetSeconds ?? null;
       if (baseTime != null) {
         const targetTime = baseTime + resumeOffset;
+        if (currentCheckpoint?.id) {
+          scheduleCheckpointSuppression(currentCheckpoint.id, 8000);
+        }
         updateFurthestTime(targetTime, true);
         seekTo(targetTime, true, true);
       }
@@ -644,7 +678,7 @@ export function LessonVideoPage({
         playerRef.current?.playVideo?.();
       });
     },
-    [currentCheckpoint, seekTo, updateFurthestTime]
+    [currentCheckpoint, scheduleCheckpointSuppression, seekTo, updateFurthestTime]
   );
 
   const submitAttempt = useCallback(async () => {
@@ -681,6 +715,9 @@ export function LessonVideoPage({
       setAttemptSummary(payload);
 
       if (payload.isPassing) {
+        if (currentCheckpoint) {
+          scheduleCheckpointSuppression(currentCheckpoint.id, 120000);
+        }
         const baseTime = currentCheckpoint.timeOffsetSeconds;
         setCompletedCheckpointIds((prev) =>
           prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
@@ -691,7 +728,6 @@ export function LessonVideoPage({
       } else {
         const sectionStartTime = getCheckpointStartTime(orderedCheckpoints, currentCheckpoint.id);
         seekTo(sectionStartTime, true);
-        requestAnimationFrame(() => playerRef.current?.playVideo?.());
         setActiveQuestionIndex(0);
         setModalState('result');
       }
@@ -701,7 +737,15 @@ export function LessonVideoPage({
     } finally {
       setIsSubmitting(false);
     }
-  }, [currentCheckpoint, orderedCheckpoints, resetAfterCheckpoint, seekTo, selectedAnswers, studentEmail]);
+  }, [
+    currentCheckpoint,
+    orderedCheckpoints,
+    resetAfterCheckpoint,
+    scheduleCheckpointSuppression,
+    seekTo,
+    selectedAnswers,
+    studentEmail,
+  ]);
 
   const handleAdvance = useCallback(() => {
     if (!currentCheckpoint) {
@@ -734,19 +778,22 @@ export function LessonVideoPage({
   }, []);
 
   const handleRewatch = useCallback(() => {
+    console.log('[handleRewatch]');
     setModalState('none');
     setAttemptSummary(null);
     setNetworkError(null);
     setSelectedAnswers({});
     setActiveQuestionIndex(0);
+
     if (currentCheckpoint && playerRef.current) {
+      scheduleCheckpointSuppression(currentCheckpoint.id, 8000);
       const rewindTime = getCheckpointStartTime(orderedCheckpoints, currentCheckpoint.id);
       seekTo(Math.max(rewindTime, 0), true);
       requestAnimationFrame(() => {
         playerRef.current?.playVideo?.();
       });
     }
-  }, [currentCheckpoint, orderedCheckpoints, seekTo]);
+  }, [currentCheckpoint, orderedCheckpoints, scheduleCheckpointSuppression, seekTo]);
 
   const togglePlay = useCallback(() => {
     const player = playerRef.current;
@@ -871,6 +918,7 @@ export function LessonVideoPage({
       })()
     : false;
   const isFinalQuestion = currentQuestion ? activeQuestionIndex === totalCheckpointQuestions - 1 : false;
+
   const handleSkipToNextCheckpoint = useCallback(() => {
     if (firstIncompleteCheckpoint) {
       updateFurthestTime(firstIncompleteCheckpoint.timeOffsetSeconds, true);
@@ -892,12 +940,13 @@ export function LessonVideoPage({
   }, [
     ensurePlayerPaused,
     firstIncompleteCheckpoint,
-    lessonSurvey,
+    effectiveLessonSurvey,
     lessonSurveyCompleted,
     openCheckpointModal,
     seekTo,
     updateFurthestTime,
   ]);
+
   const handleShowQrCode = useCallback(() => {
     router.push('/badges');
   }, [router]);
@@ -905,6 +954,7 @@ export function LessonVideoPage({
   const handleGoHome = useCallback(() => {
     router.push('/');
   }, [router]);
+
   const handleUnlockProgressForTesting = useCallback(() => {
     if (duration <= 0) {
       return;
@@ -1262,6 +1312,13 @@ export function LessonVideoPage({
             <div className={styles.lessonSurveyFaces}>
               {LESSON_SURVEY_FACES.map((face) => {
                 const isSelected = lessonSurveyRating === face.value;
+                const imgClassNames = [
+                  styles.lessonSurveyFaceImage,
+                  face.value === 4 ? styles.lessonSurveyFaceImageForceBlue : '',
+                  isSelected ? styles.lessonSurveyFaceImageSelected : '',
+                ]
+                  .filter(Boolean)
+                  .join(' ');
                 const faceClass = [styles.lessonSurveyFace, isSelected ? styles.lessonSurveyFaceSelected : '']
                   .filter(Boolean)
                   .join(' ');
@@ -1273,8 +1330,7 @@ export function LessonVideoPage({
                     onClick={() => handleLessonSurveyFaceSelect(face.value)}
                     aria-pressed={isSelected}
                   >
-                    <Image src={face.icon} alt={face.label} width={56} height={56} />
-                    <span>{face.label}</span>
+                    <Image src={face.icon} alt={face.label} className={imgClassNames} />
                   </button>
                 );
               })}

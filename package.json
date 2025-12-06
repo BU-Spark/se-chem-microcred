@@ -15,8 +15,10 @@
     "db:seed": "prisma db seed"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.35.5",
     "@prisma/client": "^6.17.0",
     "clsx": "^2.1.1",
+    "framer-motion": "^12.23.25",
     "next": "^15.3.2",
     "prisma": "^6.17.0",
     "react": "^19.0.0",

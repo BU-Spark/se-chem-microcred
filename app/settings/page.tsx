@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
 
 const navItems = [
@@ -18,8 +18,9 @@ const navItems = [
 export default function SettingsPage() {
   const pathname = usePathname();
   const router = useRouter();
-  const { isLoaded, isSignedIn, user, signOut } = useAuth();
-  const { data: studentData } = useStudentData(user?.email);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useAuth();
+  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
@@ -32,7 +33,7 @@ export default function SettingsPage() {
     return null;
   }
 
-  const displayName = studentData?.student.name || user?.name || 'Student';
+  const displayName = studentData?.student.name || user?.fullName || 'Student';
 
   const handleSignOut = async () => {
     if (isSigningOut) {

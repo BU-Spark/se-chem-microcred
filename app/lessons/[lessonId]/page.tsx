@@ -3,8 +3,8 @@
 import { useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, useParams, usePathname, useSearchParams } from 'next/navigation';
-import { useAuth } from '../../hooks/useAuth';
+import { useRouter, useParams, usePathname } from 'next/navigation';
+import { useUser } from '@clerk/nextjs';
 import { useStudentData } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 
@@ -33,10 +33,9 @@ export default function LessonDetailPage() {
   const router = useRouter();
   const params = useParams<{ lessonId: string }>();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
-  const { isLoaded, isSignedIn, user } = useAuth();
-  const { data: studentData, isLoading } = useStudentData(user?.email ?? null);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { data: studentData, isLoading } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null);
 
   // Redirect only via effect (do not early-return before hooks finish)
   const signedOut = isLoaded && !isSignedIn;
@@ -44,7 +43,7 @@ export default function LessonDetailPage() {
     if (signedOut) router.replace('/sign-in');
   }, [signedOut, router]);
 
-  const displayName = studentData?.student.name || user?.name || 'Student Demo';
+  const displayName = studentData?.student.name || user?.fullName || 'Student Demo';
   const lessonRecord = studentData?.lessons.catalog.find((e) => e.slug === params.lessonId);
 
   // Build timeline items from your existing data
@@ -70,8 +69,6 @@ export default function LessonDetailPage() {
   if (!isLoaded || signedOut) return null;
 
   const title = lessonRecord?.title ?? (isLoading ? 'Loading lesson…' : 'Lesson unavailable');
-
-  const resumeRequested = searchParams.get('resume') === '1';
 
   return (
     <div className="page">
@@ -194,11 +191,8 @@ export default function LessonDetailPage() {
                 </div>
               </section>
 
-              <Link
-                href={`/lessons/${lessonRecord.slug}/video${resumeRequested ? '?resume=1' : ''}`}
-                className={styles.primaryButton}
-              >
-                {resumeRequested ? 'Continue Lesson' : 'Start Lesson'}
+              <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
+                Start Lesson
               </Link>
             </>
           ) : (

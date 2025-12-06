@@ -1,30 +1,15 @@
-.page {
-  min-height: 100vh;
-  background: #f5f7fb;
+.pageContent {
+  padding: 3rem;
 }
 
-.main {
-  display: flex;
-}
-
-.sidebar {
-  width: 240px;
-  background: #1f4b99;
-  color: #fff;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  padding: 2rem 1.25rem;
-}
-
-.profileCard {
+.sidebarProfile {
   display: flex;
   align-items: center;
   gap: 0.75rem;
   margin-bottom: 2rem;
 }
 
-.profileAvatar {
+.sidebarAvatar {
   width: 48px;
   height: 48px;
   border-radius: 50%;
@@ -35,27 +20,24 @@
   place-items: center;
 }
 
-.navList {
+.sidebarName {
+  font-weight: 700;
+}
+
+.sidebarNavList {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   margin-bottom: auto;
 }
 
-.navItem {
-  color: rgba(255, 255, 255, 0.9);
-  text-decoration: none;
-  font-weight: 600;
+.sidebarNavItem {
+  color: inherit;
 }
 
-.navItemActive {
-  color: #fff;
-}
-
-.content {
-  flex: 1;
-  padding: 3rem;
-  overflow-y: auto;
+.sidebarNavItemActive {
+  color: #1f4b99;
+  font-weight: 700;
 }
 
 .headerRow {

@@ -5,7 +5,7 @@ import Image, { type StaticImageData } from 'next/image';
 import checkedLogo from '../assets/checked_logo.png';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from './hooks/useAuth';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type LessonRecord } from './hooks/useStudentData';
 import styles from './page.module.css';
 import surveyAlarmXIcon from '../assets/survey_alarm/survey_alarm_x_icon.png';
@@ -53,6 +53,88 @@ function formatDueDate(dueDate: string | null) {
   });
 }
 
+/**
+ * Robust YouTube ID extractor:
+ * - https://www.youtube.com/watch?v=ID
+ * - https://youtu.be/ID
+ * - https://www.youtube.com/embed/ID
+ * - with extra query params / playlists
+ */
+function extractYouTubeId(url?: string | null) {
+  if (!url) return null;
+  const trimmed = url.trim();
+  if (!trimmed) return null;
+
+  try {
+    const u = new URL(trimmed);
+
+    // youtu.be/<id>
+    if (u.hostname.includes('youtu.be')) {
+      const pathId = u.pathname.replace('/', '').trim();
+      if (pathId.length === 11) return pathId;
+    }
+
+    // ?v=<id>
+    const v = u.searchParams.get('v');
+    if (v && v.length === 11) return v;
+
+    // /embed/<id>
+    const parts = u.pathname.split('/');
+    const embedIndex = parts.indexOf('embed');
+    if (embedIndex >= 0 && parts[embedIndex + 1]?.length === 11) {
+      return parts[embedIndex + 1];
+    }
+  } catch {
+    // ignore
+  }
+
+  const match = trimmed.match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/);
+  return match?.[1] ?? null;
+}
+
+/**
+ * Decide which image to show for a lesson.
+ * Priority:
+ * 1. record.thumbnailUrl
+ * 2. first segment thumbnailUrl
+ * 3. YouTube thumbnail derived from segment videoUrl
+ * 4. dummy fallback
+ */
+function resolveLessonImage(record: LessonRecord) {
+  // 先从 lesson 自身和所有 segment 中找 YouTube 链接
+  const candidateUrls: (string | null | undefined)[] = [];
+
+  // 如果 LessonRecord 里本身有 videoUrl 字段，也尝试一下
+  // @ts-expect-error: record may or may not have videoUrl
+  if (record.videoUrl) candidateUrls.push(record.videoUrl);
+
+  if (record.segments && Array.isArray(record.segments)) {
+    for (const seg of record.segments) {
+      candidateUrls.push(seg?.videoUrl);
+    }
+  }
+
+  for (const url of candidateUrls) {
+    const id = extractYouTubeId(url);
+    if (id) {
+      return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
+    }
+  }
+
+  // 没有 YouTube，就再尝试数据库里的 thumbnailUrl
+  const clean = (u?: string | null) => (u && u.trim().length > 0 ? u.trim() : null);
+
+  const fromRecordThumb = clean(record.thumbnailUrl);
+  if (fromRecordThumb) return fromRecordThumb;
+
+  const primarySegment = record.segments?.[0];
+  const fromSegmentThumb = clean(primarySegment?.thumbnailUrl);
+  if (fromSegmentThumb) return fromSegmentThumb;
+
+  // 最后兜底 dummy
+  return DEFAULT_LESSON_IMAGE;
+}
+
 function lessonRecordToCard(record: LessonRecord): LessonCard {
   const due = formatDueDate(record.dueDate);
   const metaParts: string[] = [];
@@ -70,8 +152,8 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
     meta: metaParts.join(' • ') || 'No due date',
     actionLabel: record.status === 'IN_PROGRESS' ? 'Continue' : 'Start',
     variant: record.status === 'IN_PROGRESS' ? 'continue' : 'start',
-    image: record.thumbnailUrl ?? DEFAULT_LESSON_IMAGE,
-    href: `/lessons/${record.slug}${record.status === 'IN_PROGRESS' ? '?resume=1' : ''}`,
+    image: resolveLessonImage(record),
+    href: `/lessons/${record.slug}`,
   };
 }
 
@@ -95,8 +177,9 @@ function getFaceFilter(value: number, isSelected: boolean): string {
 function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isLoaded, isSignedIn, user, signOut } = useAuth();
-  const { data: studentData, isLoading, refresh } = useStudentData(user?.email);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useAuth();
+  const { data: studentData, isLoading, refresh } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   const pathname = usePathname();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{
@@ -124,7 +207,7 @@ function HomePageContent() {
     5: 'Very happy',
   };
 
-  const displayName = studentData?.student?.name || user?.name || 'Student';
+  const displayName = studentData?.student?.name || user?.fullName || 'Student';
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
 
   useEffect(() => {
@@ -217,7 +300,10 @@ function HomePageContent() {
       const response = await fetch(`/api/badges/${activeSurvey.badgeId}/survey`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: studentData.student.email, rating: surveyRating }),
+        body: JSON.stringify({
+          email: studentData.student.email,
+          rating: surveyRating,
+        }),
       });
 
       if (!response.ok) {
@@ -239,19 +325,21 @@ function HomePageContent() {
     const buttonClass =
       lesson.variant === 'continue' ? `${styles.cardButton} ${styles.secondaryAction}` : styles.cardButton;
 
+    const imageSrc = lesson.image ?? DEFAULT_LESSON_IMAGE;
+    const isYouTubeThumb = imageSrc.includes('ytimg.com') || imageSrc.includes('youtube.com');
+
     return (
       <div key={lesson.id} className={styles.card}>
         <div className={styles.cardMedia}>
-          <Image
-            src={lesson.image ?? DEFAULT_LESSON_IMAGE}
-            alt="Lesson preview"
-            width={320}
-            height={200}
-            className={styles.cardMediaImage}
-          />
+          {isYouTubeThumb ? (
+            // 对 YouTube 缩略图使用普通 <img>，避免 next/image 域名限制
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
+          ) : (
+            <Image src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
+          )}
         </div>
 
-        {/* ⭐ new wrapper for text block */}
         <div className={styles.cardTextBlock}>
           <div className={styles.cardTitle}>{lesson.title}</div>
           <div className={styles.cardStatus}>{lesson.status}</div>
@@ -381,7 +469,7 @@ function HomePageContent() {
                       src={FACE_IMAGES[value]}
                       alt={FACE_ALTS[value]}
                       className={styles.surveyFaceImage}
-                      style={{ filter: getFaceFilter(value, isSelected) }} // ⭐ only ONE filter
+                      style={{ filter: getFaceFilter(value, isSelected) }}
                     />
                   </button>
                 );
