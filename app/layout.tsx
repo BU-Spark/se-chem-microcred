@@ -7,6 +7,9 @@ import checkedLogo from '../assets/checked_logo.png';
 import Image from 'next/image';
 import './globals.css';
 
+const clerkPublishableKey =
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY || 'pk_test_placeholder';
+
 export const metadata: Metadata = {
   title: 'ChemSkills Demo',
   description: 'Student demo for micro-credential experience.',
@@ -15,7 +18,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider publishableKey={clerkPublishableKey}>
       <html lang="en">
         <head>
           {/* 👇 Load Open Sans + Lato */}
