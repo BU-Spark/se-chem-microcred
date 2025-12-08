@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useEffect, useMemo } from 'react';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
-import { useStudentData } from '../../../hooks/useStudentData';
+import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
 import styles from './page.module.css';
 
 const NAV_ITEMS = [
@@ -116,9 +116,9 @@ export default function BadgeFeedbackPage() {
   const pathname = usePathname();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
 
-  const allBadges = useMemo(() => {
+  const allBadges = useMemo<BadgeRecord[]>(() => {
     if (!studentData) {
-      return [] as typeof studentData.badges.learning;
+      return [];
     }
     return [
       ...studentData.badges.learning,

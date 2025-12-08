@@ -281,6 +281,9 @@ export async function GET() {
     lessons.map((lesson) => [lesson.id, lesson.checkpoints.map((checkpoint) => checkpoint.id)])
   );
   const answeredQuestionsByCheckpoint = checkpointResponses.reduce<Map<string, Set<string>>>((acc, response) => {
+    if (!response.questionId) {
+      return acc;
+    }
     const set = acc.get(response.checkpointId) ?? new Set<string>();
     set.add(response.questionId);
     acc.set(response.checkpointId, set);
@@ -288,7 +291,6 @@ export async function GET() {
   }, new Map());
 
   const lessonCatalog = lessons.map((lesson) => {
-    const totalQuestions = lesson.checkpoints.reduce((sum, cp) => sum + cp.questions.length, 0);
     const answeredCount = lesson.checkpoints.reduce((sum, cp) => {
       const answeredSet = answeredQuestionsByCheckpoint.get(cp.id);
       return sum + (answeredSet ? Math.min(answeredSet.size, cp.questions.length) : 0);
@@ -313,24 +315,26 @@ export async function GET() {
       .at(-1);
     const resumeTimeSeconds = lastActiveCheckpoint ? (lastActiveCheckpoint.timeOffsetSeconds ?? 0) + 1 : 0;
 
+    const lessonProgress = progressByLessonId.get(lesson.id);
     const formatted = formatLesson({
       lesson,
-      progress: {
-        ...progressByLessonId.get(lesson.id),
-        status:
-          allCheckpointsPassed && lessonSurveyComplete
-            ? LessonStatus.COMPLETED
-            : answeredCount > 0
-              ? LessonStatus.IN_PROGRESS
-              : LessonStatus.NOT_STARTED,
-      },
+      progress: lessonProgress
+        ? {
+            ...lessonProgress,
+            status:
+              allCheckpointsPassed && lessonSurveyComplete
+                ? LessonStatus.COMPLETED
+                : answeredCount > 0
+                  ? LessonStatus.IN_PROGRESS
+                  : LessonStatus.NOT_STARTED,
+          }
+        : undefined,
       completedCheckpointIds,
       resumeTimeSeconds:
         allCheckpointsPassed && !lessonSurveyComplete
           ? (lesson.checkpoints.at(-1)?.timeOffsetSeconds ?? 0) + 1
           : resumeTimeSeconds,
       answeredCount,
-      totalQuestions,
       answeredCheckpointIds,
     });
 

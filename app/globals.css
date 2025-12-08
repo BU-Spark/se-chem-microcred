@@ -627,3 +627,22 @@ html.dark .error-boundary details {
   font-size: 0.875rem;
   text-align: left;
 }
+
+/* Global logo header shown on every page */
+.global-header {
+  position: absolute;
+  top: 32px;
+  /* tweak until it matches your Figma */
+  right: 48px;
+  /* tweak until it matches your Figma */
+  z-index: 9999;
+  pointer-events: none;
+  /* logo purely decorative, clicks pass through */
+}
+
+.global-logo {
+  display: block;
+  height: 32px;
+  /* same as the <Image> height prop */
+  width: auto;
+}

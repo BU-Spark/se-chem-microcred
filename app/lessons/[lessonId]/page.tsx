@@ -5,8 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
-import { useStudentData } from '../../hooks/useStudentData';
+import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
+import finishLogo from '../../../assets/lesson/lesson_preview/finish_logo.svg';
+import backArrow from '../../../assets/lesson/lesson_preview/back_arrow.svg';
 
 const NAV = [
   { href: '/', label: 'Home' },
@@ -29,7 +31,6 @@ function initialsFromName(name?: string | null) {
 }
 
 export default function LessonDetailPage() {
-  // ✅ Hooks are always called in the same order
   const router = useRouter();
   const params = useParams<{ lessonId: string }>();
   const pathname = usePathname();
@@ -37,42 +38,113 @@ export default function LessonDetailPage() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { data: studentData, isLoading } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null);
 
-  // Redirect only via effect (do not early-return before hooks finish)
+  // Redirect only after hooks have run
   const signedOut = isLoaded && !isSignedIn;
   useEffect(() => {
     if (signedOut) router.replace('/sign-in');
   }, [signedOut, router]);
 
   const displayName = studentData?.student.name || user?.fullName || 'Student Demo';
+
   const lessonRecord = studentData?.lessons.catalog.find((e) => e.slug === params.lessonId);
 
-  // Build timeline items from your existing data
-  const timeline = useMemo(() => {
-    if (!lessonRecord) return [];
-    return lessonRecord.segments.map((seg, idx) => {
-      const [firstCheckpointId] = seg.checkpointIds;
-      const cp = lessonRecord.checkpoints.find((c) => c.id === firstCheckpointId);
-      const minutes = seg.duration != null ? `${seg.duration} minute${seg.duration === 1 ? '' : 's'} long` : '';
+  /**
+   * Build one timeline item per checkpoint.
+   * This matches the Figma: number of images = number of checkpoints.
+   */
+  type TimelineItem = {
+    id: string;
+    title: string;
+    duration: string;
+    cpLabel: string;
+    cpMeta: string;
+    img: string;
+  };
+
+  const { items: timelineItems, extraPart } = useMemo<{
+    items: TimelineItem[];
+    extraPart: { title: string; duration: string; img: string } | null;
+  }>(() => {
+    if (!lessonRecord) {
+      return { items: [], extraPart: null };
+    }
+
+    const checkpoints = lessonRecord.checkpoints ?? [];
+    const segments = lessonRecord.segments ?? [];
+
+    // 所有 LessonSegment.duration 之和（假定单位是分钟）
+    const totalSecondsFromSegments = segments.reduce(
+      (sum: number, seg: LessonRecord['segments'][number]) =>
+        sum + (typeof seg.duration === 'number' ? seg.duration * 60 : 0),
+      0
+    );
+
+    const items = checkpoints.map((cp, idx: number) => {
+      const seg = segments[idx];
+
+      const prevOffset = idx === 0 ? 0 : (checkpoints[idx - 1]?.timeOffsetSeconds ?? 0);
+
+      const curOffset = cp.timeOffsetSeconds ?? prevOffset;
+
+      let durationSeconds = curOffset - prevOffset;
+      if (durationSeconds < 0) durationSeconds = 0;
+
+      let durationMinutes: number | null = null;
+
+      if (durationSeconds > 0) {
+        durationMinutes = Math.round(durationSeconds / 60);
+      } else if (typeof seg?.duration === 'number') {
+        // fallback：用 segment.duration
+        durationMinutes = seg.duration;
+      }
+
+      const durationText =
+        durationMinutes != null ? `${durationMinutes} minute${durationMinutes === 1 ? '' : 's'} long` : 'Video segment';
+
+      const title = `Part ${idx + 1}`;
+
+      const img: string = seg?.thumbnailUrl || lessonRecord.thumbnailUrl || '';
+
       return {
-        id: seg.id,
-        title: seg.title || `Part ${idx + 1}`,
-        duration: minutes || 'Segment duration TBD',
-        cpLabel: cp?.label || 'Checkpoint',
-        cpMeta: cp?.meta || `${cp?.questionCount ?? 0} questions`,
-        img: seg.thumbnailUrl || lessonRecord.thumbnailUrl || '',
-        partIndex: idx + 1,
+        id: cp.id ?? String(idx),
+        title,
+        duration: durationText,
+        cpLabel: cp.label || 'Check point',
+        cpMeta: cp.meta || `${cp.questionCount ?? 0} question${(cp.questionCount ?? 0) === 1 ? '' : 's'}`,
+        img,
       };
     });
+
+    // 计算最后一段（Part N+1），如果总时长 > 最后一个 checkpoint 时间
+    let extraPart: null | { title: string; duration: string; img: string } = null;
+
+    if (checkpoints.length > 0 && totalSecondsFromSegments > 0) {
+      const lastOffset = checkpoints[checkpoints.length - 1]?.timeOffsetSeconds ?? 0;
+
+      let tailSeconds = totalSecondsFromSegments - lastOffset;
+      if (tailSeconds < 0) tailSeconds = 0;
+
+      if (tailSeconds > 0) {
+        const minutes = Math.round(tailSeconds / 60);
+        const title = `Part ${checkpoints.length + 1}`;
+        const duration = `${minutes} minute${minutes === 1 ? '' : 's'} long`;
+
+        const extraSeg = segments[checkpoints.length];
+        const img: string = extraSeg?.thumbnailUrl || lessonRecord.thumbnailUrl || '';
+
+        extraPart = { title, duration, img };
+      }
+    }
+
+    return { items, extraPart };
   }, [lessonRecord]);
 
-  // While auth is resolving or redirecting: render nothing (keeps hook order safe)
   if (!isLoaded || signedOut) return null;
 
   const title = lessonRecord?.title ?? (isLoading ? 'Loading lesson…' : 'Lesson unavailable');
 
   return (
     <div className="page">
-      {/* ✅ pure global shell (no module .page) */}
       {/* Sidebar */}
       <aside className="sidebar">
         <div className="profile">
@@ -106,9 +178,11 @@ export default function LessonDetailPage() {
         <div className={styles.root}>
           <header className={styles.header}>
             <Link href="/" className={styles.backLink}>
-              ← Back
+              <span className={styles.backLinkContent}>
+                <span className={styles.backText}>Back</span>
+                <Image src={backArrow} alt="Back" className={styles.backArrow} width={52} height={12} />
+              </span>
             </Link>
-            <div className="brandMark">checkd.</div>
           </header>
 
           <h1 className={styles.lessonTitle}>{title}</h1>
@@ -129,71 +203,106 @@ export default function LessonDetailPage() {
                 </ul>
               </section>
 
-              <section className={styles.section}>
-                <h2 className={styles.sectionHeading}>Lesson outline</h2>
-
-                {/* Track: card → connector → card … then terminal */}
-                <div className={styles.track}>
-                  {timeline.map((item, idx) => (
-                    <div key={item.id} className={styles.trackGroup}>
-                      <div className={styles.card}>
-                        <div className={styles.media}>
-                          {item.img ? (
-                            <Image src={item.img} alt={item.title} fill sizes="160px" className={styles.mediaImg} />
-                          ) : (
-                            <span className={styles.mediaPlaceholder}>Preview</span>
-                          )}
+              {/* Lesson outline: checkpoint thumbnails + connectors */}
+              <section className={`${styles.section} ${styles.timelineSection}`}>
+                {timelineItems.length > 0 && (
+                  <div className={styles.timeline}>
+                    {timelineItems.map((item) => (
+                      <div key={item.id} className={styles.timelineGroup}>
+                        <div className={styles.timelineItem}>
+                          <div className={styles.thumb}>
+                            {item.img ? (
+                              <Image
+                                src={item.img}
+                                alt={item.title}
+                                width={190}
+                                height={120}
+                                className={styles.thumbImg}
+                              />
+                            ) : (
+                              <span className={styles.thumbPlaceholder}>Preview</span>
+                            )}
+                          </div>
+                          <div className={styles.partTitle}>{item.title}</div>
+                          <div className={styles.partDuration}>{item.duration}</div>
                         </div>
 
-                        <div className={styles.cardTitle}>{item.title}</div>
-                        <div className={styles.cardMeta}>{item.duration}</div>
-                        <div className={styles.cardFoot}>
-                          <span>{item.cpLabel}</span>
-                          <span className={styles.dot}>•</span>
-                          <span>{item.cpMeta}</span>
-                          <span className={styles.dot}>•</span>
-                          <span>Part {item.partIndex}</span>
+                        <div className={styles.timelineConnectorBlock}>
+                          <div className={styles.timelineCheckpointLabel}>
+                            <div>Checkpoint</div>
+                            <div className={styles.timelineCheckpointMeta}>{item.cpMeta}</div>
+                          </div>
+                          <div className={styles.timelineConnector}>
+                            <span className={styles.timelineLine} />
+                            <span className={styles.timelineCircle} />
+                            <span className={styles.timelineLine} />
+                          </div>
                         </div>
                       </div>
+                    ))}
 
-                      {/* connector to next */}
-                      {idx < timeline.length - 1 && (
-                        <div className={styles.connector} aria-hidden>
-                          <span className={styles.node} />
-                          <span className={styles.line} />
-                          <span className={styles.node} />
+                    {/* Final section — keep only ONE version */}
+                    {extraPart ? (
+                      <div className={styles.timelineGroup}>
+                        <div className={styles.timelineItem}>
+                          <div className={styles.thumb}>
+                            {extraPart.img ? (
+                              <Image
+                                src={extraPart.img}
+                                alt={extraPart.title}
+                                width={190}
+                                height={120}
+                                className={styles.thumbImg}
+                              />
+                            ) : (
+                              <span className={styles.thumbPlaceholder}>Preview</span>
+                            )}
+                          </div>
+                          <div className={styles.partTitle}>{extraPart.title}</div>
+                          <div className={styles.partDuration}>{extraPart.duration}</div>
                         </div>
-                      )}
-                    </div>
-                  ))}
 
-                  {/* Terminal “Final check point” */}
-                  {timeline.length > 0 && (
-                    <div className={styles.terminal} aria-label="Final checkpoint">
-                      <svg viewBox="0 0 48 48" className={styles.terminalIcon} aria-hidden="true">
-                        <circle cx="24" cy="24" r="22" fill="white" />
-                        <circle cx="24" cy="24" r="22" stroke="#3b82f6" strokeWidth="2" fill="none" />
-                        <path
-                          d="M16 25l6 6 10-12"
-                          fill="none"
-                          stroke="#22c55e"
-                          strokeWidth="3.2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                      <div className={styles.terminalLabel}>
-                        <div>Final check point</div>
-                        <div className={styles.terminalMeta}>3 questions</div>
+                        <div className={styles.timelineEndBlock}>
+                          <div className={styles.timelineCheckpointLabel}>
+                            <div>End of lesson</div>
+                            <div className={styles.timelineCheckpointMeta}>one survey</div>
+                          </div>
+                          <div className={styles.timelineConnector}>
+                            <span className={styles.timelineLine} />
+                            <div className={styles.timelineFinalCircle}>
+                              <Image
+                                src="/assets/lesson/lesson_preview/finish_logo.svg"
+                                alt="End of lesson"
+                                width={61}
+                                height={62}
+                              />
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
+                    ) : (
+                      <div className={styles.timelineEndBlock}>
+                        <div className={styles.timelineCheckpointLabel}>
+                          <div>End of lesson</div>
+                          <div className={styles.timelineCheckpointMeta}>one survey</div>
+                        </div>
+                        <div className={styles.timelineConnector}>
+                          <span className={styles.timelineLine} />
+                          <div className={styles.timelineFinalCircle}>
+                            <Image src={finishLogo} alt="End of lesson" width={72} height={72} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </section>
 
-              <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
-                Start Lesson
-              </Link>
+              <div className={styles.actionsRow}>
+                <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
+                  Start Lesson
+                </Link>
+              </div>
             </>
           ) : (
             <section className={styles.section}>

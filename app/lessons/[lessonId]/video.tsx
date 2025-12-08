@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
@@ -31,6 +30,8 @@ type YouTubePlayer = {
   seekTo(seconds: number, allowSeekAhead?: boolean): void;
   getCurrentTime(): number;
   getDuration(): number;
+  loadVideoById?(videoId: string): void;
+  cueVideoById?(videoId: string): void;
   destroy(): void;
   mute?(): void;
   unMute?(): void;
@@ -60,6 +61,12 @@ type YouTubeApi = {
     CUED: number;
   };
 };
+
+declare global {
+  interface Window {
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
 
 interface AttemptSummary {
   isPassing: boolean;
@@ -101,24 +108,14 @@ const LESSON_SURVEY_FACES = [
   { value: 5, label: 'Very happy', icon: veryHappyFace },
 ] as const;
 
-function initialsFromName(name?: string | null) {
-  if (!name) {
-    return 'ST';
-  }
-  const tokens = name.trim().split(/\s+/);
-  return tokens
-    .slice(0, 2)
-    .map((token) => token.charAt(0).toUpperCase())
-    .join('');
-}
-
 function extractYouTubeId(url?: string | null) {
   if (!url) {
     return null;
   }
   const match =
     url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/) ?? url.match(/[?&]v=([\w-]{11})/);
-  return match?.[1] ?? null;
+  const candidate = match?.[1] ?? null;
+  return candidate && candidate.length === 11 ? candidate : null;
 }
 
 function pad(n: number) {
@@ -131,6 +128,33 @@ function formatTime(seconds: number | null | undefined) {
   }
   const total = Math.max(0, Math.floor(seconds ?? 0));
   return `${Math.floor(total / 60)}:${pad(total % 60)}`;
+}
+
+let youtubeApiPromise: Promise<YouTubeApi | null> | null = null;
+function loadYouTubeIframeApi() {
+  if (typeof window === 'undefined') {
+    return Promise.resolve<YouTubeApi | null>(null);
+  }
+  const existing = (window as { YT?: YouTubeApi }).YT;
+  if (existing?.Player) {
+    return Promise.resolve(existing);
+  }
+  if (!youtubeApiPromise) {
+    youtubeApiPromise = new Promise<YouTubeApi | null>((resolve) => {
+      const prior = window.onYouTubeIframeAPIReady;
+      window.onYouTubeIframeAPIReady = () => {
+        prior?.();
+        resolve((window as { YT?: YouTubeApi }).YT ?? null);
+      };
+
+      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
+        const script = document.createElement('script');
+        script.src = 'https://www.youtube.com/iframe_api';
+        document.body.appendChild(script);
+      }
+    });
+  }
+  return youtubeApiPromise;
 }
 
 function getPrevCheckpointId(checkpoints: LessonRecord['checkpoints'], id: string | null) {
@@ -158,11 +182,12 @@ function getCheckpointStartTime(checkpoints: LessonRecord['checkpoints'], id: st
 
 export function LessonVideoPage({
   lesson,
-  studentName = 'Student Demo',
+  studentName: _studentName = 'Student Demo',
   studentEmail,
   lessonSurvey,
   resumeRequested,
 }: LessonVideoPageProps) {
+  void _studentName;
   const router = useRouter();
   const effectiveLessonSurvey = useMemo<LessonSurveyPrompt | null>(
     () => lessonSurvey ?? { id: `auto-${lesson.slug}`, question: 'How was this lesson?', completed: false },
@@ -314,14 +339,12 @@ export function LessonVideoPage({
     return firstIncompleteCheckpoint;
   }, [orderedCheckpoints, activeCheckpointId, firstIncompleteCheckpoint]);
 
-  const youtubeId = useMemo(() => extractYouTubeId(lesson.segments[0]?.videoUrl), [lesson.segments]);
-  const primaryVideoUrl = useMemo(() => lesson.segments[0]?.videoUrl ?? null, [lesson.segments]);
-
-  const resolvedStudentName = studentName ?? 'Student Demo';
-  const [firstName, lastName] = useMemo(() => {
-    const parts = resolvedStudentName.split(/\s+/).filter(Boolean);
-    return [parts[0] ?? 'Student', parts[parts.length - 1] ?? 'Demo'];
-  }, [resolvedStudentName]);
+  const primaryVideoSegment = useMemo(
+    () => lesson.segments.find((segment) => !!segment.videoUrl) ?? lesson.segments[0] ?? null,
+    [lesson.segments]
+  );
+  const youtubeId = useMemo(() => extractYouTubeId(primaryVideoSegment?.videoUrl), [primaryVideoSegment]);
+  const primaryVideoUrl = primaryVideoSegment?.videoUrl ?? null;
 
   const timelineItems = useMemo(() => {
     return orderedCheckpoints.map((checkpoint, index) => {
@@ -432,101 +455,102 @@ export function LessonVideoPage({
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     if (!youtubeId) {
+      playerRef.current?.destroy?.();
+      playerRef.current = null;
+      setPlayerReady(false);
+      setPlayerStatus(null);
       return;
     }
 
-    let cancelled = false;
-    const mountPlayer = () => {
-      const youtubeApi = (window as { YT?: YouTubeApi }).YT;
-      if (!youtubeApi || cancelled) {
-        return;
-      }
+    setPlayerReady(false);
 
-      const mountElement = document.getElementById(playerElementId);
-      if (!mountElement) {
-        return;
-      }
+    loadYouTubeIframeApi()
+      .then((api) => {
+        if (cancelled || !api?.Player) {
+          return;
+        }
 
-      if (playerRef.current) {
-        return;
-      }
+        const mountElement = document.getElementById(playerElementId);
+        if (!mountElement) {
+          return;
+        }
 
-      playerRef.current = new youtubeApi.Player(mountElement, {
-        videoId: youtubeId,
-        playerVars: {
-          controls: 0,
-          disablekb: 1,
-          rel: 0,
-          modestbranding: 1,
-        },
-        events: {
-          onReady: () => {
-            if (cancelled) {
-              return;
-            }
-            const readyPlayer = playerRef.current;
+        if (playerRef.current && typeof playerRef.current.loadVideoById === 'function') {
+          playerRef.current.loadVideoById(youtubeId);
+          setPlayerReady(true);
+          return;
+        }
 
-            if (readyPlayer && typeof readyPlayer.getDuration === 'function') {
-              setDuration(readyPlayer.getDuration());
-              const startTime = lastSeekRef.current ?? readyPlayer.getCurrentTime();
-              seekTo(startTime, true);
-            }
-
-            setPlayerReady(true);
-            setIsMuted(playerRef.current?.isMuted?.() ?? false);
-
-            if (typeof window !== 'undefined') {
-              const api = (window as { YT?: YouTubeApi }).YT;
-              setPlayerStatus(api?.PlayerState?.PAUSED ?? null);
-            }
-
-            setControlsVisible(true);
-            scheduleHide();
+        playerRef.current = new api.Player(mountElement, {
+          videoId: youtubeId,
+          playerVars: {
+            controls: 0,
+            disablekb: 1,
+            rel: 0,
+            modestbranding: 1,
+            origin: typeof window !== 'undefined' ? window.location.origin : undefined,
+            playsinline: 1,
           },
+          events: {
+            onReady: () => {
+              if (cancelled) {
+                return;
+              }
+              const readyPlayer = playerRef.current;
 
-          onStateChange: (event) => {
-            playerStateRef.current = event.data;
-            const api = (window as { YT?: YouTubeApi }).YT;
-            console.log('[YT state]', event.data, 'modal=', modalStateRef.current);
+              if (readyPlayer && typeof readyPlayer.getDuration === 'function') {
+                setDuration(readyPlayer.getDuration());
+                const startTime = lastSeekRef.current ?? readyPlayer.getCurrentTime();
+                seekTo(startTime, true);
+              }
 
-            setIsMuted(playerRef.current?.isMuted?.() ?? false);
-            setPlayerStatus(event.data);
+              setPlayerReady(true);
+              setIsMuted(playerRef.current?.isMuted?.() ?? false);
 
-            if (event.data === api?.PlayerState?.ENDED) {
-              setVideoEnded(true);
-            } else if (event.data === api?.PlayerState?.PLAYING) {
-              setVideoEnded(false);
-            }
+              if (typeof window !== 'undefined') {
+                const apiRef = (window as { YT?: YouTubeApi }).YT;
+                setPlayerStatus(apiRef?.PlayerState?.PAUSED ?? null);
+              }
 
-            if (modalStateRef.current === 'none') {
               setControlsVisible(true);
               scheduleHide();
-            }
+            },
+
+            onStateChange: (event) => {
+              playerStateRef.current = event.data;
+              const apiRef = (window as { YT?: YouTubeApi }).YT;
+              console.log('[YT state]', event.data, 'modal=', modalStateRef.current);
+
+              setIsMuted(playerRef.current?.isMuted?.() ?? false);
+              setPlayerStatus(event.data);
+
+              if (event.data === apiRef?.PlayerState?.ENDED) {
+                setVideoEnded(true);
+              } else if (event.data === apiRef?.PlayerState?.PLAYING) {
+                setVideoEnded(false);
+              }
+
+              if (modalStateRef.current === 'none') {
+                setControlsVisible(true);
+                scheduleHide();
+              }
+            },
           },
-        },
+        });
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPlayerReady(false);
+          setPlayerStatus(null);
+        }
       });
-    };
-
-    if ((window as { YT?: YouTubeApi }).YT?.Player) {
-      mountPlayer();
-    } else {
-      const previous = window.onYouTubeIframeAPIReady;
-      window.onYouTubeIframeAPIReady = () => {
-        previous?.();
-        mountPlayer();
-      };
-
-      if (!document.querySelector('script[src="https://www.youtube.com/iframe_api"]')) {
-        const script = document.createElement('script');
-        script.src = 'https://www.youtube.com/iframe_api';
-        document.body.appendChild(script);
-      }
-    }
 
     return () => {
       cancelled = true;
-      playerRef.current?.destroy();
+      playerRef.current?.destroy?.();
       playerRef.current = null;
     };
   }, [playerElementId, youtubeId, scheduleHide, seekTo]);
@@ -905,6 +929,8 @@ export function LessonVideoPage({
   const totalCheckpointQuestions = currentCheckpointQuestions.length;
   const currentQuestion =
     totalCheckpointQuestions > 0 ? (currentCheckpointQuestions[activeQuestionIndex] ?? null) : null;
+  const currentAnswer = currentQuestion ? (selectedAnswers[currentQuestion.id] ?? null) : null;
+  const currentShortAnswerValue = currentAnswer?.kind === 'shortAnswer' ? currentAnswer.raw : '';
   const canAdvance = currentQuestion
     ? (() => {
         const selection = selectedAnswers[currentQuestion.id];
@@ -972,25 +998,6 @@ export function LessonVideoPage({
 
   return (
     <div className={styles.page}>
-      <header className={styles.headerBar}>
-        <div className={styles.logo}>
-          checkd.<sup>®</sup>
-        </div>
-        <nav className={styles.headerNav}>
-          <Link href="/analytics">My Analytics</Link>
-          <Link href="/badges">Badge Wallet</Link>
-          <Link href="/grades">Grades</Link>
-          <Link href="/settings">Settings</Link>
-        </nav>
-        <div className={styles.userBadge}>
-          <div className={styles.userAvatar}>{initialsFromName(resolvedStudentName)}</div>
-          <div>
-            <div style={{ fontWeight: 600 }}>{firstName}</div>
-            <div style={{ fontSize: '0.8rem', color: '#4b5563' }}>{lastName}</div>
-          </div>
-        </div>
-      </header>
-
       <div className={styles.content}>
         <aside className={styles.timeline}>
           {timelineItems.map((item) => {
@@ -1026,10 +1033,13 @@ export function LessonVideoPage({
 
         <div className={styles.mainColumn}>
           <div className={styles.videoHeader}>
-            <div>
+            <div className={styles.videoHeadingLeft}>
               <h1 className={styles.videoTitle}>{lesson.title}</h1>
-              <div className={styles.videoSegment}>{currentCheckpoint?.title ?? 'Checkpoint'}</div>
+              {/* Optional subtitle under the title; if you don't have one, remove this line */}
+              {/* <p className={styles.videoSubtitle}>Shutdown Steps</p> */}
             </div>
+
+            <div className={styles.videoSegment}>{primaryVideoSegment?.title ?? 'Segment 1'}</div>
           </div>
           {ENABLE_QEV_SKIP ? (
             <div className={styles.debugControls}>
@@ -1191,11 +1201,7 @@ export function LessonVideoPage({
                                   inputMode="decimal"
                                   autoComplete="off"
                                   className={styles.shortAnswerInput}
-                                  value={
-                                    selectedAnswers[currentQuestion.id]?.kind === 'shortAnswer'
-                                      ? selectedAnswers[currentQuestion.id].raw
-                                      : ''
-                                  }
+                                  value={currentShortAnswerValue}
                                   onChange={(event) => handleShortAnswerChange(currentQuestion.id, event.target.value)}
                                   placeholder="Enter a number"
                                 />
@@ -1205,8 +1211,7 @@ export function LessonVideoPage({
                                     ? ` (±${currentQuestion.tolerancePercent}% accepted).`
                                     : '.'}
                                 </p>
-                                {selectedAnswers[currentQuestion.id]?.kind === 'shortAnswer' &&
-                                selectedAnswers[currentQuestion.id].hasError ? (
+                                {currentAnswer?.kind === 'shortAnswer' && currentAnswer.hasError ? (
                                   <p className={styles.shortAnswerError}>Please enter a numeric answer.</p>
                                 ) : null}
                               </div>

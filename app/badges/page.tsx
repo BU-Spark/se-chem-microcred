@@ -173,7 +173,7 @@ export default function BadgeWalletPage() {
     setActiveBadgeId(null);
   };
 
-  const studentEmail = studentData?.student?.email || user?.email || null;
+  const studentEmail = studentData?.student?.email || user?.primaryEmailAddress?.emailAddress || null;
 
   const startSurvey = (badge: BadgeRecord) => {
     setActiveBadgeId(null);

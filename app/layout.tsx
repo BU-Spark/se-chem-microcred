@@ -3,6 +3,9 @@ import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import './globals.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import checkedLogo from '../assets/checked_logo.png';
+import Image from 'next/image';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'ChemSkills Demo',
@@ -24,6 +27,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <body>
           <ErrorBoundary>
+            {/* GLOBAL HEADER */}
+            <header className="global-header">
+              <Image src={checkedLogo} alt="checkd logo" className="global-logo" width={115} height={32} />
+            </header>
+            {/* PAGE CONTENT */}
             <div className="main-content-container">{children}</div>
           </ErrorBoundary>
         </body>

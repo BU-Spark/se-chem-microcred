@@ -4,69 +4,19 @@
   padding-bottom: 3rem;
 }
 
-.headerBar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.25rem 2rem;
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-}
-
-.logo {
-  font-size: 1.6rem;
-  font-weight: 700;
-  color: #1f5fab;
-}
-
-.headerNav {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-  font-weight: 600;
-  font-size: 0.95rem;
-  color: #1f2937;
-}
-
-.headerNav a {
-  color: inherit;
-}
-
-.headerNav a:hover {
-  color: #1f5fab;
-}
-
-.userBadge {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  background: #ffffff;
-  padding: 0.6rem 1rem;
-  border-radius: 999px;
-  border: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
-}
-
-.userAvatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1f5fab, #0f3c7a);
-  color: #ffffff;
-  display: grid;
-  place-items: center;
-  font-weight: 600;
-}
+/* ===== Page main content (under global header) ===== */
 
 .content {
-  max-width: 1100px;
-  margin: 2.5rem auto;
+  max-width: 1180px;
+  margin: 2.5rem auto 0;
   display: grid;
-  grid-template-columns: 96px 1fr;
-  gap: 2.5rem;
-  padding: 0 2rem;
+  grid-template-columns: 110px 1fr;
+  gap: 2.75rem;
+  padding: 0 2.5rem 3rem;
+  align-items: flex-start;
 }
+
+/* ===== Timeline (left) ===== */
 
 .timeline {
   display: flex;
@@ -74,16 +24,17 @@
   align-items: center;
   gap: 1.5rem;
   position: relative;
-  padding-top: 2rem;
+  padding-top: 1.5rem;
 }
 
 .timeline::before {
   content: '';
   position: absolute;
-  top: 2rem;
+  top: 1.5rem;
   bottom: 0;
   width: 4px;
-  background: linear-gradient(180deg, rgba(15, 95, 171, 0.9), rgba(31, 95, 171, 0.3));
+  background: #d0d7ea;
+  border-radius: 999px;
 }
 
 .timelineItem {
@@ -97,22 +48,18 @@
 }
 
 .timelineThumbnail {
-  width: 72px;
-  height: 72px;
-  border-radius: 16px;
+  width: 78px;
+  height: 78px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 3px solid transparent;
-  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.18);
-  transition: transform 0.3s ease, border-color 0.3s ease;
-}
-
-.timelineThumbnailCompleted {
-  border-color: #24a46f;
-}
-
-.timelineThumbnailActive {
-  border-color: #1f5fab;
-  transform: translateX(4px);
+  border: 2px solid transparent;
+  box-shadow: 0 9px 20px rgba(15, 23, 42, 0.25);
+  background: #e5e7eb;
+  transition:
+    transform 0.25s ease,
+    box-shadow 0.25s ease,
+    border-color 0.25s ease;
+  cursor: pointer;
 }
 
 .timelineThumbnail img {
@@ -121,9 +68,19 @@
   object-fit: cover;
 }
 
+.timelineThumbnailCompleted {
+  border-color: #16a34a;
+}
+
+.timelineThumbnailActive {
+  border-color: #1f5fab;
+  transform: translateX(4px);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.45);
+}
+
 .timelineCheckpoint {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: #ffffff;
   border: 3px solid #1f5fab;
@@ -133,9 +90,11 @@
 }
 
 .timelineCheckpointCompleted {
-  background: #34d399;
-  border-color: #24a46f;
+  background: #22c55e;
+  border-color: #16a34a;
 }
+
+/* ===== Right column: header + video + extras ===== */
 
 .mainColumn {
   display: flex;
@@ -143,14 +102,55 @@
   gap: 1.75rem;
 }
 
+/* Header row (“Bunsen Burners” | “Segment 1”) */
+
+.videoHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 1.75rem;
+}
+
+/* new: wrapper for left side of header */
+.videoHeadingLeft {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.videoTitle {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: 0.01em;
+  margin: 0;
+}
+
+.videoSubtitle {
+  font-size: 1.05rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.videoSegment {
+  font-size: 1.4rem;
+  color: #111827;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+
+/* ===== YouTube player ===== */
+
 .videoWrapper {
   background: #000000;
   border-radius: 1.5rem;
   overflow: hidden;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.25);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.28);
   position: relative;
 }
 
+/* Keep 16:9 aspect ratio */
 .videoWrapper::before {
   content: "";
   display: block;
@@ -193,9 +193,12 @@
   pointer-events: auto;
 }
 
+/* Hide share button overlay */
 .videoWrapper :global(.ytp-share-button) {
   display: none !important;
 }
+
+/* ===== Initial loading overlay ===== */
 
 .initOverlay {
   position: absolute;
@@ -223,30 +226,14 @@
   }
 }
 
-.videoHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
-.videoTitle {
-  font-size: 2.25rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.videoSegment {
-  font-size: 1.5rem;
-  color: #1f2937;
-  font-weight: 500;
-}
+/* ===== Debug buttons above video ===== */
 
 .debugControls {
   display: flex;
   gap: 0.75rem;
   align-items: center;
   justify-content: flex-end;
-  margin-bottom: 0.75rem;
+  margin-bottom: 0.5rem;
 }
 
 .debugControls button {
@@ -260,6 +247,8 @@
   cursor: pointer;
 }
 
+/* ===== Generic modal overlay ===== */
+
 .overlay {
   position: fixed;
   inset: 0;
@@ -267,7 +256,7 @@
   display: grid;
   place-items: center;
   padding: 2rem;
-  z-index: 10;
+  z-index: 40;
 }
 
 .modalCard {
@@ -324,11 +313,29 @@
   border-bottom: 2px solid rgba(31, 95, 171, 0.25);
 }
 
+/* Question list inside modal */
+
 .questionList {
   width: 100%;
   display: grid;
   gap: 1rem;
 }
+
+.questionList li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.1rem 1.3rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(248, 250, 255, 0.9);
+}
+
+.statusIcon {
+  font-size: 1.4rem;
+}
+
+/* Short answer fields */
 
 .shortAnswerField {
   display: grid;
@@ -365,19 +372,7 @@
   font-weight: 700;
 }
 
-.questionList li {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1.1rem 1.3rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(15, 23, 42, 0.1);
-  background: rgba(248, 250, 255, 0.9);
-}
-
-.statusIcon {
-  font-size: 1.4rem;
-}
+/* Control buttons in modal footer */
 
 .controlRow {
   display: flex;
@@ -410,20 +405,7 @@
   color: #1f5fab;
 }
 
-@media (max-width: 960px) {
-  .content {
-    grid-template-columns: 1fr;
-  }
-
-  .timeline {
-    flex-direction: row;
-    justify-content: center;
-  }
-
-  .timeline::before {
-    display: none;
-  }
-}
+/* ===== QEV bar (over video) ===== */
 
 .qevBar {
   position: absolute;
@@ -726,7 +708,6 @@
 .summaryGrid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  /* 3-up; tweak if you prefer 2-up */
   gap: 12px;
 }
 
@@ -828,6 +809,9 @@
   font-weight: 600;
   color: #1f5fab;
 }
+
+/* ===== Lesson survey modal ===== */
+
 .lessonSurveyOverlay {
   position: fixed;
   inset: 0;
@@ -925,4 +909,24 @@
 
 .lessonSurveySubmit:hover:not(:disabled) {
   filter: brightness(0.95);
+}
+
+/* ===== Responsive ===== */
+
+@media (max-width: 960px) {
+  .content {
+    grid-template-columns: 1fr;
+    padding: 1.5rem 1.5rem 3rem;
+    gap: 1.75rem;
+  }
+
+  .timeline {
+    flex-direction: row;
+    justify-content: center;
+    padding-top: 0;
+  }
+
+  .timeline::before {
+    display: none;
+  }
 }

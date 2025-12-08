@@ -2,18 +2,16 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Image, { type StaticImageData } from 'next/image';
-import checkedLogo from '../assets/checked_logo.png';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type LessonRecord } from './hooks/useStudentData';
 import styles from './page.module.css';
-import surveyAlarmXIcon from '../assets/survey_alarm/survey_alarm_x_icon.png';
-import veryUnhappy from '../assets/survey_faces/very_unhappy.png';
-import slightlyUnhappy from '../assets/survey_faces/slightly_unhappy.png';
-import neutral from '../assets/survey_faces/neutral.png';
-import slightlyHappy from '../assets/survey_faces/slightly_happy.png';
-import veryHappy from '../assets/survey_faces/very_happy.png';
+import veryUnhappy from '../public/assets/survey_faces/very_unhappy.png';
+import slightlyUnhappy from '../public/assets/survey_faces/slightly_unhappy.png';
+import neutral from '../public/assets/survey_faces/neutral.png';
+import slightlyHappy from '../public/assets/survey_faces/slightly_happy.png';
+import veryHappy from '../public/assets/survey_faces/very_happy.png';
 
 interface LessonCard {
   id: string;
@@ -402,20 +400,20 @@ function HomePageContent() {
             >
               {pendingSurveyBadges.length > 0 ? (
                 <>
-                  <Image src={surveyAlarmXIcon} alt="Survey reminder" className={styles.alertIcon} />
+                  <Image
+                    src="/assets/survey_alarm/survey_alarm_x_icon.png"
+                    alt="Survey reminder"
+                    className={styles.alertIcon}
+                  />
                   <span className={styles.alertText}>
                     Complete feedback survey to finalize this badge. You can find the survey under “Ready to be
                     Finalized” in your Badge Wallet
                   </span>
                 </>
               ) : (
-                <span className={styles.alertText}>Welcome back!</span>
+                <span className={styles.alertText}>Welcome, Student</span>
               )}
             </div>
-          </div>
-
-          <div className={styles.brandMark}>
-            <Image src={checkedLogo} alt="checkd logo" className={styles.brandLogo} width={80} height={24} />
           </div>
         </div>
 

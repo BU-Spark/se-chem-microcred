@@ -328,7 +328,6 @@ export default function ProfilePage() {
           <button type="button" className="signOffButton" onClick={handleSignOut} disabled={isSigningOut}>
             {isSigningOut ? 'Signing off…' : 'Sign off'}
           </button>
-          <div className="brandFooter">checkd.</div>
         </div>
       </aside>
 
@@ -336,7 +335,6 @@ export default function ProfilePage() {
         <div className={styles.pageContent}>
           <header className={styles.headerRow}>
             <h1 className={styles.greeting}>Hello, {greetingName}</h1>
-            <div className="brandMark">checkd.</div>
           </header>
 
           <section className={styles.profileCard}>

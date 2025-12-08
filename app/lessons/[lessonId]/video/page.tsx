@@ -41,6 +41,15 @@ export default function LessonVideoRoute() {
 
   const studentName = studentData.student.name || user?.fullName || 'Student Demo';
   const studentEmail = studentData.student.email || user?.primaryEmailAddress?.emailAddress || 'student@example.edu';
+  const lessonSurvey = studentData.surveys.lesson.find((survey) => survey.lessonSlug === lessonRecord.slug) ?? null;
 
-  return <LessonVideoPage lesson={lessonRecord} studentName={studentName} studentEmail={studentEmail} />;
+  return (
+    <LessonVideoPage
+      lesson={lessonRecord}
+      studentName={studentName}
+      studentEmail={studentEmail}
+      lessonSurvey={lessonSurvey}
+      resumeRequested={false}
+    />
+  );
 }
