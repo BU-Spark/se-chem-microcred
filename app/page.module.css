@@ -20,6 +20,10 @@
   width: 240px;
   flex: 0 0 240px;
   min-width: 240px;
+  min-height: 100vh;
+  height: 100vh;
+  position: sticky;
+  top: 0;
 
   background: #1f5fab;
   border-radius: 0;
@@ -120,6 +124,7 @@
   background: transparent;
   border-radius: 0;
   box-shadow: none;
+  min-height: 100vh;
 
   padding: 2rem 2rem 3rem;
   /* Primary content padding */
@@ -365,14 +370,14 @@
 
 .surveyModal {
   position: relative;
-  width: min(420px, 92%);
+  width: min(640px, 92%);
   background: #ffffff;
   border-radius: 1.75rem;
-  padding: 2.25rem 2.5rem;
+  padding: 2.75rem 3rem;
   box-shadow: 0 45px 60px rgba(15, 23, 42, 0.35);
   display: flex;
   flex-direction: column;
-  gap: 1.6rem;
+  gap: 1.8rem;
 }
 
 .surveyClose {
@@ -399,14 +404,15 @@
 
 .surveyFaces {
   display: flex;
-  justify-content: space-between;
-  gap: 1.5rem;
+  justify-content: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
 }
 
 .surveyFace {
   background: none;
   border: none;
-  padding: 0;
+  padding: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -421,22 +427,20 @@
 
 /* Icon size – tweak if needed (64–72px works well) */
 .surveyFaceImage {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   display: block;
 }
 
 
 /* For the slightly_happy icon: source is yellow -> force it to blue in default state */
 .surveyFaceImageForceBlue {
-  /* Approx filter: yellow -> blue */
-  filter: hue-rotate(-140deg) saturate(130%);
+  filter: none;
 }
 
 /* When selected: turn faces into yellow (#C9DB50) */
 .surveyFaceImageSelected {
-  /* Approx filter: blue -> yellow */
-  filter: hue-rotate(60deg) saturate(140%);
+  filter: none;
 }
 
 

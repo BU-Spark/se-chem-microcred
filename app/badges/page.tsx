@@ -88,8 +88,10 @@ export default function BadgeWalletPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
 
-  // 初始不展开任何 section（全部只露出头）
-  const initialOpenSection = useMemo<BadgeStatus | null>(() => null, []);
+  const initialOpenSection = useMemo<BadgeStatus | null>(
+    () => SECTION_CONFIG.find((section) => !section.collapsedByDefault)?.status ?? null,
+    []
+  );
   const [openSection, setOpenSection] = useState<BadgeStatus | null>(initialOpenSection);
 
   const modalRef = useRef<HTMLDivElement | null>(null);
@@ -276,7 +278,6 @@ export default function BadgeWalletPage() {
           <button type="button" onClick={handleSignOut} className="signOffButton" disabled={isSigningOut}>
             {isSigningOut ? 'Signing off…' : 'Sign off'}
           </button>
-          <div className="brandFooter">checkd.</div>
         </div>
       </aside>
 
@@ -285,7 +286,6 @@ export default function BadgeWalletPage() {
         <div className={styles.walletRoot}>
           <header className={styles.headerRow}>
             <h1 className={styles.pageTitle}>Badge Wallet</h1>
-            <div className="brandMark">checkd.</div>
           </header>
 
           <div className={styles.walletSections}>
@@ -446,14 +446,28 @@ export default function BadgeWalletPage() {
                   ×
                 </button>
                 <div className={styles.qrCodeBox}>
-                  <Image
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=${encodeURIComponent(
-                      `student:${studentData?.student.id ?? 'unknown'}|badge:${qrBadge.id}`
-                    )}`}
-                    alt={`${qrBadge.name} QR code`}
-                    width={360}
-                    height={360}
-                  />
+                  <div className={styles.qrCodeWrapper}>
+                    <div className={styles.qrCodeCanvas}>
+                      <Image
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=${encodeURIComponent(
+                          `student:${studentData?.student.id ?? 'unknown'}|badge:${qrBadge.id}`
+                        )}`}
+                        alt={`${qrBadge.name} QR code`}
+                        width={360}
+                        height={360}
+                        className={styles.qrCodeImage}
+                      />
+                      <div className={styles.qrCodeLogo}>
+                        <Image
+                          src="/assets/badge_wallet/QR/qr_logo.svg"
+                          alt="Checkd logo"
+                          width={74}
+                          height={74}
+                          className={styles.qrCodeLogoImage}
+                        />
+                      </div>
+                    </div>
+                  </div>
                   <div className={styles.qrCaption}>{qrBadge.name} Skill Check</div>
                   <p>
                     Show your assessor this QR code to complete the in-person assessment. Don&apos;t forget to bring

@@ -3,8 +3,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import './globals.css';
 import { ErrorBoundary } from './components/ErrorBoundary';
-import checkedLogo from '../assets/checked_logo.png';
-import Image from 'next/image';
+import { GlobalHeader } from './components/GlobalHeader'; // 👈 NEW
 import './globals.css';
 
 const clerkPublishableKey =
@@ -21,7 +20,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <ClerkProvider publishableKey={clerkPublishableKey}>
       <html lang="en">
         <head>
-          {/* 👇 Load Open Sans + Lato */}
           <link
             href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700&display=swap"
             rel="stylesheet"
@@ -30,10 +28,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <body>
           <ErrorBoundary>
-            {/* GLOBAL HEADER */}
-            <header className="global-header">
-              <Image src={checkedLogo} alt="checkd logo" className="global-logo" width={115} height={32} />
-            </header>
+            {/* GLOBAL HEADER (auto-hides on /lesson/[lessonId]/video) */}
+            <GlobalHeader />
             {/* PAGE CONTENT */}
             <div className="main-content-container">{children}</div>
           </ErrorBoundary>

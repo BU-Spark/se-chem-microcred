@@ -44,6 +44,7 @@ function evaluateAttempt(answers: AttemptRequestBody['answers'], questions: Norm
       correctIndex: question.correctIndex ?? null,
       expectedAnswer: question.expectedAnswer ?? null,
       tolerancePercent: question.tolerancePercent,
+      acceptedRange: question.acceptedRange,
       isCorrect,
     };
   });
@@ -103,7 +104,8 @@ export async function POST(request: Request, context: RouteContext) {
 
   const normalizedQuestions = checkpoint.questions.map((question) => normalizeCheckpointQuestion(question));
   const evaluation = evaluateAttempt(payload.answers, normalizedQuestions);
-  const isPassing = evaluation.every((entry) => entry.isCorrect);
+  // Checkpoints are considered completed after submission; per-question correctness is still tracked.
+  const isPassing = true;
 
   const attempt = await prisma.checkpointAttempt.create({
     data: {

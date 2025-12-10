@@ -46,13 +46,13 @@
   background: linear-gradient(180deg, #2f73cc 0%, #1a4b8e 100%);
   color: #f8fbff;
   box-shadow: 0 26px 60px rgba(15, 23, 42, 0.48);
-  overflow: hidden;
+  overflow: visible;
   transform-origin: center;
   transition:
-    transform 0.55s cubic-bezier(0.23, 1, 0.32, 1),
-    box-shadow 0.45s ease,
-    filter 0.45s ease,
-    opacity 0.35s ease;
+    transform 0.3s ease-out,
+    box-shadow 0.3s ease-out,
+    filter 0.3s ease-out,
+    opacity 0.25s ease-out;
   pointer-events: auto;
   width: 100%;
 }
@@ -60,45 +60,6 @@
 /* 取消负 margin，避免“条纹叠在同一张卡里” */
 .walletSection:not(:first-child) {
   margin-top: 0;
-}
-
-/* 内层玻璃面板，缩小一点让每张卡的圆角边明显可见 */
-.walletSection::before {
-  content: '';
-  position: absolute;
-  inset: 1.6rem 2.4rem 2.4rem;
-  border-radius: 2.3rem;
-  background:
-    linear-gradient(180deg,
-      rgba(255, 255, 255, 0.28) 0%,
-      rgba(245, 249, 255, 0.08) 22%,
-      rgba(12, 33, 79, 0.55) 100%);
-  opacity: 0.9;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* 底部环境光晕 */
-.walletSection::after {
-  content: '';
-  position: absolute;
-  left: 50%;
-  bottom: -22%;
-  width: 130%;
-  height: 70%;
-  transform: translateX(-50%);
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center,
-      rgba(6, 20, 61, 0.8),
-      rgba(6, 20, 61, 0) 70%);
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* 里面的真实内容在装饰层之上 */
-.walletSection>* {
-  position: relative;
-  z-index: 1;
 }
 
 .walletSectionElevated {
@@ -128,6 +89,7 @@
   align-items: center;
   position: relative;
   z-index: 1;
+  margin-bottom: 1.5rem;
 }
 
 .sectionTitle {
@@ -177,7 +139,7 @@
 /* Badges grid */
 .badgeGrid {
   position: relative;
-  margin-top: 2rem;
+  margin-top: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 1.75rem 1.5rem;
@@ -191,7 +153,7 @@
   transition: opacity 0.35s ease, transform 0.35s ease,
     max-height 0.35s ease, margin-top 0.35s ease;
   max-height: 620px;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .badgeGridHidden {
@@ -228,22 +190,17 @@
   line-height: 1.15;
   cursor: pointer;
   transition: transform 0.25s ease, box-shadow 0.25s ease;
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.3),
-    0 12px 26px rgba(12, 32, 68, 0.55);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.3);
   z-index: 1;
 }
 
 .badgeToken:hover {
   transform: translateY(-6px) scale(1.02);
-  box-shadow: 0 20px 34px rgba(12, 32, 68, 0.55);
 }
 
 .badgeTokenActive {
   transform: translateY(-12px) scale(1.08);
-  box-shadow:
-    inset 0 0 0 2px rgba(255, 255, 255, 0.32),
-    0 34px 58px rgba(12, 32, 68, 0.6);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
 }
 
 .badgeToken::after {
@@ -375,6 +332,59 @@
 .qrCaption {
   font-weight: 700;
   font-size: 1.2rem;
+}
+
+.qrCodeWrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+}
+
+.qrCodeCanvas {
+  position: relative;
+  width: 360px;
+  height: 360px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.qrCodeImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.qrCodeLogo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 88px;
+  height: 88px;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.qrCodeLogoImage {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
 }
 
 /* =========================

@@ -125,6 +125,7 @@ model Lesson {
   thumbnailUrl      String?
   estimatedMinutes  Int?
   dueDate           DateTime?
+  passingPercent    Int                @default(70)
   sortOrder         Int                @default(0)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
@@ -216,6 +217,9 @@ model LessonProgress {
   startedAt       DateTime?
   completedAt     DateTime?
   percentComplete Int          @default(0)
+  lastGradePercent Float?
+  lastGradePassed  Boolean?
+  lastGradedAt     DateTime?
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 

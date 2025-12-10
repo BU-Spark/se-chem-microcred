@@ -6,6 +6,20 @@ import { useUser } from '@clerk/nextjs';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
 
+// Build a static avatar URL from AvatarSetting.
+// Only "base" matters for the header icon.
+function buildAvatarUrlFromAvatar(
+  avatar?: { base: string; face: string; accessory: string | null } | null
+): string | null {
+  if (!avatar) return null;
+
+  // base is something like "SAPPHIRE", "RUBY", etc.
+  const baseLower = avatar.base.toLowerCase(); // -> "sapphire"
+
+  // Files are under /public/assets/edit_avatar/<base>.svg
+  return `../../../public/assets/edit_avatar/${baseLower}.svg`;
+}
+
 export default function LessonVideoRoute() {
   const params = useParams<{ lessonId: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
@@ -41,6 +55,8 @@ export default function LessonVideoRoute() {
 
   const studentName = studentData.student.name || user?.fullName || 'Student Demo';
   const studentEmail = studentData.student.email || user?.primaryEmailAddress?.emailAddress || 'student@example.edu';
+  const studentAvatar = studentData.student.avatar || null;
+  const avatarUrl = buildAvatarUrlFromAvatar(studentAvatar);
   const lessonSurvey = studentData.surveys.lesson.find((survey) => survey.lessonSlug === lessonRecord.slug) ?? null;
 
   return (
@@ -50,6 +66,7 @@ export default function LessonVideoRoute() {
       studentEmail={studentEmail}
       lessonSurvey={lessonSurvey}
       resumeRequested={false}
+      studentAvatarUrl={avatarUrl}
     />
   );
 }

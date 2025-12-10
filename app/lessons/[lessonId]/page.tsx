@@ -30,6 +30,14 @@ function initialsFromName(name?: string | null) {
   );
 }
 
+function extractYouTubeId(url?: string | null) {
+  if (!url) return null;
+  const match =
+    url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/) ?? url.match(/[?&]v=([\w-]{11})/);
+  const candidate = match?.[1] ?? null;
+  return candidate && candidate.length === 11 ? candidate : null;
+}
+
 export default function LessonDetailPage() {
   const router = useRouter();
   const params = useParams<{ lessonId: string }>();
@@ -71,6 +79,12 @@ export default function LessonDetailPage() {
 
     const checkpoints = lessonRecord.checkpoints ?? [];
     const segments = lessonRecord.segments ?? [];
+    const segmentById = new Map<string, LessonRecord['segments'][number]>();
+    segments.forEach((seg) => {
+      if (seg.id) {
+        segmentById.set(seg.id, seg);
+      }
+    });
 
     // 所有 LessonSegment.duration 之和（假定单位是分钟）
     const totalSecondsFromSegments = segments.reduce(
@@ -78,6 +92,23 @@ export default function LessonDetailPage() {
         sum + (typeof seg.duration === 'number' ? seg.duration * 60 : 0),
       0
     );
+
+    const resolveSnapshot = (cpIndex: number) => {
+      const cp = checkpoints[cpIndex];
+      if (!cp) return '';
+      // Prefer explicit checkpoint snapshot if present.
+      if (cp.snapshotUrl) return cp.snapshotUrl;
+      // Try the segment associated with this checkpoint.
+      const seg = (cp.segmentId ? segmentById.get(cp.segmentId) : null) ?? segments[cpIndex] ?? segments[0] ?? null;
+      const youtubeId = extractYouTubeId(seg?.videoUrl ?? lessonRecord.segments?.[0]?.videoUrl ?? null);
+      if (youtubeId) {
+        // YouTube exposes a few frame thumbnails: 0 (default), 1-3 midpoints. Map cp index to 1..3, clamp.
+        const frame = Math.max(1, Math.min(3, cpIndex + 1));
+        return `https://img.youtube.com/vi/${youtubeId}/${frame}.jpg`;
+      }
+      if (seg?.thumbnailUrl) return seg.thumbnailUrl;
+      return lessonRecord.thumbnailUrl || '';
+    };
 
     const items = checkpoints.map((cp, idx: number) => {
       const seg = segments[idx];
@@ -103,7 +134,7 @@ export default function LessonDetailPage() {
 
       const title = `Part ${idx + 1}`;
 
-      const img: string = seg?.thumbnailUrl || lessonRecord.thumbnailUrl || '';
+      const img: string = resolveSnapshot(idx);
 
       return {
         id: cp.id ?? String(idx),
@@ -129,8 +160,15 @@ export default function LessonDetailPage() {
         const title = `Part ${checkpoints.length + 1}`;
         const duration = `${minutes} minute${minutes === 1 ? '' : 's'} long`;
 
-        const extraSeg = segments[checkpoints.length];
-        const img: string = extraSeg?.thumbnailUrl || lessonRecord.thumbnailUrl || '';
+        const extraSeg = segments[checkpoints.length] ?? segments.at(-1);
+        const youtubeId =
+          extractYouTubeId(extraSeg?.videoUrl ?? lessonRecord.segments?.[0]?.videoUrl ?? null) ??
+          extractYouTubeId(lessonRecord.segments?.at(-1)?.videoUrl ?? null);
+        const img: string = checkpoints[checkpoints.length - 1]?.snapshotUrl
+          ? checkpoints[checkpoints.length - 1].snapshotUrl!
+          : youtubeId
+            ? `https://img.youtube.com/vi/${youtubeId}/maxresdefault.jpg`
+            : extraSeg?.thumbnailUrl || lessonRecord.thumbnailUrl || '';
 
         extraPart = { title, duration, img };
       }

@@ -144,10 +144,6 @@ export default function AnalyticsPage() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  if (!isLoaded || !isSignedIn) {
-    return null;
-  }
-
   const displayName = studentData?.student.name || user?.fullName || 'Lastname, Student';
   const totalBadges =
     (studentData?.badges.completed.length ?? 0) +
@@ -157,6 +153,36 @@ export default function AnalyticsPage() {
     totalBadges > 0 ? Math.round(((studentData?.badges.completed.length ?? 0) / totalBadges) * 100) : 0;
   const availablePercent = Math.max(0, 100 - completedPercent);
   const analytics = studentData?.analytics;
+
+  const { averageScorePercent, highestScorePercent } = useMemo(() => {
+    const completedBadges = studentData?.badges.completed ?? [];
+    const scoredBadges = completedBadges.filter((badge) => typeof badge.score === 'number') as Array<
+      Required<BadgeRecord>
+    >;
+
+    if (scoredBadges.length > 0) {
+      const total = scoredBadges.reduce((sum, badge) => sum + (badge.score ?? 0), 0);
+      const avg = Math.round(total / scoredBadges.length);
+      const top = scoredBadges.reduce(
+        (acc, badge) =>
+          badge.score != null && badge.score > acc.score ? { score: badge.score, name: badge.name } : acc,
+        { score: -Infinity, name: '' }
+      );
+      return {
+        averageScorePercent: avg,
+        highestScorePercent: Math.max(0, top.score),
+      };
+    }
+
+    return {
+      averageScorePercent: analytics?.averageAssessmentScore ?? 0,
+      highestScorePercent: analytics?.highestAssessmentScore ?? 0,
+    };
+  }, [analytics, studentData?.badges.completed]);
+
+  if (!isLoaded || !isSignedIn) {
+    return null;
+  }
 
   const navItems = [
     { label: 'Home', href: '/' },
@@ -208,12 +234,12 @@ export default function AnalyticsPage() {
   const scoreItems: ScoreItem[] = [
     {
       id: 'avg-score',
-      value: analytics?.averageAssessmentScore ?? 0,
+      value: averageScorePercent,
       label: 'Average assessment score',
     },
     {
       id: 'highest-badge',
-      value: analytics?.highestAssessmentScore ?? 0,
+      value: highestScorePercent,
       label: 'Highest scoring badge',
     },
     {
@@ -259,7 +285,6 @@ export default function AnalyticsPage() {
           <button type="button" onClick={handleSignOut} className={styles.signOffButton} disabled={isSigningOut}>
             {isSigningOut ? 'Signing off…' : 'Sign off'}
           </button>
-          <div className={styles.brandFooter}>checkd.</div>
         </div>
       </aside>
 
@@ -269,11 +294,10 @@ export default function AnalyticsPage() {
             <h1 className={styles.pageTitle}>Student&apos;s Analytics</h1>
             <p className={styles.pageSubtitle}>View your analytics and track learning progress.</p>
           </div>
-          <div className={styles.brandMark}>checkd.</div>
         </header>
 
         <section className={styles.analyticsGrid}>
-          <article className={styles.card}>
+          <article className={`${styles.card} ${styles.progressCard}`}>
             <h2 className={styles.cardTitle}>Student&apos;s Total Progress</h2>
             <div className={styles.progressList}>
               {progressItems.map((item) => (
@@ -327,14 +351,14 @@ export default function AnalyticsPage() {
                   <span className={styles.badgePercentage}>{availablePercent}%</span>
                 </div>
               </div>
+              <div className={styles.badgeScoreDivider} />
+              <div className={styles.badgeScoreRow}>
+                {scoreItems.map((item) => (
+                  <CircularScore key={item.id} {...item} />
+                ))}
+              </div>
             </div>
           </article>
-        </section>
-
-        <section className={styles.scoreRow}>
-          {scoreItems.map((item) => (
-            <CircularScore key={item.id} {...item} />
-          ))}
         </section>
       </main>
     </div>

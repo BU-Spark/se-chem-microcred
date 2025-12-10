@@ -2,18 +2,26 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
-import veryUnhappyFace from '../../../assets/survey_faces/very_unhappy.png';
-import slightlyUnhappyFace from '../../../assets/survey_faces/slightly_unhappy.png';
-import neutralFace from '../../../assets/survey_faces/neutral.png';
-import slightlyHappyFace from '../../../assets/survey_faces/slightly_happy.png';
-import veryHappyFace from '../../../assets/survey_faces/very_happy.png';
+import veryUnhappyFace from '../../../assets/survey_faces/very_unhappy.svg';
+import veryUnhappyFaceSelected from '../../../public/assets/survey_faces/very_unhappy_selected.svg';
+import slightlyUnhappyFace from '../../../assets/survey_faces/slightly_unhappy.svg';
+import slightlyUnhappyFaceSelected from '../../../public/assets/survey_faces/slightly_unhappy_selected.svg';
+import neutralFace from '../../../assets/survey_faces/neutral.svg';
+import neutralFaceSelected from '../../../public/assets/survey_faces/neutral_selected.svg';
+import slightlyHappyFace from '../../../assets/survey_faces/slightly_happy.svg';
+import slightlyHappyFaceSelected from '../../../public/assets/survey_faces/slightly_happy_selected.svg';
+import veryHappyFace from '../../../assets/survey_faces/very_happy.svg';
+import veryHappyFaceSelected from '../../../public/assets/survey_faces/very_happy_selected.svg';
+import playIcon from '../../../public/assets/lesson/qev/Play.svg';
+import pauseIcon from '../../../public/assets/lesson/qev/Pause.svg';
 
 const ENABLE_QEV_SKIP = (process.env.NEXT_PUBLIC_ENABLE_QEV_SKIP || 'true').toLowerCase() === 'true';
 
-type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonSurvey' | 'lessonComplete';
+type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonSurvey' | 'lessonComplete' | 'lessonFailed';
 type RangeStyleVars = CSSProperties & {
   '--progress': string;
   '--unlocked': string;
@@ -79,9 +87,18 @@ interface AttemptSummary {
     correctIndex: number | null;
     expectedAnswer: number | null;
     tolerancePercent: number;
+    acceptedRange: { min: number; max: number } | null;
     type: QuestionType;
     isCorrect: boolean;
   }>;
+}
+
+interface LessonAssessmentResult {
+  passed: boolean;
+  gradePercent: number;
+  passingPercent: number;
+  correctAnswers?: number;
+  totalQuestions?: number;
 }
 
 interface LessonSurveyPrompt {
@@ -96,17 +113,52 @@ interface LessonVideoPageProps {
   studentEmail: string;
   lessonSurvey: LessonSurveyPrompt | null;
   resumeRequested: boolean;
+  studentAvatarUrl?: string | null;
 }
 
 const CHECKPOINT_TRIGGER_THRESHOLD = 0.35;
 
 const LESSON_SURVEY_FACES = [
-  { value: 1, label: 'Very unhappy', icon: veryUnhappyFace },
-  { value: 2, label: 'Slightly unhappy', icon: slightlyUnhappyFace },
-  { value: 3, label: 'Neutral', icon: neutralFace },
-  { value: 4, label: 'Slightly happy', icon: slightlyHappyFace },
-  { value: 5, label: 'Very happy', icon: veryHappyFace },
+  {
+    value: 1,
+    label: 'Very unhappy',
+    icon: veryUnhappyFace,
+    selectedIcon: veryUnhappyFaceSelected,
+  },
+  {
+    value: 2,
+    label: 'Slightly unhappy',
+    icon: slightlyUnhappyFace,
+    selectedIcon: slightlyUnhappyFaceSelected,
+  },
+  {
+    value: 3,
+    label: 'Neutral',
+    icon: neutralFace,
+    selectedIcon: neutralFaceSelected,
+  },
+  {
+    value: 4,
+    label: 'Slightly happy',
+    icon: slightlyHappyFace,
+    selectedIcon: slightlyHappyFaceSelected,
+  },
+  {
+    value: 5,
+    label: 'Very happy',
+    icon: veryHappyFace,
+    selectedIcon: veryHappyFaceSelected,
+  },
 ] as const;
+
+function initialsFromName(name?: string | null) {
+  if (!name) return 'ST';
+  const tokens = name.trim().split(/\s+/);
+  return tokens
+    .slice(0, 2)
+    .map((token) => token.charAt(0).toUpperCase())
+    .join('');
+}
 
 function extractYouTubeId(url?: string | null) {
   if (!url) {
@@ -182,12 +234,19 @@ function getCheckpointStartTime(checkpoints: LessonRecord['checkpoints'], id: st
 
 export function LessonVideoPage({
   lesson,
-  studentName: _studentName = 'Student Demo',
+  studentName,
   studentEmail,
   lessonSurvey,
   resumeRequested,
+  studentAvatarUrl,
 }: LessonVideoPageProps) {
-  void _studentName;
+  const resolvedStudentName = studentName && studentName.trim().length > 0 ? studentName : 'Student Demo';
+  const [firstName, lastName] = useMemo(() => {
+    const parts = resolvedStudentName.split(/\s+/).filter(Boolean);
+    const first = parts[0] ?? 'First';
+    const last = parts.length > 1 ? parts[parts.length - 1] : 'Last';
+    return [first, last];
+  }, [resolvedStudentName]);
   const router = useRouter();
   const effectiveLessonSurvey = useMemo<LessonSurveyPrompt | null>(
     () => lessonSurvey ?? { id: `auto-${lesson.slug}`, question: 'How was this lesson?', completed: false },
@@ -219,6 +278,14 @@ export function LessonVideoPage({
   const [attemptSummary, setAttemptSummary] = useState<AttemptSummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [networkError, setNetworkError] = useState<string | null>(null);
+  const [lessonAssessment, setLessonAssessment] = useState<{
+    passed: boolean;
+    gradePercent: number;
+    passingPercent: number;
+  } | null>(null);
+  const [assessmentError, setAssessmentError] = useState<string | null>(null);
+  const [assessingLesson, setAssessingLesson] = useState(false);
+  const lastCheckpointResumeRef = useRef<number | null>(null);
 
   const [lessonSurveyRating, setLessonSurveyRating] = useState(3);
   const [lessonSurveySubmitting, setLessonSurveySubmitting] = useState(false);
@@ -249,6 +316,7 @@ export function LessonVideoPage({
   const modalStateRef = useRef<ModalState>('none');
   const visibilityTimerRef = useRef<number | null>(null);
   const lessonSurveyTriggeredRef = useRef<boolean>(effectiveLessonSurvey?.completed ?? false);
+  const gradingTriggeredRef = useRef<boolean>(false);
 
   const updateFurthestTime = useCallback((time: number, force = false) => {
     if (!Number.isFinite(time)) {
@@ -262,7 +330,21 @@ export function LessonVideoPage({
       return time;
     });
   }, []);
+  // Hide the global header (from layout.tsx) on this page only
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
 
+    const header = document.querySelector<HTMLElement>('.global-header');
+    if (!header) return;
+
+    const previousDisplay = header.style.display;
+    header.style.display = 'none';
+
+    // restore when leaving this page
+    return () => {
+      header.style.display = previousDisplay;
+    };
+  }, []);
   useEffect(() => {
     setCompletedCheckpointIds(initialCompletedIds);
   }, [initialCompletedIds]);
@@ -278,6 +360,12 @@ export function LessonVideoPage({
   useEffect(() => {
     durationRef.current = duration;
   }, [duration]);
+
+  useEffect(() => {
+    gradingTriggeredRef.current = false;
+    setLessonAssessment(null);
+    setAssessmentError(null);
+  }, [lesson.id]);
 
   const resolveMaxSeekableTime = useCallback(() => {
     const limit = furthestTimeRef.current;
@@ -338,6 +426,44 @@ export function LessonVideoPage({
     }
     return firstIncompleteCheckpoint;
   }, [orderedCheckpoints, activeCheckpointId, firstIncompleteCheckpoint]);
+
+  // Which checkpoint index are we on? (-1 if none)
+  const currentCheckpointIndex = useMemo(
+    () => (currentCheckpoint ? orderedCheckpoints.findIndex((cp) => cp.id === currentCheckpoint.id) : -1),
+    [currentCheckpoint, orderedCheckpoints]
+  );
+
+  // Which segment index are we currently playing?
+  // Segment 1 = before first checkpoint,
+  // Segment 2 = between checkpoint 1 and 2, etc.
+  const currentSegmentIndex = useMemo(() => {
+    if (orderedCheckpoints.length === 0) return 0;
+
+    const t = currentTime;
+    for (let i = 0; i < orderedCheckpoints.length; i += 1) {
+      const cpTime = orderedCheckpoints[i].timeOffsetSeconds ?? 0;
+      if (t < cpTime - CHECKPOINT_TRIGGER_THRESHOLD) {
+        return i; // before checkpoint i -> Segment (i + 1)
+      }
+    }
+    // after last checkpoint
+    return orderedCheckpoints.length;
+  }, [currentTime, orderedCheckpoints]);
+
+  // Text shown in the top-right: Segment X or Checkpoint X
+  const videoStageLabel = useMemo(() => {
+    // When in a checkpoint flow, show "Checkpoint N"
+    if ((modalState === 'question' || modalState === 'result') && currentCheckpointIndex >= 0) {
+      const cpNumber = currentCheckpointIndex + 1;
+      const cp = orderedCheckpoints[currentCheckpointIndex];
+      // Prefer a custom checkpoint title if available, otherwise "Checkpoint N"
+      return cp.title || `Checkpoint ${cpNumber}`;
+    }
+
+    // Otherwise we are just watching video -> show "Segment N"
+    const segNumber = currentSegmentIndex + 1;
+    return `Segment ${segNumber}`;
+  }, [modalState, currentCheckpointIndex, orderedCheckpoints, currentSegmentIndex]);
 
   const primaryVideoSegment = useMemo(
     () => lesson.segments.find((segment) => !!segment.videoUrl) ?? lesson.segments[0] ?? null,
@@ -679,6 +805,73 @@ export function LessonVideoPage({
     }));
   }, []);
 
+  const resetClientProgressAfterFailure = useCallback(
+    (result?: LessonAssessmentResult) => {
+      if (result) {
+        setLessonAssessment(result);
+      }
+      gradingTriggeredRef.current = false;
+      setCompletedCheckpointIds([]);
+      setSelectedAnswers({});
+      setAttemptSummary(null);
+      setActiveQuestionIndex(0);
+      setActiveCheckpointId(null);
+      setLessonSurveyCompleted(false);
+      lessonSurveyTriggeredRef.current = false;
+      setVideoEnded(false);
+      setNetworkError(null);
+      setFurthestTime(0);
+      furthestTimeRef.current = 0;
+      setCurrentTime(0);
+      lastSeekRef.current = 0;
+      updateFurthestTime(0, true);
+      seekTo(0, true, true);
+      setModalState('lessonFailed');
+      lastCheckpointResumeRef.current = null;
+    },
+    [seekTo, updateFurthestTime]
+  );
+
+  const finalizeLessonAssessment = useCallback(async () => {
+    setAssessingLesson(true);
+    setAssessmentError(null);
+    try {
+      const response = await fetch(`/api/lessons/${lesson.id}/grade`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: studentEmail }),
+      });
+      const body = (await response.json().catch(() => ({}))) as LessonAssessmentResult & { error?: string };
+      if (!response.ok) {
+        throw new Error(body.error || 'Unable to finalize lesson grade.');
+      }
+      setLessonAssessment(body);
+      return body;
+    } catch (error) {
+      setAssessmentError(error instanceof Error ? error.message : 'Unable to finalize lesson.');
+      return null;
+    } finally {
+      setAssessingLesson(false);
+    }
+  }, [lesson.id, studentEmail]);
+
+  const handleLessonCompletion = useCallback(async () => {
+    if (gradingTriggeredRef.current) {
+      return;
+    }
+    gradingTriggeredRef.current = true;
+    const result = await finalizeLessonAssessment();
+    if (!result) {
+      gradingTriggeredRef.current = false;
+      return;
+    }
+    if (result.passed) {
+      setModalState('lessonComplete');
+      return;
+    }
+    resetClientProgressAfterFailure(result);
+  }, [finalizeLessonAssessment, resetClientProgressAfterFailure]);
+
   const resetAfterCheckpoint = useCallback(
     (resumeBaseTime?: number, resumeOffset = 0.5) => {
       console.log('[resetAfterCheckpoint]');
@@ -738,23 +931,16 @@ export function LessonVideoPage({
       const payload = (await response.json()) as AttemptSummary;
       setAttemptSummary(payload);
 
-      if (payload.isPassing) {
-        if (currentCheckpoint) {
-          scheduleCheckpointSuppression(currentCheckpoint.id, 120000);
-        }
-        const baseTime = currentCheckpoint.timeOffsetSeconds;
-        setCompletedCheckpointIds((prev) =>
-          prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
-        );
-        setAttemptSummary(null);
-        setActiveQuestionIndex(0);
-        resetAfterCheckpoint(baseTime);
-      } else {
-        const sectionStartTime = getCheckpointStartTime(orderedCheckpoints, currentCheckpoint.id);
-        seekTo(sectionStartTime, true);
-        setActiveQuestionIndex(0);
-        setModalState('result');
+      if (currentCheckpoint) {
+        scheduleCheckpointSuppression(currentCheckpoint.id, 120000);
       }
+      const baseTime = currentCheckpoint.timeOffsetSeconds;
+      lastCheckpointResumeRef.current = baseTime;
+      setCompletedCheckpointIds((prev) =>
+        prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
+      );
+      setModalState('result');
+      setActiveQuestionIndex(0);
     } catch (error) {
       setNetworkError(error instanceof Error ? error.message : 'Something went wrong while submitting answers.');
       setModalState('result');
@@ -794,17 +980,19 @@ export function LessonVideoPage({
     submitAttempt();
   }, [activeQuestionIndex, currentCheckpoint, selectedAnswers, submitAttempt]);
 
-  const handleTryAgain = useCallback(() => {
-    setModalState('question');
+  const handleContinueAfterResult = useCallback(() => {
+    const resumeBaseTime = lastCheckpointResumeRef.current ?? undefined;
     setAttemptSummary(null);
+    setNetworkError(null);
     setSelectedAnswers({});
     setActiveQuestionIndex(0);
-  }, []);
+    lastCheckpointResumeRef.current = null;
+    resetAfterCheckpoint(resumeBaseTime);
+  }, [resetAfterCheckpoint]);
 
   const handleRewatch = useCallback(() => {
     console.log('[handleRewatch]');
     setModalState('none');
-    setAttemptSummary(null);
     setNetworkError(null);
     setSelectedAnswers({});
     setActiveQuestionIndex(0);
@@ -878,7 +1066,7 @@ export function LessonVideoPage({
         throw new Error(body.error || 'Unable to submit survey.');
       }
       setLessonSurveyCompleted(true);
-      setModalState('lessonComplete');
+      await handleLessonCompletion();
     } catch (error) {
       setLessonSurveyError(
         error instanceof Error ? error.message : 'Something went wrong while submitting your survey.'
@@ -886,7 +1074,7 @@ export function LessonVideoPage({
     } finally {
       setLessonSurveySubmitting(false);
     }
-  }, [effectiveLessonSurvey, lesson.id, lessonSurveyRating, studentEmail]);
+  }, [effectiveLessonSurvey, handleLessonCompletion, lesson.id, lessonSurveyRating, studentEmail]);
 
   const rangeStyle = useMemo<RangeStyleVars>(() => {
     const progressPct = duration > 0 ? Math.min(100, Math.max(0, (currentTime / Math.max(duration, 1)) * 100)) : 0;
@@ -919,7 +1107,8 @@ export function LessonVideoPage({
       modalState === 'question' ||
       modalState === 'result' ||
       modalState === 'lessonSurvey' ||
-      modalState === 'lessonComplete'
+      modalState === 'lessonComplete' ||
+      modalState === 'lessonFailed'
     ) {
       ensurePlayerPaused();
     }
@@ -962,7 +1151,7 @@ export function LessonVideoPage({
       return;
     }
 
-    setModalState('lessonComplete');
+    void handleLessonCompletion();
   }, [
     ensurePlayerPaused,
     firstIncompleteCheckpoint,
@@ -971,11 +1160,19 @@ export function LessonVideoPage({
     openCheckpointModal,
     seekTo,
     updateFurthestTime,
+    handleLessonCompletion,
   ]);
 
   const handleShowQrCode = useCallback(() => {
     router.push('/badges');
   }, [router]);
+
+  const handleRestartAfterFailure = useCallback(() => {
+    setModalState('none');
+    requestAnimationFrame(() => {
+      playerRef.current?.playVideo?.();
+    });
+  }, []);
 
   const handleGoHome = useCallback(() => {
     router.push('/');
@@ -998,6 +1195,51 @@ export function LessonVideoPage({
 
   return (
     <div className={styles.page}>
+      <header className={styles.headerBar}>
+        <div className={styles.headerInner}>
+          {/* Left: logo, links back to home */}
+          <Link href="/" className={styles.logoLink}>
+            <Image
+              src="/assets/checked_logo.png"
+              alt="checkd home"
+              className={styles.logoImage}
+              width={219.85} // tweak to match Figma
+              height={61} // tweak to match Figma
+              priority
+            />
+          </Link>
+
+          {/* Center: navigation */}
+          <nav className={styles.headerNav} aria-label="Primary">
+            <Link href="/analytics">My Analytics</Link>
+            <Link href="/badges">Badge Wallet</Link>
+            <Link href="/grades">Grades</Link>
+            <Link href="/settings">Settings</Link>
+          </nav>
+
+          {/* Right: student avatar + name from DB */}
+          <div className={styles.userArea}>
+            <div className={styles.userNameBlock}>
+              <div className={styles.userNameLine1}>{firstName},</div>
+              <div className={styles.userNameLine2}>{lastName}</div>
+            </div>
+            <div className={styles.userAvatar}>
+              {studentAvatarUrl ? (
+                <Image
+                  src={studentAvatarUrl}
+                  alt={`${resolvedStudentName} avatar`}
+                  width={44}
+                  height={44}
+                  className={styles.userAvatarImage}
+                />
+              ) : (
+                <span className={styles.userAvatarInitials}>{initialsFromName(resolvedStudentName)}</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
       <div className={styles.content}>
         <aside className={styles.timeline}>
           {timelineItems.map((item) => {
@@ -1035,22 +1277,10 @@ export function LessonVideoPage({
           <div className={styles.videoHeader}>
             <div className={styles.videoHeadingLeft}>
               <h1 className={styles.videoTitle}>{lesson.title}</h1>
-              {/* Optional subtitle under the title; if you don't have one, remove this line */}
-              {/* <p className={styles.videoSubtitle}>Shutdown Steps</p> */}
             </div>
 
-            <div className={styles.videoSegment}>{primaryVideoSegment?.title ?? 'Segment 1'}</div>
+            <div className={styles.videoSegment}>{videoStageLabel}</div>
           </div>
-          {ENABLE_QEV_SKIP ? (
-            <div className={styles.debugControls}>
-              <button type="button" onClick={handleSkipToNextCheckpoint}>
-                Skip to next checkpoint (demo)
-              </button>
-              <button type="button" onClick={handleUnlockProgressForTesting} disabled={duration <= 0}>
-                Unlock progress bar (testing)
-              </button>
-            </div>
-          ) : null}
 
           <div
             className={styles.videoWrapper}
@@ -1061,81 +1291,111 @@ export function LessonVideoPage({
             <div id={playerElementId} className={styles.youtubeFrame} />
 
             <div className={`${styles.qevBar} ${controlsVisible ? '' : styles.qevBarHidden}`}>
-              <button
-                type="button"
-                className={styles.qevBtn}
-                onClick={togglePlay}
-                disabled={modalState !== 'none'}
-                id="qevPlayBtn"
-                aria-label={isPlaying ? 'Pause' : 'Continue'}
-                data-state={isPlaying ? 'pause' : 'continue'}
-              >
-                <span className={styles.iconPlayPause} />
-                {!isPlaying && modalState === 'none' ? <span className={styles.btnLabel}>Continue</span> : null}
-              </button>
+              {/* TOP ROW: progress bar + time */}
+              <div className={styles.qevTopRow}>
+                <div className={styles.qevRailWrap}>
+                  {duration > 0 &&
+                    orderedCheckpoints.map((cp) => {
+                      const leftPct = Math.min(100, Math.max(0, (cp.timeOffsetSeconds / duration) * 100));
+                      const done = completedCheckpointIds.includes(cp.id);
+                      const curr = currentCheckpoint?.id === cp.id;
+                      const cls = [styles.qevBreak, done ? styles.qevBreakDone : '', curr ? styles.qevBreakCurrent : '']
+                        .filter(Boolean)
+                        .join(' ');
+                      return <span key={cp.id} className={cls} style={{ left: `${leftPct}%` }} />;
+                    })}
 
-              <button
-                type="button"
-                className={styles.qevBtn}
-                onClick={toggleMute}
-                aria-label={isMuted ? 'Unmute' : 'Mute'}
-                id="qevMuteBtn"
-              >
-                <span className={styles.iconVolume}>
-                  <span className={styles.iconSpeaker} />
-                  {isMuted ? <span className={styles.iconVolumeSlash} /> : <span className={styles.iconVolumeWaves} />}
+                  <input
+                    type="range"
+                    className={styles.qevRange}
+                    min={0}
+                    max={Math.max(duration, 1)}
+                    step={0.1}
+                    value={Math.min(currentTime, Math.max(duration, 1), resolveMaxSeekableTime())}
+                    style={rangeStyle}
+                    onChange={(e) => {
+                      const raw = Number(e.currentTarget.value);
+                      const val = Math.max(0, Math.min(raw, resolveMaxSeekableTime()));
+
+                      if (raw !== val) {
+                        e.currentTarget.value = String(val);
+                      }
+                      seekTo(val, true);
+                      if (modalState === 'none') {
+                        setControlsVisible(true);
+                        scheduleHide();
+                      }
+
+                      if (
+                        modalState === 'none' &&
+                        firstIncompleteCheckpoint &&
+                        val >= firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD
+                      ) {
+                        playerRef.current?.pauseVideo?.();
+                        openCheckpointModal(firstIncompleteCheckpoint.id);
+                      }
+                    }}
+                  />
+                </div>
+
+                <span className={styles.qevTime}>
+                  {formatTime(currentTime)} / {formatTime(duration)}
                 </span>
-              </button>
+              </div>
 
-              <span className={styles.qevTime}>
-                {formatTime(currentTime)} / {formatTime(duration)}
-              </span>
+              {/* BOTTOM ROW: buttons */}
+              <div className={styles.qevBottomRow}>
+                {/* Play / Pause */}
+                <button
+                  type="button"
+                  className={styles.qevBtn}
+                  onClick={togglePlay}
+                  disabled={modalState !== 'none'}
+                  aria-label={isPlaying ? 'Pause' : 'Play'}
+                >
+                  <Image
+                    src={isPlaying ? pauseIcon : playIcon}
+                    alt={isPlaying ? 'Pause' : 'Play'}
+                    className={styles.qevIcon}
+                    width={30}
+                    height={30}
+                  />
+                </button>
 
-              <div className={styles.qevRailWrap}>
-                {duration > 0 &&
-                  orderedCheckpoints.map((cp) => {
-                    const leftPct = Math.min(100, Math.max(0, (cp.timeOffsetSeconds / duration) * 100));
-                    const done = completedCheckpointIds.includes(cp.id);
-                    const curr = currentCheckpoint?.id === cp.id;
-                    const cls = [styles.qevBreak, done ? styles.qevBreakDone : '', curr ? styles.qevBreakCurrent : '']
-                      .filter(Boolean)
-                      .join(' ');
-                    return <span key={cp.id} className={cls} style={{ left: `${leftPct}%` }} />;
-                  })}
+                {/* Volume */}
+                <button
+                  type="button"
+                  className={styles.qevBtn}
+                  onClick={toggleMute}
+                  aria-label={isMuted ? 'Unmute' : 'Mute'}
+                >
+                  <Image
+                    src="/assets/lesson/qev/Volume.svg"
+                    alt={isMuted ? 'Muted' : 'Volume'}
+                    className={styles.qevIcon}
+                    width={41}
+                    height={41}
+                  />
+                </button>
 
-                <input
-                  type="range"
-                  className={styles.qevRange}
-                  min={0}
-                  max={Math.max(duration, 1)}
-                  step={0.1}
-                  value={Math.min(currentTime, Math.max(duration, 1), resolveMaxSeekableTime())}
-                  style={rangeStyle}
-                  onChange={(e) => {
-                    const raw = Number(e.currentTarget.value);
-                    const val = Math.max(0, Math.min(raw, resolveMaxSeekableTime()));
-
-                    if (raw !== val) {
-                      e.currentTarget.value = String(val);
-                    }
-                    seekTo(val, true);
-                    if (modalState === 'none') {
-                      setControlsVisible(true);
-                      scheduleHide();
-                    }
-
-                    if (
-                      modalState === 'none' &&
-                      firstIncompleteCheckpoint &&
-                      val >= firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD
-                    ) {
-                      playerRef.current?.pauseVideo?.();
-                      openCheckpointModal(firstIncompleteCheckpoint.id);
-                    }
-                  }}
-                />
+                {/* Rewind (e.g., back 10s) */}
+                <button
+                  type="button"
+                  className={styles.qevBtn}
+                  onClick={() => seekTo(Math.max(0, currentTime - 10))}
+                  aria-label="Rewind 10 seconds"
+                >
+                  <Image
+                    src="/assets/lesson/qev/Rewind.svg"
+                    alt="Rewind"
+                    className={styles.qevIcon}
+                    width={34}
+                    height={34}
+                  />
+                </button>
               </div>
             </div>
+
             {ENABLE_QEV_SKIP && (firstIncompleteCheckpoint || !lessonSurveyCompleted) ? (
               <div className={styles.qevDemoSkip}>
                 <button type="button" onClick={handleSkipToNextCheckpoint}>
@@ -1205,12 +1465,7 @@ export function LessonVideoPage({
                                   onChange={(event) => handleShortAnswerChange(currentQuestion.id, event.target.value)}
                                   placeholder="Enter a number"
                                 />
-                                <p className={styles.shortAnswerHelp}>
-                                  Enter a numeric response
-                                  {currentQuestion.tolerancePercent > 0
-                                    ? ` (±${currentQuestion.tolerancePercent}% accepted).`
-                                    : '.'}
-                                </p>
+                                <p className={styles.shortAnswerHelp}>Enter a numeric response</p>
                                 {currentAnswer?.kind === 'shortAnswer' && currentAnswer.hasError ? (
                                   <p className={styles.shortAnswerError}>Please enter a numeric answer.</p>
                                 ) : null}
@@ -1241,42 +1496,61 @@ export function LessonVideoPage({
                     )
                   ) : null}
 
-                  {modalState === 'result' && attemptSummary ? (
-                    <>
-                      <h2 className={styles.modalTitle}>That wasn’t quite right.</h2>
-                      <p className={styles.modalDescription}>
-                        You must answer all questions correctly to move on to the next segment.
-                      </p>
-                      <ul className={styles.questionList}>
-                        {attemptSummary.questions.map((question, index) => (
-                          <li key={question.questionId}>
-                            <span>
-                              {question.isCorrect ? '✓' : '✗'} Question {index + 1}
-                            </span>
-                            <span className={styles.statusIcon}>{question.isCorrect ? '✓' : '✗'}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {networkError ? (
-                        <p style={{ color: '#dc2626', fontWeight: 600, marginTop: '0.75rem' }}>{networkError}</p>
-                      ) : null}
-                      <div className={styles.controlRow}>
-                        <button
-                          type="button"
-                          className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
-                          onClick={handleRewatch}
-                        >
-                          Rewatch
-                        </button>
-                        <button
-                          type="button"
-                          className={`${styles.controlButton} ${styles.controlButtonPrimary}`}
-                          onClick={handleTryAgain}
-                        >
-                          Try again
-                        </button>
-                      </div>
-                    </>
+                  {modalState === 'result' ? (
+                    attemptSummary ? (
+                      <>
+                        <h2 className={styles.modalTitle}>Checkpoint summary</h2>
+                        <p className={styles.modalDescription}>Here’s how you did.</p>
+                        <ul className={styles.questionList}>
+                          {attemptSummary.questions.map((question, index) => (
+                            <li key={question.questionId}>
+                              <span>
+                                {question.isCorrect ? '✓' : '✗'} Question {index + 1}
+                              </span>
+                              <span className={styles.statusIcon}>{question.isCorrect ? '✓' : '✗'}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <div className={styles.controlRow}>
+                          <button
+                            type="button"
+                            className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
+                            onClick={handleRewatch}
+                          >
+                            Rewatch section
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.controlButton} ${styles.controlButtonPrimary}`}
+                            onClick={handleContinueAfterResult}
+                          >
+                            Continue
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <h2 className={styles.modalTitle}>We couldn’t save your answers</h2>
+                        <p className={styles.modalDescription}>{networkError || 'Please try submitting again.'}</p>
+                        <div className={styles.controlRow}>
+                          <button
+                            type="button"
+                            className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
+                            onClick={handleRewatch}
+                          >
+                            Rewatch
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.controlButton} ${styles.controlButtonPrimary}`}
+                            onClick={submitAttempt}
+                            disabled={isSubmitting}
+                          >
+                            {isSubmitting ? 'Submitting…' : 'Retry submission'}
+                          </button>
+                        </div>
+                      </>
+                    )
                   ) : null}
 
                   {modalState === 'success' ? (
@@ -1286,12 +1560,48 @@ export function LessonVideoPage({
                     </>
                   ) : null}
 
+                  {modalState === 'lessonFailed' ? (
+                    <>
+                      <h2 className={styles.modalTitle}>Lesson needs another try</h2>
+                      <p className={styles.modalDescription}>
+                        Your grade for this lesson is{' '}
+                        <strong>{lessonAssessment ? `${lessonAssessment.gradePercent.toFixed(1)}%` : '—'}</strong>,
+                        which is below the instructor threshold of{' '}
+                        <strong>{lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}</strong>. Please redo
+                        the lesson.
+                      </p>
+                      {assessmentError ? <p className={styles.modalError}>{assessmentError}</p> : null}
+                      <div className={styles.modalActions}>
+                        <button type="button" className={styles.modalSecondary} onClick={handleRestartAfterFailure}>
+                          Restart now
+                        </button>
+                        <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
+                          Back to dashboard
+                        </button>
+                      </div>
+                    </>
+                  ) : null}
+
                   {modalState === 'lessonComplete' ? (
                     <>
                       <h2 className={styles.modalTitle}>Lesson Completed</h2>
                       <p className={styles.modalDescription}>
                         You’re all set! Show your assessor the QR code to finalize this lesson.
                       </p>
+                      <div className={styles.modalStats}>
+                        <div className={styles.modalStat}>
+                          Grade
+                          <span className={styles.modalStatValue}>
+                            {lessonAssessment ? `${lessonAssessment.gradePercent.toFixed(1)}%` : '—'}
+                          </span>
+                        </div>
+                        <div className={styles.modalStat}>
+                          Required to pass
+                          <span className={styles.modalStatValue}>
+                            {lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}
+                          </span>
+                        </div>
+                      </div>
                       <div className={styles.modalActions}>
                         <button type="button" className={styles.modalSecondary} onClick={handleShowQrCode}>
                           Show QR code
@@ -1307,6 +1617,16 @@ export function LessonVideoPage({
             ) : null}
           </div>
         </div>
+        {ENABLE_QEV_SKIP ? (
+          <div className={styles.debugControls}>
+            <button type="button" onClick={handleSkipToNextCheckpoint}>
+              Skip to next checkpoint (demo)
+            </button>
+            <button type="button" onClick={handleUnlockProgressForTesting} disabled={duration <= 0}>
+              Unlock progress bar (testing)
+            </button>
+          </div>
+        ) : null}
       </div>
       {effectiveLessonSurvey && modalState === 'lessonSurvey' && (
         <div className={styles.lessonSurveyOverlay}>
@@ -1319,14 +1639,15 @@ export function LessonVideoPage({
                 const isSelected = lessonSurveyRating === face.value;
                 const imgClassNames = [
                   styles.lessonSurveyFaceImage,
-                  face.value === 4 ? styles.lessonSurveyFaceImageForceBlue : '',
                   isSelected ? styles.lessonSurveyFaceImageSelected : '',
                 ]
                   .filter(Boolean)
                   .join(' ');
+                const iconSrc = isSelected ? (face.selectedIcon ?? face.icon) : face.icon;
                 const faceClass = [styles.lessonSurveyFace, isSelected ? styles.lessonSurveyFaceSelected : '']
                   .filter(Boolean)
                   .join(' ');
+
                 return (
                   <button
                     key={face.value}
@@ -1335,7 +1656,7 @@ export function LessonVideoPage({
                     onClick={() => handleLessonSurveyFaceSelect(face.value)}
                     aria-pressed={isSelected}
                   >
-                    <Image src={face.icon} alt={face.label} className={imgClassNames} />
+                    <Image src={iconSrc} alt={face.label} className={imgClassNames} />
                   </button>
                 );
               })}
@@ -1344,9 +1665,9 @@ export function LessonVideoPage({
               type="button"
               className={styles.lessonSurveySubmit}
               onClick={submitLessonSurvey}
-              disabled={lessonSurveySubmitting}
+              disabled={lessonSurveySubmitting || assessingLesson}
             >
-              {lessonSurveySubmitting ? 'Submitting…' : 'Submit feedback'}
+              {lessonSurveySubmitting || assessingLesson ? 'Submitting…' : 'Submit feedback'}
             </button>
           </div>
         </div>

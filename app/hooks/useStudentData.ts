@@ -91,6 +91,7 @@ export interface LessonRecord {
   estimatedMinutes: number | null;
   dueDate: string | null;
   sortOrder: number;
+  passingPercent: number;
   status: LessonStatus;
   percentComplete: number;
   completedCheckpointIds: string[];
@@ -125,9 +126,13 @@ export interface LessonRecord {
       type: 'multipleChoice' | 'shortAnswer';
       expectedAnswer: number | null;
       tolerancePercent: number;
+      acceptedRange: { min: number; max: number } | null;
     }>;
   }>;
   skills: string[];
+  lastGradePercent: number | null;
+  lastGradePassed: boolean | null;
+  lastGradedAt: string | null;
 }
 
 export interface BadgeRecord {

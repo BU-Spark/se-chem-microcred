@@ -60,6 +60,9 @@ function formatLesson({
   resumeTimeSeconds = 0,
   answeredCount = 0,
   answeredCheckpointIds = [],
+  lastGradePercent = null,
+  lastGradePassed = null,
+  lastGradedAt = null,
 }: {
   lesson: Awaited<ReturnType<typeof fetchLessons>>[number];
   progress?: Awaited<ReturnType<typeof fetchLessonProgress>> extends Array<infer T> ? T : never;
@@ -67,6 +70,9 @@ function formatLesson({
   resumeTimeSeconds?: number;
   answeredCount?: number;
   answeredCheckpointIds?: string[];
+  lastGradePercent?: number | null;
+  lastGradePassed?: boolean | null;
+  lastGradedAt?: Date | null;
 }) {
   const segmentStatusMap = new Map<string, SegmentStatus>();
   if (progress) {
@@ -84,7 +90,7 @@ function formatLesson({
   }, {});
 
   let derivedStatus = progress?.status ?? LessonStatus.NOT_STARTED;
-  if (derivedStatus !== LessonStatus.COMPLETED && answeredCount > 0) {
+  if (derivedStatus !== LessonStatus.COMPLETED && (answeredCount > 0 || lastGradePassed === false)) {
     derivedStatus = LessonStatus.IN_PROGRESS;
   }
 
@@ -98,6 +104,7 @@ function formatLesson({
     estimatedMinutes: lesson.estimatedMinutes,
     dueDate: lesson.dueDate?.toISOString() ?? null,
     sortOrder: lesson.sortOrder,
+    passingPercent: lesson.passingPercent,
     status: derivedStatus,
     percentComplete: 0, // placeholder; recomputed later with checkpoints + survey
     completedCheckpointIds,
@@ -127,6 +134,9 @@ function formatLesson({
       questions: checkpoint.questions.map((question) => normalizeCheckpointQuestion(question)),
     })),
     skills: lesson.skills.map((skill) => skill.text),
+    lastGradePercent: lastGradePercent ?? null,
+    lastGradePassed: lastGradePassed ?? null,
+    lastGradedAt: lastGradedAt ? lastGradedAt.toISOString() : null,
   };
 }
 
@@ -336,6 +346,9 @@ export async function GET() {
           : resumeTimeSeconds,
       answeredCount,
       answeredCheckpointIds,
+      lastGradePercent: lessonProgress?.lastGradePercent ?? null,
+      lastGradePassed: lessonProgress?.lastGradePassed ?? null,
+      lastGradedAt: lessonProgress?.lastGradedAt ?? null,
     });
 
     // Recompute percentComplete based on passed checkpoints + lesson survey

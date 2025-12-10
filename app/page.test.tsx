@@ -57,11 +57,15 @@ function createLesson(id: string, overrides: Partial<LessonRecord> = {}): Lesson
     estimatedMinutes: 10,
     dueDate: new Date().toISOString(),
     sortOrder: 0,
+    passingPercent: 70,
     status: 'NOT_STARTED',
     percentComplete: 0,
     segments: [],
     checkpoints: [],
     skills: [],
+    lastGradePercent: null,
+    lastGradePassed: null,
+    lastGradedAt: null,
   };
 
   return {

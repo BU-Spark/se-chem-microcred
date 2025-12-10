@@ -7,11 +7,16 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type LessonRecord } from './hooks/useStudentData';
 import styles from './page.module.css';
-import veryUnhappy from '../public/assets/survey_faces/very_unhappy.png';
-import slightlyUnhappy from '../public/assets/survey_faces/slightly_unhappy.png';
-import neutral from '../public/assets/survey_faces/neutral.png';
-import slightlyHappy from '../public/assets/survey_faces/slightly_happy.png';
-import veryHappy from '../public/assets/survey_faces/very_happy.png';
+import veryUnhappy from '../public/assets/survey_faces/very_unhappy.svg';
+import slightlyUnhappy from '../public/assets/survey_faces/slightly_unhappy.svg';
+import neutral from '../public/assets/survey_faces/neutral.svg';
+import slightlyHappy from '../public/assets/survey_faces/slightly_happy.svg';
+import veryHappy from '../public/assets/survey_faces/very_happy.svg';
+import veryUnhappySelected from '../public/assets/survey_faces/very_unhappy_selected.svg';
+import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unhappy_selected.svg';
+import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
+import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
+import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
 
 interface LessonCard {
   id: string;
@@ -155,23 +160,6 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
   };
 }
 
-function getFaceFilter(value: number, isSelected: boolean): string {
-  // Selected state → everything should look lime-ish (#C9DB50)
-  if (isSelected) {
-    // turn blue to lime; for the lime icon this is a small tweak
-    return 'hue-rotate(-140deg) saturate(130%) brightness(1.05)';
-  }
-
-  // Default state:
-  // faces 1,2,3,5 are already brand blue; do nothing
-  if (value !== 4) {
-    return 'none';
-  }
-
-  // Face 4 (slightly_happy) source is lime; shift it to blue for default
-  return 'hue-rotate(140deg) saturate(110%) brightness(0.95)';
-}
-
 function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -196,6 +184,13 @@ function HomePageContent() {
     4: slightlyHappy,
     5: veryHappy,
   };
+  const FACE_IMAGES_SELECTED: Record<number, StaticImageData> = {
+    1: veryUnhappySelected,
+    2: slightlyUnhappySelected,
+    3: neutralSelected,
+    4: slightlyHappySelected,
+    5: veryHappySelected,
+  };
 
   const FACE_ALTS: Record<number, string> = {
     1: 'Very unhappy',
@@ -207,6 +202,20 @@ function HomePageContent() {
 
   const displayName = studentData?.student?.name || user?.fullName || 'Student';
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
+  const readyForFinalization = useMemo(() => studentData?.badges?.readyForFinalization ?? [], [studentData]);
+
+  const readyBadgeAlerts = useMemo(() => {
+    if (pendingSurveyBadges.length > 0) {
+      return pendingSurveyBadges;
+    }
+    return readyForFinalization.map((badge) => ({
+      promptId: `auto-${badge.id}`,
+      badgeId: badge.id,
+      badgeSlug: badge.slug,
+      badgeName: badge.name,
+      question: `Complete the final survey for ${badge.name}`,
+    }));
+  }, [pendingSurveyBadges, readyForFinalization]);
 
   useEffect(() => {
     const slug = searchParams.get('surveyBadge');
@@ -271,7 +280,7 @@ function HomePageContent() {
       badgeName: string | null;
       question: string;
     }) => {
-      const surveyTarget = target ?? pendingSurveyBadges[0];
+      const surveyTarget = target ?? readyBadgeAlerts[0];
       if (!surveyTarget) {
         return;
       }
@@ -286,7 +295,7 @@ function HomePageContent() {
       const nextPath = `${pathname}?${params.toString()}`;
       router.replace(nextPath, { scroll: false });
     },
-    [pendingSurveyBadges, pathname, router, searchParams]
+    [readyBadgeAlerts, pathname, router, searchParams]
   );
 
   const handleSubmitSurvey = useCallback(async () => {
@@ -386,7 +395,6 @@ function HomePageContent() {
           <button type="button" onClick={handleSignOut} className={styles.signOffButton} disabled={isSigningOut}>
             {isSigningOut ? 'Signing off…' : 'Sign off'}
           </button>
-          <div className={styles.brandFooter}>checkd.</div>
         </div>
       </aside>
 
@@ -395,19 +403,22 @@ function HomePageContent() {
           <div className={styles.alertWrapper}>
             <div
               className={styles.alert}
-              data-active={pendingSurveyBadges.length > 0}
-              onClick={pendingSurveyBadges.length > 0 ? () => handleStartSurvey() : undefined}
+              data-active={readyBadgeAlerts.length > 0}
+              onClick={readyBadgeAlerts.length > 0 ? () => handleStartSurvey() : undefined}
             >
-              {pendingSurveyBadges.length > 0 ? (
+              {readyBadgeAlerts.length > 0 ? (
                 <>
                   <Image
                     src="/assets/survey_alarm/survey_alarm_x_icon.png"
                     alt="Survey reminder"
                     className={styles.alertIcon}
+                    width={24}
+                    height={24}
                   />
                   <span className={styles.alertText}>
-                    Complete feedback survey to finalize this badge. You can find the survey under “Ready to be
-                    Finalized” in your Badge Wallet
+                    {readyBadgeAlerts.length === 1
+                      ? `Complete feedback for ${readyBadgeAlerts[0]?.badgeName ?? 'your badge'} to finalize it.`
+                      : `You have ${readyBadgeAlerts.length} badges ready to finalize. Start the surveys to finish.`}
                   </span>
                 </>
               ) : (
@@ -454,6 +465,10 @@ function HomePageContent() {
                 const buttonClass = [styles.surveyFace, isSelected ? styles.surveyFaceSelected : '']
                   .filter(Boolean)
                   .join(' ');
+                const imgClassNames = [styles.surveyFaceImage, isSelected ? styles.surveyFaceImageSelected : '']
+                  .filter(Boolean)
+                  .join(' ');
+                const iconSrc = isSelected ? FACE_IMAGES_SELECTED[value] : FACE_IMAGES[value];
 
                 return (
                   <button
@@ -462,13 +477,9 @@ function HomePageContent() {
                     className={buttonClass}
                     onClick={() => setSurveyRating(value)}
                     aria-pressed={isSelected}
+                    aria-label={FACE_ALTS[value]}
                   >
-                    <Image
-                      src={FACE_IMAGES[value]}
-                      alt={FACE_ALTS[value]}
-                      className={styles.surveyFaceImage}
-                      style={{ filter: getFaceFilter(value, isSelected) }}
-                    />
+                    <Image src={iconSrc} alt={FACE_ALTS[value]} className={imgClassNames} />
                   </button>
                 );
               })}

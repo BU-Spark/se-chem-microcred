@@ -16,6 +16,7 @@ export type NormalizedCheckpointQuestion = {
   correctIndex: number | null;
   expectedAnswer: number | null;
   tolerancePercent: number;
+  acceptedRange: { min: number; max: number } | null;
 };
 
 export type RawCheckpointQuestion = {
@@ -47,6 +48,18 @@ function coerceShortAnswerOptions(value: Prisma.JsonValue): ShortAnswerOptions |
   };
 }
 
+export function computeAcceptedRange(expected: number | null, tolerancePercent: number) {
+  if (!Number.isFinite(expected ?? NaN)) {
+    return null;
+  }
+  const tolerance = Math.max(0, tolerancePercent);
+  const lowerBound = expected * (1 - tolerance / 100);
+  const upperBound = expected * (1 + tolerance / 100);
+  const min = Math.min(lowerBound, upperBound);
+  const max = Math.max(lowerBound, upperBound);
+  return { min, max };
+}
+
 export function normalizeCheckpointQuestion(question: RawCheckpointQuestion): NormalizedCheckpointQuestion {
   const shortAnswer = coerceShortAnswerOptions(question.options);
 
@@ -57,6 +70,7 @@ export function normalizeCheckpointQuestion(question: RawCheckpointQuestion): No
     const tolerancePercentValue = Number.isFinite(shortAnswer.tolerancePercent ?? NaN)
       ? Math.max(0, Number(shortAnswer.tolerancePercent))
       : 0;
+    const acceptedRange = computeAcceptedRange(expectedAnswer, tolerancePercentValue);
 
     return {
       id: question.id,
@@ -66,6 +80,7 @@ export function normalizeCheckpointQuestion(question: RawCheckpointQuestion): No
       correctIndex: null,
       expectedAnswer,
       tolerancePercent: tolerancePercentValue,
+      acceptedRange,
     };
   }
 
@@ -79,6 +94,7 @@ export function normalizeCheckpointQuestion(question: RawCheckpointQuestion): No
     correctIndex: question.correctIndex ?? null,
     expectedAnswer: null,
     tolerancePercent: 0,
+    acceptedRange: null,
   };
 }
 
@@ -100,10 +116,9 @@ export function parseNumericAnswer(value: unknown): number | null {
 }
 
 export function isAnswerWithinTolerance(expected: number, received: number, tolerancePercent: number) {
-  const tolerance = Math.max(0, tolerancePercent);
-  const lowerBound = expected * (1 - tolerance / 100);
-  const upperBound = expected * (1 + tolerance / 100);
-  const min = Math.min(lowerBound, upperBound);
-  const max = Math.max(lowerBound, upperBound);
-  return received >= min && received <= max;
+  const range = computeAcceptedRange(expected, tolerancePercent);
+  if (!range) {
+    return false;
+  }
+  return received >= range.min && received <= range.max;
 }
