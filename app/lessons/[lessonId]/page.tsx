@@ -7,8 +7,8 @@ import { useRouter, useParams, usePathname } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
-import finishLogo from '../../../assets/lesson/lesson_preview/finish_logo.svg';
-import backArrow from '../../../assets/lesson/lesson_preview/back_arrow.svg';
+import finishLogo from '../../../public/assets/lesson/lesson_preview/finish_logo.svg';
+import backArrow from '../../../public/assets/lesson/lesson_preview/back_arrow.svg';
 
 const NAV = [
   { href: '/', label: 'Home' },

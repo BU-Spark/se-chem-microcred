@@ -7,7 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth, useUser, useClerk } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
-import editIcon from '../../assets/profile/edit.png';
+import editIcon from '../../public/assets/profile/edit.png';
 
 const NAV_ITEMS = [
   { label: 'Home', href: '/' },

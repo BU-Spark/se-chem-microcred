@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
-import checkedLogo from '../../assets/checked_logo.png';
+import checkedLogo from '../../public/assets/checked_logo.png';
 
 export function GlobalHeader() {
   const pathname = usePathname() || '';
