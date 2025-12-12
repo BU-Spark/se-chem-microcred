@@ -198,6 +198,12 @@
   transform: translateY(-6px) scale(1.02);
 }
 
+.badgeToken:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 4px;
+  transform: translateY(-6px) scale(1.02);
+}
+
 .badgeTokenActive {
   transform: translateY(-12px) scale(1.08);
   box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.32);
@@ -286,6 +292,11 @@
   cursor: pointer;
 }
 
+.modalActionPrimary:focus-visible {
+  outline: 2px solid #1f5fab;
+  outline-offset: 2px;
+}
+
 .modalActionSecondary {
   padding: 0.6rem 1.4rem;
   border-radius: 999px;
@@ -294,6 +305,11 @@
   color: #1f5fab;
   font-weight: 600;
   cursor: pointer;
+}
+
+.modalActionSecondary:focus-visible {
+  outline: 2px solid #1f5fab;
+  outline-offset: 2px;
 }
 
 .modalActionLink {
