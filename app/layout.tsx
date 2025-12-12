@@ -6,8 +6,11 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalHeader } from './components/GlobalHeader'; // 👈 NEW
 import './globals.css';
 
-const clerkPublishableKey =
-  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY || 'pk_test_placeholder';
+const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY;
+
+if (!clerkPublishableKey) {
+  throw new Error('Missing Clerk publishable key. Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY environment variable.');
+}
 
 export const metadata: Metadata = {
   title: 'ChemSkills Demo',
