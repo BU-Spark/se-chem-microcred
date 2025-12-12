@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useParams, usePathname } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
+import { useAuth } from '../../hooks/useAuth';
 import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 import finishLogo from '../../../public/assets/lesson/lesson_preview/finish_logo.svg';
@@ -44,6 +45,7 @@ export default function LessonDetailPage() {
   const pathname = usePathname();
 
   const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useAuth();
   const { data: studentData, isLoading } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null);
 
   // Redirect only after hooks have run
@@ -204,7 +206,18 @@ export default function LessonDetailPage() {
         </nav>
 
         <div className="sidebarFooter">
-          <button className="signOffButton" type="button" onClick={() => router.push('/sign-in')}>
+          <button
+            className="signOffButton"
+            type="button"
+            onClick={async () => {
+              try {
+                await signOut();
+                router.replace('/sign-in');
+              } catch (error) {
+                console.error('Failed to sign out', error);
+              }
+            }}
+          >
             Sign off
           </button>
           <div className="brandFooter">checkd.</div>
