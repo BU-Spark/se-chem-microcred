@@ -306,7 +306,7 @@ export async function GET() {
       return sum + (answeredSet ? Math.min(answeredSet.size, cp.questions.length) : 0);
     }, 0);
     const allCheckpointsPassed =
-      lesson.checkpoints.length > 0 &&
+      lesson.checkpoints.length === 0 ||
       lesson.checkpoints.every((checkpoint) => passingCheckpointIds.has(checkpoint.id));
     const completedCheckpointIds = lesson.checkpoints
       .filter((checkpoint) => passingCheckpointIds.has(checkpoint.id))

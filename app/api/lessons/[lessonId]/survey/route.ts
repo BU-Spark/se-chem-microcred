@@ -149,7 +149,8 @@ export async function POST(request: Request, context: RouteContext) {
   ]);
 
   const passedCheckpointIds = new Set(passedAttempts.map((entry) => entry.checkpointId));
-  const allCheckpointsPassed = lessonCheckpoints.every((checkpoint) => passedCheckpointIds.has(checkpoint.id));
+  const allCheckpointsPassed =
+    lessonCheckpoints.length === 0 || lessonCheckpoints.every((checkpoint) => passedCheckpointIds.has(checkpoint.id));
   const videoCompleted = Boolean(payload.videoCompleted);
 
   let readyForAssessment = false;
