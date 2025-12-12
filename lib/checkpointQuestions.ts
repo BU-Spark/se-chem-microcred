@@ -49,7 +49,7 @@ function coerceShortAnswerOptions(value: Prisma.JsonValue): ShortAnswerOptions |
 }
 
 export function computeAcceptedRange(expected: number | null, tolerancePercent: number) {
-  if (!Number.isFinite(expected ?? NaN)) {
+  if (expected == null || !Number.isFinite(expected)) {
     return null;
   }
   const tolerance = Math.max(0, tolerancePercent);
