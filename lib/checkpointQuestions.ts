@@ -85,13 +85,15 @@ export function normalizeCheckpointQuestion(question: RawCheckpointQuestion): No
   }
 
   const optionsArray = Array.isArray(question.options) ? question.options.map((option) => String(option)) : [];
+  const ci = question.correctIndex ?? null;
+  const correctIndex = ci != null && Number.isInteger(ci) && ci >= 0 && ci < optionsArray.length ? ci : null;
 
   return {
     id: question.id,
     prompt: question.prompt,
     type: 'multipleChoice',
     options: optionsArray,
-    correctIndex: question.correctIndex ?? null,
+    correctIndex,
     expectedAnswer: null,
     tolerancePercent: 0,
     acceptedRange: null,
