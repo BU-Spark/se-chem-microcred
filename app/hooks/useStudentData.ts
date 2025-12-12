@@ -121,7 +121,7 @@ export interface LessonRecord {
     questions: Array<{
       id: string;
       prompt: string;
-      options: string[];
+      options: string[] | Record<string, unknown>;
       correctIndex: number | null;
       type: 'multipleChoice' | 'shortAnswer';
       expectedAnswer: number | null;

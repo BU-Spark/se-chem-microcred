@@ -81,7 +81,7 @@ interface AttemptSummary {
   questions: Array<{
     questionId: string;
     prompt: string;
-    options: string[];
+    options: string[] | Record<string, unknown>;
     selectedIndex: number | null;
     numericAnswer: number | null;
     correctIndex: number | null;
@@ -947,15 +947,7 @@ export function LessonVideoPage({
     } finally {
       setIsSubmitting(false);
     }
-  }, [
-    currentCheckpoint,
-    orderedCheckpoints,
-    resetAfterCheckpoint,
-    scheduleCheckpointSuppression,
-    seekTo,
-    selectedAnswers,
-    studentEmail,
-  ]);
+  }, [currentCheckpoint, scheduleCheckpointSuppression, selectedAnswers, studentEmail]);
 
   const handleAdvance = useCallback(() => {
     if (!currentCheckpoint) {

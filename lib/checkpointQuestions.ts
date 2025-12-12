@@ -12,7 +12,7 @@ export type NormalizedCheckpointQuestion = {
   id: string;
   prompt: string;
   type: QuestionType;
-  options: string[];
+  options: string[] | Record<string, unknown>;
   correctIndex: number | null;
   expectedAnswer: number | null;
   tolerancePercent: number;
