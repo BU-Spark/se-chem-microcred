@@ -129,7 +129,7 @@ export default function BadgeFeedbackPage() {
   }, [studentData]);
 
   const badge = allBadges.find((entry) => entry.slug === params.badgeSlug);
-  const content = REVIEW_CONTENT[params.badgeSlug] ?? REVIEW_CONTENT['bunsen-burner-badge'];
+  const content = REVIEW_CONTENT[params.badgeSlug];
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !studentData) {
@@ -147,6 +147,63 @@ export default function BadgeFeedbackPage() {
 
   if (!badge) {
     return null;
+  }
+
+  if (!content) {
+    return (
+      <div className="page">
+        <aside className="sidebar">
+          <div className={`${styles.sidebarProfile} profile`}>
+            <div className={`${styles.sidebarAvatar} avatar`}>{initialsFromName(displayName)}</div>
+            <div className={`${styles.sidebarName} name`}>{displayName}</div>
+          </div>
+
+          <nav className={`${styles.sidebarNavList} navList`} aria-label="Main">
+            {NAV_ITEMS.map((item) => {
+              const isActive = pathname === item.href || (item.href === '/badges' && pathname.startsWith('/badges'));
+              const cls = `navItem${isActive ? ' navItemActive' : ''} ${styles.sidebarNavItem} ${
+                isActive ? styles.sidebarNavItemActive : ''
+              }`.trim();
+              return (
+                <Link key={item.href} href={item.href} className={cls}>
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          <div className="sidebarFooter">
+            <button
+              type="button"
+              className="signOffButton"
+              onClick={() => {
+                void signOut();
+              }}
+            >
+              Sign off
+            </button>
+            <div className="brandFooter">checkd.</div>
+          </div>
+        </aside>
+
+        <main className="main">
+          <div className={styles.pageContent}>
+            <div className={styles.headerRow}>
+              <h1 className={styles.title}>{badge.name}</h1>
+              <div className={styles.brandMark}>checkd.</div>
+            </div>
+
+            <div className={styles.badgeCard}>
+              <h2>Feedback content not yet available</h2>
+              <p>We&apos;re still preparing feedback for this badge. Please check back later.</p>
+              <Link href="/badges" className={styles.modalActionPrimary}>
+                Back to badges
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   const displayName = studentData?.student.name || user?.fullName || 'Student Demo';
