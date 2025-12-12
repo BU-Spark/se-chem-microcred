@@ -41,6 +41,32 @@ export interface YoutubePlayerProps {
   onReady?: (player: YoutubePlayerInstance) => void;
 }
 
+let youtubeIframeApiPromise: Promise<void> | null = null;
+
+function loadYouTubeIframeApi(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (window.YT?.Player) return Promise.resolve();
+  if (youtubeIframeApiPromise) return youtubeIframeApiPromise;
+
+  youtubeIframeApiPromise = new Promise<void>((resolve) => {
+    const existing = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+    if (!existing) {
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      prev?.();
+      resolve();
+    };
+  });
+
+  return youtubeIframeApiPromise;
+}
+
 export function YoutubePlayer({ videoId, startSeconds, onReady }: YoutubePlayerProps) {
   const playerRef = useRef<HTMLDivElement | null>(null);
   const ytPlayerRef = useRef<YoutubePlayerInstance | null>(null);
@@ -51,24 +77,6 @@ export function YoutubePlayer({ videoId, startSeconds, onReady }: YoutubePlayerP
     }
 
     let isSubscribed = true;
-
-    const loadPlayer = () => {
-      const globalYT = window.YT;
-      if (!globalYT || !globalYT.Player) {
-        window.onYouTubeIframeAPIReady = () => {
-          if (!isSubscribed) {
-            return;
-          }
-          createPlayer();
-        };
-        const script = document.createElement('script');
-        script.src = 'https://www.youtube.com/iframe_api';
-        script.async = true;
-        document.body.appendChild(script);
-        return;
-      }
-      createPlayer();
-    };
 
     const createPlayer = () => {
       if (!playerRef.current) {
@@ -95,7 +103,15 @@ export function YoutubePlayer({ videoId, startSeconds, onReady }: YoutubePlayerP
       });
     };
 
-    loadPlayer();
+    loadYouTubeIframeApi()
+      .then(() => {
+        if (isSubscribed) {
+          createPlayer();
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load YouTube Iframe API', err);
+      });
 
     return () => {
       isSubscribed = false;
