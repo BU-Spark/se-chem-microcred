@@ -23,31 +23,47 @@ A Next.js 15 (App Router) application that prototypes the student-facing micro-c
 - **QR flows:** Badge assessment/finalization modals autogenerate QR codes client-side via `api.qrserver.com`, encoding the student + badge payload for in-person validation.
 - **State & UI data flow:** Pages fetch signed-in student context from `/api/demo/student`, normalize into badge/lesson/analytics shapes, and render with CSS Modules scoped per page; media assets served from `public/`.
 
-## Local Setup
+## How to Setup
 
-Prerequisites: Node 18.18+ and PostgreSQL (local or remote).
+Use the provided Prisma/PostgreSQL connection string; you do **not** need to create your own database for this school project.
 
-1) Install dependencies  
-`npm install`
+1) Install prerequisites  
+   - Node.js 18.18+ (recommend `nvm install 18 && nvm use 18`)  
+   - npm 9+ (ships with Node 18)
 
-2) Configure environment  
-Create `.env.local` with the following keys:
-```
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
-CLERK_SECRET_KEY="sk_test_or_live"
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_or_live"
-```
+2) Clone the project and install dependencies  
+   ```bash
+   git clone <your-fork-or-repo-url> chem-skills
+   cd chem-skills
+   npm install
+   ```
 
-3) Apply database schema and seed demo data  
-```
-npx prisma migrate dev --name init
-npm run db:seed
-```
+3) Configure environment variables  
+   - Create `.env.local` in the repo root with the provided Prisma/PostgreSQL URL and your Clerk keys:  
+     ```bash
+     DATABASE_URL="<provided Prisma PostgreSQL URL>"
+     CLERK_SECRET_KEY="sk_test_or_live_from_clerk"
+     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_or_live_from_clerk"
+     ```
+   - To get Clerk keys, create a free Clerk project at https://clerk.com/ and copy the Secret and Publishable keys. The DATABASE_URL should be the shared Prisma connection string supplied for the course.
 
-4) Run the app  
-`npm run dev` then visit `http://localhost:3000`. Sign in with a Clerk user whose email matches the seeded student (default seed: `nx2004@bu.edu`) to load the sample data set.
+4) Apply the database schema and seed demo data (runs against the provided DATABASE_URL)  
+   ```bash
+   npx prisma migrate dev --name init
+   npm run db:seed
+   ```
+   This creates tables and loads the CHEM101 demo student, lessons, badges, checkpoints, and surveys in the shared database.
 
-Other scripts: `npm run build` (production build), `npm start` (after build), `npm run lint`, `npm test`.
+5) Run the dev server  
+   ```bash
+   npm run dev
+   ```
+   Visit http://localhost:3000 and sign in with a Clerk user whose email matches the seeded student (default seed email: `nx2004@bu.edu`). Create that user in Clerk first (Dashboard → Users → Create).
+
+6) (Optional) Validate tooling  
+   - Lint: `npm run lint`  
+   - Tests: `npm test`  
+   - Production build: `npm run build` (followed by `npm start` to serve the build)
 
 ## Application Map
 
@@ -96,6 +112,14 @@ All student pages share the sidebar nav (Home, Profile, My Analytics, Badge Wall
 
 - **Unit tests:** Jest + React Testing Library (`app/page.test.tsx` exercises dashboard rendering). Run with `npm test`.
 - **Linting/formatting:** `npm run lint` (ESLint) is configured with Prettier integration. `npm run lint:debug` enables ESLint debug logging.
+
+## Known Issues
+
+- Skill tracking page UI is not fully aligned with the intended design.
+- Avatar does not render correctly on the QEV page.
+- Lesson checkpoint snapshots currently rely on YouTube thumbnails and do not capture true timestamp stills; proper snapshots would require downloading/processing the video.
+- Completion metrics need reinforcement—percent calculations can be inaccurate in edge cases.
+- QR codes for badge assessment/finalization now come from the internal `/api/qr` route; still consider signing payloads and adding offline caching.
 
 ## Notes for Contributors
 
