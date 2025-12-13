@@ -113,13 +113,18 @@ All student pages share the sidebar nav (Home, Profile, My Analytics, Badge Wall
 - **Unit tests:** Jest + React Testing Library (`app/page.test.tsx` exercises dashboard rendering). Run with `npm test`.
 - **Linting/formatting:** `npm run lint` (ESLint) is configured with Prettier integration. `npm run lint:debug` enables ESLint debug logging.
 
+## Deployment
+
+- Deployment guidance is not finalized. Only the student-facing experience is complete; instructor-facing work is still in progress.
+- When deploying, target a managed Next.js host (e.g., Vercel/Render) and provide the same env vars as local: `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`.
+- Full production steps will be added once the complete experience is ready.
+
 ## Known Issues
 
-- Skill tracking page UI is not fully aligned with the intended design.
+- Skill tracking, and badge wallet page UI is not fully aligned with the intended Figma design.
 - Avatar does not render correctly on the QEV page.
 - Lesson checkpoint snapshots currently rely on YouTube thumbnails and do not capture true timestamp stills; proper snapshots would require downloading/processing the video.
 - Completion metrics need reinforcement—percent calculations can be inaccurate in edge cases.
-- QR codes for badge assessment/finalization now come from the internal `/api/qr` route; still consider signing payloads and adding offline caching.
 
 ## Notes for Contributors
 
