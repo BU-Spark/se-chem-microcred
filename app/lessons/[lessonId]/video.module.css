@@ -25,8 +25,7 @@
   gap: 1.5rem;
   position: relative;
   padding-top: 1.5rem;
-  margin-top: 77px;
-  margin-left: -300px;
+  margin-top: 0;
 }
 
 .timeline::before {
@@ -126,7 +125,6 @@
   color: #111827;
   letter-spacing: 0.01em;
   margin: 0;
-  margin-left: -260px
 }
 
 .videoSubtitle {
@@ -150,18 +148,18 @@
   position: relative;
   background: #000000;
 
-  /* Figma size */
-  width: 1207px;
-  height: 700px;
-  /* keeps shape while scaling on smaller screens */
+  /* Figma size, but fluid */
+  width: 100%;
+  max-width: 1207px;
+  aspect-ratio: 1207 / 700;
+  height: auto;
 
   border-radius: 0;
   /* sharp edges */
   overflow: hidden;
   margin: 0 auto;
   /* center in the main column */
-  margin-top: -10px;
-  margin-left: -122px;
+  margin-top: 0;
 
   /* optional: soften shadow or remove if Figma has none */
   box-shadow: 0 18px 40px rgba(15, 23, 42, 0.22);
@@ -1108,6 +1106,9 @@
   padding: 0.85rem 2.5rem;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
 .logoLink {
@@ -1115,7 +1116,6 @@
   align-items: center;
   text-decoration: none;
   margin-top: 15px;
-  margin-left: -150px;
 }
 
 .logoWordmark {
@@ -1135,11 +1135,10 @@
 .headerNav {
   display: flex;
   gap: 3rem;
-  margin: 0 auto;
+  margin: 0;
   font-size: 24px;
   font-weight: 400;
-  margin-top: 50px;
-  margin-left: 100px;
+  margin-top: 0;
 }
 
 .headerNav a {
