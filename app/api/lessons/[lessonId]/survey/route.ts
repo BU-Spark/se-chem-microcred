@@ -54,82 +54,86 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Lesson not found.' }, { status: 404 });
   }
 
-  let surveyPrompt =
-    (await prisma.surveyPrompt.findFirst({
+  const { lessonProgress } = await prisma.$transaction(async (tx) => {
+    let surveyPromptRecord =
+      (await tx.surveyPrompt.findFirst({
+        where: {
+          lessonId,
+          context: SurveyContext.LESSON,
+        },
+        select: { id: true, question: true },
+      })) ?? null;
+
+    if (!surveyPromptRecord) {
+      const question = lesson?.title ? `How was the lesson "${lesson.title}"?` : 'How was this lesson?';
+      surveyPromptRecord = await tx.surveyPrompt.create({
+        data: {
+          context: SurveyContext.LESSON,
+          lessonId,
+          question,
+        },
+        select: { id: true, question: true },
+      });
+    }
+
+    let lessonProgressRecord =
+      (await tx.lessonProgress.findFirst({
+        where: {
+          studentId: user.id,
+          lessonId,
+        },
+      })) ?? null;
+
+    if (!lessonProgressRecord) {
+      lessonProgressRecord = await tx.lessonProgress.create({
+        data: {
+          studentId: user.id,
+          lessonId,
+          status: LessonStatus.IN_PROGRESS,
+          percentComplete: 0,
+        },
+      });
+    }
+
+    if (payload.videoCompleted) {
+      lessonProgressRecord = await tx.lessonProgress.update({
+        where: { id: lessonProgressRecord.id },
+        data: {
+          status: LessonStatus.COMPLETED,
+          completedAt: lessonProgressRecord.completedAt ?? new Date(),
+          percentComplete: 100,
+        },
+      });
+    }
+
+    const existingResponse = await tx.surveyResponse.findFirst({
       where: {
-        lessonId,
-        context: SurveyContext.LESSON,
-      },
-      select: { id: true },
-    })) ?? null;
-
-  if (!surveyPrompt) {
-    const question = lesson?.title ? `How was the lesson "${lesson.title}"?` : 'How was this lesson?';
-    surveyPrompt = await prisma.surveyPrompt.create({
-      data: {
-        context: SurveyContext.LESSON,
-        lessonId,
-        question,
-      },
-      select: { id: true },
-    });
-  }
-
-  let lessonProgress =
-    (await prisma.lessonProgress.findFirst({
-      where: {
+        promptId: surveyPromptRecord.id,
         studentId: user.id,
-        lessonId,
-      },
-    })) ?? null;
-
-  if (!lessonProgress) {
-    lessonProgress = await prisma.lessonProgress.create({
-      data: {
-        studentId: user.id,
-        lessonId,
-        status: LessonStatus.IN_PROGRESS,
-        percentComplete: 0,
       },
     });
-  }
 
-  if (payload.videoCompleted) {
-    await prisma.lessonProgress.update({
-      where: { id: lessonProgress.id },
-      data: {
-        status: LessonStatus.COMPLETED,
-        completedAt: lessonProgress.completedAt ?? new Date(),
-        percentComplete: 100,
-      },
-    });
-  }
+    if (existingResponse) {
+      await tx.surveyResponse.update({
+        where: { id: existingResponse.id },
+        data: {
+          rating: payload.rating ?? existingResponse.rating,
+          comment: payload.comment ?? existingResponse.comment,
+        },
+      });
+    } else {
+      await tx.surveyResponse.create({
+        data: {
+          promptId: surveyPromptRecord.id,
+          studentId: user.id,
+          rating: payload.rating ?? 3,
+          comment: payload.comment ?? null,
+        },
+      });
+    }
 
-  const existingResponse = await prisma.surveyResponse.findFirst({
-    where: {
-      promptId: surveyPrompt.id,
-      studentId: user.id,
-    },
+    return { surveyPrompt: surveyPromptRecord, lessonProgress: lessonProgressRecord };
   });
-
-  if (existingResponse) {
-    await prisma.surveyResponse.update({
-      where: { id: existingResponse.id },
-      data: {
-        rating: payload.rating ?? existingResponse.rating,
-        comment: payload.comment ?? existingResponse.comment,
-      },
-    });
-  } else {
-    await prisma.surveyResponse.create({
-      data: {
-        promptId: surveyPrompt.id,
-        studentId: user.id,
-        rating: payload.rating ?? 3,
-        comment: payload.comment ?? null,
-      },
-    });
-  }
 
   const [lessonCheckpoints, passedAttempts] = await Promise.all([
     prisma.lessonCheckpoint.findMany({
@@ -151,7 +155,10 @@ export async function POST(request: Request, context: RouteContext) {
   const passedCheckpointIds = new Set(passedAttempts.map((entry) => entry.checkpointId));
   const allCheckpointsPassed =
     lessonCheckpoints.length === 0 || lessonCheckpoints.every((checkpoint) => passedCheckpointIds.has(checkpoint.id));
-  const videoCompleted = Boolean(payload.videoCompleted);
+  const videoCompleted =
+    lessonProgress.status === LessonStatus.COMPLETED ||
+    lessonProgress.percentComplete === 100 ||
+    payload.videoCompleted;
 
   let readyForAssessment = false;
 
