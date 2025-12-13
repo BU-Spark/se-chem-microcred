@@ -113,6 +113,15 @@ All student pages share the sidebar nav (Home, Profile, My Analytics, Badge Wall
 - **Unit tests:** Jest + React Testing Library (`app/page.test.tsx` exercises dashboard rendering). Run with `npm test`.
 - **Linting/formatting:** `npm run lint` (ESLint) is configured with Prettier integration. `npm run lint:debug` enables ESLint debug logging.
 
+### Testing Strategy (what to add next)
+
+- **Badge Wallet:** Assert section toggles, modal open/close, QR/export/survey actions, and auth redirect for signed-out users.
+- **Lesson detail + video:** Cover checkpoint flow (question/result states), modal transitions, “Show QR code” routing to `/badges`, thumbnail fallback when YouTube IDs are missing, and completion banner visibility.
+- **Analytics/Profile:** Validate metrics rendering (including completion math), guard logic for unauthenticated access, and visibility toggles for sensitive fields.
+- **Hooks/APIs:** Unit-test `useStudentData` data shaping; add integration tests for `/api/demo/student` and `/api/qr` (200 response, `image/png`, `Content-Length` present).
+- **End-to-end smoke:** Playwright (or similar) flow for sign-in (mock Clerk), dashboard load, badge modal QR visibility, lesson playback through a checkpoint, and export action link presence.
+- **CI:** Run `npm run lint`, `npm test`, and `npm run build` in CI to catch regressions on every PR/commit.
+
 ## Deployment
 
 - Deployment guidance is not finalized. Only the student-facing experience is complete; instructor-facing work is still in progress.
