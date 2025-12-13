@@ -312,9 +312,10 @@ export async function GET() {
       .filter((checkpoint) => passingCheckpointIds.has(checkpoint.id))
       .map((checkpoint) => checkpoint.id);
     const lessonSurveyPromptIds = lessonSurveyPromptMap.get(lesson.id) ?? [];
-    const lessonSurveyRequired = true; // surveys are always enabled in the demo
-    const lessonSurveyComplete =
-      lessonSurveyPromptIds.length > 0 ? lessonSurveyPromptIds.every((id) => surveyPromptIdsCompleted.has(id)) : false;
+    const lessonSurveyRequired = lessonSurveyPromptIds.length > 0;
+    const lessonSurveyComplete = !lessonSurveyRequired
+      ? true
+      : lessonSurveyPromptIds.every((id) => surveyPromptIdsCompleted.has(id));
 
     const answeredCheckpointIds = lesson.checkpoints
       .filter((cp) => (answeredQuestionsByCheckpoint.get(cp.id)?.size ?? 0) > 0 || passingCheckpointIds.has(cp.id))
