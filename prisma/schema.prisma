@@ -25,7 +25,7 @@ model User {
   avatar              AvatarSetting?
   surveyResponses     SurveyResponse[]
   analytics           StudentAnalytics?
-  CheckpointAttempt   CheckpointAttempt[]
+  checkpointAttempts  CheckpointAttempt[]
 
   @@map("Student")
 }
@@ -227,7 +227,7 @@ model LessonProgress {
   lesson            Lesson               @relation(fields: [lessonId], references: [id])
   segments          SegmentProgress[]
   responses         CheckpointResponse[]
-  CheckpointAttempt CheckpointAttempt[]
+  checkpointAttempts CheckpointAttempt[]
 
   @@unique([studentId, lessonId])
 }
