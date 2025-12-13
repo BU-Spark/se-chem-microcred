@@ -104,52 +104,55 @@ export async function POST(request: Request, context: RouteContext) {
 
   const normalizedQuestions = checkpoint.questions.map((question) => normalizeCheckpointQuestion(question));
   const evaluation = evaluateAttempt(payload.answers, normalizedQuestions);
-  // Checkpoints are considered completed after submission; per-question correctness is still tracked.
-  const isPassing = true;
+  const isPassing = normalizedQuestions.length === 0 || evaluation.every((entry) => entry.isCorrect === true);
 
-  const attempt = await prisma.checkpointAttempt.create({
-    data: {
-      checkpointId,
-      userId: user.id,
-      lessonProgressId: lessonProgress?.id ?? null,
-      isPassing,
-      completedAt: new Date(),
-      responses: {
-        create: evaluation.map((entry) => ({
-          checkpointId,
-          questionId: entry.questionId,
-          studentId: user.id,
-          lessonProgressId: lessonProgress?.id ?? null,
-          selectedIndex: entry.selectedIndex,
-          isCorrect: entry.isCorrect,
-        })),
-      },
-    },
-    include: {
-      responses: true,
-    },
-  });
-
-  if (isPassing && checkpoint.segmentId && lessonProgress) {
-    await prisma.segmentProgress.upsert({
-      where: {
-        lessonProgressId_segmentId: {
-          lessonProgressId: lessonProgress.id,
-          segmentId: checkpoint.segmentId,
+  const attempt = await prisma.$transaction(async (tx) => {
+    const created = await tx.checkpointAttempt.create({
+      data: {
+        checkpointId,
+        userId: user.id,
+        lessonProgressId: lessonProgress?.id ?? null,
+        isPassing,
+        completedAt: new Date(),
+        responses: {
+          create: evaluation.map((entry) => ({
+            checkpointId,
+            questionId: entry.questionId,
+            studentId: user.id,
+            lessonProgressId: lessonProgress?.id ?? null,
+            selectedIndex: entry.selectedIndex,
+            isCorrect: entry.isCorrect,
+          })),
         },
       },
-      update: {
-        status: 'COMPLETED',
-        completedAt: new Date(),
-      },
-      create: {
-        lessonProgressId: lessonProgress.id,
-        segmentId: checkpoint.segmentId,
-        status: 'COMPLETED',
-        completedAt: new Date(),
+      include: {
+        responses: true,
       },
     });
-  }
+
+    if (isPassing && checkpoint.segmentId && lessonProgress) {
+      await tx.segmentProgress.upsert({
+        where: {
+          lessonProgressId_segmentId: {
+            lessonProgressId: lessonProgress.id,
+            segmentId: checkpoint.segmentId,
+          },
+        },
+        update: {
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+        create: {
+          lessonProgressId: lessonProgress.id,
+          segmentId: checkpoint.segmentId,
+          status: 'COMPLETED',
+          completedAt: new Date(),
+        },
+      });
+    }
+
+    return created;
+  });
 
   return NextResponse.json({
     attemptId: attempt.id,
