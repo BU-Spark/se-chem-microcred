@@ -302,7 +302,8 @@ describe('Profile page', () => {
     jest.useFakeTimers();
     render(<ProfilePage />);
 
-    expect(screen.getByText(/Sensitive info visible/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Show BUID/i })).toBeInTheDocument();
+    expect(screen.getAllByText('XXXXXXX').length).toBeGreaterThan(0);
 
     act(() => {
       jest.advanceTimersByTime(10 * 60 * 1000 + 50);

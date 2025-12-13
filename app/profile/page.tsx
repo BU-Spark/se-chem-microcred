@@ -107,7 +107,7 @@ export default function ProfilePage() {
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // ---------- 1. Sensitive-data visibility ----------
-  const [sensitiveHidden, setSensitiveHidden] = useState(false);
+  const [sensitiveHidden, setSensitiveHidden] = useState(true);
   const [sensitiveTimerId, setSensitiveTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
 
   // ---------- 2. Language picker ----------
@@ -178,6 +178,8 @@ export default function ProfilePage() {
   const handleShowSensitive = async () => {
     try {
       await requestReauthentication();
+      const confirmed = window.confirm('Did you finish re-authentication?');
+      if (!confirmed) return;
       setSensitiveHidden(false);
       restartSensitiveTimer();
     } catch {
