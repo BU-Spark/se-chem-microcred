@@ -87,7 +87,7 @@ All student pages share the sidebar nav (Home, Profile, My Analytics, Badge Wall
 ## Notes for Contributors
 
 - Navigation highlights use `usePathname`; dynamic badge/lesson routes treat parent nav items as active.
-- Media assets live under `public/` and `assets/`; CSS variables and base styles are in `app/globals.css`.
+- Media assets live under `public/` (e.g., `public/assets/...` and `public/edit_avatar/...`); CSS variables and base styles are in `app/globals.css`.
 - The global header hides on lesson video routes (`app/components/GlobalHeader.tsx`) to match the design.
 - Settings and Grades routes exist for parity with the design but intentionally defer to the Profile page for functional controls. Avoid duplicating logic there unless the product direction changes.
 

@@ -16,8 +16,8 @@ function buildAvatarUrlFromAvatar(
   // base is something like "SAPPHIRE", "RUBY", etc.
   const baseLower = avatar.base.toLowerCase(); // -> "sapphire"
 
-  // Files are under /public/assets/edit_avatar/<base>.svg
-  return `../../../public/assets/edit_avatar/${baseLower}.svg`;
+  // Files are served from /public/assets/edit_avatar/<base>.svg
+  return `/assets/edit_avatar/${baseLower}.svg`;
 }
 
 export default function LessonVideoRoute() {
