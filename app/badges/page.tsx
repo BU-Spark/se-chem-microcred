@@ -449,7 +449,7 @@ export default function BadgeWalletPage() {
                   <div className={styles.qrCodeWrapper}>
                     <div className={styles.qrCodeCanvas}>
                       <Image
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=360x360&data=${encodeURIComponent(
+                        src={`/api/qr?size=360&data=${encodeURIComponent(
                           `student:${studentData?.student.id ?? 'unknown'}|badge:${qrBadge.id}`
                         )}`}
                         alt={`${qrBadge.name} QR code`}
