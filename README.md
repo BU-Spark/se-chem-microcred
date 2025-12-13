@@ -10,6 +10,19 @@ A Next.js 15 (App Router) application that prototypes the student-facing micro-c
 - **UI:** Global header + shared sidebar layout on student pages; per-page CSS modules under `app/**/page.module.css`.
 - **Testing & Quality:** Jest/RTL (`npm test`) and ESLint (`npm run lint`). Turbopack dev server via `npm run dev`.
 
+## Technical Architecture
+
+- **Architecture diagram:** Store the diagram at `docs/architecture.png` (or update the path below if you prefer a different location), then embed it via:
+
+![ChemSkills architecture diagram](docs/architecture.png)
+
+- **App layer:** Next.js 15 App Router with a mix of Server Components and Client Components; shared layout (`app/layout.tsx`) provides Clerk context, header, and student sidebar framing.
+- **Authentication:** Clerk guards routes client-side with `useAuth`/`useUser`; middleware defers to page-level redirects; profile and sign-in/up flows live under `app/(auth)` and Clerk-hosted modals.
+- **Data & APIs:** Prisma + PostgreSQL schema (`prisma/schema.prisma`) with seed data (`prisma/seed.js`). Route handlers under `app/api/**` expose student data, badge export, surveys, lessons, and checkpoints, consumed via `useStudentData`.
+- **Media integrations:** Lesson playback uses the YouTube Iframe API (lazy-loaded in `app/lessons/[lessonId]/video.tsx` and `app/components/VideoPlayer/YoutubePlayer.tsx`) and prefers YouTube-derived thumbnails for lessons/checkpoints when URLs are available.
+- **QR flows:** Badge assessment/finalization modals autogenerate QR codes client-side via `api.qrserver.com`, encoding the student + badge payload for in-person validation.
+- **State & UI data flow:** Pages fetch signed-in student context from `/api/demo/student`, normalize into badge/lesson/analytics shapes, and render with CSS Modules scoped per page; media assets served from `public/`.
+
 ## Local Setup
 
 Prerequisites: Node 18.18+ and PostgreSQL (local or remote).
