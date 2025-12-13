@@ -104,12 +104,21 @@ function extractYouTubeId(url?: string | null) {
  * 4. dummy fallback
  */
 function resolveLessonImage(record: LessonRecord) {
-  // 先从 lesson 自身和所有 segment 中找 YouTube 链接
-  const candidateUrls: (string | null | undefined)[] = [];
+  const clean = (u?: string | null) => (u && u.trim().length > 0 ? u.trim() : null);
 
-  // 如果 LessonRecord 里本身有 videoUrl 字段，也尝试一下
-  // @ts-expect-error: record may or may not have videoUrl
-  if (record.videoUrl) candidateUrls.push(record.videoUrl);
+  const fromRecordThumb = clean(record.thumbnailUrl);
+  if (fromRecordThumb) return fromRecordThumb;
+
+  const primarySegment = record.segments?.[0];
+  const fromSegmentThumb = clean(primarySegment?.thumbnailUrl);
+  if (fromSegmentThumb) return fromSegmentThumb;
+
+  // fall back to YouTube thumbnails from any video URLs
+  const candidateUrls: (string | null | undefined)[] = [];
+  if ('videoUrl' in record) {
+    const maybeVideo = (record as Partial<{ videoUrl: string | null }>).videoUrl;
+    if (maybeVideo) candidateUrls.push(maybeVideo);
+  }
 
   if (record.segments && Array.isArray(record.segments)) {
     for (const seg of record.segments) {
@@ -123,16 +132,6 @@ function resolveLessonImage(record: LessonRecord) {
       return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
     }
   }
-
-  // 没有 YouTube，就再尝试数据库里的 thumbnailUrl
-  const clean = (u?: string | null) => (u && u.trim().length > 0 ? u.trim() : null);
-
-  const fromRecordThumb = clean(record.thumbnailUrl);
-  if (fromRecordThumb) return fromRecordThumb;
-
-  const primarySegment = record.segments?.[0];
-  const fromSegmentThumb = clean(primarySegment?.thumbnailUrl);
-  if (fromSegmentThumb) return fromSegmentThumb;
 
   // 最后兜底 dummy
   return DEFAULT_LESSON_IMAGE;
