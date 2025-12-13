@@ -12,7 +12,7 @@ A Next.js 15 (App Router) application that prototypes the student-facing micro-c
 
 ## Technical Architecture
 
-- **Architecture diagram:** Store the diagram at `docs/architecture.png` (or update the path below if you prefer a different location), then embed it via:
+- **Architecture diagram:**
 
 ![ChemSkills architecture diagram](docs/architecture.png)
 
