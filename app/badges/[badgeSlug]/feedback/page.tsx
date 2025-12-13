@@ -90,6 +90,52 @@ const REVIEW_CONTENT: Record<
       },
     ],
   },
+  'lab-notebook-badge': {
+    title: 'Lab Notebook Badge',
+    feedback:
+      'Great start capturing your work. Tighten consistency on page numbering, dating entries, and summarizing objectives before each experiment.',
+    cooldown: {
+      last: '03/05/2025',
+      remaining: 'Open for reassessment now',
+      next: '03/12/2025',
+    },
+    lessonSummary:
+      'Review the setup walkthrough and ensure every page is numbered, dated, and includes a clear objective and materials list. Keep handwriting readable and avoid blank spaces.',
+    checkpoints: [
+      {
+        title: 'Part 1',
+        subtitle: 'Notebook Setup',
+        duration: '1.2 minutes',
+        image: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        title: 'Part 2',
+        subtitle: 'Page Numbering & Dates',
+        duration: '1.0 minutes',
+        image: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        title: 'Part 3',
+        subtitle: 'Objectives & Materials',
+        duration: '1.1 minutes',
+        image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=400&q=80',
+      },
+    ],
+    optional: [
+      {
+        title: 'Example Pre-lab Entry',
+        duration: '3 min',
+        summary: 'See a complete pre-lab with objectives, hazards, and materials.',
+        image: 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&w=400&q=80',
+      },
+      {
+        title: 'Common Notebook Pitfalls',
+        duration: '2 min',
+        summary: 'Avoid gaps, illegible notes, and missing dates.',
+        image: 'https://images.unsplash.com/photo-1504691342899-4d92b50853e1?auto=format&fit=crop&w=400&q=80',
+      },
+    ],
+  },
 };
 
 const BADGE_STATUS_LABEL: Record<string, string> = {
@@ -129,7 +175,20 @@ export default function BadgeFeedbackPage() {
   }, [studentData]);
 
   const badge = allBadges.find((entry) => entry.slug === params.badgeSlug);
-  const content = REVIEW_CONTENT[params.badgeSlug];
+  const content = useMemo(() => {
+    if (!badge) return null;
+    const specific = REVIEW_CONTENT[params.badgeSlug];
+    if (specific) return specific;
+    return {
+      title: badge.name,
+      feedback: badge.description ?? 'We are still preparing detailed feedback for this badge.',
+      cooldown: { last: 'N/A', remaining: 'Feedback pending', next: 'TBD' },
+      lessonSummary:
+        'We are preparing detailed review points for this badge. In the meantime, revisit your lesson checkpoints.',
+      checkpoints: [],
+      optional: [],
+    };
+  }, [badge, params.badgeSlug]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !studentData) {
@@ -148,6 +207,8 @@ export default function BadgeFeedbackPage() {
   if (!badge) {
     return null;
   }
+
+  const displayName = studentData?.student.name || user?.fullName || 'Student Demo';
 
   if (!content) {
     return (
@@ -206,7 +267,6 @@ export default function BadgeFeedbackPage() {
     );
   }
 
-  const displayName = studentData?.student.name || user?.fullName || 'Student Demo';
   const lessonSlug = badge.requirements.find((req) => req.lessonSlug)?.lessonSlug;
 
   return (

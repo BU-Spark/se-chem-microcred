@@ -98,22 +98,22 @@ function extractYouTubeId(url?: string | null) {
 /**
  * Decide which image to show for a lesson.
  * Priority:
- * 1. record.thumbnailUrl
- * 2. first segment thumbnailUrl
- * 3. YouTube thumbnail derived from segment videoUrl
+ * 1. YouTube thumbnail derived from lesson/segment videoUrl
+ * 2. record.thumbnailUrl
+ * 3. first segment thumbnailUrl
  * 4. dummy fallback
  */
 function resolveLessonImage(record: LessonRecord) {
-  const clean = (u?: string | null) => (u && u.trim().length > 0 ? u.trim() : null);
+  const clean = (u?: string | null) => {
+    if (!u) return null;
+    const trimmed = u.trim();
+    if (!trimmed) return null;
+    // normalize accidentally stored "/public/assets/..." paths to "/assets/..."
+    if (trimmed.startsWith('/public/')) return trimmed.replace(/^\/public/, '');
+    return trimmed;
+  };
 
-  const fromRecordThumb = clean(record.thumbnailUrl);
-  if (fromRecordThumb) return fromRecordThumb;
-
-  const primarySegment = record.segments?.[0];
-  const fromSegmentThumb = clean(primarySegment?.thumbnailUrl);
-  if (fromSegmentThumb) return fromSegmentThumb;
-
-  // fall back to YouTube thumbnails from any video URLs
+  // First try YouTube thumbnails from any video URLs
   const candidateUrls: (string | null | undefined)[] = [];
   if ('videoUrl' in record) {
     const maybeVideo = (record as Partial<{ videoUrl: string | null }>).videoUrl;
@@ -132,6 +132,13 @@ function resolveLessonImage(record: LessonRecord) {
       return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
     }
   }
+
+  const fromRecordThumb = clean(record.thumbnailUrl);
+  if (fromRecordThumb) return fromRecordThumb;
+
+  const primarySegment = record.segments?.[0];
+  const fromSegmentThumb = clean(primarySegment?.thumbnailUrl);
+  if (fromSegmentThumb) return fromSegmentThumb;
 
   // 最后兜底 dummy
   return DEFAULT_LESSON_IMAGE;
