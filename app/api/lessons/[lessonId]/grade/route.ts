@@ -65,6 +65,8 @@ export async function POST(_request: Request, context: RouteContext) {
         lastGradePercent: grade.percent,
         lastGradePassed: passed,
         lastGradedAt: now,
+        status: passed ? LessonStatus.COMPLETED : LessonStatus.IN_PROGRESS,
+        percentComplete: passed ? 100 : 0,
       },
       create: {
         studentId: user.id,
