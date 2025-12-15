@@ -60,6 +60,24 @@ Use the provided Prisma/PostgreSQL connection string; you do **not** need to cre
    ```
    Visit http://localhost:3000 and sign in with a Clerk user whose email matches the seeded student. 🚨 **Use your own email** 🚨 Update the seed to your address and create a Clerk user by signing up with your own email/password (set in Clerk; there is no repo-defined password).
 
+   Specifically, in the block between line 58 - 70 of the file /prisma/seed.js:
+
+   const students = await Promise.all([
+    prisma.user.create({
+      data: {
+        email: 'nx2004@bu.edu',
+        name: 'John Doe',
+        buid: 'U1234567',
+        gender: 'Male',
+        raceEthnicity: 'White',
+        parentalEducation: 'Bachelors degree',
+        pellGrantQualified: false,
+      },
+    }),
+  ]);
+
+  change the line: `email: 'nx2004@bu.edu'` to use your own email.
+
 6) (Optional) Validate tooling  
    - Lint: `npm run lint`  
    - Tests: `npm test`  
