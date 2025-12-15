@@ -437,7 +437,7 @@ export default function ProfilePage() {
               {/* Avatar column */}
               <div className={styles.avatarColumn}>
                 <div className={styles.avatarFrame}>
-                  <Image src={avatarSrc} alt="Student avatar" fill className={styles.avatarImage} />
+                  <Image src={avatarSrc} alt="Student avatar" width={220} height={220} className={styles.avatarImage} />
                 </div>
 
                 <Link href="/edit_avatar" className={styles.editAvatarLink}>

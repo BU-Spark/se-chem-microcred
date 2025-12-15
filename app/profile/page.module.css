@@ -50,9 +50,9 @@
 .leftPanel {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
-  flex-direction: row-reverse;
-  gap: 2.5rem;
+  justify-content: flex-start;
+  flex-direction: row;
+  gap: 1.5rem;
 }
 
 /* Student Info Column */
@@ -61,6 +61,8 @@
   flex-direction: column;
   gap: 1.25rem;
   color: #000000;
+  flex: 1 1 auto;
+  min-width: 360px;
 }
 
 .sectionTitle {
@@ -154,29 +156,36 @@
    Avatar
    =========================== */
 .avatarColumn {
-  margin-top: 0;
+  margin-top: 1rem;
+  margin-left: 0;
   align-self: flex-start;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.6rem;
+  flex-shrink: 0;
+  transform: translateX(-80px);
 }
 
 .avatarFrame {
-  width: 342px;
-  height: 342px;
+  position: relative;
+  width: 320px;
+  height: 320px;
+  max-width: 100%;
   border-radius: 50%;
   border: 6px solid rgba(148, 163, 184, 0.35);
   display: grid;
   place-items: center;
   background: radial-gradient(circle at 50% 40%, #e4f1ff 0%, #f7fbff 60%, #ffffff 100%);
+  overflow: hidden;
 }
 
 .avatarImage {
-  width: 300px;
-  height: 300px;
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
-  object-fit: cover;
+  object-fit: contain;
+  display: block;
 }
 
 .editAvatarLink {
@@ -346,10 +355,6 @@
   .detailGrid,
   .detailGridTop {
     grid-template-columns: 1fr;
-  }
-
-  .avatarColumn {
-    transform: translate(0, 0);
   }
 }
 
