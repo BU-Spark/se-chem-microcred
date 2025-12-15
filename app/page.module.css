@@ -473,6 +473,8 @@
     justify-content: space-between;
     align-items: center;
     width: 100%;
+    height: auto;
+    min-height: auto;
 
     /* Top bar variant: square corners + bottom divider */
     border-radius: 0;
