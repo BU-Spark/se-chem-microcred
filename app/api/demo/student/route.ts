@@ -173,8 +173,6 @@ async function fetchLessons(courseId: string) {
   });
 }
 
-import { currentUser } from '@clerk/nextjs/server';
-
 export async function GET() {
   const user = await currentUser();
 
