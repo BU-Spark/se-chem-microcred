@@ -1,112 +1,3 @@
-.page {
-  display: flex;
-  gap: 2rem;
-  min-height: calc(100vh - 80px);
-  padding: 2.5rem 1.5rem 3rem;
-  background: #e9eef6;
-}
-
-.sidebar {
-  width: 240px;
-  flex: 0 0 240px;
-  min-width: 240px;
-  background: #1f5fab;
-  border-radius: 1.5rem;
-  color: #f8fbff;
-  padding: 2rem 1.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-}
-
-.profile {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  align-items: center;
-  text-align: center;
-}
-
-.avatar {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  display: grid;
-  place-items: center;
-  font-size: 1.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.name {
-  font-weight: 600;
-  font-size: 1.1rem;
-}
-
-.navList {
-  display: grid;
-  gap: 0.8rem;
-  font-size: 0.95rem;
-}
-
-.navItem {
-  padding: 0.55rem 0.85rem;
-  border-radius: 0.75rem;
-  transition: background-color 0.2s ease;
-}
-
-.navItemActive,
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.sidebarFooter {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-}
-
-.signOffButton {
-  padding: 0.55rem 1.35rem;
-  border-radius: 999px;
-  border: none;
-  background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
-  font-weight: 600;
-  cursor: pointer;
-  transition: filter 0.2s ease, background-color 0.2s ease;
-}
-
-.signOffButton:hover {
-  filter: brightness(1.05);
-  background: rgba(255, 255, 255, 0.28);
-}
-
-.signOffButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.6;
-  filter: none;
-}
-
-.brandFooter {
-  font-size: 0.85rem;
-  opacity: 0.85;
-}
-
-.main {
-  flex: 1;
-  background: #ffffff;
-  border-radius: 1.5rem;
-  padding: 2.5rem 2.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
-  box-shadow: 0 25px 45px rgba(15, 23, 42, 0.12);
-}
-
 .headerRow {
   display: flex;
   justify-content: space-between;
@@ -131,6 +22,11 @@
   color: #4b5563;
 }
 
+.page {
+  min-height: 100vh;
+  display: flex;
+}
+
 .brandMark {
   font-weight: 700;
   font-size: 1.35rem;
@@ -138,21 +34,30 @@
   align-self: flex-start;
 }
 
+/* Two main cards on top */
 .analyticsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: minmax(300px, 0.78fr) minmax(560px, 1.22fr);
   gap: 1.75rem;
+  align-items: stretch;
 }
 
+/* Generic card */
 .card {
-  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  background: #ffffff;
   border-radius: 1.25rem;
   border: 1px solid rgba(148, 163, 184, 0.35);
-  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.06);
   padding: 1.75rem;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  height: 100%;
+}
+
+.progressCard {
+  padding: 1.5rem 1.5rem 1.25rem;
+  gap: 0.5rem;
 }
 
 .cardTitle {
@@ -161,16 +66,20 @@
   color: #1f3698;
 }
 
+/* ===== Left card: progress list ===== */
+
 .progressList {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0;
 }
 
 .progressItem {
   display: flex;
   align-items: center;
   gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.35);
 }
 
 .progressIcon {
@@ -230,6 +139,13 @@
   color: #4b5563;
 }
 
+.progressItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0.25rem;
+}
+
+/* ===== Right card: badge summary dial ===== */
+
 .badgeDial {
   --completed: 70;
   --available: 30;
@@ -237,14 +153,14 @@
   height: 160px;
   border-radius: 50%;
   position: relative;
-  background: conic-gradient(
-    #bfd43b 0 calc(var(--completed) * 1%),
-    #de5b5b calc(var(--completed) * 1%) 100%
-  );
+  background: conic-gradient(#bfd43b 0 calc(var(--completed) * 1%),
+      #de5b5b calc(var(--completed) * 1%) 100%);
   color: #98c43a;
   display: grid;
   place-items: center;
   margin: 0 auto;
+  transition: background 1s ease-out;
+  /* animate when --completed changes */
 }
 
 .badgeDial::after {
@@ -267,7 +183,7 @@
 .badgeSummary {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 1.5rem;
 }
 
 .badgeRows {
@@ -300,6 +216,8 @@
 .badgeFill {
   height: 100%;
   border-radius: inherit;
+  transition: width 1s ease-out;
+  /* animate width change */
 }
 
 .badgeFillCompleted {
@@ -317,29 +235,42 @@
   text-align: right;
 }
 
-.scoreRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
+.badgeScoreDivider {
+  height: 1px;
+  background: rgba(148, 163, 184, 0.4);
+  margin-top: 0.25rem;
 }
+
+.badgeScoreRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(190px, 1fr));
+  gap: 1.25rem;
+  align-items: stretch;
+  width: 100%;
+  grid-auto-flow: column;
+}
+
+/* ===== Bottom row: circular score cards ===== */
 
 .scoreCard {
   background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
   border-radius: 1.15rem;
   border: 1px solid rgba(148, 163, 184, 0.25);
-  padding: 1.75rem 1.5rem;
+  padding: 1.25rem 1.25rem 1.35rem;
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
+  gap: 0.75rem;
   align-items: center;
   text-align: center;
   box-shadow: 0 18px 36px rgba(15, 23, 42, 0.08);
+  min-width: 0;
+  width: 100%;
 }
 
 .circularStat {
   position: relative;
-  width: 140px;
-  height: 140px;
+  width: 118px;
+  height: 118px;
   display: grid;
   place-items: center;
 }
@@ -349,17 +280,26 @@
   inset: 0;
 }
 
+.circularProgress {
+  transition: stroke-dashoffset 1s ease-out;
+  /* animate ring */
+}
+
 .circularStatValue {
   position: relative;
-  font-size: 1.85rem;
+  font-size: 1.6rem;
   font-weight: 700;
   color: #1f5fab;
 }
 
 .scoreLabel {
-  font-size: 0.95rem;
+  font-size: 0.82rem;
   color: #4b5563;
+  line-height: 1.2;
+  white-space: nowrap;
 }
+
+/* ===== Layout / Sidebar (copied from your original) ===== */
 
 @media (max-width: 960px) {
   .page {
@@ -399,4 +339,117 @@
   .badgeDial {
     margin: 0;
   }
+
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Sidebar & main wrapper */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem 1.5rem;
+  color: var(--brand-on);
+  background: var(--brand-color);
+  border-right: 1px solid var(--divider);
+  min-height: 100vh;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+}
+
+.main {
+  flex: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  text-align: center;
+}
+
+.avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: grid;
+  place-items: center;
+  font-size: 1.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.navList {
+  display: grid;
+  gap: 0.8rem;
+  font-size: 0.95rem;
+}
+
+.navItem {
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.75rem;
+  transition: background-color 0.2s ease;
+}
+
+.navItemActive,
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.sidebarFooter {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.signOffButton {
+  padding: 0.55rem 1.35rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--brand-on);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease, background-color 0.2s ease;
+}
+
+.signOffButton:hover {
+  filter: brightness(1.05);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.signOffButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  filter: none;
+}
+
+.brandFooter {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.main {
+  background: var(--card-bg);
+  border-radius: 1.5rem;
+  padding: 2.5rem 2.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  box-shadow: 0 25px 45px rgba(15, 23, 42, 0.12);
 }

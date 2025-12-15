@@ -1,33 +1,75 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import HomePage from './page';
+import type { LessonRecord } from './hooks/useStudentData';
 
 const mockReplace = jest.fn();
 const mockUsePathname = jest.fn();
+const mockUseUser = jest.fn();
 const mockUseAuth = jest.fn();
+const mockUseStudentData = jest.fn();
+const mockUseSearchParams = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
   usePathname: () => mockUsePathname(),
+  useSearchParams: () => mockUseSearchParams(),
 }));
 
-jest.mock('./hooks/useAuth', () => ({
+jest.mock('@clerk/nextjs', () => ({
+  useUser: () => mockUseUser(),
   useAuth: () => mockUseAuth(),
 }));
+
+jest.mock('./hooks/useStudentData', () => ({
+  useStudentData: () => mockUseStudentData(),
+}));
+
+function createClerkState(overrides = {}) {
+  return {
+    isLoaded: true,
+    isSignedIn: true,
+    user: {
+      fullName: 'Student Demo',
+      primaryEmailAddress: { emailAddress: 'student@example.edu' },
+      createdAt: '2024-01-01T00:00:00.000Z',
+    },
+    ...overrides,
+  };
+}
 
 function createAuthState(overrides = {}) {
   return {
     isLoaded: true,
     isSignedIn: true,
-    user: {
-      name: 'Student Demo',
-      email: 'student@example.edu',
-      createdAt: '2024-01-01T00:00:00.000Z',
-    },
-    error: undefined,
-    signIn: jest.fn(),
-    signUp: jest.fn(),
     signOut: jest.fn(),
-    clearError: jest.fn(),
+    ...overrides,
+  };
+}
+
+function createLesson(id: string, overrides: Partial<LessonRecord> = {}): LessonRecord {
+  const baseLesson: LessonRecord = {
+    id,
+    slug: `${id}-slug`,
+    title: `Lesson ${id}`,
+    summary: 'Summary',
+    description: 'Description',
+    thumbnailUrl: null,
+    estimatedMinutes: 10,
+    dueDate: new Date().toISOString(),
+    sortOrder: 0,
+    passingPercent: 70,
+    status: 'NOT_STARTED',
+    percentComplete: 0,
+    segments: [],
+    checkpoints: [],
+    skills: [],
+    lastGradePercent: null,
+    lastGradePassed: null,
+    lastGradedAt: null,
+  };
+
+  return {
+    ...baseLesson,
     ...overrides,
   };
 }
@@ -37,8 +79,50 @@ describe('Home Page', () => {
     mockReplace.mockClear();
     mockUsePathname.mockReset();
     mockUsePathname.mockReturnValue('/');
+    mockUseSearchParams.mockReset();
+    mockUseSearchParams.mockReturnValue(new URLSearchParams());
+
+    mockUseUser.mockReset();
+    mockUseUser.mockImplementation(() => createClerkState());
+
     mockUseAuth.mockReset();
     mockUseAuth.mockImplementation(() => createAuthState());
+
+    mockUseStudentData.mockReset();
+    const upNextLessons = [createLesson('up-1'), createLesson('up-2'), createLesson('up-3')];
+    const inProgressLessons = [
+      createLesson('in-1', { status: 'IN_PROGRESS', percentComplete: 75 }),
+      createLesson('in-2', { status: 'IN_PROGRESS', percentComplete: 50 }),
+      createLesson('in-3', { status: 'IN_PROGRESS', percentComplete: 20 }),
+    ];
+
+    mockUseStudentData.mockReturnValue({
+      data: {
+        student: {
+          name: 'Student Demo',
+          email: 'student@example.edu',
+        },
+        lessons: {
+          upNext: upNextLessons,
+          inProgress: inProgressLessons,
+          catalog: [...upNextLessons, ...inProgressLessons],
+        },
+        badges: {
+          completed: [],
+          readyForAssessment: [],
+          readyForFinalization: [],
+          learning: [],
+        },
+        surveys: {
+          lesson: [],
+          badge: [],
+          pendingBadge: [],
+        },
+      },
+      isLoading: false,
+      error: null,
+      refresh: jest.fn(),
+    });
   });
 
   it('renders the signed-in dashboard when authentication is ready', () => {
@@ -66,10 +150,15 @@ describe('Home Page', () => {
   });
 
   it('redirects to sign-in when the user is not authenticated after loading', async () => {
+    mockUseUser.mockImplementation(() =>
+      createClerkState({
+        isSignedIn: false,
+        user: null,
+      })
+    );
     mockUseAuth.mockImplementation(() =>
       createAuthState({
         isSignedIn: false,
-        user: null,
       })
     );
 

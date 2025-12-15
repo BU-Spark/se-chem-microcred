@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '../hooks/useAuth';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
-type BadgeStatus = 'completed' | 'assessment' | 'learning';
+type BadgeStatus = 'completed' | 'assessment' | 'finalization' | 'learning';
 
 type SectionConfig = {
   status: BadgeStatus;
@@ -29,25 +30,28 @@ const SECTION_CONFIG: SectionConfig[] = [
     collapsedByDefault: true,
   },
   {
+    status: 'finalization',
+    title: 'Ready to be Finalized',
+    subtitle: 'Complete the feedback survey to finalize your badge.',
+  },
+  {
     status: 'learning',
     title: 'Still Learning',
     subtitle: "You'll earn these badges after you review feedback and complete in-person reassessment.",
-    collapsedByDefault: false,
   },
 ];
 
 const BADGE_STATUS_LABEL: Record<BadgeRecord['status'], string> = {
   COMPLETED: 'Completed',
   READY_FOR_ASSESSMENT: 'Ready for assessment',
+  READY_FOR_FINALIZATION: 'Ready to be finalized',
   LEARNING: 'Still learning',
 };
 
 function initialsFromName(name?: string | null) {
-  if (!name) {
-    return 'ST';
-  }
+  if (!name) return 'ST';
   const parts = name.trim().split(/\s+/);
-  const initials = parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase());
+  const initials = parts.slice(0, 2).map((p) => p.charAt(0).toUpperCase());
   return initials.join('') || 'ST';
 }
 
@@ -67,22 +71,6 @@ function ChevronIcon({ direction = 'down' }: { direction?: 'down' | 'up' }) {
   );
 }
 
-function isBadgeInSection(badge: BadgeRecord | null, sectionStatus: BadgeStatus) {
-  if (!badge) {
-    return false;
-  }
-  switch (sectionStatus) {
-    case 'completed':
-      return badge.status === 'COMPLETED';
-    case 'assessment':
-      return badge.status === 'READY_FOR_ASSESSMENT';
-    case 'learning':
-      return badge.status === 'LEARNING';
-    default:
-      return false;
-  }
-}
-
 function formatBadgeStatus(status: BadgeRecord['status']) {
   return BADGE_STATUS_LABEL[status];
 }
@@ -90,27 +78,30 @@ function formatBadgeStatus(status: BadgeRecord['status']) {
 export default function BadgeWalletPage() {
   const router = useRouter();
   const pathname = usePathname();
-  const { isLoaded, isSignedIn, user, signOut } = useAuth();
-  const { data: studentData } = useStudentData(user?.email);
+  const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useAuth();
+  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
+
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
-  const initialOpenSection = useMemo(() => {
-    const firstOpen = SECTION_CONFIG.find((section) => !section.collapsedByDefault);
-    return (firstOpen ?? SECTION_CONFIG[0]).status;
-  }, []);
+  const [qrBadge, setQrBadge] = useState<BadgeRecord | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportStatus, setExportStatus] = useState<string | null>(null);
+
+  const initialOpenSection = useMemo<BadgeStatus | null>(
+    () => SECTION_CONFIG.find((section) => !section.collapsedByDefault)?.status ?? null,
+    []
+  );
   const [openSection, setOpenSection] = useState<BadgeStatus | null>(initialOpenSection);
+
   const modalRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace('/sign-in');
-    }
+    if (isLoaded && !isSignedIn) router.replace('/sign-in');
   }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
-    if (!activeBadgeId) {
-      return undefined;
-    }
+    if (!activeBadgeId) return;
 
     const handleClickAway = (event: MouseEvent) => {
       if (!modalRef.current) {
@@ -124,9 +115,11 @@ export default function BadgeWalletPage() {
     };
 
     window.addEventListener('mousedown', handleClickAway);
-    return () => {
-      window.removeEventListener('mousedown', handleClickAway);
-    };
+    return () => window.removeEventListener('mousedown', handleClickAway);
+  }, [activeBadgeId]);
+
+  useEffect(() => {
+    setExportStatus(null);
   }, [activeBadgeId]);
 
   const navItems = [
@@ -138,61 +131,110 @@ export default function BadgeWalletPage() {
     { label: 'Settings', href: '/settings' },
   ];
 
-  const displayName = studentData?.student.name || user?.name || 'Lastname, Student';
+  const displayName = studentData?.student.name || user?.fullName || 'Lastname, Student';
 
   const badgesByStatus = useMemo(
     () =>
       ({
-        completed: studentData?.badges.completed ?? [],
-        assessment: studentData?.badges.readyForAssessment ?? [],
-        learning: studentData?.badges.learning ?? [],
+        completed: studentData?.badges?.completed ?? [],
+        assessment: studentData?.badges?.readyForAssessment ?? [],
+        finalization: studentData?.badges?.readyForFinalization ?? [],
+        learning: studentData?.badges?.learning ?? [],
       }) satisfies Record<BadgeStatus, BadgeRecord[]>,
     [studentData]
   );
 
   const allBadges: BadgeRecord[] = useMemo(
-    () => [...badgesByStatus.completed, ...badgesByStatus.assessment, ...badgesByStatus.learning],
+    () => [
+      ...badgesByStatus.completed,
+      ...badgesByStatus.assessment,
+      ...badgesByStatus.finalization,
+      ...badgesByStatus.learning,
+    ],
     [badgesByStatus]
   );
 
-  const activeBadge = allBadges.find((badge) => badge.id === activeBadgeId) ?? null;
+  const activeBadge = allBadges.find((b) => b.id === activeBadgeId) ?? null;
 
-  if (!isLoaded || !isSignedIn) {
-    return null;
-  }
+  if (!isLoaded || !isSignedIn) return null;
 
   const handleSignOut = async () => {
-    if (isSigningOut) {
-      return;
-    }
-
+    if (isSigningOut) return;
     setIsSigningOut(true);
     try {
       await signOut();
       router.replace('/sign-in');
-    } catch (error) {
-      console.error('Failed to sign out', error);
+    } catch (e) {
+      console.error('Failed to sign out', e);
       setIsSigningOut(false);
     }
   };
 
   const toggleSection = (status: BadgeStatus) => {
-    setOpenSection((prev) => {
-      if (prev === status) {
-        return null;
-      }
-      return status;
-    });
+    setOpenSection((prev) => (prev === status ? null : status));
     setActiveBadgeId(null);
+  };
+
+  const studentEmail = studentData?.student?.email || user?.primaryEmailAddress?.emailAddress || null;
+
+  const startSurvey = (badge: BadgeRecord) => {
+    setActiveBadgeId(null);
+    router.push(`/?surveyBadge=${encodeURIComponent(badge.slug)}`);
+  };
+
+  const reviewFeedback = (badge: BadgeRecord) => {
+    setActiveBadgeId(null);
+    router.push(`/badges/${badge.slug}/feedback`);
+  };
+
+  const exportBadgeToLinkedIn = async (badge: BadgeRecord) => {
+    if (!studentEmail) {
+      setExportStatus('Please sign in again to export badges.');
+      return;
+    }
+
+    setIsExporting(true);
+    setExportStatus(null);
+
+    try {
+      const response = await fetch(`/api/badges/export/${badge.id}?email=${encodeURIComponent(studentEmail)}`);
+
+      const body = (await response.json().catch(() => ({}))) as {
+        linkedInUrl?: string;
+        error?: string;
+      };
+
+      if (!response.ok) {
+        throw new Error(body.error || 'Unable to prepare LinkedIn export.');
+      }
+
+      if (!body.linkedInUrl) {
+        throw new Error('LinkedIn URL unavailable.');
+      }
+
+      window.open(body.linkedInUrl, '_blank', 'noopener,noreferrer');
+
+      setExportStatus('LinkedIn window opened. After you sign in, confirm the fields and save the certificate.');
+    } catch (error) {
+      setExportStatus(error instanceof Error ? error.message : 'Failed to create LinkedIn export.');
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   const renderBadgeTokens = (badges: BadgeRecord[]) => {
     if (!badges.length) {
       return (
-        <div style={{ color: 'rgba(248, 251, 255, 0.75)', fontSize: '0.95rem' }}>No badges in this section yet.</div>
+        <div
+          style={{
+            color: 'rgba(248, 251, 255, 0.75)',
+            fontSize: '0.95rem',
+          }}
+        >
+          No badges in this section yet.
+        </div>
       );
     }
-
     return badges.map((badge) => {
       const isActive = activeBadgeId === badge.id;
       const tokenClassName = [styles.badgeToken, isActive ? styles.badgeTokenActive : ''].filter(Boolean).join(' ');
@@ -212,98 +254,229 @@ export default function BadgeWalletPage() {
   };
 
   return (
-    <div className={styles.page}>
-      <aside className={styles.sidebar}>
-        <div className={styles.profileSummary}>
-          <div className={styles.profileSummaryAvatar}>{initialsFromName(displayName)}</div>
-          <div className={styles.profileSummaryName}>{displayName}</div>
+    <div className="page">
+      {/* Global sidebar with global classes only */}
+      <aside className="sidebar">
+        <div className="profile">
+          <div className="avatar">{initialsFromName(displayName)}</div>
+          <div className="name">{displayName}</div>
         </div>
-        <nav className={styles.navList}>
+
+        <nav className="navList" aria-label="Main">
           {navItems.map((item) => {
             const isActive = pathname === item.href;
-            const navItemClass = `${styles.navItem} ${isActive ? styles.navItemActive : ''}`.trim();
+            const cls = `navItem${isActive ? ' navItemActive' : ''}`;
             return (
-              <Link key={item.href} href={item.href} className={navItemClass}>
+              <Link key={item.href} href={item.href} className={cls}>
                 {item.label}
               </Link>
             );
           })}
         </nav>
-        <div className={styles.sidebarFooter}>
-          <button type="button" onClick={handleSignOut} className={styles.signOffButton} disabled={isSigningOut}>
+
+        <div className="sidebarFooter">
+          <button type="button" onClick={handleSignOut} className="signOffButton" disabled={isSigningOut}>
             {isSigningOut ? 'Signing off…' : 'Sign off'}
           </button>
-          <div className={styles.brandFooter}>checkd.</div>
         </div>
       </aside>
 
-      <main className={styles.main}>
-        <header className={styles.headerRow}>
-          <h1 className={styles.pageTitle}>Badge Wallet</h1>
-          <div className={styles.brandMark}>checkd.</div>
-        </header>
+      {/* Main area: local wrapper for wallet spacing */}
+      <main className="main">
+        <div className={styles.walletRoot}>
+          <header className={styles.headerRow}>
+            <h1 className={styles.pageTitle}>Badge Wallet</h1>
+          </header>
 
-        <div className={styles.walletSections}>
-          {SECTION_CONFIG.map((section, index) => {
-            const badges = badgesByStatus[section.status];
-            const isExpanded = openSection === section.status;
-            const sectionClassName = [
-              styles.walletSection,
-              !isExpanded ? styles.walletSectionCollapsed : '',
-              isExpanded && isBadgeInSection(activeBadge, section.status) ? styles.walletSectionElevated : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
-            const baseZ = index + 1;
-            const elevatedBoost = isExpanded && isBadgeInSection(activeBadge, section.status) ? 6 : 0;
+          <div className={styles.walletSections}>
+            {SECTION_CONFIG.map((section, index) => {
+              const badges = badgesByStatus[section.status];
+              const isExpanded = openSection === section.status;
 
-            return (
-              <section key={section.status} className={sectionClassName} style={{ zIndex: baseZ + elevatedBoost }}>
-                <div className={styles.sectionHeader}>
-                  <div className={styles.sectionTitle}>
-                    <h2>{section.title}</h2>
-                    <p>{section.subtitle}</p>
+              // Simplify stacking to prevent drift when toggling sections
+              const zIndexBoost = SECTION_CONFIG.length - index;
+
+              const sectionClassName = [
+                styles.walletSection,
+                !isExpanded ? styles.walletSectionCollapsed : '',
+                isExpanded ? styles.walletSectionElevated : styles.walletSectionResting,
+              ]
+                .filter(Boolean)
+                .join(' ');
+
+              return (
+                <section
+                  key={section.status}
+                  className={sectionClassName}
+                  style={{
+                    zIndex: zIndexBoost,
+                    transform: 'translateY(0) scale(1)',
+                  }}
+                  data-open={isExpanded ? 'true' : 'false'}
+                >
+                  <div className={styles.sectionHeader}>
+                    <div className={styles.sectionTitle}>
+                      <h2>{section.title}</h2>
+                      <p>{section.subtitle}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className={[styles.toggleButton, isExpanded ? styles.toggleButtonOpen : '']
+                        .filter(Boolean)
+                        .join(' ')}
+                      onClick={() => toggleSection(section.status)}
+                      aria-expanded={isExpanded}
+                      aria-controls={`${section.status}-badges`}
+                      aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
+                    >
+                      <ChevronIcon direction={isExpanded ? 'up' : 'down'} />
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className={[styles.toggleButton, isExpanded ? styles.toggleButtonOpen : '']
+
+                  <div
+                    id={`${section.status}-badges`}
+                    className={[styles.badgeGrid, isExpanded ? styles.badgeGridVisible : styles.badgeGridHidden]
                       .filter(Boolean)
                       .join(' ')}
-                    onClick={() => toggleSection(section.status)}
-                    aria-expanded={isExpanded}
-                    aria-controls={`${section.status}-badges`}
+                    aria-hidden={!isExpanded}
                   >
-                    <ChevronIcon direction={isExpanded ? 'up' : 'down'} />
-                  </button>
-                </div>
-
-                {isExpanded && (
-                  <div id={`${section.status}-badges`} className={styles.badgeGrid}>
                     {renderBadgeTokens(badges)}
                   </div>
+                </section>
+              );
+            })}
+          </div>
+
+          {activeBadge ? (
+            <div className={styles.modalOverlay}>
+              <article ref={modalRef} className={styles.badgeModal} role="dialog" aria-modal="true">
+                <button type="button" className={styles.modalClose} onClick={() => setActiveBadgeId(null)}>
+                  ×
+                </button>
+                <h3>{activeBadge.name}</h3>
+                <div>
+                  <span className={styles.badgeStatus}>Status: </span>
+                  <span>{formatBadgeStatus(activeBadge.status)}</span>
+                </div>
+                <p>{activeBadge.description}</p>
+
+                {activeBadge.status === 'READY_FOR_ASSESSMENT' && (
+                  <p className={styles.modalHelperText}>
+                    Show your assessor this QR code during the in-person skill check. When you finish, you can review
+                    the lesson details again.
+                  </p>
+                )}
+                {activeBadge.status === 'READY_FOR_FINALIZATION' && (
+                  <p className={styles.modalHelperText}>
+                    Take a quick feedback survey to finalize this badge and add it to your completed list.
+                  </p>
+                )}
+                {activeBadge.status === 'LEARNING' && (
+                  <p className={styles.modalHelperText}>
+                    Keep working through lesson checkpoints to unlock your assessment.
+                  </p>
+                )}
+                {activeBadge.status === 'COMPLETED' && (
+                  <p className={styles.modalHelperText}>Badge finalized. Great work!</p>
                 )}
 
-                {isExpanded && activeBadge && isBadgeInSection(activeBadge, section.status) && (
-                  <article ref={modalRef} className={[styles.badgeModal, styles.badgeModalVisible].join(' ')}>
-                    <h3>{activeBadge.name}</h3>
-                    <div>
-                      <span className={styles.badgeStatus}>Status: </span>
-                      <span>{formatBadgeStatus(activeBadge.status)}</span>
-                    </div>
-                    <p>{activeBadge.description}</p>
-                    <div className={styles.modalActions}>
-                      <button type="button" className={styles.modalActionSecondary}>
-                        Review Skill
-                      </button>
-                      <button type="button" className={styles.modalActionPrimary}>
+                <div className={styles.modalActions}>
+                  {activeBadge.status === 'READY_FOR_ASSESSMENT' && (
+                    <>
+                      <button
+                        type="button"
+                        className={styles.modalActionPrimary}
+                        onClick={() => setQrBadge(activeBadge)}
+                      >
                         Show Code
                       </button>
+                      <button
+                        type="button"
+                        className={styles.modalActionLink}
+                        onClick={() => reviewFeedback(activeBadge)}
+                      >
+                        View skill
+                      </button>
+                    </>
+                  )}
+
+                  {activeBadge.status === 'READY_FOR_FINALIZATION' && (
+                    <button
+                      type="button"
+                      className={styles.modalActionPrimary}
+                      onClick={() => startSurvey(activeBadge)}
+                    >
+                      Start Survey
+                    </button>
+                  )}
+
+                  {activeBadge.status === 'LEARNING' && (
+                    <button
+                      type="button"
+                      className={styles.modalActionPrimary}
+                      onClick={() => reviewFeedback(activeBadge)}
+                    >
+                      Review Feedback
+                    </button>
+                  )}
+
+                  {activeBadge.status === 'COMPLETED' && (
+                    <button
+                      type="button"
+                      className={styles.modalActionPrimary}
+                      onClick={() => exportBadgeToLinkedIn(activeBadge)}
+                      disabled={isExporting}
+                    >
+                      {isExporting ? 'Preparing LinkedIn package…' : 'Export to LinkedIn'}
+                    </button>
+                  )}
+                </div>
+
+                {activeBadge.status === 'COMPLETED' && exportStatus ? (
+                  <p className={styles.modalHelperText}>{exportStatus}</p>
+                ) : null}
+              </article>
+            </div>
+          ) : null}
+
+          {qrBadge ? (
+            <div className={styles.modalOverlay}>
+              <div className={styles.qrModal} role="dialog" aria-modal="true">
+                <button type="button" className={styles.modalClose} onClick={() => setQrBadge(null)}>
+                  ×
+                </button>
+                <div className={styles.qrCodeBox}>
+                  <div className={styles.qrCodeWrapper}>
+                    <div className={styles.qrCodeCanvas}>
+                      <Image
+                        src={`/api/qr?size=360&data=${encodeURIComponent(
+                          `student:${studentData?.student.id ?? 'unknown'}|badge:${qrBadge.id}`
+                        )}`}
+                        alt={`${qrBadge.name} QR code`}
+                        width={360}
+                        height={360}
+                        className={styles.qrCodeImage}
+                      />
+                      <div className={styles.qrCodeLogo}>
+                        <Image
+                          src="/assets/badge_wallet/QR/qr_logo.svg"
+                          alt="Checkd logo"
+                          width={74}
+                          height={74}
+                          className={styles.qrCodeLogoImage}
+                        />
+                      </div>
                     </div>
-                  </article>
-                )}
-              </section>
-            );
-          })}
+                  </div>
+                  <div className={styles.qrCaption}>{qrBadge.name} Skill Check</div>
+                  <p>
+                    Show your assessor this QR code to complete the in-person assessment. Don&apos;t forget to bring
+                    your student ID for verification.
+                  </p>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </div>
       </main>
     </div>

@@ -1,0 +1,162 @@
+.pageContent {
+  padding: 3rem;
+}
+
+.sidebarProfile {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+}
+
+.sidebarAvatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #fff;
+  color: #1f4b99;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+}
+
+.sidebarName {
+  font-weight: 700;
+}
+
+.sidebarNavList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: auto;
+}
+
+.sidebarNavItem {
+  color: inherit;
+}
+
+.sidebarNavItemActive {
+  color: #1f4b99;
+  font-weight: 700;
+}
+
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: 2.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.badgeCard {
+  background: linear-gradient(180deg, #1f4b99, #245dbb);
+  color: #fff;
+  padding: 2rem;
+  border-radius: 24px;
+  margin-bottom: 2rem;
+  box-shadow: 0 30px 60px rgba(31, 75, 153, 0.2);
+}
+
+.badgeCard h2 {
+  margin: 0 0 1rem;
+  font-size: 1.5rem;
+}
+
+.badgeCard strong {
+  font-size: 1.1rem;
+}
+
+.cooldown {
+  background: #fff;
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+}
+
+.cooldownBar {
+  height: 18px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1f4b99 0%, #1f4b99 70%, rgba(31, 75, 153, 0.2) 70%);
+  margin: 1rem 0;
+}
+
+.cooldownMeta {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 600;
+}
+
+.section {
+  background: #fff;
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.08);
+}
+
+.section h3 {
+  margin-top: 0;
+  font-size: 1.3rem;
+}
+
+.timeline {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.timelineItem {
+  flex: 1 1 200px;
+  background: #f5f7fb;
+  border-radius: 18px;
+  padding: 1rem;
+}
+
+.timelineItem img {
+  width: 100%;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  object-fit: cover;
+}
+
+.optionalGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.optionalCard {
+  background: #f5f7fb;
+  border-radius: 16px;
+  padding: 1rem;
+}
+
+.optionalCard img {
+  width: 100%;
+  border-radius: 12px;
+  object-fit: cover;
+  margin-bottom: 0.75rem;
+}
+
+.primaryButton {
+  background: #1f4b99;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 1rem;
+}
+
+.brandMark {
+  font-weight: 700;
+  font-size: 1.1rem;
+  color: #1f4b99;
+}

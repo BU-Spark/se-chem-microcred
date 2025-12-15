@@ -4,6 +4,11 @@ import { useEffect, useRef } from 'react';
 
 type YoutubePlayerInstance = {
   destroy: () => void;
+  playVideo: () => void;
+  pauseVideo: () => void;
+  seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
+  getCurrentTime: () => number;
+  getDuration: () => number;
 };
 
 type YoutubeReadyEvent = {
@@ -23,10 +28,43 @@ type YoutubeApi = {
   ) => YoutubePlayerInstance;
 };
 
+declare global {
+  interface Window {
+    YT?: YoutubeApi;
+    onYouTubeIframeAPIReady?: () => void;
+  }
+}
+
 export interface YoutubePlayerProps {
   videoId: string;
   startSeconds?: number;
   onReady?: (player: YoutubePlayerInstance) => void;
+}
+
+let youtubeIframeApiPromise: Promise<void> | null = null;
+
+function loadYouTubeIframeApi(): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
+  if (window.YT?.Player) return Promise.resolve();
+  if (youtubeIframeApiPromise) return youtubeIframeApiPromise;
+
+  youtubeIframeApiPromise = new Promise<void>((resolve) => {
+    const existing = document.querySelector('script[src="https://www.youtube.com/iframe_api"]');
+    if (!existing) {
+      const script = document.createElement('script');
+      script.src = 'https://www.youtube.com/iframe_api';
+      script.async = true;
+      document.body.appendChild(script);
+    }
+
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => {
+      prev?.();
+      resolve();
+    };
+  });
+
+  return youtubeIframeApiPromise;
 }
 
 export function YoutubePlayer({ videoId, startSeconds, onReady }: YoutubePlayerProps) {
@@ -39,24 +77,6 @@ export function YoutubePlayer({ videoId, startSeconds, onReady }: YoutubePlayerP
     }
 
     let isSubscribed = true;
-
-    const loadPlayer = () => {
-      const globalYT = window.YT;
-      if (!globalYT || !globalYT.Player) {
-        window.onYouTubeIframeAPIReady = () => {
-          if (!isSubscribed) {
-            return;
-          }
-          createPlayer();
-        };
-        const script = document.createElement('script');
-        script.src = 'https://www.youtube.com/iframe_api';
-        script.async = true;
-        document.body.appendChild(script);
-        return;
-      }
-      createPlayer();
-    };
 
     const createPlayer = () => {
       if (!playerRef.current) {
@@ -83,7 +103,15 @@ export function YoutubePlayer({ videoId, startSeconds, onReady }: YoutubePlayerP
       });
     };
 
-    loadPlayer();
+    loadYouTubeIframeApi()
+      .then(() => {
+        if (isSubscribed) {
+          createPlayer();
+        }
+      })
+      .catch((err) => {
+        console.error('Failed to load YouTube Iframe API', err);
+      });
 
     return () => {
       isSubscribed = false;
@@ -94,11 +122,4 @@ export function YoutubePlayer({ videoId, startSeconds, onReady }: YoutubePlayerP
   }, [videoId, startSeconds, onReady]);
 
   return <div className="yt-embed" ref={playerRef} />;
-}
-
-declare global {
-  interface Window {
-    YT?: YoutubeApi;
-    onYouTubeIframeAPIReady: () => void;
-  }
 }

@@ -1,216 +1,367 @@
-.page {
-  display: flex;
-  gap: 2rem;
-  min-height: calc(100vh - 80px);
-  padding: 2.5rem 1.5rem 3rem;
-  background: #e9eef6;
-}
-
-.sidebar {
-  width: 240px;
-  background: #1f5fab;
-  border-radius: 1.5rem;
-  color: #f8fbff;
-  padding: 2rem 1.5rem;
+/* Main column inside the global shell */
+.root {
+  max-width: 1091px;
+  /* Figma "Lesson timeline" width */
+  margin-left: 3.5rem;
+  /* pull everything left, closer to sidebar */
+  margin-right: 0;
+  padding-top: 0;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  gap: 1.9rem;
 }
 
-.profile {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  align-items: center;
-  text-align: center;
-}
-
-.avatar {
-  width: 84px;
-  height: 84px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  display: grid;
-  place-items: center;
-  font-size: 1.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-}
-
-.name {
-  font-weight: 600;
-  font-size: 1.1rem;
-}
-
-.navList {
-  display: grid;
-  gap: 0.8rem;
-  font-size: 0.95rem;
-}
-
-.navItem {
-  padding: 0.55rem 0.85rem;
-  border-radius: 0.75rem;
-  transition: background-color 0.2s ease;
-}
-
-.navItemActive,
-.navItem:hover {
-  background: rgba(255, 255, 255, 0.16);
-}
-
-.brandFooter {
-  margin-top: auto;
-  font-size: 0.85rem;
-  opacity: 0.85;
-}
-
-.main {
-  flex: 1;
-  background: #ffffff;
-  border-radius: 1.5rem;
-  padding: 2rem 2.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 2.5rem;
-  box-shadow: 0 25px 45px rgba(15, 23, 42, 0.12);
-}
-
-.backLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  color: #1f5fab;
-  font-weight: 600;
-}
-
+/* Header: "Back" on the left, brand on the right */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+
+.backLink {
+  font-size: 16px;
+  color: #000000;
+  text-decoration: none;
+  font-weight: 400;
+}
+
+.backLink:hover {
+  text-decoration: underline;
 }
 
 .brandMark {
-  font-weight: 700;
-  color: #1f5fab;
-  font-size: 1.25rem;
+  width: 80px;
+  height: 24;
 }
 
 .lessonTitle {
-  font-size: 2.1rem;
-  font-weight: 600;
-  margin-top: 1.5rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: #111827;
 }
 
+/* Text sections */
 .section {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
-.sectionTitle {
-  font-size: 1.3rem;
-  font-weight: 600;
+.sectionHeading {
+  font-family: 'Lato', sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  color: #111827;
 }
 
-.paragraph,
-.list {
-  font-size: 0.95rem;
+.body,
+.bullets {
+  font-family: 'Lato', sans-serif;
+  margin-left: 45px;
+  font-weight: 400;
+  font-size: 20px;
   color: #374151;
   line-height: 1.6;
 }
 
-.timeline {
-  display: flex;
-  gap: 1.5rem;
-  align-items: stretch;
-  flex-wrap: wrap;
+.bullets {
+  padding-left: 1.25rem;
 }
 
+.bullets li {
+  margin: 0.16rem 0;
+}
+
+/* ===== Timeline / Outline based on checkpoints ===== */
+
+.timeline {
+  width: 100%;
+  max-width: 1091px;
+  /* match Figma */
+  min-height: 325px;
+  /* approximate Figma height */
+  display: flex;
+  align-items: flex-start;
+  gap: 0rem;
+  margin-top: 1.25rem;
+}
+
+.timelineSection {
+  margin-top: 2.5rem;
+}
+
+/* One group = [thumbnail] + [connector] */
+.timelineGroup {
+  display: flex;
+  align-items: flex-start;
+  gap: 2.4rem;
+}
+
+/* Thumbnail + part text (kept same size as before) */
 .timelineItem {
-  flex: 1;
-  min-width: 200px;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  background: #f5f7fb;
-  border-radius: 1rem;
-  border: 1px solid rgba(148, 163, 184, 0.35);
-  padding: 1rem;
+  align-items: flex-start;
+  width: 174px;
 }
 
-.timelineMedia {
-  border-radius: 0.9rem;
-  background: linear-gradient(135deg, #cbd5f5, #e8ebf6);
+/* Top: "Check point / 3 questions" */
+.timelineCheckpointLabel {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 0.15rem;
+  position: relative;
+  left: 45px;
+  top: -50px
+}
+
+.timelineCheckpointMeta {
+  font-size: 20px;
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Block that holds label + line-circle-line between checkpoints */
+.timelineConnectorBlock {
+  margin-left: -54px;
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Final "End of lesson" block (label + line + big circle) */
+.timelineEndBlock {
+  margin-left: -55px;
+  margin-top: -22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* ----- NORMAL checkpoints: position relative to middle circle ----- */
+.timelineConnectorBlock .timelineCheckpointLabel {
+  font-family: 'Lato', sans-serif;
+  font-size: 20;
+  font-weight: 700;
+  position: relative;
+  top: -40px;
+  left: 20px;
+  text-align: center;
+}
+
+/* ----- FINAL checkpoint: position relative to big circle ----- */
+.timelineEndBlock .timelineCheckpointLabel {
+  font-family: 'Lato', sans-serif;
+  font-size: 24;
+  font-weight: 700;
+  position: relative;
+  top: -16px;
+  /* tweak independently */
+  left: 30px;
+  /* tweak independently */
+  text-align: left;
+}
+
+/* Horizontal connector track */
+.timelineConnector {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+/* Circle in the middle of connector line */
+.timelineCircle {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  border: 2px solid #2E6AA9;
+  background-color: #ffffff;
+}
+
+/* Line on each side */
+.timelineLine {
+  width: 61.5px;
+  height: 2px;
+  background-color: #2E6AA9;
+}
+
+/* Bottom: thumbnail + part title + duration */
+.timelineThumbBlock {
+  width: 100%;
+}
+
+/* You already set the size of the thumbnail square */
+.thumb {
+  width: 159px;
+  height: 159px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  background: #f3f4f6;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(31, 95, 171, 0.8);
-  font-weight: 600;
-  font-size: 0.9rem;
-  height: 100px;
-  overflow: hidden;
 }
 
-.timelineMediaImage {
+.thumbImg {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.timelineHeading {
-  font-weight: 600;
-  font-size: 1rem;
+.thumbPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  color: #6b7280;
 }
 
-.timelineMeta {
-  font-size: 0.85rem;
-  color: #4b5563;
+.partTitle {
+  margin-top: 0.4rem;
+  font-size: 0.94rem;
+  font-weight: 700;
 }
 
-.timelineCheckpoints {
+.partDuration {
+  font-size: 0.86rem;
+  font-style: italic;
+}
+
+.timelineFinalCircle {
+  width: 90px;
+  height: 90px;
+  margin-left: 0rem;
+  border-radius: 999px;
+  border: 2px solid #2E6AA9;
+  background-color: #ffffff;
   display: flex;
-  gap: 0.5rem;
   align-items: center;
-  font-size: 0.85rem;
-  color: #1f5fab;
+  justify-content: center;
+  /* Logo placeholder */
+}
+
+.brandLogo {
+  margin-left: 200;
+  width: 80px;
+  height: 24;
+}
+
+.thumb {
+  width: 159px;
+  height: 159px;
+  border-radius: 4px;
+  overflow: hidden;
+  border: 1px solid #cbd5e1;
+  background: #f3f4f6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.thumbPlaceholder {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  font-size: 0.8rem;
+  color: #6b7280;
+}
+
+.partTitle {
+  margin-top: 0.4rem;
+  font-size: 0.94rem;
+  font-weight: 700;
+}
+
+.partDuration {
+  font-size: 0.86rem;
+  font-style: italic;
+}
+
+/* ===== Start Lesson button ===== */
+
+.actionsRow {
+  margin-top: 2.4rem;
+  display: flex;
+  justify-content: flex-start;
+  /* keep button left */
+  align-items: center;
 }
 
 .primaryButton {
-  align-self: flex-start;
-  padding: 0.75rem 1.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.8rem 1.9rem;
   border-radius: 999px;
   border: none;
   background: #1f5fab;
   color: #ffffff;
-  font-weight: 600;
+  font-weight: 700;
+  font-size: 0.98rem;
   cursor: pointer;
-  transition: filter 0.2s ease;
+  text-decoration: none;
 }
 
 .primaryButton:hover {
-  filter: brightness(0.92);
+  filter: brightness(0.96);
 }
 
-@media (max-width: 960px) {
-  .page {
-    flex-direction: column;
+/* ===== Responsive ===== */
+
+@media (max-width: 1100px) {
+  .root {
+    margin-left: 2rem;
+    margin-right: 1rem;
   }
 
-  .sidebar {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
+  .timeline {
+    gap: 2rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .root {
+    margin-left: 1.5rem;
+    margin-right: 1.5rem;
+    padding-top: 1.5rem;
+  }
+
+  .timeline {
+    flex-direction: column;
+    align-items: flex-start;
+    min-height: auto;
+  }
+
+  .timelineItem,
+  .timelineItemFinal {
     width: 100%;
   }
+}
 
-  .navList {
-    display: flex;
-    gap: 0.65rem;
-  }
+.backLinkContent {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
 
-  .navItem {
-    padding: 0.45rem 0.7rem;
-  }
+.backArrow {
+  margin-top: -3px;
+  margin-left: -10px;
+  width: 52px;
+  height: auto;
 }

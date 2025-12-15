@@ -1,4 +1,35 @@
-.page {
+.main {
+  position: relative;
+  background: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  padding: 3rem 0;
+}
+
+.sidebarContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  color: var(--brand-on);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--brand-on);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.sidebarBrand {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.avatarPage {
   position: relative;
   min-height: 100vh;
   padding: 3rem 1.5rem;

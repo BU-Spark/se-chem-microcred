@@ -20,6 +20,7 @@ const placeholderLessonImage =
 async function clearExistingData() {
   await prisma.$transaction([
     prisma.checkpointResponse.deleteMany(),
+    prisma.checkpointAttempt.deleteMany(),
     prisma.checkpointQuestion.deleteMany(),
     prisma.lessonCheckpoint.deleteMany(),
     prisma.segmentProgress.deleteMany(),
@@ -54,33 +55,50 @@ async function seedDemo() {
     },
   });
 
-  const student = await prisma.user.create({
-    data: {
-      email: 'student@example.edu',
-      name: 'Student Demo',
-      buid: 'U1234567',
-      gender: 'Female',
-      raceEthnicity: 'Asian',
-      parentalEducation: 'Masters degree',
-      pellGrantQualified: true,
-    },
-  });
+  const students = await Promise.all([
+    prisma.user.create({
+      data: {
+        email: 'nx2004@bu.edu',
+        name: 'John Doe',
+        buid: 'U1234567',
+        gender: 'Male',
+        raceEthnicity: 'White',
+        parentalEducation: 'Bachelors degree',
+        pellGrantQualified: false,
+      },
+    }),
+  ]);
 
-  await prisma.avatarSetting.create({
-    data: {
-      studentId: student.id,
-      base: AvatarBase.SAPPHIRE,
-      face: AvatarFace.SMILE,
-      accessory: AvatarAccessory.LEAF,
-    },
-  });
+  for (const student of students) {
+    await prisma.avatarSetting.create({
+      data: {
+        studentId: student.id,
+        base: AvatarBase.SAPPHIRE,
+        face: AvatarFace.SMILE,
+        accessory: AvatarAccessory.LEAF,
+      },
+    });
 
-  await prisma.enrollment.create({
-    data: {
-      studentId: student.id,
-      courseId: course.id,
-    },
-  });
+    await prisma.enrollment.create({
+      data: {
+        studentId: student.id,
+        courseId: course.id,
+      },
+    });
+
+    await prisma.studentAnalytics.create({
+      data: {
+        studentId: student.id,
+        hoursLearning: 6,
+        badgesCompleted: 1,
+        badgesReadyForAssessment: 1,
+        badgesNotAttempted: 0,
+        questionsAnswered: 6,
+        averageAssessmentScore: 0,
+        highestAssessmentScore: 0,
+      },
+    });
+  }
 
   await prisma.courseContact.createMany({
     data: [
@@ -101,67 +119,38 @@ async function seedDemo() {
     ],
   });
 
-  await prisma.studentAnalytics.create({
-    data: {
-      studentId: student.id,
-      hoursLearning: 10,
-      badgesCompleted: 4,
-      badgesReadyForAssessment: 2,
-      badgesNotAttempted: 2,
-      questionsAnswered: 30,
-      averageAssessmentScore: 70,
-      highestAssessmentScore: 92,
-    },
-  });
-
   const lessonSeeds = [
     {
       slug: 'bunsen-burners',
       title: 'Bunsen Burners',
-      summary: 'Get hands-on with Bunsen burners while reviewing flame safety and lab etiquette.',
-      description:
-        'This unit walks through each phase of the burner demonstration with instructor checkpoints to confirm understanding.',
-      estimatedMinutes: 45,
+      summary: 'Hands-on practice lighting and controlling a burner safely.',
+      description: 'Learn the ignition checklist, flame control, and shutdown steps shown in the demo video.',
+      estimatedMinutes: 20,
       dueDate: new Date('2025-03-01T22:00:00.000Z'),
-      skills: [
-        'Identify burner parts and functions',
-        'Adjust flame height for desired heat',
-        'Demonstrate proper safety checks',
-      ],
+      skills: ['Inspect burner setup', 'Control flame height', 'Shut down safely'],
       segments: [
         {
-          title: 'Ignition & Setup',
-          summary: 'Review the equipment and ignite the burner safely.',
-          duration: 6,
-          videoUrl: 'https://www.youtube.com/watch?v=zxQyTK8quyY',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1521790797524-b2497295b8a0?auto=format&fit=crop&w=200&q=80',
-        },
-        {
-          title: 'Flame Control',
-          summary: 'Adjust flame height and color for optimal heat.',
+          title: 'Bunsen Burner Demo',
+          summary: 'Walk through the full burner setup and ignition.',
           duration: 7,
-          videoUrl: 'https://www.youtube.com/watch?v=Nhk7pyoNf3k',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=200&q=80',
-        },
-        {
-          title: 'Shutdown & Storage',
-          summary: 'Properly power down and store burner equipment.',
-          duration: 5,
-          videoUrl: 'https://www.youtube.com/watch?v=tj5l0y7muf4',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=200&q=80',
+          videoUrl: 'https://www.youtube.com/watch?v=p67ZwO6PdeI',
+          muxPlaybackId: null,
+          thumbnailUrl: null,
         },
       ],
       checkpoints: [
         {
-          title: 'Part 1',
+          title: 'Burner Basics',
           label: 'Checkpoint',
           meta: '3 questions',
           questionCount: 3,
           segmentIndex: 0,
+          timeOffsetSeconds: 60,
+          snapshotUrl: 'https://images.unsplash.com/photo-1513379733131-47fc74b45fc7?auto=format&fit=crop&w=320&q=80',
           questions: [
             {
               prompt: 'Which step must you complete before opening the gas valve?',
-              options: ['Check hose connections', 'Light the match', 'Turn on room ventilation'],
+              options: ['Check hose connections', 'Light the match', 'Lower the room lights'],
               correctIndex: 0,
             },
             {
@@ -170,56 +159,33 @@ async function seedDemo() {
               correctIndex: 1,
             },
             {
-              prompt: 'Where should you point the burner when igniting?',
-              options: ['Straight up', 'Toward a heat shield', 'Away from yourself and others'],
-              correctIndex: 2,
+              prompt: 'Target flame height in cm when heating a beaker? (numeric)',
+              options: {
+                type: 'shortAnswer',
+                expectedAnswer: 2,
+                tolerancePercent: 20,
+              },
+              correctIndex: null,
             },
           ],
         },
         {
-          title: 'Part 2',
+          title: 'Shutdown Steps',
           label: 'Checkpoint',
-          meta: '3 questions',
-          questionCount: 3,
-          segmentIndex: 1,
+          meta: '2 questions',
+          questionCount: 2,
+          segmentIndex: 0,
+          timeOffsetSeconds: 140,
+          snapshotUrl: 'https://images.unsplash.com/photo-1521790797524-b2497295b8a0?auto=format&fit=crop&w=320&q=80',
           questions: [
             {
-              prompt: 'Which control adjusts the flame height on most burners?',
-              options: ['Air intake', 'Gas flow knob', 'Spark switch'],
+              prompt: 'What do you close first when shutting down?',
+              options: ['Air intake', 'Gas valve', 'Spark igniter'],
               correctIndex: 1,
             },
             {
-              prompt: 'How often should you check the flame while heating?',
-              options: ['Constantly', 'Every 5 minutes', 'Only after you start'],
-              correctIndex: 0,
-            },
-            {
-              prompt: 'A noisy flame usually means:',
-              options: ['Too much gas', 'Too little air', 'Too much air'],
-              correctIndex: 2,
-            },
-          ],
-        },
-        {
-          title: 'Part 3',
-          label: 'Final checkpoint',
-          meta: '3 questions',
-          questionCount: 3,
-          segmentIndex: 2,
-          questions: [
-            {
-              prompt: 'What should you do before leaving the burner unattended?',
-              options: ['Nothing, it is safe', 'Turn off gas and flame', 'Raise the flame to maximum'],
-              correctIndex: 1,
-            },
-            {
-              prompt: 'Where do you place hot equipment to cool?',
-              options: ['Directly on the bench', 'On a heatproof mat', 'In a cabinet'],
-              correctIndex: 1,
-            },
-            {
-              prompt: 'Which log entry is required after completing the lesson?',
-              options: ['None', 'Equipment checkout log', 'Waste disposal log'],
+              prompt: 'Where should the burner cool after shutdown?',
+              options: ['In a drawer', 'On a heat-safe surface', 'In the sink'],
               correctIndex: 1,
             },
           ],
@@ -227,32 +193,276 @@ async function seedDemo() {
       ],
     },
     {
-      slug: 'waste-handling',
-      title: 'Waste Handling',
-      summary: 'Separate lab waste streams and dispose of materials safely.',
-      description:
-        'Break down the handling, labeling, and disposal steps for different waste categories before reassessment.',
-      estimatedMinutes: 25,
-      dueDate: new Date('2025-03-05T22:00:00.000Z'),
-      skills: [
-        'Differentiate hazardous vs. non-hazardous waste',
-        'Label waste containers accurately',
-        'Follow spill response protocol',
-      ],
+      slug: 'general-lab-safety',
+      title: 'General Lab Safety',
+      summary: 'Core safety habits for every lab session.',
+      description: 'Review PPE, housekeeping, and emergency basics from the lab safety video.',
+      estimatedMinutes: 15,
+      dueDate: new Date('2025-03-04T22:00:00.000Z'),
+      skills: ['Select PPE', 'Keep benches clear', 'Know emergency steps'],
       segments: [
         {
-          title: 'Waste Categories Overview',
-          summary: 'Understand the main waste streams in the lab.',
+          title: 'Safety Overview',
+          summary: 'Common lab safety expectations and why they matter.',
           duration: 8,
-          videoUrl: 'https://www.youtube.com/watch?v=z2Xk9Jk0h8w',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=200&q=80',
+          videoUrl: 'https://www.youtube.com/watch?v=nZ2_FmLPAow',
+          muxPlaybackId: null,
+          thumbnailUrl: null,
+        },
+      ],
+      checkpoints: [
+        {
+          title: 'Safety Checkpoint',
+          label: 'Checkpoint',
+          meta: '3 questions',
+          questionCount: 3,
+          segmentIndex: 0,
+          timeOffsetSeconds: 70,
+          snapshotUrl: 'https://images.unsplash.com/photo-1496307042754-b4aa456c4a2d?auto=format&fit=crop&w=320&q=80',
+          questions: [
+            {
+              prompt: 'What should you do with loose hair before starting?',
+              options: ['Leave it as is', 'Tie it back', 'Wear a hat'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'Which item is always required near the bench?',
+              options: ['Calculator', 'Lab coat and goggles', 'Snack'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'What is the first step if a spill reaches your skin?',
+              options: ['Ignore it', 'Rinse with water immediately', 'Tell a friend'],
+              correctIndex: 1,
+            },
+          ],
         },
         {
-          title: 'Labeling & Storage',
-          summary: 'Prepare containers and maintain storage logs.',
+          title: 'Emergency Basics',
+          label: 'Checkpoint',
+          meta: '2 questions',
+          questionCount: 2,
+          segmentIndex: 0,
+          timeOffsetSeconds: 140,
+          snapshotUrl: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=320&q=80',
+          questions: [
+            {
+              prompt: 'Where is the first place to look for chemical emergency guidance?',
+              options: ['Safety Data Sheet', 'Class notes', 'Random website'],
+              correctIndex: 0,
+            },
+            {
+              prompt: 'What should you do before evacuating for a fire alarm?',
+              options: ['Finish the experiment', 'Shut off burners/equipment if safe', 'Take a photo'],
+              correctIndex: 1,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: 'top-loading-balance',
+      title: 'Top-loading Balance',
+      summary: 'Accurate mass measurements with proper balance technique.',
+      description: 'Follow the setup, taring, and cleanup process shown in the balance video.',
+      estimatedMinutes: 12,
+      dueDate: new Date('2025-03-07T22:00:00.000Z'),
+      skills: ['Level and tare a balance', 'Avoid drafts and vibration', 'Record measurements'],
+      segments: [
+        {
+          title: 'Balance Operation',
+          summary: 'Step-by-step use of the top-loading balance.',
+          duration: 6,
+          videoUrl: 'https://www.youtube.com/watch?v=SIr53DdFflk',
+          muxPlaybackId: null,
+          thumbnailUrl: null,
+        },
+      ],
+      checkpoints: [
+        {
+          title: 'Balance Basics',
+          label: 'Checkpoint',
+          meta: '3 questions',
+          questionCount: 3,
+          segmentIndex: 0,
+          timeOffsetSeconds: 65,
+          snapshotUrl: 'https://images.unsplash.com/photo-1509223197845-458d87318791?auto=format&fit=crop&w=320&q=80',
+          questions: [
+            {
+              prompt: 'Why do you close the balance draft shield?',
+              options: ['Keep dust out', 'Reduce air currents', 'Look professional'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'When should you tare the balance?',
+              options: ['Only at the end', 'After placing the container', 'Never'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'What is 1 + 1? (numeric)',
+              options: {
+                type: 'shortAnswer',
+                expectedAnswer: 2,
+                tolerancePercent: 1,
+              },
+              correctIndex: null,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: 'graduated-cylinder',
+      title: 'Graduated Cylinder',
+      summary: 'Measure liquid volumes accurately with a graduated cylinder.',
+      description: 'Learn how to read the meniscus and avoid parallax using the cylinder video.',
+      estimatedMinutes: 10,
+      dueDate: new Date('2025-03-10T22:00:00.000Z'),
+      skills: ['Read the meniscus', 'Select proper cylinder size', 'Avoid parallax error'],
+      segments: [
+        {
+          title: 'Cylinder Technique',
+          summary: 'Demonstration of correct volume reading.',
+          duration: 5,
+          videoUrl: 'https://www.youtube.com/watch?v=BeJ5Ez66gS8',
+          muxPlaybackId: null,
+          thumbnailUrl: null,
+        },
+      ],
+      checkpoints: [
+        {
+          title: 'Volume Reading',
+          label: 'Checkpoint',
+          meta: '3 questions',
+          questionCount: 3,
+          segmentIndex: 0,
+          timeOffsetSeconds: 50,
+          snapshotUrl: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=320&q=80',
+          questions: [
+            {
+              prompt: 'Where should your eyes be when reading volume?',
+              options: ['Above the meniscus', 'Level with the meniscus', 'Below the bench'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'Which part of the meniscus do you read?',
+              options: ['Top', 'Bottom', 'Middle'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'Why choose the smallest cylinder that fits the volume?',
+              options: ['Looks nicer', 'Improves precision', 'Heats faster'],
+              correctIndex: 1,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: 'lab-notebook',
+      title: 'Preparing the Lab Notebook',
+      summary: 'Set up a clean, compliant lab notebook before experiments.',
+      description: 'Number pages, add headers, and capture objectives following the video walkthrough.',
+      estimatedMinutes: 8,
+      dueDate: new Date('2025-03-12T22:00:00.000Z'),
+      skills: ['Organize pre-lab notes', 'Record objectives clearly', 'Keep pages traceable'],
+      segments: [
+        {
+          title: 'Notebook Setup',
+          summary: 'How to format and prep your lab notebook.',
+          duration: 6,
+          videoUrl: 'https://www.youtube.com/watch?v=ZeHpfedmvBM',
+          muxPlaybackId: null,
+          thumbnailUrl: null,
+        },
+      ],
+      checkpoints: [
+        {
+          title: 'Notebook Basics',
+          label: 'Checkpoint',
+          meta: '2 questions',
+          questionCount: 2,
+          segmentIndex: 0,
+          timeOffsetSeconds: 40,
+          snapshotUrl: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=320&q=80',
+          questions: [
+            {
+              prompt: 'Where do you write the date for each entry?',
+              options: ['Back cover', 'Top of the page', 'Side margin'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'Why number pages before starting?',
+              options: ['For fun', 'To keep entries traceable', 'To change page order later'],
+              correctIndex: 1,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: 'volumetric-stock-solutions',
+      title: 'Preparing Stock Solutions in a Volumetric Flask',
+      summary: 'Make accurate stock solutions using volumetric glassware.',
+      description: 'Follow the rinse, dissolve, and bring-to-line steps from the demo.',
+      estimatedMinutes: 14,
+      dueDate: new Date('2025-03-15T22:00:00.000Z'),
+      skills: ['Use volumetric flasks', 'Dissolve solute safely', 'Mix to final volume'],
+      segments: [
+        {
+          title: 'Volumetric Prep',
+          summary: 'Step-by-step prep of a stock solution.',
           duration: 9,
-          videoUrl: 'https://www.youtube.com/watch?v=X4d3ZcRLLcI',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1580894899372-64032616e35e?auto=format&fit=crop&w=200&q=80',
+          videoUrl: 'https://www.youtube.com/watch?v=BclII1sSe8w',
+          muxPlaybackId: null,
+          thumbnailUrl: null,
+        },
+      ],
+      checkpoints: [
+        {
+          title: 'Solution Prep',
+          label: 'Checkpoint',
+          meta: '3 questions',
+          questionCount: 3,
+          segmentIndex: 0,
+          timeOffsetSeconds: 70,
+          snapshotUrl: 'https://images.unsplash.com/photo-1509223197845-458d87318791?auto=format&fit=crop&w=320&q=80',
+          questions: [
+            {
+              prompt: 'Why rinse the flask with a small amount of solution?',
+              options: ['Cool it down', 'Condition the walls', 'Save time'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'When do you bring the meniscus to the calibration line?',
+              options: ['Before dissolving solute', 'After most mixing is done', 'Never necessary'],
+              correctIndex: 1,
+            },
+            {
+              prompt: 'Best way to mix after filling to the line?',
+              options: ['Shake vigorously', 'Invert gently several times', 'Stir with a rod'],
+              correctIndex: 1,
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: 'general-waste-handling',
+      title: 'General Waste Handling',
+      summary: 'Collect and segregate common lab waste streams safely.',
+      description: 'Identify container types and labeling requirements as shown in the video.',
+      estimatedMinutes: 12,
+      dueDate: new Date('2025-03-18T22:00:00.000Z'),
+      skills: ['Choose correct waste container', 'Label waste properly', 'Store waste safely'],
+      segments: [
+        {
+          title: 'Waste Handling Basics',
+          summary: 'Overview of segregation and labeling.',
+          duration: 8,
+          videoUrl: 'https://www.youtube.com/watch?v=pDSe4DNSXLo',
+          muxPlaybackId: null,
+          thumbnailUrl: null,
         },
       ],
       checkpoints: [
@@ -262,84 +472,23 @@ async function seedDemo() {
           meta: '3 questions',
           questionCount: 3,
           segmentIndex: 0,
+          timeOffsetSeconds: 60,
+          snapshotUrl: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=320&q=80',
           questions: [
             {
-              prompt: 'A solvent contaminated with heavy metals belongs in which container?',
-              options: ['Regular trash', 'Aqueous waste', 'Hazardous organic waste'],
+              prompt: 'Where should halogenated solvents go?',
+              options: ['Regular trash', 'Non-halogenated waste', 'Halogenated waste container'],
               correctIndex: 2,
             },
             {
-              prompt: 'Broken glass without biohazard exposure goes in:',
-              options: ['Sharps bin', 'Glass-only disposal box', 'Hazardous waste bag'],
+              prompt: 'What must be on every waste label?',
+              options: ['Container color', 'Contents and hazards', 'Instructor name'],
               correctIndex: 1,
             },
             {
-              prompt: 'Which symbol indicates biohazardous material?',
-              options: ['Radiation trefoil', 'Biohazard icon', 'Explosive sign'],
+              prompt: 'Where should full waste containers be stored?',
+              options: ['Near exits', 'In secondary containment', 'On the floor'],
               correctIndex: 1,
-            },
-          ],
-        },
-      ],
-    },
-    {
-      slug: 'vent-hood-safety',
-      title: 'Vent Hood Safety',
-      summary: 'Maintain proper ventilation practices while working with volatile substances.',
-      description:
-        'Learn how to set up, operate, and monitor ventilation hoods to keep air quality and pressure in safe ranges.',
-      estimatedMinutes: 30,
-      dueDate: new Date('2025-03-08T22:00:00.000Z'),
-      skills: [
-        'Set correct sash height before starting work',
-        'Position materials for optimal airflow',
-        'Log daily hood inspections',
-      ],
-      segments: [
-        {
-          title: 'Hood Setup',
-          summary: 'Inspect and prepare the hood for operation.',
-          duration: 7,
-          videoUrl: 'https://www.youtube.com/watch?v=AEKKd6jM2rI',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=200&q=80',
-        },
-        {
-          title: 'Working Position',
-          summary: 'Arrange tools and samples to maintain airflow.',
-          duration: 8,
-          videoUrl: 'https://www.youtube.com/watch?v=1gHn_tJQAFg',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=200&q=80',
-        },
-        {
-          title: 'Shutdown Checklist',
-          summary: 'Leave the hood ready for the next user.',
-          duration: 6,
-          videoUrl: 'https://www.youtube.com/watch?v=DGKiTCPGr0k',
-          thumbnailUrl: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=200&q=80',
-        },
-      ],
-      checkpoints: [
-        {
-          title: 'Inspection Review',
-          label: 'Checkpoint',
-          meta: '3 questions',
-          questionCount: 3,
-          segmentIndex: 0,
-          questions: [
-            {
-              prompt: 'What is the ideal sash height indicator?',
-              options: ['Yellow mark', 'Green mark', 'Red mark'],
-              correctIndex: 1,
-            },
-            {
-              prompt: 'If airflow alarm sounds, you should:',
-              options: ['Continue working', 'Lower the sash and pause work', 'Turn off the alarm'],
-              correctIndex: 1,
-            },
-            {
-              prompt: 'Which log entry is required after inspection?',
-              options: ['User initials and time', 'Daily supply order', 'Sample inventory'],
-              correctIndex: 0,
             },
           ],
         },
@@ -348,6 +497,7 @@ async function seedDemo() {
   ];
 
   const lessonRecords = [];
+  const lessonProgressByStudent = new Map();
 
   for (const [index, lessonSeed] of lessonSeeds.entries()) {
     const lesson = await prisma.lesson.create({
@@ -374,6 +524,7 @@ async function seedDemo() {
           summary: segmentSeed.summary,
           duration: segmentSeed.duration,
           videoUrl: segmentSeed.videoUrl,
+          muxPlaybackId: segmentSeed.muxPlaybackId,
           thumbnailUrl: segmentSeed.thumbnailUrl,
         },
       });
@@ -401,6 +552,8 @@ async function seedDemo() {
           label: checkpointSeed.label,
           meta: checkpointSeed.meta,
           questionCount: checkpointSeed.questionCount,
+          timeOffsetSeconds: checkpointSeed.timeOffsetSeconds ?? checkpointIndex * 60,
+          snapshotUrl: checkpointSeed.snapshotUrl,
         },
       });
 
@@ -426,59 +579,135 @@ async function seedDemo() {
     {
       slug: 'bunsen-burners',
       status: LessonStatus.IN_PROGRESS,
-      percentComplete: 75,
+      percentComplete: 60,
       startedAt: new Date('2025-02-18T14:00:00.000Z'),
-      segments: [
-        { order: 0, status: SegmentStatus.COMPLETED },
-        { order: 1, status: SegmentStatus.IN_PROGRESS },
-        { order: 2, status: SegmentStatus.NOT_STARTED },
-      ],
+      completedCheckpointIndices: [0],
+      segments: [{ order: 0, status: SegmentStatus.IN_PROGRESS }],
     },
     {
-      slug: 'waste-handling',
-      status: LessonStatus.NOT_STARTED,
-      percentComplete: 0,
-      segments: [
-        { order: 0, status: SegmentStatus.NOT_STARTED },
-        { order: 1, status: SegmentStatus.NOT_STARTED },
-      ],
+      slug: 'general-lab-safety',
+      status: LessonStatus.IN_PROGRESS,
+      percentComplete: 35,
+      segments: [{ order: 0, status: SegmentStatus.IN_PROGRESS }],
+      completedCheckpointIndices: [0],
     },
     {
-      slug: 'vent-hood-safety',
+      slug: 'top-loading-balance',
+      status: LessonStatus.IN_PROGRESS,
+      percentComplete: 15,
+      segments: [{ order: 0, status: SegmentStatus.IN_PROGRESS }],
+      completedCheckpointIndices: [],
+    },
+    {
+      slug: 'graduated-cylinder',
       status: LessonStatus.NOT_STARTED,
       percentComplete: 0,
-      segments: [
-        { order: 0, status: SegmentStatus.NOT_STARTED },
-        { order: 1, status: SegmentStatus.NOT_STARTED },
-        { order: 2, status: SegmentStatus.NOT_STARTED },
-      ],
+      segments: [{ order: 0, status: SegmentStatus.NOT_STARTED }],
+    },
+    {
+      slug: 'lab-notebook',
+      status: LessonStatus.COMPLETED,
+      percentComplete: 100,
+      segments: [{ order: 0, status: SegmentStatus.COMPLETED }],
+      completedCheckpointIndices: 'all',
+    },
+    {
+      slug: 'volumetric-stock-solutions',
+      status: LessonStatus.COMPLETED,
+      percentComplete: 100,
+      segments: [{ order: 0, status: SegmentStatus.COMPLETED }],
+      completedCheckpointIndices: 'all',
+    },
+    {
+      slug: 'general-waste-handling',
+      status: LessonStatus.COMPLETED,
+      percentComplete: 100,
+      segments: [{ order: 0, status: SegmentStatus.COMPLETED }],
+      completedCheckpointIndices: 'all',
     },
   ];
 
-  for (const progressSeed of lessonProgressSeeds) {
-    const lessonEntry = lessonBySlug.get(progressSeed.slug);
-    if (!lessonEntry) continue;
+  for (const student of students) {
+    const perStudentMap = new Map();
+    for (const progressSeed of lessonProgressSeeds) {
+      const lessonEntry = lessonBySlug.get(progressSeed.slug);
+      if (!lessonEntry) continue;
 
-    const progress = await prisma.lessonProgress.create({
-      data: {
-        studentId: student.id,
-        lessonId: lessonEntry.lesson.id,
-        status: progressSeed.status,
-        percentComplete: progressSeed.percentComplete,
-        startedAt: progressSeed.startedAt,
-      },
-    });
-
-    for (const segmentProgress of progressSeed.segments) {
-      const segment = lessonEntry.segments[segmentProgress.order];
-      if (!segment) continue;
-      await prisma.segmentProgress.create({
+      const progress = await prisma.lessonProgress.create({
         data: {
-          lessonProgressId: progress.id,
-          segmentId: segment.id,
-          status: segmentProgress.status,
+          studentId: student.id,
+          lessonId: lessonEntry.lesson.id,
+          status: progressSeed.status,
+          percentComplete: progressSeed.percentComplete,
+          startedAt: progressSeed.startedAt,
         },
       });
+
+      for (const segmentProgress of progressSeed.segments) {
+        const segment = lessonEntry.segments[segmentProgress.order];
+        if (!segment) continue;
+        await prisma.segmentProgress.create({
+          data: {
+            lessonProgressId: progress.id,
+            segmentId: segment.id,
+            status: segmentProgress.status,
+          },
+        });
+      }
+      perStudentMap.set(progressSeed.slug, progress);
+    }
+    lessonProgressByStudent.set(student.id, perStudentMap);
+  }
+
+  for (const student of students) {
+    for (const progressSeed of lessonProgressSeeds) {
+      if (!progressSeed.completedCheckpointIndices) {
+        continue;
+      }
+      const lessonEntry = lessonBySlug.get(progressSeed.slug);
+      if (!lessonEntry) {
+        continue;
+      }
+      const checkpoints = await prisma.lessonCheckpoint.findMany({
+        where: { lessonId: lessonEntry.lesson.id },
+        orderBy: { sortOrder: 'asc' },
+        include: {
+          questions: {
+            orderBy: { sortOrder: 'asc' },
+          },
+        },
+      });
+      const indices =
+        progressSeed.completedCheckpointIndices === 'all'
+          ? checkpoints.map((_, idx) => idx)
+          : progressSeed.completedCheckpointIndices;
+      const lessonProgress = lessonProgressByStudent.get(student.id)?.get(progressSeed.slug) ?? null;
+
+      for (const idx of indices) {
+        const checkpoint = checkpoints[idx];
+        if (!checkpoint) {
+          continue;
+        }
+        await prisma.checkpointAttempt.create({
+          data: {
+            checkpointId: checkpoint.id,
+            userId: student.id,
+            lessonProgressId: lessonProgress?.id ?? null,
+            isPassing: true,
+            completedAt: new Date(),
+            responses: {
+              create: checkpoint.questions.map((question) => ({
+                checkpointId: checkpoint.id,
+                questionId: question.id,
+                studentId: student.id,
+                lessonProgressId: lessonProgress?.id ?? null,
+                selectedIndex: question.correctIndex ?? 0,
+                isCorrect: true,
+              })),
+            },
+          },
+        });
+      }
     }
   }
 
@@ -490,29 +719,70 @@ async function seedDemo() {
       category: BadgeCategory.EQUIPMENT,
       lessonSlug: 'bunsen-burners',
       studentStatus: {
-        status: BadgeStatus.COMPLETED,
-        awardedAt: new Date('2025-02-22T17:00:00.000Z'),
-        score: 92,
+        status: BadgeStatus.LEARNING,
       },
     },
     {
-      slug: 'vent-hood-badge',
-      name: 'Vent Hood Badge',
-      description: 'Maintain safe ventilation practices and demonstrate proper hood operation.',
+      slug: 'general-safety-badge',
+      name: 'General Lab Safety Badge',
+      description: 'Show core lab safety readiness and PPE habits.',
       category: BadgeCategory.SAFETY,
-      lessonSlug: 'vent-hood-safety',
+      lessonSlug: 'general-lab-safety',
+      studentStatus: {
+        status: BadgeStatus.LEARNING,
+      },
+    },
+    {
+      slug: 'top-loading-balance-badge',
+      name: 'Top-loading Balance Badge',
+      description: 'Operate balances accurately and record measurements correctly.',
+      category: BadgeCategory.EQUIPMENT,
+      lessonSlug: 'top-loading-balance',
+      studentStatus: {
+        status: BadgeStatus.LEARNING,
+      },
+    },
+    {
+      slug: 'graduated-cylinder-badge',
+      name: 'Graduated Cylinder Badge',
+      description: 'Measure volumes precisely using the correct meniscus technique.',
+      category: BadgeCategory.SAFETY,
+      lessonSlug: 'graduated-cylinder',
+      studentStatus: {
+        status: BadgeStatus.LEARNING,
+      },
+    },
+    {
+      slug: 'lab-notebook-badge',
+      name: 'Lab Notebook Badge',
+      description: 'Set up and maintain a compliant lab notebook.',
+      category: BadgeCategory.OTHER,
+      lessonSlug: 'lab-notebook',
       studentStatus: {
         status: BadgeStatus.READY_FOR_ASSESSMENT,
       },
     },
     {
-      slug: 'waste-handling-badge',
-      name: 'Waste Handling Badge',
-      description: 'Organize, store, and monitor chemical waste to maintain compliance.',
-      category: BadgeCategory.WASTE,
-      lessonSlug: 'waste-handling',
+      slug: 'volumetric-stock-badge',
+      name: 'Volumetric Stock Solutions Badge',
+      description: 'Prepare accurate stock solutions with volumetric glassware.',
+      category: BadgeCategory.EQUIPMENT,
+      lessonSlug: 'volumetric-stock-solutions',
       studentStatus: {
-        status: BadgeStatus.LEARNING,
+        status: BadgeStatus.READY_FOR_FINALIZATION,
+        score: 92,
+      },
+    },
+    {
+      slug: 'general-waste-badge',
+      name: 'General Waste Handling Badge',
+      description: 'Segregate and label lab waste correctly.',
+      category: BadgeCategory.WASTE,
+      lessonSlug: 'general-waste-handling',
+      studentStatus: {
+        status: BadgeStatus.COMPLETED,
+        awardedAt: new Date('2025-02-20T17:00:00.000Z'),
+        score: 96,
       },
     },
   ];
@@ -541,26 +811,47 @@ async function seedDemo() {
       });
     }
 
-    await prisma.studentBadge.create({
-      data: {
-        studentId: student.id,
-        badgeId: badge.id,
-        status: badgeSeed.studentStatus.status,
-        awardedAt: badgeSeed.studentStatus.awardedAt,
-        score: badgeSeed.studentStatus.score,
-      },
-    });
+    for (const student of students) {
+      await prisma.studentBadge.create({
+        data: {
+          studentId: student.id,
+          badgeId: badge.id,
+          status: badgeSeed.studentStatus.status,
+          awardedAt: badgeSeed.studentStatus.awardedAt,
+          score: badgeSeed.studentStatus.score,
+        },
+      });
+    }
   }
 
-  const lessonSurvey = await prisma.surveyPrompt.create({
-    data: {
-      context: SurveyContext.LESSON,
-      lessonId: lessonBySlug.get('bunsen-burners')?.lesson.id,
+  const lessonSurveyQuestions = [
+    {
+      lessonSlug: 'bunsen-burners',
       question: 'How confident do you feel about your Bunsen burner skills after this lesson?',
     },
-  });
+    { lessonSlug: 'general-lab-safety', question: 'How was the General Lab Safety lesson?' },
+    { lessonSlug: 'top-loading-balance', question: 'How was the Top-loading Balance lesson?' },
+    { lessonSlug: 'graduated-cylinder', question: 'How was the Graduated Cylinder lesson?' },
+    { lessonSlug: 'lab-notebook', question: 'How was the Lab Notebook lesson?' },
+    { lessonSlug: 'volumetric-stock-solutions', question: 'How was the Stock Solutions lesson?' },
+    { lessonSlug: 'general-waste-handling', question: 'How was the Waste Handling lesson?' },
+  ];
 
-  const badgeSurvey = await prisma.surveyPrompt.create({
+  const lessonSurveyPrompts = [];
+  for (const survey of lessonSurveyQuestions) {
+    const lessonId = lessonBySlug.get(survey.lessonSlug)?.lesson.id;
+    if (!lessonId) continue;
+    const prompt = await prisma.surveyPrompt.create({
+      data: {
+        context: SurveyContext.LESSON,
+        lessonId,
+        question: survey.question,
+      },
+    });
+    lessonSurveyPrompts.push(prompt);
+  }
+
+  const badgeSurveyPrompt = await prisma.surveyPrompt.create({
     data: {
       context: SurveyContext.BADGE,
       badgeId: badgeRecords.find((badge) => badge.slug === 'bunsen-burner-badge')?.id,
@@ -568,22 +859,37 @@ async function seedDemo() {
     },
   });
 
-  await prisma.surveyResponse.create({
-    data: {
-      promptId: lessonSurvey.id,
-      studentId: student.id,
-      rating: 4,
-      comment: 'Feeling much more confident lighting the burner!',
-    },
-  });
+  const incompleteLessonSlugs = new Set([
+    'bunsen-burners',
+    'general-lab-safety',
+    'top-loading-balance',
+    'graduated-cylinder',
+  ]);
 
-  await prisma.surveyResponse.create({
-    data: {
-      promptId: badgeSurvey.id,
-      studentId: student.id,
-      rating: 5,
-    },
-  });
+  for (const [index, student] of students.entries()) {
+    for (const prompt of lessonSurveyPrompts) {
+      const lessonSlug = lessonRecords.find((lr) => lr.lesson.id === prompt.lessonId)?.lesson.slug;
+      if (!lessonSlug || incompleteLessonSlugs.has(lessonSlug)) {
+        continue;
+      }
+      await prisma.surveyResponse.create({
+        data: {
+          promptId: prompt.id,
+          studentId: student.id,
+          rating: index === 0 ? 4 : 3,
+          comment: index === 0 ? 'Feeling much more confident!' : 'I need a bit more practice.',
+        },
+      });
+    }
+    await prisma.surveyResponse.create({
+      data: {
+        promptId: badgeSurveyPrompt.id,
+        studentId: student.id,
+        rating: 4,
+        comment: 'Demo badge survey response.',
+      },
+    });
+  }
 
   console.log('Demo data seeded successfully.');
 }

@@ -1,0 +1,120 @@
+import { NextResponse } from 'next/server';
+import { LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
+import { currentUser } from '@clerk/nextjs/server';
+import prisma from '../../../../../lib/prisma';
+import { computeLessonGrade } from '../../../../../lib/lessonGrading';
+
+type RouteContext = {
+  params: Promise<{
+    lessonId: string;
+  }>;
+};
+
+function roundPercent(value: number) {
+  return Math.round(value * 100) / 100;
+}
+
+export async function POST(_request: Request, context: RouteContext) {
+  const { lessonId } = await context.params;
+
+  if (!lessonId) {
+    return NextResponse.json({ error: 'Missing lesson id.' }, { status: 400 });
+  }
+
+  const clerkUser = await currentUser();
+  if (!clerkUser || !clerkUser.emailAddresses?.[0]) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  const email = clerkUser.emailAddresses[0].emailAddress.toLowerCase();
+  const user = await prisma.user.findUnique({ where: { email } });
+
+  if (!user) {
+    return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+  }
+
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    include: {
+      checkpoints: {
+        select: { id: true },
+      },
+    },
+  });
+
+  if (!lesson) {
+    return NextResponse.json({ error: 'Lesson not found.' }, { status: 404 });
+  }
+
+  const grade = await computeLessonGrade(prisma, { lessonId, userId: user.id });
+  const passingPercent = lesson.passingPercent ?? 0;
+  const passed = grade.percent >= passingPercent;
+  const now = new Date();
+
+  const checkpointIds = lesson.checkpoints.map((checkpoint) => checkpoint.id);
+
+  await prisma.$transaction(async (tx) => {
+    const lessonSurveyPrompts = await tx.surveyPrompt.findMany({
+      where: { context: SurveyContext.LESSON, lessonId },
+      select: { id: true },
+    });
+
+    const progress = await tx.lessonProgress.upsert({
+      where: { studentId_lessonId: { studentId: user.id, lessonId } },
+      update: {
+        lastGradePercent: grade.percent,
+        lastGradePassed: passed,
+        lastGradedAt: now,
+      },
+      create: {
+        studentId: user.id,
+        lessonId,
+        status: passed ? LessonStatus.COMPLETED : LessonStatus.IN_PROGRESS,
+        percentComplete: passed ? 100 : 0,
+        lastGradePercent: grade.percent,
+        lastGradePassed: passed,
+        lastGradedAt: now,
+      },
+    });
+
+    if (!passed) {
+      if (lessonSurveyPrompts.length > 0) {
+        await tx.surveyResponse.deleteMany({
+          where: { studentId: user.id, promptId: { in: lessonSurveyPrompts.map((p) => p.id) } },
+        });
+      }
+
+      if (checkpointIds.length > 0) {
+        await tx.checkpointResponse.deleteMany({
+          where: { studentId: user.id, checkpointId: { in: checkpointIds } },
+        });
+        await tx.checkpointAttempt.deleteMany({
+          where: { userId: user.id, checkpointId: { in: checkpointIds } },
+        });
+      }
+
+      await tx.segmentProgress.updateMany({
+        where: { lessonProgressId: progress.id },
+        data: { status: SegmentStatus.NOT_STARTED, completedAt: null, startedAt: null },
+      });
+
+      await tx.lessonProgress.update({
+        where: { id: progress.id },
+        data: {
+          status: LessonStatus.IN_PROGRESS,
+          percentComplete: 0,
+          startedAt: null,
+          completedAt: null,
+        },
+      });
+    }
+  });
+
+  return NextResponse.json({
+    passed,
+    gradePercent: roundPercent(grade.percent),
+    passingPercent,
+    correctAnswers: grade.correctAnswers,
+    totalQuestions: grade.totalQuestions,
+  });
+}

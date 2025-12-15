@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type LessonStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 type SegmentStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
-type BadgeStatus = 'COMPLETED' | 'READY_FOR_ASSESSMENT' | 'LEARNING';
+type BadgeStatus = 'COMPLETED' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'LEARNING';
 
 export interface StudentData {
   student: {
@@ -32,7 +32,7 @@ export interface StudentData {
       type: string;
       name: string;
       email: string;
-      avatarUrl: string | null;
+      avatarUrl?: string | null;
     }>;
   } | null;
   analytics: {
@@ -52,6 +52,7 @@ export interface StudentData {
   badges: {
     completed: BadgeRecord[];
     readyForAssessment: BadgeRecord[];
+    readyForFinalization: BadgeRecord[];
     learning: BadgeRecord[];
   };
   surveys: {
@@ -60,12 +61,22 @@ export interface StudentData {
       question: string;
       lessonSlug: string | null;
       lessonTitle: string | null;
+      completed: boolean;
     }>;
     badge: Array<{
       id: string;
       question: string;
+      badgeId: string | null;
       badgeSlug: string | null;
       badgeName: string | null;
+      completed: boolean;
+    }>;
+    pendingBadge: Array<{
+      promptId: string;
+      badgeId: string;
+      badgeSlug: string | null;
+      badgeName: string | null;
+      question: string;
     }>;
   };
 }
@@ -80,14 +91,19 @@ export interface LessonRecord {
   estimatedMinutes: number | null;
   dueDate: string | null;
   sortOrder: number;
+  passingPercent: number;
   status: LessonStatus;
   percentComplete: number;
+  completedCheckpointIds: string[];
+  resumeTimeSeconds: number;
+  answeredCheckpointIds: string[];
   segments: Array<{
     id: string;
     title: string;
     summary: string | null;
     duration: number | null;
     videoUrl: string | null;
+    muxPlaybackId: string | null;
     thumbnailUrl: string | null;
     status: SegmentStatus;
     checkpointIds: string[];
@@ -100,14 +116,23 @@ export interface LessonRecord {
     description: string | null;
     questionCount: number;
     segmentId: string | null;
+    timeOffsetSeconds: number;
+    snapshotUrl: string | null;
     questions: Array<{
       id: string;
       prompt: string;
-      options: unknown;
+      options: string[] | Record<string, unknown>;
       correctIndex: number | null;
+      type: 'multipleChoice' | 'shortAnswer';
+      expectedAnswer: number | null;
+      tolerancePercent: number;
+      acceptedRange: { min: number; max: number } | null;
     }>;
   }>;
   skills: string[];
+  lastGradePercent: number | null;
+  lastGradePassed: boolean | null;
+  lastGradedAt: string | null;
 }
 
 export interface BadgeRecord {
