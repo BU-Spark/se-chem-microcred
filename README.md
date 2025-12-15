@@ -58,7 +58,7 @@ Use the provided Prisma/PostgreSQL connection string; you do **not** need to cre
    ```bash
    npm run dev
    ```
-   Visit http://localhost:3000 and sign in with a Clerk user whose email matches the seeded student (default seed email: `nx2004@bu.edu`). Create that user in Clerk first (Dashboard → Users → Create).
+   Visit http://localhost:3000 and sign in with a Clerk user whose email matches the seeded student. 🚨 **Use your own email** 🚨 Update the seed to your address and create a Clerk user by signing up with your own email/password (set in Clerk; there is no repo-defined password).
 
 6) (Optional) Validate tooling  
    - Lint: `npm run lint`  
