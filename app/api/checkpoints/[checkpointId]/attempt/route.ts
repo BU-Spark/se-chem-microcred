@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../../lib/prisma';
 import {
   isAnswerWithinTolerance,
@@ -49,8 +50,6 @@ function evaluateAttempt(answers: AttemptRequestBody['answers'], questions: Norm
     };
   });
 }
-
-import { currentUser } from '@clerk/nextjs/server';
 
 export async function POST(request: Request, context: RouteContext) {
   const { checkpointId } = await context.params;

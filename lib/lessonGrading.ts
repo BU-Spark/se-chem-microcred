@@ -47,7 +47,7 @@ export async function computeLessonGrade(
     { totalQuestions: 0, correctAnswers: 0 }
   );
 
-  const percent = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 100;
+  const percent = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
 
   return {
     totalQuestions,

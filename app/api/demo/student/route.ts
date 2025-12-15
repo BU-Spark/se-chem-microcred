@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { BadgeStatus, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
+import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 
