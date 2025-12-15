@@ -66,7 +66,7 @@ describe('QR API', () => {
     const res = await HEAD(requestLike(`data=${encodeURIComponent(payload)}&size=180`, '127.0.0.2'));
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
-    expect(Number.parseInt(res.headers.get('content-length') ?? '0', 10)).toBeGreaterThan(0);
+    expect(res.headers.get('content-length')).toBeNull();
     const body = await res.arrayBuffer();
     expect(body.byteLength).toBe(0);
   });

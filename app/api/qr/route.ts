@@ -150,6 +150,16 @@ async function buildQrResponse(request: Request, includeBody: boolean) {
     return context.response;
   }
 
+  if (!includeBody) {
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/png',
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      },
+    });
+  }
+
   try {
     const png = await QRCode.toBuffer(context.data, {
       type: 'png',
@@ -158,7 +168,7 @@ async function buildQrResponse(request: Request, includeBody: boolean) {
       errorCorrectionLevel: 'M',
     });
 
-    return new NextResponse(includeBody ? png : null, {
+    return new NextResponse(png, {
       status: 200,
       headers: {
         'Content-Type': 'image/png',
