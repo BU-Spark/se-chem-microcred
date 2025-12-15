@@ -326,13 +326,15 @@ export async function GET() {
     const resumeTimeSeconds = lastActiveCheckpoint ? (lastActiveCheckpoint.timeOffsetSeconds ?? 0) + 1 : 0;
 
     const lessonProgress = progressByLessonId.get(lesson.id);
+    const gradedPassed = lessonProgress?.lastGradePassed === true;
     const formatted = formatLesson({
       lesson,
       progress: lessonProgress
         ? {
             ...lessonProgress,
-            status:
-              allCheckpointsPassed && lessonSurveyComplete
+            status: gradedPassed
+              ? LessonStatus.COMPLETED
+              : allCheckpointsPassed && lessonSurveyComplete
                 ? LessonStatus.COMPLETED
                 : answeredCount > 0
                   ? LessonStatus.IN_PROGRESS
@@ -354,7 +356,8 @@ export async function GET() {
     // Recompute percentComplete based on passed checkpoints + lesson survey
     const totalUnits = lesson.checkpoints.length + (lessonSurveyRequired ? 1 : 0);
     const completedUnits = completedCheckpointIds.length + (lessonSurveyRequired && lessonSurveyComplete ? 1 : 0);
-    const percentComplete = totalUnits > 0 ? Math.min(100, Math.round((completedUnits / totalUnits) * 100)) : 0;
+    const basePercentComplete = totalUnits > 0 ? Math.min(100, Math.round((completedUnits / totalUnits) * 100)) : 0;
+    const percentComplete = gradedPassed ? 100 : basePercentComplete;
 
     const formattedWithProgress = {
       ...formatted,
@@ -362,7 +365,7 @@ export async function GET() {
     };
 
     // If all checkpoints passed but lesson survey unfinished, cap percentComplete at 99 and keep IN_PROGRESS
-    if (allCheckpointsPassed && !lessonSurveyComplete) {
+    if (!gradedPassed && allCheckpointsPassed && !lessonSurveyComplete) {
       return {
         ...formattedWithProgress,
         status: LessonStatus.IN_PROGRESS,
