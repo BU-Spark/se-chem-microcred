@@ -54,7 +54,7 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Lesson not found.' }, { status: 404 });
   }
 
-  const { lessonProgress } = await prisma.$transaction(async (tx) => {
+  const { readyForAssessment } = await prisma.$transaction(async (tx) => {
     let surveyPromptRecord =
       (await tx.surveyPrompt.findFirst({
         where: {
@@ -132,63 +132,63 @@ export async function POST(request: Request, context: RouteContext) {
       });
     }
 
-    return { surveyPrompt: surveyPromptRecord, lessonProgress: lessonProgressRecord };
-  });
-
-  const [lessonCheckpoints, passedAttempts] = await Promise.all([
-    prisma.lessonCheckpoint.findMany({
-      where: { lessonId },
-      select: { id: true },
-    }),
-    prisma.checkpointAttempt.findMany({
-      where: {
-        userId: user.id,
-        isPassing: true,
-        checkpoint: {
-          lessonId,
-        },
-      },
-      select: { checkpointId: true },
-    }),
-  ]);
-
-  const passedCheckpointIds = new Set(passedAttempts.map((entry) => entry.checkpointId));
-  const allCheckpointsPassed =
-    lessonCheckpoints.length === 0 || lessonCheckpoints.every((checkpoint) => passedCheckpointIds.has(checkpoint.id));
-  const videoCompleted =
-    lessonProgress.status === LessonStatus.COMPLETED ||
-    lessonProgress.percentComplete === 100 ||
-    payload.videoCompleted;
-
-  let readyForAssessment = false;
-
-  if (allCheckpointsPassed && videoCompleted) {
-    const badgeRequirement = await prisma.badgeRequirement.findFirst({
-      where: { lessonId },
-      select: { badgeId: true },
-    });
-
-    if (badgeRequirement) {
-      const studentBadge = await prisma.studentBadge.findUnique({
+    const [lessonCheckpoints, passedAttempts] = await Promise.all([
+      tx.lessonCheckpoint.findMany({
+        where: { lessonId },
+        select: { id: true },
+      }),
+      tx.checkpointAttempt.findMany({
         where: {
-          studentId_badgeId: {
-            studentId: user.id,
-            badgeId: badgeRequirement.badgeId,
+          userId: user.id,
+          isPassing: true,
+          checkpoint: {
+            lessonId,
           },
         },
+        select: { checkpointId: true },
+      }),
+    ]);
+
+    const passedCheckpointIds = new Set(passedAttempts.map((entry) => entry.checkpointId));
+    const allCheckpointsPassed =
+      lessonCheckpoints.length === 0 || lessonCheckpoints.every((checkpoint) => passedCheckpointIds.has(checkpoint.id));
+    const videoCompleted =
+      lessonProgressRecord.status === LessonStatus.COMPLETED ||
+      lessonProgressRecord.percentComplete === 100 ||
+      payload.videoCompleted;
+
+    let readyForAssessment = false;
+
+    if (allCheckpointsPassed && videoCompleted) {
+      const badgeRequirement = await tx.badgeRequirement.findFirst({
+        where: { lessonId },
+        select: { badgeId: true },
       });
 
-      if (studentBadge && studentBadge.status === BadgeStatus.LEARNING) {
-        await prisma.studentBadge.update({
-          where: { id: studentBadge.id },
-          data: {
-            status: BadgeStatus.READY_FOR_ASSESSMENT,
+      if (badgeRequirement) {
+        const studentBadge = await tx.studentBadge.findUnique({
+          where: {
+            studentId_badgeId: {
+              studentId: user.id,
+              badgeId: badgeRequirement.badgeId,
+            },
           },
         });
-        readyForAssessment = true;
+
+        if (studentBadge && studentBadge.status === BadgeStatus.LEARNING) {
+          await tx.studentBadge.update({
+            where: { id: studentBadge.id },
+            data: {
+              status: BadgeStatus.READY_FOR_ASSESSMENT,
+            },
+          });
+          readyForAssessment = true;
+        }
       }
     }
-  }
+
+    return { surveyPrompt: surveyPromptRecord, lessonProgress: lessonProgressRecord, readyForAssessment };
+  });
 
   return NextResponse.json({
     surveyCompleted: true,
