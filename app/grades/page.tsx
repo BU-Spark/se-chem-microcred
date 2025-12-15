@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
+import shellStyles from '../page.module.css';
 
 const navItems = [
   { label: 'Home', href: '/' },
@@ -50,16 +51,16 @@ export default function GradesPage() {
   };
 
   return (
-    <div className="page">
-      <aside className="sidebar">
-        <div className="profile">
-          <div className="avatar">{displayName.slice(0, 2).toUpperCase()}</div>
-          <div className="name">{displayName}</div>
+    <div className={shellStyles.page}>
+      <aside className={shellStyles.sidebar}>
+        <div className={shellStyles.profile}>
+          <div className={shellStyles.avatar}>{displayName.slice(0, 2).toUpperCase()}</div>
+          <div className={shellStyles.name}>{displayName}</div>
         </div>
-        <nav className="navList">
+        <nav className={shellStyles.navList}>
           {navItems.map((item) => {
             const isActive = pathname === item.href;
-            const className = `navItem${isActive ? ' navItemActive' : ''}`;
+            const className = `${shellStyles.navItem}${isActive ? ` ${shellStyles.navItemActive}` : ''}`;
             return (
               <Link key={item.href} href={item.href} className={className}>
                 {item.label}
@@ -67,15 +68,15 @@ export default function GradesPage() {
             );
           })}
         </nav>
-        <div className="sidebarFooter">
-          <button type="button" className="signOffButton" onClick={handleSignOut} disabled={isSigningOut}>
+        <div className={shellStyles.sidebarFooter}>
+          <button type="button" className={shellStyles.signOffButton} onClick={handleSignOut} disabled={isSigningOut}>
             {isSigningOut ? 'Signing off…' : 'Sign off'}
           </button>
-          <div className="brandFooter">checkd.</div>
+          <div className={shellStyles.brandFooter}>checkd.</div>
         </div>
       </aside>
 
-      <main className="main">
+      <main className={shellStyles.main}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Grades</h1>
         <p style={{ color: '#4b5563' }}>Gradebook coming soon.</p>
       </main>
