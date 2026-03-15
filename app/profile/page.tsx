@@ -8,6 +8,7 @@ import { useAuth, useUser, useClerk } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 import editIcon from '../../public/assets/profile/edit.png';
+import EditAvatarModal from '../edit_avatar/EditAvatarModal';
 
 const NAV_ITEMS = [
   { label: 'Home', href: '/' },
@@ -131,6 +132,9 @@ export default function ProfilePage() {
   const [draftParentalEducation, setDraftParentalEducation] = useState('');
   const [draftPellQualified, setDraftPellQualified] = useState<'Yes' | 'No' | 'Not provided'>('Not provided');
   const [isSavingDemographics, setIsSavingDemographics] = useState(false);
+
+  // 4. Character customization
+  const [isEditAvatarOpen, setIsEditAvatarOpen] = useState(false);
 
   // kick user to sign-in if not authenticated
   useEffect(() => {
@@ -440,10 +444,10 @@ export default function ProfilePage() {
                   <Image src={avatarSrc} alt="Student avatar" width={220} height={220} className={styles.avatarImage} />
                 </div>
 
-                <Link href="/edit_avatar" className={styles.editAvatarLink}>
+                <button type="button" className={styles.editAvatarLink} onClick={() => setIsEditAvatarOpen(true)}>
                   <span className={styles.editAvatarText}>Edit avatar</span>
                   <Image src={editIcon} alt="Edit avatar" width={16} height={16} className={styles.editAvatarIcon} />
-                </Link>
+                </button>
               </div>
             </div>
 
@@ -640,6 +644,7 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+      {isEditAvatarOpen && <EditAvatarModal onClose={() => setIsEditAvatarOpen(false)} />}
     </div>
   );
 }
