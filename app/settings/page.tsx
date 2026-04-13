@@ -1,22 +1,12 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
-
-const navItems = [
-  { label: 'Home', href: '/' },
-  { label: 'Profile', href: '/profile' },
-  { label: 'My Analytics', href: '/analytics' },
-  { label: 'Badge Wallet', href: '/badges' },
-  { label: 'Grades', href: '/grades' },
-  { label: 'Settings', href: '/settings' },
-];
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
 export default function SettingsPage() {
-  const pathname = usePathname();
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
@@ -51,29 +41,7 @@ export default function SettingsPage() {
 
   return (
     <div className="page">
-      <aside className="sidebar">
-        <div className="profile">
-          <div className="avatar">{displayName.slice(0, 2).toUpperCase()}</div>
-          <div className="name">{displayName}</div>
-        </div>
-        <nav className="navList">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            const className = `navItem${isActive ? ' navItemActive' : ''}`;
-            return (
-              <Link key={item.href} href={item.href} className={className}>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="sidebarFooter">
-          <button type="button" className="signOffButton" onClick={handleSignOut} disabled={isSigningOut}>
-            {isSigningOut ? 'Signing off…' : 'Sign off'}
-          </button>
-          <div className="brandFooter">checkd.</div>
-        </div>
-      </aside>
+      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className="main">
         <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Settings</h1>

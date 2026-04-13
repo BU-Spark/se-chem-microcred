@@ -1,11 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import { useRouter } from 'next/navigation';
 
 type ProgressItem = {
   id: string;
@@ -20,15 +20,6 @@ type ScoreItem = {
   value: number;
   label: string;
 };
-
-function initialsFromName(name?: string | null) {
-  if (!name) {
-    return 'ST';
-  }
-  const parts = name.trim().split(/\s+/);
-  const initials = parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase());
-  return initials.join('') || 'ST';
-}
 
 function ClockIcon() {
   return (
@@ -132,7 +123,6 @@ function CircularScore({ value, label }: ScoreItem) {
 
 export default function AnalyticsPage() {
   const router = useRouter();
-  const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
@@ -183,15 +173,6 @@ export default function AnalyticsPage() {
   if (!isLoaded || !isSignedIn) {
     return null;
   }
-
-  const navItems = [
-    { label: 'Home', href: '/' },
-    { label: 'Profile', href: '/profile' },
-    { label: 'My Analytics', href: '/analytics' },
-    { label: 'Badge Wallet', href: '/badges' },
-    { label: 'Grades', href: '/grades' },
-    { label: 'Settings', href: '/settings' },
-  ];
 
   const progressItems: ProgressItem[] = [
     {
@@ -265,28 +246,7 @@ export default function AnalyticsPage() {
 
   return (
     <div className={`page ${styles.page}`}>
-      <aside className={`sidebar ${styles.sidebar}`}>
-        <div className={styles.profile}>
-          <div className={styles.avatar}>{initialsFromName(displayName)}</div>
-          <div className={styles.name}>{displayName}</div>
-        </div>
-        <nav className={styles.navList}>
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            const navItemClass = `${styles.navItem} ${isActive ? styles.navItemActive : ''}`.trim();
-            return (
-              <Link key={item.href} href={item.href} className={navItemClass}>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className={styles.sidebarFooter}>
-          <button type="button" onClick={handleSignOut} className={styles.signOffButton} disabled={isSigningOut}>
-            {isSigningOut ? 'Signing off…' : 'Sign off'}
-          </button>
-        </div>
-      </aside>
+      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
         <header className={styles.headerRow}>

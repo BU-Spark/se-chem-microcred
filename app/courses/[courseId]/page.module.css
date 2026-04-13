@@ -1,0 +1,349 @@
+.page {
+  display: flex;
+  min-height: calc(100vh - 80px);
+  background: #ffffff;
+}
+
+.main {
+  flex: 1;
+  min-height: 100vh;
+  padding: 1.5rem 1.75rem 3rem;
+  background: #ffffff;
+}
+
+.content {
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-bottom: 1.3rem;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: clamp(2.2rem, 3vw, 3rem);
+  font-weight: 700;
+  line-height: 1.05;
+  color: #000000;
+}
+
+.statusBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.statusMessage {
+  margin: 0;
+  font-size: 1rem;
+  color: #556070;
+}
+
+.inlineLink {
+  width: fit-content;
+  color: #2E6AA9;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.heroCard,
+.badgesCard {
+  border: 3px solid #d7d7d7;
+  border-radius: 2.25rem;
+  background: #ffffff;
+}
+
+.heroCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1.75fr) 1px minmax(280px, 0.95fr);
+  gap: 0;
+  overflow: hidden;
+}
+
+.heroInfo {
+  padding: 2.3rem 2.5rem 2rem;
+}
+
+.sectionLabel {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: #1d1d1d;
+}
+
+.courseHeading {
+  margin: 1rem 0 2.6rem;
+  font-size: clamp(2.2rem, 4vw, 3.5rem);
+  font-weight: 700;
+  line-height: 1;
+  color: #000000;
+}
+
+.personCard {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+}
+
+.personAvatarShell {
+  width: 6.2rem;
+  height: 6.2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 6.2rem;
+  border: 3px solid #dadada;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.personAvatarImage {
+  width: 4.8rem;
+  height: 4.8rem;
+}
+
+.personAvatarFallback {
+  width: 4.8rem;
+  height: 4.8rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #2E6AA9;
+  color: #ffffff;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.personInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.personLabel {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1d1d1d;
+}
+
+.personName {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1.2;
+  color: #222222;
+}
+
+.personEmail {
+  margin: 0.9rem 0 0;
+  font-size: 0.95rem;
+  color: #2a2a2a;
+}
+
+.statLines {
+  margin-top: 2rem;
+}
+
+.statLine {
+  margin: 0;
+  font-size: 1.18rem;
+  line-height: 1.25;
+  color: #111111;
+}
+
+.actionRow {
+  margin-top: 5rem;
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
+.heroDivider {
+  width: 1px;
+  background: #d8d8d8;
+  align-self: stretch;
+  margin: 3.3rem 0;
+}
+
+.heroSide {
+  display: flex;
+  flex-direction: column;
+  padding: 3.2rem 2rem 2rem;
+}
+
+.sideTitle {
+  margin: 0 0 1.8rem;
+  font-size: 1.2rem;
+  font-weight: 500;
+  color: #111111;
+}
+
+.checkerList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.7rem;
+}
+
+.emptyMessage {
+  margin: 0;
+  color: #5f5f5f;
+}
+
+.primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 3.4rem;
+  padding: 0.9rem 1.8rem;
+  border-radius: 1.05rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: filter 0.16s ease;
+  background: #2E6AA9;
+  color: #ffffff;
+}
+
+.primaryButton:hover {
+  filter: brightness(1.04);
+}
+
+.sideActionRow {
+  margin-top: auto;
+  display: flex;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.sideActionRow > * + * {
+  margin-left: 0.9rem;
+}
+
+.badgesCard {
+  margin-top: 1.2rem;
+  padding: 2rem 2rem 1.8rem;
+}
+
+.badgesTitle {
+  margin: 0;
+  font-size: clamp(2rem, 3.2vw, 2.9rem);
+  font-weight: 700;
+  color: #000000;
+}
+
+.badgeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.75rem;
+  margin-top: 2.3rem;
+}
+
+.badgeItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.95rem;
+  text-align: center;
+}
+
+.badgeToken {
+  width: min(9.8rem, 100%);
+  aspect-ratio: 1 / 1;
+  border-radius: 999px;
+  background: #2E6AA9;
+}
+
+.badgeName {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #202020;
+}
+
+.badgeIcon {
+  color: #d4db53;
+}
+
+.badgeActionRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 2rem;
+}
+
+@media (max-width: 1100px) {
+  .heroCard {
+    grid-template-columns: 1fr;
+  }
+
+  .heroDivider {
+    width: auto;
+    height: 1px;
+  }
+
+  .heroSide {
+    border-top: 0;
+  }
+
+  .actionRow {
+    margin-top: 2rem;
+  }
+
+  .sideActionRow {
+    margin-top: 2rem;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 800px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .main {
+    min-height: auto;
+    padding: 1.1rem 1rem 2rem;
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .heroInfo,
+  .heroSide,
+  .badgesCard {
+    padding: 1.35rem;
+  }
+
+  .badgeGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .badgeGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .personCard {
+    align-items: flex-start;
+  }
+
+  .personAvatarShell {
+    width: 5.4rem;
+    height: 5.4rem;
+    flex-basis: 5.4rem;
+  }
+
+  .personAvatarImage,
+  .personAvatarFallback {
+    width: 4.2rem;
+    height: 4.2rem;
+  }
+}

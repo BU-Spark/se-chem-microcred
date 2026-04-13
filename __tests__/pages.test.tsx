@@ -1,14 +1,14 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import HomePage from '../app/page';
 import BadgeWalletPage from '../app/badges/page';
-import BadgeFeedbackPage from '../app/badges/[badgeSlug]/feedback/page';
+import BadgeFeedbackPage from '@/app/badges/[badgeSlug]/feedback/page';
 import AnalyticsPage from '../app/analytics/page';
 import ProfilePage from '../app/profile/page';
 import GradesPage from '../app/grades/page';
 import SettingsPage from '../app/settings/page';
 import LessonDetailPage from '../app/lessons/[lessonId]/page';
-import AvatarEditorPage from '../app/edit_avatar/page';
 import InstructorQevDemoPage from '../app/instructor/qev-demo/page';
+import type { StudentData } from '../app/hooks/useStudentData';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
@@ -70,7 +70,7 @@ beforeEach(() => {
   });
 });
 
-function createStudentData() {
+function createStudentData(): StudentData {
   return {
     student: {
       id: 'student-1',
@@ -394,20 +394,6 @@ describe('Lesson detail page', () => {
     expect(screen.getByText(/Lesson 3/i)).toBeInTheDocument();
     expect(screen.getByText(/Part 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Checkpoint/i)).toBeInTheDocument();
-  });
-});
-
-describe('Avatar editor page', () => {
-  it('allows step progression and accessory selection', () => {
-    render(<AvatarEditorPage />);
-
-    fireEvent.click(screen.getByText(/Ruby/i));
-    fireEvent.click(screen.getByText(/Next/i));
-    expect(screen.getByText(/Select a face/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/Next/i));
-    expect(screen.getByText(/Pick a fun hat/i)).toBeInTheDocument();
-    expect(screen.getByText(/Leaf Sprout/i)).toBeInTheDocument();
-    expect(screen.getByText(/final flourish/i)).toBeInTheDocument();
   });
 });
 

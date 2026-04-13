@@ -2,35 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth, useUser, useClerk } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
-
-const NAV_ITEMS = [
-  { label: 'Home', href: '/' },
-  { label: 'Profile', href: '/profile' },
-  { label: 'My Analytics', href: '/analytics' },
-  { label: 'Badge Wallet', href: '/badges' },
-  { label: 'Grades', href: '/grades' },
-  { label: 'Settings', href: '/settings' },
-];
-
-function initialsFromName(name?: string | null) {
-  if (!name) {
-    return 'ST';
-  }
-  const tokens = name.split(/\s+/).filter(Boolean);
-  return (
-    tokens
-      .slice(0, 2)
-      .map((part) => part[0]?.toUpperCase() ?? '')
-      .join('') || 'ST'
-  );
-}
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
 function parseName(fullName?: string | null) {
   if (!fullName) {
@@ -99,7 +77,6 @@ const SENSITIVE_TIMEOUT_MS = 10 * 60 * 1000;
 
 export default function ProfilePage() {
   const router = useRouter();
-  const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
   const clerk = useClerk();
@@ -312,30 +289,7 @@ export default function ProfilePage() {
 
   return (
     <div className="page">
-      <aside className="sidebar">
-        <div className={`${styles.sidebarProfile} profile`}>
-          <div className={`${styles.sidebarAvatar} avatar`}>{initialsFromName(displayName)}</div>
-          <div className={`${styles.sidebarName} name`}>{displayName}</div>
-        </div>
-        <nav className={`${styles.sidebarNavList} navList`} aria-label="Main navigation">
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href;
-            const navClass = `navItem ${isActive ? 'navItemActive' : ''} ${styles.sidebarNavItem} ${
-              isActive ? styles.sidebarNavItemActive : ''
-            }`.trim();
-            return (
-              <Link key={item.href} href={item.href} className={navClass}>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="sidebarFooter">
-          <button type="button" className="signOffButton" onClick={handleSignOut} disabled={isSigningOut}>
-            {isSigningOut ? 'Signing off…' : 'Sign off'}
-          </button>
-        </div>
-      </aside>
+      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className="main">
         <div className={styles.pageContent}>

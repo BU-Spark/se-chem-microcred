@@ -1,17 +1,15 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
-import { useStudentData } from '../hooks/useStudentData';
+import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
 import shellStyles from '../page.module.css';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
-export default function GradesPage() {
+export default function MessagesPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
-  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
@@ -24,12 +22,11 @@ export default function GradesPage() {
     return null;
   }
 
-  const displayName = studentData?.student.name || user?.fullName || 'Student';
+  const displayName = user?.fullName || 'Professor';
 
   const handleSignOut = async () => {
-    if (isSigningOut) {
-      return;
-    }
+    if (isSigningOut) return;
+
     setIsSigningOut(true);
     try {
       await signOut();
@@ -45,8 +42,8 @@ export default function GradesPage() {
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={shellStyles.main}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Grades</h1>
-        <p style={{ color: '#4b5563' }}>Gradebook coming soon.</p>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Messages</h1>
+        <p style={{ color: '#4b5563' }}>Messages coming soon.</p>
       </main>
     </div>
   );

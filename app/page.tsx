@@ -17,6 +17,7 @@ import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unha
 import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
 import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
 import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
 interface LessonCard {
   id: string;
@@ -31,23 +32,35 @@ interface LessonCard {
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
 
-function initialsFromName(name?: string | null) {
-  if (!name) {
-    return 'ST';
-  }
-  const parts = name.trim().split(/\s+/);
-  const initials = parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase());
-  return initials.join('') || 'ST';
-}
+const FACE_IMAGES: Record<number, StaticImageData> = {
+  1: veryUnhappy,
+  2: slightlyUnhappy,
+  3: neutral,
+  4: slightlyHappy,
+  5: veryHappy,
+};
+
+const FACE_IMAGES_SELECTED: Record<number, StaticImageData> = {
+  1: veryUnhappySelected,
+  2: slightlyUnhappySelected,
+  3: neutralSelected,
+  4: slightlyHappySelected,
+  5: veryHappySelected,
+};
+
+const FACE_ALTS: Record<number, string> = {
+  1: 'Very unhappy',
+  2: 'Slightly unhappy',
+  3: 'Neutral',
+  4: 'Slightly happy',
+  5: 'Very happy',
+};
 
 function formatDueDate(dueDate: string | null) {
-  if (!dueDate) {
-    return null;
-  }
+  if (!dueDate) return null;
   const date = new Date(dueDate);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
+  if (Number.isNaN(date.getTime())) return null;
+
   return date.toLocaleString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -56,13 +69,6 @@ function formatDueDate(dueDate: string | null) {
   });
 }
 
-/**
- * Robust YouTube ID extractor:
- * - https://www.youtube.com/watch?v=ID
- * - https://youtu.be/ID
- * - https://www.youtube.com/embed/ID
- * - with extra query params / playlists
- */
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
   const trimmed = url.trim();
@@ -71,17 +77,14 @@ function extractYouTubeId(url?: string | null) {
   try {
     const u = new URL(trimmed);
 
-    // youtu.be/<id>
     if (u.hostname.includes('youtu.be')) {
       const pathId = u.pathname.replace('/', '').trim();
       if (pathId.length === 11) return pathId;
     }
 
-    // ?v=<id>
     const v = u.searchParams.get('v');
     if (v && v.length === 11) return v;
 
-    // /embed/<id>
     const parts = u.pathname.split('/');
     const embedIndex = parts.indexOf('embed');
     if (embedIndex >= 0 && parts[embedIndex + 1]?.length === 11) {
@@ -95,26 +98,17 @@ function extractYouTubeId(url?: string | null) {
   return match?.[1] ?? null;
 }
 
-/**
- * Decide which image to show for a lesson.
- * Priority:
- * 1. YouTube thumbnail derived from lesson/segment videoUrl
- * 2. record.thumbnailUrl
- * 3. first segment thumbnailUrl
- * 4. dummy fallback
- */
 function resolveLessonImage(record: LessonRecord) {
   const clean = (u?: string | null) => {
     if (!u) return null;
     const trimmed = u.trim();
     if (!trimmed) return null;
-    // normalize accidentally stored "/public/assets/..." paths to "/assets/..."
     if (trimmed.startsWith('/public/')) return trimmed.replace(/^\/public/, '');
     return trimmed;
   };
 
-  // First try YouTube thumbnails from any video URLs
   const candidateUrls: (string | null | undefined)[] = [];
+
   if ('videoUrl' in record) {
     const maybeVideo = (record as Partial<{ videoUrl: string | null }>).videoUrl;
     if (maybeVideo) candidateUrls.push(maybeVideo);
@@ -128,9 +122,7 @@ function resolveLessonImage(record: LessonRecord) {
 
   for (const url of candidateUrls) {
     const id = extractYouTubeId(url);
-    if (id) {
-      return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-    }
+    if (id) return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
   }
 
   const fromRecordThumb = clean(record.thumbnailUrl);
@@ -140,19 +132,15 @@ function resolveLessonImage(record: LessonRecord) {
   const fromSegmentThumb = clean(primarySegment?.thumbnailUrl);
   if (fromSegmentThumb) return fromSegmentThumb;
 
-  // 最后兜底 dummy
   return DEFAULT_LESSON_IMAGE;
 }
 
 function lessonRecordToCard(record: LessonRecord): LessonCard {
   const due = formatDueDate(record.dueDate);
   const metaParts: string[] = [];
-  if (due) {
-    metaParts.push(`Due: ${due}`);
-  }
-  if (record.estimatedMinutes) {
-    metaParts.push(`${record.estimatedMinutes} min`);
-  }
+
+  if (due) metaParts.push(`Due: ${due}`);
+  if (record.estimatedMinutes) metaParts.push(`${record.estimatedMinutes} min`);
 
   return {
     id: record.id,
@@ -166,13 +154,15 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
   };
 }
 
-function HomePageContent() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
-  const { data: studentData, isLoading, refresh } = useStudentData(user?.primaryEmailAddress?.emailAddress);
-  const pathname = usePathname();
+
+  const { data: studentData, isLoading, refresh } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null);
+
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{
     promptId: string;
@@ -183,37 +173,16 @@ function HomePageContent() {
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
 
-  const FACE_IMAGES: Record<number, StaticImageData> = {
-    1: veryUnhappy,
-    2: slightlyUnhappy,
-    3: neutral,
-    4: slightlyHappy,
-    5: veryHappy,
-  };
-  const FACE_IMAGES_SELECTED: Record<number, StaticImageData> = {
-    1: veryUnhappySelected,
-    2: slightlyUnhappySelected,
-    3: neutralSelected,
-    4: slightlyHappySelected,
-    5: veryHappySelected,
-  };
+  const navItems = SIDEBAR_NAV;
+  const displayName = studentData?.student?.name || 'Student';
 
-  const FACE_ALTS: Record<number, string> = {
-    1: 'Very unhappy',
-    2: 'Slightly unhappy',
-    3: 'Neutral',
-    4: 'Slightly happy',
-    5: 'Very happy',
-  };
-
-  const displayName = studentData?.student?.name || user?.fullName || 'Student';
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
+
   const readyForFinalization = useMemo(() => studentData?.badges?.readyForFinalization ?? [], [studentData]);
 
   const readyBadgeAlerts = useMemo(() => {
-    if (pendingSurveyBadges.length > 0) {
-      return pendingSurveyBadges;
-    }
+    if (pendingSurveyBadges.length > 0) return pendingSurveyBadges;
+
     return readyForFinalization.map((badge) => ({
       promptId: `auto-${badge.id}`,
       badgeId: badge.id,
@@ -223,12 +192,22 @@ function HomePageContent() {
     }));
   }, [pendingSurveyBadges, readyForFinalization]);
 
+  const upNextLessons = useMemo(() => studentData?.lessons.upNext.map(lessonRecordToCard) ?? [], [studentData]);
+
+  const continueLessons = useMemo(() => studentData?.lessons.inProgress.map(lessonRecordToCard) ?? [], [studentData]);
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.replace('/sign-in');
+    }
+  }, [isLoaded, isSignedIn, router]);
+
   useEffect(() => {
     const slug = searchParams.get('surveyBadge');
-    if (!slug) {
-      return;
-    }
-    const match = pendingSurveyBadges.find((entry) => entry.badgeSlug === slug) ?? pendingSurveyBadges[0] ?? null;
+    if (!slug) return;
+
+    const match = pendingSurveyBadges.find((e) => e.badgeSlug === slug) ?? pendingSurveyBadges[0] ?? null;
+
     if (match) {
       setActiveSurvey(match);
       setSurveyRating(3);
@@ -241,24 +220,8 @@ function HomePageContent() {
     }
   }, [pendingSurveyBadges]);
 
-  const upNextLessons = useMemo(() => {
-    return studentData?.lessons.upNext.map(lessonRecordToCard) ?? [];
-  }, [studentData]);
-
-  const continueLessons = useMemo(() => {
-    return studentData?.lessons.inProgress.map(lessonRecordToCard) ?? [];
-  }, [studentData]);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace('/sign-in');
-    }
-  }, [isLoaded, isSignedIn, router]);
-
   const handleSignOut = async () => {
-    if (isSigningOut) {
-      return;
-    }
+    if (isSigningOut) return;
 
     setIsSigningOut(true);
     try {
@@ -272,9 +235,11 @@ function HomePageContent() {
 
   const closeSurveyModal = useCallback(() => {
     setActiveSurvey(null);
+
     const params = new URLSearchParams(searchParams.toString());
     params.delete('surveyBadge');
     const nextPath = params.size ? `${pathname}?${params.toString()}` : pathname;
+
     router.replace(nextPath, { scroll: false });
   }, [pathname, router, searchParams]);
 
@@ -287,9 +252,7 @@ function HomePageContent() {
       question: string;
     }) => {
       const surveyTarget = target ?? readyBadgeAlerts[0];
-      if (!surveyTarget) {
-        return;
-      }
+      if (!surveyTarget) return;
 
       setActiveSurvey(surveyTarget);
       setSurveyRating(3);
@@ -298,16 +261,14 @@ function HomePageContent() {
       if (surveyTarget.badgeSlug) {
         params.set('surveyBadge', surveyTarget.badgeSlug);
       }
-      const nextPath = `${pathname}?${params.toString()}`;
-      router.replace(nextPath, { scroll: false });
+
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [readyBadgeAlerts, pathname, router, searchParams]
   );
 
   const handleSubmitSurvey = useCallback(async () => {
-    if (!activeSurvey || !studentData?.student.email) {
-      return;
-    }
+    if (!activeSurvey || !studentData?.student.email) return;
 
     try {
       const response = await fetch(`/api/badges/${activeSurvey.badgeId}/survey`, {
@@ -319,9 +280,7 @@ function HomePageContent() {
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to submit survey');
-      }
+      if (!response.ok) throw new Error('Failed to submit survey');
 
       await refresh();
       closeSurveyModal();
@@ -330,27 +289,19 @@ function HomePageContent() {
     }
   }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal]);
 
-  if (!isLoaded || !isSignedIn) {
-    return null;
-  }
+  if (!isLoaded || !isSignedIn) return null;
+  if (isLoading || !studentData) return null;
 
   const renderCard = (lesson: LessonCard) => {
     const buttonClass =
       lesson.variant === 'continue' ? `${styles.cardButton} ${styles.secondaryAction}` : styles.cardButton;
 
     const imageSrc = lesson.image ?? DEFAULT_LESSON_IMAGE;
-    const isYouTubeThumb = imageSrc.includes('ytimg.com') || imageSrc.includes('youtube.com');
 
     return (
       <div key={lesson.id} className={styles.card}>
         <div className={styles.cardMedia}>
-          {isYouTubeThumb ? (
-            // 对 YouTube 缩略图使用普通 <img>，避免 next/image 域名限制
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
-          ) : (
-            <Image src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
-          )}
+          <Image src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
         </div>
 
         <div className={styles.cardTextBlock}>
@@ -374,35 +325,7 @@ function HomePageContent() {
 
   return (
     <div className={`page ${styles.page}`}>
-      <aside className={`sidebar ${styles.sidebar}`}>
-        <div className={styles.profile}>
-          <div className={styles.avatar}>{initialsFromName(displayName)}</div>
-          <div className={styles.name}>{displayName}</div>
-        </div>
-        <nav className={styles.navList}>
-          {[
-            { label: 'Home', href: '/' },
-            { label: 'Profile', href: '/profile' },
-            { label: 'My Analytics', href: '/analytics' },
-            { label: 'Badge Wallet', href: '/badges' },
-            { label: 'Grades', href: '/grades' },
-            { label: 'Settings', href: '/settings' },
-          ].map((item) => {
-            const isActive = pathname === item.href;
-            const navItemClass = `${styles.navItem} ${isActive ? styles.navItemActive : ''}`.trim();
-            return (
-              <Link key={item.href} href={item.href} className={navItemClass}>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className={styles.sidebarFooter}>
-          <button type="button" onClick={handleSignOut} className={styles.signOffButton} disabled={isSigningOut}>
-            {isSigningOut ? 'Signing off…' : 'Sign off'}
-          </button>
-        </div>
-      </aside>
+      <Sidebar navItems={navItems} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
         <div className={styles.topRow}>
@@ -436,9 +359,7 @@ function HomePageContent() {
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Up next</h2>
-          {isLoading ? (
-            <div className={styles.emptyState}>Loading lessons…</div>
-          ) : upNextLessons.length === 0 ? (
+          {upNextLessons.length === 0 ? (
             <div className={styles.emptyState}>No lessons ready to start.</div>
           ) : (
             <div className={styles.cardRow}>{upNextLessons.map(renderCard)}</div>
@@ -447,9 +368,7 @@ function HomePageContent() {
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Pick up where you left off</h2>
-          {isLoading ? (
-            <div className={styles.emptyState}>Loading your progress…</div>
-          ) : continueLessons.length === 0 ? (
+          {continueLessons.length === 0 ? (
             <div className={styles.emptyState}>There are no in-progress lessons right now.</div>
           ) : (
             <div className={styles.cardRow}>{continueLessons.map(renderCard)}</div>
@@ -463,17 +382,21 @@ function HomePageContent() {
             <button type="button" className={styles.surveyClose} onClick={closeSurveyModal}>
               Do this later
             </button>
+
             <h2 className={styles.surveyTitle}>Tell us about your experience.</h2>
             <p className={styles.surveyQuestion}>{activeSurvey.question}</p>
+
             <div className={styles.surveyFaces}>
               {[1, 2, 3, 4, 5].map((value) => {
                 const isSelected = surveyRating === value;
                 const buttonClass = [styles.surveyFace, isSelected ? styles.surveyFaceSelected : '']
                   .filter(Boolean)
                   .join(' ');
+
                 const imgClassNames = [styles.surveyFaceImage, isSelected ? styles.surveyFaceImageSelected : '']
                   .filter(Boolean)
                   .join(' ');
+
                 const iconSrc = isSelected ? FACE_IMAGES_SELECTED[value] : FACE_IMAGES[value];
 
                 return (
@@ -501,10 +424,10 @@ function HomePageContent() {
   );
 }
 
-export default function HomePage() {
+export default function Page() {
   return (
     <Suspense fallback={null}>
-      <HomePageContent />
+      <HomeContent />
     </Suspense>
   );
 }

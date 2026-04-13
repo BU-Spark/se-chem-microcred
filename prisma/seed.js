@@ -12,6 +12,8 @@ const {
   SurveyContext,
 } = require('@prisma/client');
 
+const { CourseRole } = require('@prisma/client');
+
 const prisma = new PrismaClient();
 
 const placeholderLessonImage =
@@ -37,28 +39,19 @@ async function clearExistingData() {
     prisma.courseContact.deleteMany(),
     prisma.enrollment.deleteMany(),
     prisma.lesson.deleteMany(),
-    prisma.user.deleteMany(),
+    prisma.courseSettings?.deleteMany ? prisma.courseSettings.deleteMany() : prisma.$executeRaw`SELECT 1`,
     prisma.course.deleteMany(),
+    prisma.user.deleteMany(),
   ]);
 }
 
 async function seedDemo() {
   console.log('Seeding demo data...');
 
-  const course = await prisma.course.create({
-    data: {
-      code: 'CHEM101',
-      section: 'K1',
-      title: 'Chem 101: Safety Foundations',
-      description:
-        'Introductory laboratory safety course covering flame safety, waste handling, and ventilation best practices.',
-    },
-  });
-
-  const students = await Promise.all([
+  const users = await Promise.all([
     prisma.user.create({
       data: {
-        email: 'nx2004@bu.edu',
+        email: 'azemk@bu.edu',
         name: 'John Doe',
         buid: 'U1234567',
         gender: 'Male',
@@ -67,28 +60,82 @@ async function seedDemo() {
         pellGrantQualified: false,
       },
     }),
+    prisma.user.create({
+      data: {
+        email: 'student1@bu.edu',
+        name: 'Jane Student',
+        buid: 'U7654321',
+        gender: 'Female',
+        raceEthnicity: 'White',
+        parentalEducation: 'Masters degree',
+        pellGrantQualified: false,
+      },
+    }),
+    prisma.user.create({
+      data: {
+        email: 'checker1@bu.edu',
+        name: 'Alex Checker',
+        buid: 'U1112223',
+        gender: 'Female',
+        raceEthnicity: 'White',
+        parentalEducation: 'Bachelors degree',
+        pellGrantQualified: true,
+      },
+    }),
   ]);
 
-  for (const student of students) {
+  const instructor = users[0];
+  const studentUser = users[1];
+  const checkerUser = users[2];
+
+  const course = await prisma.course.create({
+    data: {
+      // code: 'CHEM101',
+      section: 'K1',
+      title: 'Chem 101: Safety Foundations',
+      sectionCount: 2,
+      description:
+        'Introductory laboratory safety course covering flame safety, waste handling, and ventilation best practices.',
+      createdById: instructor.id,
+      settings: {
+        create: {
+          allowCooldownOverride: true,
+          allowAssessorMessages: true,
+          allowCrossSectionView: true,
+        },
+      },
+    },
+  });
+
+  for (const user of users) {
     await prisma.avatarSetting.create({
       data: {
-        studentId: student.id,
+        studentId: user.id,
         base: AvatarBase.SAPPHIRE,
         face: AvatarFace.SMILE,
         accessory: AvatarAccessory.LEAF,
       },
     });
 
+    const enrollmentRole =
+      user.id === instructor.id
+        ? CourseRole.INSTRUCTOR
+        : user.id === checkerUser.id
+          ? CourseRole.CHECKER
+          : CourseRole.STUDENT;
+
     await prisma.enrollment.create({
       data: {
-        studentId: student.id,
+        studentId: user.id,
         courseId: course.id,
+        role: enrollmentRole,
+        section: 'K1',
       },
     });
 
     await prisma.studentAnalytics.create({
       data: {
-        studentId: student.id,
+        studentId: user.id,
         hoursLearning: 6,
         badgesCompleted: 1,
         badgesReadyForAssessment: 1,
@@ -497,7 +544,7 @@ async function seedDemo() {
   ];
 
   const lessonRecords = [];
-  const lessonProgressByStudent = new Map();
+  const lessonProgressByUser = new Map();
 
   for (const [index, lessonSeed] of lessonSeeds.entries()) {
     const lesson = await prisma.lesson.create({
@@ -627,15 +674,18 @@ async function seedDemo() {
     },
   ];
 
-  for (const student of students) {
-    const perStudentMap = new Map();
+  const learningUsers = [studentUser];
+
+  for (const user of learningUsers) {
+    const perUserMap = new Map();
+
     for (const progressSeed of lessonProgressSeeds) {
       const lessonEntry = lessonBySlug.get(progressSeed.slug);
       if (!lessonEntry) continue;
 
       const progress = await prisma.lessonProgress.create({
         data: {
-          studentId: student.id,
+          studentId: user.id,
           lessonId: lessonEntry.lesson.id,
           status: progressSeed.status,
           percentComplete: progressSeed.percentComplete,
@@ -646,6 +696,7 @@ async function seedDemo() {
       for (const segmentProgress of progressSeed.segments) {
         const segment = lessonEntry.segments[segmentProgress.order];
         if (!segment) continue;
+
         await prisma.segmentProgress.create({
           data: {
             lessonProgressId: progress.id,
@@ -654,20 +705,20 @@ async function seedDemo() {
           },
         });
       }
-      perStudentMap.set(progressSeed.slug, progress);
+
+      perUserMap.set(progressSeed.slug, progress);
     }
-    lessonProgressByStudent.set(student.id, perStudentMap);
+
+    lessonProgressByUser.set(user.id, perUserMap);
   }
 
-  for (const student of students) {
+  for (const user of learningUsers) {
     for (const progressSeed of lessonProgressSeeds) {
-      if (!progressSeed.completedCheckpointIndices) {
-        continue;
-      }
+      if (!progressSeed.completedCheckpointIndices) continue;
+
       const lessonEntry = lessonBySlug.get(progressSeed.slug);
-      if (!lessonEntry) {
-        continue;
-      }
+      if (!lessonEntry) continue;
+
       const checkpoints = await prisma.lessonCheckpoint.findMany({
         where: { lessonId: lessonEntry.lesson.id },
         orderBy: { sortOrder: 'asc' },
@@ -677,21 +728,22 @@ async function seedDemo() {
           },
         },
       });
+
       const indices =
         progressSeed.completedCheckpointIndices === 'all'
           ? checkpoints.map((_, idx) => idx)
           : progressSeed.completedCheckpointIndices;
-      const lessonProgress = lessonProgressByStudent.get(student.id)?.get(progressSeed.slug) ?? null;
+
+      const lessonProgress = lessonProgressByUser.get(user.id)?.get(progressSeed.slug) ?? null;
 
       for (const idx of indices) {
         const checkpoint = checkpoints[idx];
-        if (!checkpoint) {
-          continue;
-        }
+        if (!checkpoint) continue;
+
         await prisma.checkpointAttempt.create({
           data: {
             checkpointId: checkpoint.id,
-            userId: student.id,
+            userId: user.id,
             lessonProgressId: lessonProgress?.id ?? null,
             isPassing: true,
             completedAt: new Date(),
@@ -699,7 +751,7 @@ async function seedDemo() {
               create: checkpoint.questions.map((question) => ({
                 checkpointId: checkpoint.id,
                 questionId: question.id,
-                studentId: student.id,
+                studentId: user.id,
                 lessonProgressId: lessonProgress?.id ?? null,
                 selectedIndex: question.correctIndex ?? 0,
                 isCorrect: true,
@@ -798,6 +850,7 @@ async function seedDemo() {
         category: badgeSeed.category,
       },
     });
+
     badgeRecords.push(badge);
 
     const lessonEntry = lessonBySlug.get(badgeSeed.lessonSlug);
@@ -811,17 +864,15 @@ async function seedDemo() {
       });
     }
 
-    for (const student of students) {
-      await prisma.studentBadge.create({
-        data: {
-          studentId: student.id,
-          badgeId: badge.id,
-          status: badgeSeed.studentStatus.status,
-          awardedAt: badgeSeed.studentStatus.awardedAt,
-          score: badgeSeed.studentStatus.score,
-        },
-      });
-    }
+    await prisma.studentBadge.create({
+      data: {
+        studentId: studentUser.id,
+        badgeId: badge.id,
+        status: badgeSeed.studentStatus.status,
+        awardedAt: badgeSeed.studentStatus.awardedAt,
+        score: badgeSeed.studentStatus.score,
+      },
+    });
   }
 
   const lessonSurveyQuestions = [
@@ -841,6 +892,7 @@ async function seedDemo() {
   for (const survey of lessonSurveyQuestions) {
     const lessonId = lessonBySlug.get(survey.lessonSlug)?.lesson.id;
     if (!lessonId) continue;
+
     const prompt = await prisma.surveyPrompt.create({
       data: {
         context: SurveyContext.LESSON,
@@ -848,6 +900,7 @@ async function seedDemo() {
         question: survey.question,
       },
     });
+
     lessonSurveyPrompts.push(prompt);
   }
 
@@ -866,30 +919,28 @@ async function seedDemo() {
     'graduated-cylinder',
   ]);
 
-  for (const [index, student] of students.entries()) {
-    for (const prompt of lessonSurveyPrompts) {
-      const lessonSlug = lessonRecords.find((lr) => lr.lesson.id === prompt.lessonId)?.lesson.slug;
-      if (!lessonSlug || incompleteLessonSlugs.has(lessonSlug)) {
-        continue;
-      }
-      await prisma.surveyResponse.create({
-        data: {
-          promptId: prompt.id,
-          studentId: student.id,
-          rating: index === 0 ? 4 : 3,
-          comment: index === 0 ? 'Feeling much more confident!' : 'I need a bit more practice.',
-        },
-      });
-    }
+  for (const prompt of lessonSurveyPrompts) {
+    const lessonSlug = lessonRecords.find((lr) => lr.lesson.id === prompt.lessonId)?.lesson.slug;
+    if (!lessonSlug || incompleteLessonSlugs.has(lessonSlug)) continue;
+
     await prisma.surveyResponse.create({
       data: {
-        promptId: badgeSurveyPrompt.id,
-        studentId: student.id,
+        promptId: prompt.id,
+        studentId: studentUser.id,
         rating: 4,
-        comment: 'Demo badge survey response.',
+        comment: 'Feeling much more confident!',
       },
     });
   }
+
+  await prisma.surveyResponse.create({
+    data: {
+      promptId: badgeSurveyPrompt.id,
+      studentId: studentUser.id,
+      rating: 4,
+      comment: 'Demo badge survey response.',
+    },
+  });
 
   console.log('Demo data seeded successfully.');
 }

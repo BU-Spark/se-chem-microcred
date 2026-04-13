@@ -9,7 +9,7 @@ datasource db {
 
 model User {
   id                  String               @id @default(cuid())
-  email               String               @unique
+  email               String?              @unique
   name                String?
   buid                String?              @unique
   gender              String?
@@ -26,6 +26,7 @@ model User {
   surveyResponses     SurveyResponse[]
   analytics           StudentAnalytics?
   checkpointAttempts  CheckpointAttempt[]
+  createdCourses      Course[]             @relation("CourseCreator")
 
   @@map("Student")
 }
@@ -63,18 +64,34 @@ enum AvatarAccessory {
 }
 
 model Course {
-  id          String          @id @default(cuid())
-  code        String
-  section     String?
-  title       String
-  description String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id           String   @id @default(cuid())
+  title        String
+  // code         String
+  section      String?
+  sectionCount Int
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdById String?
+  createdBy   User?   @relation("CourseCreator", fields: [createdById], references: [id])
+
   enrollments Enrollment[]
   lessons     Lesson[]
   contacts    CourseContact[]
+  settings    CourseSettings?
+}
 
-  @@unique([code, section])
+model CourseSettings {
+  id                    String   @id @default(cuid())
+  courseId              String   @unique
+  allowCooldownOverride Boolean  @default(false)
+  allowAssessorMessages Boolean  @default(false)
+  allowCrossSectionView Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id])
 }
 
 model CourseContact {
@@ -100,6 +117,7 @@ model Enrollment {
   studentId String
   courseId  String
   role      CourseRole @default(STUDENT)
+  section   String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -210,23 +228,23 @@ model CheckpointQuestion {
 }
 
 model LessonProgress {
-  id              String       @id @default(cuid())
-  studentId       String
-  lessonId        String
-  status          LessonStatus @default(NOT_STARTED)
-  startedAt       DateTime?
-  completedAt     DateTime?
-  percentComplete Int          @default(0)
+  id               String       @id @default(cuid())
+  studentId        String
+  lessonId         String
+  status           LessonStatus @default(NOT_STARTED)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  percentComplete  Int          @default(0)
   lastGradePercent Float?
   lastGradePassed  Boolean?
   lastGradedAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  student           User                 @relation(fields: [studentId], references: [id])
-  lesson            Lesson               @relation(fields: [lessonId], references: [id])
-  segments          SegmentProgress[]
-  responses         CheckpointResponse[]
+  student            User                 @relation(fields: [studentId], references: [id])
+  lesson             Lesson               @relation(fields: [lessonId], references: [id])
+  segments           SegmentProgress[]
+  responses          CheckpointResponse[]
   checkpointAttempts CheckpointAttempt[]
 
   @@unique([studentId, lessonId])

@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
 type BadgeStatus = 'completed' | 'assessment' | 'finalization' | 'learning';
 
@@ -48,13 +48,6 @@ const BADGE_STATUS_LABEL: Record<BadgeRecord['status'], string> = {
   LEARNING: 'Still learning',
 };
 
-function initialsFromName(name?: string | null) {
-  if (!name) return 'ST';
-  const parts = name.trim().split(/\s+/);
-  const initials = parts.slice(0, 2).map((p) => p.charAt(0).toUpperCase());
-  return initials.join('') || 'ST';
-}
-
 function ChevronIcon({ direction = 'down' }: { direction?: 'down' | 'up' }) {
   const rotate = direction === 'down' ? '0' : '180';
   return (
@@ -77,7 +70,6 @@ function formatBadgeStatus(status: BadgeRecord['status']) {
 
 export default function BadgeWalletPage() {
   const router = useRouter();
-  const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
@@ -121,15 +113,6 @@ export default function BadgeWalletPage() {
   useEffect(() => {
     setExportStatus(null);
   }, [activeBadgeId]);
-
-  const navItems = [
-    { label: 'Home', href: '/' },
-    { label: 'Profile', href: '/profile' },
-    { label: 'My Analytics', href: '/analytics' },
-    { label: 'Badge Wallet', href: '/badges' },
-    { label: 'Grades', href: '/grades' },
-    { label: 'Settings', href: '/settings' },
-  ];
 
   const displayName = studentData?.student.name || user?.fullName || 'Lastname, Student';
 
@@ -256,30 +239,7 @@ export default function BadgeWalletPage() {
   return (
     <div className="page">
       {/* Global sidebar with global classes only */}
-      <aside className="sidebar">
-        <div className="profile">
-          <div className="avatar">{initialsFromName(displayName)}</div>
-          <div className="name">{displayName}</div>
-        </div>
-
-        <nav className="navList" aria-label="Main">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            const cls = `navItem${isActive ? ' navItemActive' : ''}`;
-            return (
-              <Link key={item.href} href={item.href} className={cls}>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="sidebarFooter">
-          <button type="button" onClick={handleSignOut} className="signOffButton" disabled={isSigningOut}>
-            {isSigningOut ? 'Signing off…' : 'Sign off'}
-          </button>
-        </div>
-      </aside>
+      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       {/* Main area: local wrapper for wallet spacing */}
       <main className="main">
