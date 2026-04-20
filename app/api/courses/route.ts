@@ -44,13 +44,6 @@ function normalizeEmail(email?: string | null) {
 function badRequest(message: string, details?: unknown) {
   return NextResponse.json({ error: message, details: details ?? null }, { status: 400 });
 }
-
-function isValidSection(section: string | null, sectionCount: number) {
-  if (!section) return false;
-  const n = Number(section);
-  return Number.isInteger(n) && n >= 1 && n <= sectionCount;
-}
-
 export async function POST(req: NextRequest) {
   try {
     const clerkUser = await currentUser();
@@ -104,10 +97,6 @@ export async function POST(req: NextRequest) {
 
       if (member.role === CourseRole.INSTRUCTOR && member.section) {
         return badRequest('Instructor roster members must not have a section.');
-      }
-
-      if (member.section && member.role !== CourseRole.INSTRUCTOR && !isValidSection(member.section, sectionCount)) {
-        return badRequest(`Invalid section "${member.section}". Section must be between 1 and ${sectionCount}.`);
       }
     }
 
