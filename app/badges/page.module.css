@@ -11,8 +11,14 @@
 /* Header */
 .headerRow {
   display: flex;
+<<<<<<< HEAD
   justify-content: space-between;
   align-items: flex-start;
+=======
+  justify-content: column;
+  align-items: flex-start;
+  gap: 1rem;
+>>>>>>> badge-creation
 }
 
 .pageTitle {
@@ -21,6 +27,32 @@
   color: #111827;
 }
 
+<<<<<<< HEAD
+=======
+.createBadgeButton {
+  background: #1560aa;
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+}
+
+.createBadgeButton:hover {
+  background: #1560aa;
+  transform: translateY(-1px);
+}
+
+.createBadgeButton:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.5);
+  outline-offset: 2px;
+}
+
+>>>>>>> badge-creation
 /* =========================
    Wallet sections stack
    ========================= */
@@ -444,4 +476,8 @@
   .modalActions {
     justify-content: center;
   }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> badge-creation

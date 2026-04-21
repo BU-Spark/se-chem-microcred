@@ -58,7 +58,11 @@ async function seedDemo() {
   const students = await Promise.all([
     prisma.user.create({
       data: {
+<<<<<<< HEAD
         email: 'nx2004@bu.edu',
+=======
+        email: 'nithin.senthilvel@gmail.com',
+>>>>>>> badge-creation
         name: 'John Doe',
         buid: 'U1234567',
         gender: 'Male',

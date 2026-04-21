@@ -5,22 +5,18 @@ import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
-<<<<<<< HEAD
-import { useStudentData, type LessonRecord } from './hooks/useStudentData';
-=======
-import { useStudentData, type StudentData } from './hooks/useStudentData';
->>>>>>> badge-creation
+import { useStudentData, type LessonRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
-import veryUnhappy from '../public/assets/survey_faces/very_unhappy.svg';
-import slightlyUnhappy from '../public/assets/survey_faces/slightly_unhappy.svg';
-import neutral from '../public/assets/survey_faces/neutral.svg';
-import slightlyHappy from '../public/assets/survey_faces/slightly_happy.svg';
-import veryHappy from '../public/assets/survey_faces/very_happy.svg';
-import veryUnhappySelected from '../public/assets/survey_faces/very_unhappy_selected.svg';
-import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unhappy_selected.svg';
-import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
-import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
-import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
+import veryUnhappy from '../../public/assets/survey_faces/very_unhappy.svg';
+import slightlyUnhappy from '../../public/assets/survey_faces/slightly_unhappy.svg';
+import neutral from '../../public/assets/survey_faces/neutral.svg';
+import slightlyHappy from '../../public/assets/survey_faces/slightly_happy.svg';
+import veryHappy from '../../public/assets/survey_faces/very_happy.svg';
+import veryUnhappySelected from '../../public/assets/survey_faces/very_unhappy_selected.svg';
+import slightlyUnhappySelected from '../../public/assets/survey_faces/slightly_unhappy_selected.svg';
+import neutralSelected from '../../public/assets/survey_faces/neutral_selected.svg';
+import slightlyHappySelected from '../../public/assets/survey_faces/slightly_happy_selected.svg';
+import veryHappySelected from '../../public/assets/survey_faces/very_happy_selected.svg';
 
 interface LessonCard {
   id: string;
@@ -33,18 +29,6 @@ interface LessonCard {
   href?: string;
 }
 
-<<<<<<< HEAD
-=======
-interface CourseCard {
-  id: string;
-  title: string;
-  meta: string;
-  actionLabel: string;
-  image?: string;
-  href?: string;
-}
-
->>>>>>> badge-creation
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
 
 function initialsFromName(name?: string | null) {
@@ -79,7 +63,6 @@ function formatDueDate(dueDate: string | null) {
  * - https://www.youtube.com/embed/ID
  * - with extra query params / playlists
  */
-<<<<<<< HEAD
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
   const trimmed = url.trim();
@@ -111,9 +94,6 @@ function extractYouTubeId(url?: string | null) {
   const match = trimmed.match(/(?:youtu\.be\/|v=|embed\/)([\w-]{11})/);
   return match?.[1] ?? null;
 }
-=======
-
->>>>>>> badge-creation
 
 /**
  * Decide which image to show for a lesson.
@@ -123,7 +103,6 @@ function extractYouTubeId(url?: string | null) {
  * 3. first segment thumbnailUrl
  * 4. dummy fallback
  */
-<<<<<<< HEAD
 function resolveLessonImage(record: LessonRecord) {
   const clean = (u?: string | null) => {
     if (!u) return null;
@@ -185,31 +164,6 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
     image: resolveLessonImage(record),
     href: `/lessons/${record.slug}`,
   };
-=======
-function resolveLessonImage() {
-  return DEFAULT_LESSON_IMAGE;
-}
-
-
-
-function courseRecordToCard(course: StudentData['course']): CourseCard {
-  if (!course) {
-    throw new Error('No course provided');
-  }
-  const metaParts = [
-    course.code ? `Code: ${course.code}` : '',
-    course.section ? `Section: ${course.section}` : '',
-  ].filter(Boolean);
-
-  return {
-    id: course.id,
-    title: course.title,
-    meta: metaParts.join(' • ') || 'No course details',
-    actionLabel: 'View Lessons',
-    image: resolveLessonImage(),
-    href: '/course_dashboard'
-  }
->>>>>>> badge-creation
 }
 
 function HomePageContent() {
@@ -287,18 +241,12 @@ function HomePageContent() {
     }
   }, [pendingSurveyBadges]);
 
-<<<<<<< HEAD
   const upNextLessons = useMemo(() => {
     return studentData?.lessons.upNext.map(lessonRecordToCard) ?? [];
   }, [studentData]);
 
   const continueLessons = useMemo(() => {
     return studentData?.lessons.inProgress.map(lessonRecordToCard) ?? [];
-=======
-  const courseCards = useMemo(() => {
-    if (!studentData?.course) return [];
-    return [courseRecordToCard(studentData.course)];
->>>>>>> badge-creation
   }, [studentData]);
 
   useEffect(() => {
@@ -386,7 +334,6 @@ function HomePageContent() {
     return null;
   }
 
-<<<<<<< HEAD
   const renderCard = (lesson: LessonCard) => {
     const buttonClass =
       lesson.variant === 'continue' ? `${styles.cardButton} ${styles.secondaryAction}` : styles.cardButton;
@@ -419,27 +366,6 @@ function HomePageContent() {
         ) : (
           <button type="button" className={buttonClass}>
             {lesson.actionLabel}
-=======
-  const renderCard = (card: CourseCard) => {
-    const buttonClass =
-      'variant' in card && card.variant === 'continue'
-        ? `${styles.cardButton} ${styles.secondaryAction}`
-        : styles.cardButton;
-
-    return (
-      <div key={card.id} className={styles.card}>
-        <div className={styles.cardTextBlock}>
-          <div className={styles.cardTitle}>{card.title}</div>
-          <div className={styles.cardMeta}>{card.meta}</div>
-        </div>
-        {card.href ? (
-          <Link href={card.href} className={buttonClass}>
-            {card.actionLabel}
-          </Link>
-        ) : (
-          <button type="button" className={buttonClass}>
-            {card.actionLabel}
->>>>>>> badge-creation
           </button>
         )}
       </div>
@@ -459,10 +385,6 @@ function HomePageContent() {
             { label: 'Profile', href: '/profile' },
             { label: 'My Analytics', href: '/analytics' },
             { label: 'Badge Wallet', href: '/badges' },
-<<<<<<< HEAD
-=======
-            { label: 'My Badges', href: '/my_badges' },
->>>>>>> badge-creation
             { label: 'Grades', href: '/grades' },
             { label: 'Settings', href: '/settings' },
           ].map((item) => {
@@ -513,7 +435,6 @@ function HomePageContent() {
         </div>
 
         <section className={styles.section}>
-<<<<<<< HEAD
           <h2 className={styles.sectionTitle}>Up next</h2>
           {isLoading ? (
             <div className={styles.emptyState}>Loading lessons…</div>
@@ -532,15 +453,6 @@ function HomePageContent() {
             <div className={styles.emptyState}>There are no in-progress lessons right now.</div>
           ) : (
             <div className={styles.cardRow}>{continueLessons.map(renderCard)}</div>
-=======
-          <h2 className={styles.sectionTitle}>Courses</h2>
-          {isLoading ? (
-            <div className={styles.emptyState}>Loading courses</div>
-          ) : courseCards.length === 0 ? (
-            <div className={styles.emptyState}>No lessons ready to start.</div>
-          ) : (
-            <div className={styles.cardRow}>{courseCards.map(renderCard)}</div>
->>>>>>> badge-creation
           )}
         </section>
       </main>

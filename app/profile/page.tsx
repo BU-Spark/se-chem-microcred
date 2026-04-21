@@ -14,6 +14,10 @@ const NAV_ITEMS = [
   { label: 'Profile', href: '/profile' },
   { label: 'My Analytics', href: '/analytics' },
   { label: 'Badge Wallet', href: '/badges' },
+<<<<<<< HEAD
+=======
+  { label: 'My Badges', href: '/my_badges' },
+>>>>>>> badge-creation
   { label: 'Grades', href: '/grades' },
   { label: 'Settings', href: '/settings' },
 ];
@@ -316,9 +320,14 @@ export default function ProfilePage() {
         <nav className={`${styles.sidebarNavList} navList`} aria-label="Main navigation">
           {NAV_ITEMS.map((item) => {
             const isActive = pathname === item.href;
+<<<<<<< HEAD
             const navClass = `navItem ${isActive ? 'navItemActive' : ''} ${styles.sidebarNavItem} ${
               isActive ? styles.sidebarNavItemActive : ''
             }`.trim();
+=======
+            const navClass = `navItem ${isActive ? 'navItemActive' : ''} ${styles.sidebarNavItem} ${isActive ? styles.sidebarNavItemActive : ''
+              }`.trim();
+>>>>>>> badge-creation
             return (
               <Link key={item.href} href={item.href} className={navClass}>
                 {item.label}

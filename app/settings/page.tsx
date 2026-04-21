@@ -11,6 +11,10 @@ const navItems = [
   { label: 'Profile', href: '/profile' },
   { label: 'My Analytics', href: '/analytics' },
   { label: 'Badge Wallet', href: '/badges' },
+<<<<<<< HEAD
+=======
+  { label: 'My Badges', href: '/my_badges' },
+>>>>>>> badge-creation
   { label: 'Grades', href: '/grades' },
   { label: 'Settings', href: '/settings' },
 ];
