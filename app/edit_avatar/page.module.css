@@ -1,0 +1,349 @@
+.main {
+  position: relative;
+  background: transparent;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
+  padding: 3rem 0;
+}
+
+.sidebarContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  color: var(--brand-on);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  color: var(--brand-on);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+
+.sidebarBrand {
+  font-size: 1.35rem;
+  font-weight: 700;
+}
+
+.avatarPage {
+  position: relative;
+  min-height: 100vh;
+  padding: 3rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, rgba(17, 24, 39, 0.65), rgba(17, 24, 39, 0.78));
+}
+
+.backdropPattern {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.35), transparent 45%),
+    radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.25), transparent 55%),
+    radial-gradient(circle at 50% 80%, rgba(96, 165, 250, 0.25), transparent 52%);
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+.modal {
+  position: relative;
+  width: min(820px, 100%);
+  background: #ffffff;
+  border-radius: 2.25rem;
+  padding: 2.75rem 3rem;
+  box-shadow: 0 35px 72px rgba(15, 23, 42, 0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 2.25rem;
+  z-index: 1;
+}
+
+.titleBlock {
+  text-align: center;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.subtitle {
+  margin-top: 0.5rem;
+  font-size: 1rem;
+  color: #4b5563;
+}
+
+.stepIndicator {
+  display: flex;
+  justify-content: center;
+  gap: 0.6rem;
+}
+
+.stepIndicatorDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgba(31, 95, 171, 0.16);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.stepIndicatorDotActive {
+  background: #1f5fab;
+  transform: scale(1.2);
+}
+
+.avatarGrid {
+  display: grid;
+  gap: 1.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.avatarButton {
+  background: linear-gradient(180deg, #ffffff 0%, #f3f6fb 100%);
+  border: 2px solid transparent;
+  border-radius: 1.75rem;
+  padding: 1.5rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  align-items: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.avatarButton:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12);
+}
+
+.avatarButtonSelected {
+  border-color: #1f5fab;
+  box-shadow: 0 24px 50px rgba(31, 95, 171, 0.18);
+}
+
+.avatarPreview {
+  width: 140px;
+  height: 140px;
+}
+
+.avatarLabel {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.stepContent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2.25rem;
+}
+
+.carousel {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.arrowButton {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: none;
+  background: #e5ecfc;
+  color: #1f5fab;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 14px 32px rgba(31, 95, 171, 0.2);
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+
+.arrowButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(0.96);
+}
+
+.arrowButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.arrowIcon {
+  width: 20px;
+  height: 20px;
+}
+
+.carouselTrack {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1.5rem;
+  align-items: center;
+}
+
+.optionShell {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #f3f6fb;
+  width: 120px;
+  height: 120px;
+  opacity: 0.45;
+  transform: scale(0.85);
+  transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+
+.optionShellPrimary {
+  width: 170px;
+  height: 170px;
+  opacity: 1;
+  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  box-shadow: 0 26px 52px rgba(15, 23, 42, 0.14);
+  transform: scale(1);
+  cursor: default;
+}
+
+.optionShell:not(.optionShellPrimary):hover {
+  opacity: 0.65;
+  transform: scale(0.88);
+}
+
+.optionShell:focus-visible {
+  outline: 3px solid rgba(31, 95, 171, 0.65);
+  outline-offset: 6px;
+}
+
+.optionLabel {
+  margin-top: 1.2rem;
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.optionTagline {
+  font-size: 0.9rem;
+  color: #6b7280;
+  text-align: center;
+  margin-top: 0.35rem;
+}
+
+.facePreview,
+.hatPreview {
+  width: 120px;
+  height: 120px;
+}
+
+.facePreviewLarge,
+.hatPreviewLarge {
+  width: 150px;
+  height: 150px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.5rem;
+}
+
+.cancelButton {
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1f2937;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.cancelButton::after {
+  content: '';
+  display: block;
+  width: 100%;
+  height: 2px;
+  background: #1f2937;
+  margin-top: 2px;
+}
+
+.nextButton {
+  padding: 0.85rem 2.75rem;
+  border-radius: 999px;
+  border: none;
+  background: #1f5fab;
+  color: #ffffff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 22px 44px rgba(31, 95, 171, 0.28);
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.nextButton:hover:enabled {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+.nextButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.selectionHint {
+  font-size: 0.95rem;
+  color: #4b5563;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .modal {
+    padding: 2.25rem 1.75rem;
+    border-radius: 1.75rem;
+  }
+
+  .footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .cancelButton::after {
+    display: none;
+  }
+
+  .cancelButton {
+    justify-content: center;
+    border: 1px solid rgba(17, 24, 39, 0.12);
+    padding: 0.75rem 0;
+    border-radius: 999px;
+  }
+
+  .nextButton {
+    width: 100%;
+  }
+
+  .carousel {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .arrowButton {
+    display: none;
+  }
+
+  .carouselTrack {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
