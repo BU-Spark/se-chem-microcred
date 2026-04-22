@@ -68,6 +68,9 @@ export async function fetchCreatedCourseDetail(userId: string, courseId: string)
       },
       enrollments: {
         include: {
+          sections: {
+            orderBy: { section: 'asc' },
+          },
           student: {
             select: {
               id: true,
@@ -110,12 +113,7 @@ export async function fetchCreatedCourseDetail(userId: string, courseId: string)
   });
 }
 
-export async function fetchCreatedCourseMemberDetail(
-  userId: string,
-  courseId: string,
-  memberId: string,
-  role: 'STUDENT' | 'CHECKER'
-) {
+export async function fetchCreatedCourseMemberDetail(userId: string, courseId: string, memberId: string) {
   return prisma.course.findFirst({
     where: {
       id: courseId,
@@ -123,7 +121,6 @@ export async function fetchCreatedCourseMemberDetail(
       enrollments: {
         some: {
           studentId: memberId,
-          role,
         },
       },
     },
@@ -164,12 +161,17 @@ export async function fetchCreatedCourseMemberDetail(
       enrollments: {
         where: {
           studentId: memberId,
-          role,
         },
         take: 1,
         select: {
           id: true,
-          section: true,
+          role: true,
+          sections: {
+            orderBy: { section: 'asc' },
+            select: {
+              section: true,
+            },
+          },
           student: {
             select: {
               id: true,

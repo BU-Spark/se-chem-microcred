@@ -28,7 +28,7 @@ type StudentProfileBadge = {
   score?: number | null;
 };
 
-type ProfileRole = 'STUDENT' | 'CHECKER';
+type ProfileRole = 'STUDENT' | 'CHECKER' | 'INSTRUCTOR';
 
 type InstructorMemberProfileResponse = {
   memberRole: ProfileRole;
@@ -51,7 +51,7 @@ type InstructorMemberProfileResponse = {
   course: {
     id: string;
     title: string;
-    section: string | null;
+    sections: string[];
     createdBy: {
       id: string;
       name: string | null;
@@ -75,12 +75,20 @@ function resolveParam(value: string | string[] | undefined) {
   return value ?? null;
 }
 
-function resolveProfileRole(role?: string | null): ProfileRole {
-  return role === 'CHECKER' ? 'CHECKER' : 'STUDENT';
-}
+function profileLabel(role?: ProfileRole | null) {
+  if (role === 'CHECKER') {
+    return 'Assessor';
+  }
 
-function profileLabel(role: ProfileRole) {
-  return role === 'CHECKER' ? 'Assessor' : 'Student';
+  if (role === 'INSTRUCTOR') {
+    return 'Instructor';
+  }
+
+  if (role === 'STUDENT') {
+    return 'Student';
+  }
+
+  return 'User';
 }
 
 function avatarAsset(base?: string | null) {
@@ -215,16 +223,10 @@ function BadgeGrid({
   );
 }
 
-function useInstructorStudentProfile(
-  courseId?: string | null,
-  studentId?: string | null,
-  role: ProfileRole = 'STUDENT',
-  email?: string | null
-) {
+function useInstructorStudentProfile(courseId?: string | null, studentId?: string | null, email?: string | null) {
   const [data, setData] = useState<InstructorMemberProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const memberLabel = profileLabel(role).toLowerCase();
 
   const fetchData = useCallback(async () => {
     if (!courseId || !studentId || !email) {
@@ -240,10 +242,6 @@ function useInstructorStudentProfile(
     try {
       const params = new URLSearchParams({ email });
 
-      if (role === 'CHECKER') {
-        params.set('role', role);
-      }
-
       const response = await fetch(
         `/api/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(studentId)}?${params.toString()}`,
         {
@@ -256,17 +254,17 @@ function useInstructorStudentProfile(
       }));
 
       if (!response.ok) {
-        throw new Error(payload.error ?? `Unable to load ${memberLabel} details.`);
+        throw new Error(payload.error ?? 'Unable to load member details.');
       }
 
       setData(payload);
     } catch (err) {
       setData(null);
-      setError(err instanceof Error ? err.message : `Unable to load ${memberLabel} details.`);
+      setError(err instanceof Error ? err.message : 'Unable to load member details.');
     } finally {
       setIsLoading(false);
     }
-  }, [courseId, studentId, role, email, memberLabel]);
+  }, [courseId, studentId, email]);
 
   useEffect(() => {
     void fetchData();
@@ -289,12 +287,13 @@ export default function InstructorStudentProfilePage() {
 
   const studentId = resolveParam(params?.studentId);
   const courseId = searchParams.get('courseId');
-  const role = resolveProfileRole(searchParams.get('role'));
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
-  const { data, isLoading, error } = useInstructorStudentProfile(courseId, studentId, role, email);
-  const currentRole = data?.memberRole ?? role;
+  const { data, isLoading, error } = useInstructorStudentProfile(courseId, studentId, email);
+  const currentRole = data?.memberRole ?? null;
   const currentProfileLabel = profileLabel(currentRole);
   const currentProfileLabelLower = currentProfileLabel.toLowerCase();
+  const showBadgesSection = currentRole === 'STUDENT';
+  const courseSectionsLabel = data?.course.sections.join(', ') ?? '';
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -450,7 +449,8 @@ export default function InstructorStudentProfilePage() {
                     <p className={styles.sideMeta}>
                       {data.course.title}
                       <br />
-                      Section: {data.course.section || 'Not provided'}
+                      {data.course.sections.length > 1 ? 'Sections' : 'Section'}:{' '}
+                      {courseSectionsLabel || 'Not provided'}
                     </p>
                   </section>
 
@@ -493,56 +493,58 @@ export default function InstructorStudentProfilePage() {
                 </aside>
               </section>
 
-              <section className={styles.badgesCard}>
-                <div className={styles.badgesHeader}>
-                  <div>
-                    <h2 className={styles.badgesTitle}>{currentProfileLabel} Badges</h2>
+              {showBadgesSection ? (
+                <section className={styles.badgesCard}>
+                  <div className={styles.badgesHeader}>
+                    <div>
+                      <h2 className={styles.badgesTitle}>{currentProfileLabel} Badges</h2>
+                    </div>
+
+                    <div className={styles.badgesHeaderMeta}>
+                      <span className={styles.badgesHint}>Select a badge to edit</span>
+                      <span className={styles.editStub}>
+                        Edit
+                        <Image src={editIcon} alt="" width={15} height={15} />
+                      </span>
+                    </div>
                   </div>
 
-                  <div className={styles.badgesHeaderMeta}>
-                    <span className={styles.badgesHint}>Select a badge to edit</span>
-                    <span className={styles.editStub}>
-                      Edit
-                      <Image src={editIcon} alt="" width={15} height={15} />
-                    </span>
-                  </div>
-                </div>
+                  <section className={styles.badgeSection}>
+                    <h3 className={styles.badgeSectionTitle}>In-progress</h3>
+                    <BadgeGrid badges={data.badges.inProgress} />
+                  </section>
 
-                <section className={styles.badgeSection}>
-                  <h3 className={styles.badgeSectionTitle}>In-progress</h3>
-                  <BadgeGrid badges={data.badges.inProgress} />
+                  <button
+                    type="button"
+                    className={styles.accordionRow}
+                    onClick={() => setIsNotStartedOpen((current) => !current)}
+                  >
+                    <span>Not yet started</span>
+                    <Chevron isOpen={isNotStartedOpen} />
+                  </button>
+
+                  {isNotStartedOpen ? (
+                    <div className={styles.accordionPanel}>
+                      <BadgeGrid badges={data.badges.notStarted} tone="pending" />
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    className={styles.accordionRow}
+                    onClick={() => setIsCompletedOpen((current) => !current)}
+                  >
+                    <span>Completed</span>
+                    <Chevron isOpen={isCompletedOpen} />
+                  </button>
+
+                  {isCompletedOpen ? (
+                    <div className={styles.accordionPanel}>
+                      <BadgeGrid badges={data.badges.completed} tone="completed" />
+                    </div>
+                  ) : null}
                 </section>
-
-                <button
-                  type="button"
-                  className={styles.accordionRow}
-                  onClick={() => setIsNotStartedOpen((current) => !current)}
-                >
-                  <span>Not yet started</span>
-                  <Chevron isOpen={isNotStartedOpen} />
-                </button>
-
-                {isNotStartedOpen ? (
-                  <div className={styles.accordionPanel}>
-                    <BadgeGrid badges={data.badges.notStarted} tone="pending" />
-                  </div>
-                ) : null}
-
-                <button
-                  type="button"
-                  className={styles.accordionRow}
-                  onClick={() => setIsCompletedOpen((current) => !current)}
-                >
-                  <span>Completed</span>
-                  <Chevron isOpen={isCompletedOpen} />
-                </button>
-
-                {isCompletedOpen ? (
-                  <div className={styles.accordionPanel}>
-                    <BadgeGrid badges={data.badges.completed} tone="completed" />
-                  </div>
-                ) : null}
-              </section>
+              ) : null}
             </>
           ) : null}
         </div>

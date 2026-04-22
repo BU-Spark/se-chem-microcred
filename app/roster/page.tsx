@@ -10,7 +10,7 @@ import styles from './page.module.css';
 type EnrollmentSummary = {
   id: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-  section: string | null;
+  sections: string[];
   student: {
     id: string;
     name: string | null;
@@ -42,7 +42,8 @@ type RosterMemberRow = {
   lastName: string;
   email: string;
   buid: string;
-  section: string;
+  sections: string[];
+  sectionLabel: string;
 };
 
 type RosterFilters = {
@@ -82,12 +83,8 @@ function resolveRosterRole(role?: string | null): RosterRole {
   return role === 'CHECKER' ? 'CHECKER' : 'STUDENT';
 }
 
-function buildMemberProfileHref(courseId: string, memberId: string, role: RosterRole) {
+function buildMemberProfileHref(courseId: string, memberId: string) {
   const params = new URLSearchParams({ courseId });
-
-  if (role === 'CHECKER') {
-    params.set('role', role);
-  }
 
   return `/roster/${encodeURIComponent(memberId)}?${params.toString()}`;
 }
@@ -216,14 +213,15 @@ export default function StudentRosterPage() {
           lastName,
           email: enrollment.student.email?.trim() ?? '',
           buid: enrollment.student.buid?.trim() ?? '',
-          section: enrollment.section?.trim() ?? '',
+          sections: enrollment.sections,
+          sectionLabel: enrollment.sections.join(', '),
         };
       });
   }, [course, rosterRole]);
 
   const sectionOptions = useMemo(() => {
     const sections = Array.from(
-      new Set(rosterRows.map((member) => member.section).filter((section) => section.length > 0))
+      new Set(rosterRows.flatMap((member) => member.sections).filter((section) => section.length > 0))
     ).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
     return ['ALL', ...sections];
@@ -237,7 +235,7 @@ export default function StudentRosterPage() {
     const normalizedEmail = appliedFilters.email.trim().toLowerCase();
 
     return rosterRows.filter((member) => {
-      if (appliedFilters.section && member.section !== appliedFilters.section) {
+      if (appliedFilters.section && !member.sections.includes(appliedFilters.section)) {
         return false;
       }
 
@@ -261,7 +259,7 @@ export default function StudentRosterPage() {
         return true;
       }
 
-      const haystack = [member.firstName, member.lastName, member.email, member.buid, member.section]
+      const haystack = [member.firstName, member.lastName, member.email, member.buid, member.sectionLabel]
         .join(' ')
         .toLowerCase();
 
@@ -303,7 +301,7 @@ export default function StudentRosterPage() {
     }
 
     if (selectedMemberId === memberId) {
-      router.push(buildMemberProfileHref(courseId, memberId, rosterRole));
+      router.push(buildMemberProfileHref(courseId, memberId));
       return;
     }
 
@@ -526,7 +524,7 @@ export default function StudentRosterPage() {
                             <td>{member.firstName || '—'}</td>
                             <td>{member.buid || '—'}</td>
                             <td>{member.email || '—'}</td>
-                            <td>{member.section || '—'}</td>
+                            <td>{member.sectionLabel || '—'}</td>
                           </tr>
                         ))
                       ) : (

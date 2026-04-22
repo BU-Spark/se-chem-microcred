@@ -66,7 +66,7 @@ describe('Course roster page', () => {
             {
               id: 'enrollment-1',
               role: 'INSTRUCTOR',
-              section: null,
+              sections: [],
               student: {
                 id: 'prof-1',
                 name: 'Professor Demo',
@@ -77,7 +77,7 @@ describe('Course roster page', () => {
             {
               id: 'enrollment-2',
               role: 'STUDENT',
-              section: 'A1',
+              sections: ['A1'],
               student: {
                 id: 'student-1',
                 name: 'Ada Lovelace',
@@ -88,7 +88,7 @@ describe('Course roster page', () => {
             {
               id: 'enrollment-3',
               role: 'STUDENT',
-              section: 'B1',
+              sections: ['B1'],
               student: {
                 id: 'student-2',
                 name: 'Grace Hopper',
@@ -135,7 +135,7 @@ describe('Course roster page', () => {
             {
               id: 'enrollment-1',
               role: 'STUDENT',
-              section: 'A1',
+              sections: ['A1'],
               student: {
                 id: 'student-1',
                 name: 'Ada Lovelace',
@@ -146,7 +146,7 @@ describe('Course roster page', () => {
             {
               id: 'enrollment-2',
               role: 'STUDENT',
-              section: 'B1',
+              sections: ['B1'],
               student: {
                 id: 'student-2',
                 name: 'Grace Hopper',
@@ -203,7 +203,7 @@ describe('Course roster page', () => {
             {
               id: 'enrollment-1',
               role: 'STUDENT',
-              section: 'A1',
+              sections: ['A1'],
               student: {
                 id: 'student-1',
                 name: 'Ada Lovelace',
@@ -214,7 +214,7 @@ describe('Course roster page', () => {
             {
               id: 'enrollment-2',
               role: 'STUDENT',
-              section: 'B1',
+              sections: ['B1'],
               student: {
                 id: 'student-2',
                 name: 'Grace Hopper',
@@ -265,7 +265,7 @@ describe('Course roster page', () => {
             {
               id: 'enrollment-1',
               role: 'STUDENT',
-              section: 'A1',
+              sections: ['A1'],
               student: {
                 id: 'student-1',
                 name: 'Ada Lovelace',
@@ -276,7 +276,7 @@ describe('Course roster page', () => {
             {
               id: 'enrollment-2',
               role: 'CHECKER',
-              section: 'B1',
+              sections: ['B1', 'B2'],
               student: {
                 id: 'checker-1',
                 name: 'Alex Checker',
@@ -295,6 +295,7 @@ describe('Course roster page', () => {
     expect(screen.getByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('Checker')).toBeInTheDocument();
     expect(screen.getByText('checker@bu.edu')).toBeInTheDocument();
+    expect(screen.getByText('B1, B2')).toBeInTheDocument();
     expect(screen.queryByText('Ada')).not.toBeInTheDocument();
 
     const checkerRow = screen.getByText('Checker').closest('tr');
@@ -308,6 +309,6 @@ describe('Course roster page', () => {
 
     fireEvent.click(checkerRow!);
 
-    expect(mockPush).toHaveBeenCalledWith('/roster/checker-1?courseId=course-1&role=CHECKER');
+    expect(mockPush).toHaveBeenCalledWith('/roster/checker-1?courseId=course-1');
   });
 });

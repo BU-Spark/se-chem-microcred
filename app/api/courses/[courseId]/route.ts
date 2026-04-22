@@ -40,7 +40,18 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       );
     }
 
-    return NextResponse.json({ course }, { status: 200 });
+    return NextResponse.json(
+      {
+        course: {
+          ...course,
+          enrollments: course.enrollments.map((enrollment) => ({
+            ...enrollment,
+            sections: enrollment.sections.map((assignment) => assignment.section),
+          })),
+        },
+      },
+      { status: 200 }
+    );
   } catch (error) {
     console.error('GET /api/courses/[courseId] failed:', error);
 

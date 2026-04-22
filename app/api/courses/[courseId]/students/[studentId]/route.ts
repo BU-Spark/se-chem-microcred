@@ -11,10 +11,6 @@ function normalizeId(value?: string | null) {
   return trimmed ? trimmed : null;
 }
 
-function resolveRole(role?: string | null) {
-  return role === 'CHECKER' ? 'CHECKER' : 'STUDENT';
-}
-
 function formatBadge(badge: {
   id: string;
   slug: string;
@@ -34,11 +30,9 @@ function formatBadge(badge: {
 export async function GET(req: NextRequest, context: { params: Promise<{ courseId: string; studentId: string }> }) {
   try {
     const email = normalizeEmail(req.nextUrl.searchParams.get('email'));
-    const role = resolveRole(req.nextUrl.searchParams.get('role'));
     const { courseId: rawCourseId, studentId: rawStudentId } = await context.params;
     const courseId = normalizeId(rawCourseId);
     const studentId = normalizeId(rawStudentId);
-    const memberLabel = role === 'CHECKER' ? 'Assessor' : 'Student';
 
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
@@ -54,12 +48,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const course = await fetchCreatedCourseMemberDetail(user.id, courseId, studentId, role);
+    const course = await fetchCreatedCourseMemberDetail(user.id, courseId, studentId);
 
     if (!course || course.enrollments.length === 0) {
       return NextResponse.json(
         {
-          error: `${memberLabel} not found in this course or you do not have permission to view it.`,
+          error: 'Member not found in this course or you do not have permission to view it.',
         },
         { status: 404 }
       );
@@ -130,7 +124,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
 
     return NextResponse.json(
       {
-        memberRole: role,
+        memberRole: enrollment.role,
         member: {
           id: member.id,
           name: member.name,
@@ -152,7 +146,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         course: {
           id: course.id,
           title: course.title,
-          section: enrollment.section,
+          sections: enrollment.sections.map((assignment) => assignment.section),
           createdBy: course.createdBy
             ? {
                 id: course.createdBy.id,

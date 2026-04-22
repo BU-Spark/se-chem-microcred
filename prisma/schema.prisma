@@ -65,8 +65,8 @@ enum AvatarAccessory {
 
 model Course {
   id           String   @id @default(cuid())
+  code         String
   title        String
-  // code         String
   section      String?
   sectionCount Int
   description  String?
@@ -117,14 +117,25 @@ model Enrollment {
   studentId String
   courseId  String
   role      CourseRole @default(STUDENT)
-  section   String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  student User   @relation(fields: [studentId], references: [id])
-  course  Course @relation(fields: [courseId], references: [id])
+  student  User                @relation(fields: [studentId], references: [id])
+  course   Course              @relation(fields: [courseId], references: [id])
+  sections EnrollmentSection[]
 
   @@unique([studentId, courseId])
+}
+
+model EnrollmentSection {
+  id           String   @id @default(cuid())
+  enrollmentId String
+  section      String
+  createdAt    DateTime @default(now())
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, section])
 }
 
 enum CourseRole {

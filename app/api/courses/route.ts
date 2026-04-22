@@ -41,6 +41,17 @@ function normalizeEmail(email?: string | null) {
   return trimmed ? trimmed : null;
 }
 
+function parseSections(sectionValue?: string | null) {
+  return Array.from(
+    new Set(
+      (sectionValue ?? '')
+        .split(',')
+        .map((section) => section.trim())
+        .filter(Boolean)
+    )
+  );
+}
+
 function badRequest(message: string, details?: unknown) {
   return NextResponse.json({ error: message, details: details ?? null }, { status: 400 });
 }
@@ -87,7 +98,7 @@ export async function POST(req: NextRequest) {
       name: normalizeString(member.name),
       buid: normalizeString(member.buid),
       role: member.role ?? CourseRole.STUDENT,
-      section: normalizeString(member.section),
+      sections: parseSections(member.section),
     }));
 
     for (const member of roster) {
@@ -95,8 +106,12 @@ export async function POST(req: NextRequest) {
         return badRequest('Each roster member must include at least a BUID or an email.');
       }
 
-      if (member.role === CourseRole.INSTRUCTOR && member.section) {
+      if (member.role === CourseRole.INSTRUCTOR && member.sections.length > 0) {
         return badRequest('Instructor roster members must not have a section.');
+      }
+
+      if (member.role === CourseRole.STUDENT && member.sections.length > 1) {
+        return badRequest('Student roster members can only belong to one section.');
       }
     }
 
@@ -224,7 +239,7 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        await tx.enrollment.upsert({
+        const creatorEnrollment = await tx.enrollment.upsert({
           where: {
             studentId_courseId: {
               studentId: creator.id,
@@ -233,14 +248,17 @@ export async function POST(req: NextRequest) {
           },
           update: {
             role: CourseRole.INSTRUCTOR,
-            section: null,
           },
           create: {
             studentId: creator.id,
             courseId: savedCourseId,
             role: CourseRole.INSTRUCTOR,
-            section: null,
           },
+          select: { id: true },
+        });
+
+        await tx.enrollmentSection.deleteMany({
+          where: { enrollmentId: creatorEnrollment.id },
         });
 
         const rosterBuids = roster.map((r) => r.buid).filter((buid): buid is string => Boolean(buid));
@@ -267,6 +285,13 @@ export async function POST(req: NextRequest) {
 
         const analyticsStudentIds = new Set<string>();
         analyticsStudentIds.add(creator.id);
+        const enrollmentInputs = new Map<
+          string,
+          {
+            role: CourseRole;
+            sections: Set<string>;
+          }
+        >();
 
         for (const member of roster) {
           let dbUser =
@@ -320,35 +345,62 @@ export async function POST(req: NextRequest) {
             continue;
           }
 
-          const enrollmentSection = member.role === CourseRole.INSTRUCTOR ? null : member.section;
+          const existingEnrollment = enrollmentInputs.get(dbUser.id);
 
-          if (member.role === CourseRole.INSTRUCTOR) {
-            await tx.enrollment.upsert({
-              where: {
-                studentId_courseId: {
-                  studentId: dbUser.id,
-                  courseId: savedCourseId,
-                },
-              },
-              update: {
-                role: member.role,
-                section: null,
-              },
-              create: {
-                studentId: dbUser.id,
+          if (existingEnrollment) {
+            if (existingEnrollment.role !== member.role) {
+              return {
+                error: badRequest('A roster member cannot be assigned multiple roles in the same course.', {
+                  userId: dbUser.id,
+                  roles: [existingEnrollment.role, member.role],
+                }),
+              };
+            }
+
+            for (const section of member.sections) {
+              existingEnrollment.sections.add(section);
+            }
+
+            continue;
+          }
+
+          enrollmentInputs.set(dbUser.id, {
+            role: member.role,
+            sections: new Set(member.sections),
+          });
+        }
+
+        for (const [userId, enrollmentInput] of enrollmentInputs) {
+          const enrollment = await tx.enrollment.upsert({
+            where: {
+              studentId_courseId: {
+                studentId: userId,
                 courseId: savedCourseId,
-                role: member.role,
-                section: null,
               },
-            });
-          } else {
-            await tx.enrollment.create({
-              data: {
-                studentId: dbUser.id,
-                courseId: savedCourseId,
-                role: member.role,
-                section: enrollmentSection,
-              },
+            },
+            update: {
+              role: enrollmentInput.role,
+            },
+            create: {
+              studentId: userId,
+              courseId: savedCourseId,
+              role: enrollmentInput.role,
+            },
+            select: { id: true },
+          });
+
+          await tx.enrollmentSection.deleteMany({
+            where: { enrollmentId: enrollment.id },
+          });
+
+          const sections = Array.from(enrollmentInput.sections);
+
+          if (sections.length > 0) {
+            await tx.enrollmentSection.createMany({
+              data: sections.map((section) => ({
+                enrollmentId: enrollment.id,
+                section,
+              })),
             });
           }
         }
@@ -362,6 +414,9 @@ export async function POST(req: NextRequest) {
             },
             enrollments: {
               include: {
+                sections: {
+                  orderBy: { section: 'asc' },
+                },
                 student: {
                   select: {
                     id: true,

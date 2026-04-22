@@ -90,7 +90,7 @@ async function seedDemo() {
 
   const course = await prisma.course.create({
     data: {
-      // code: 'CHEM101',
+      code: 'CHEM101',
       section: 'K1',
       title: 'Chem 101: Safety Foundations',
       sectionCount: 2,
@@ -129,7 +129,12 @@ async function seedDemo() {
         studentId: user.id,
         courseId: course.id,
         role: enrollmentRole,
-        section: 'K1',
+        sections:
+          enrollmentRole === CourseRole.INSTRUCTOR
+            ? undefined
+            : {
+                create: [{ section: 'K1' }],
+              },
       },
     });
 

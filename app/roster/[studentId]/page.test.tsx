@@ -78,7 +78,7 @@ describe('Roster member profile page', () => {
         course: {
           id: 'course-1',
           title: 'Chem101',
-          section: 'K1',
+          sections: ['K1'],
           createdBy: {
             id: 'prof-1',
             name: 'Professor Demo',
@@ -146,7 +146,10 @@ describe('Roster member profile page', () => {
     expect(screen.getByText('Ada')).toBeInTheDocument();
     expect(screen.getByText('ada@bu.edu')).toBeInTheDocument();
     expect(screen.getByText('U11111111')).toBeInTheDocument();
-    expect(within(screen.getByText('Course Info:').closest('section')!).getByText(/Chem101/)).toBeInTheDocument();
+    const courseInfoSection = screen.getByText('Course Info:').closest('section');
+    expect(courseInfoSection).not.toBeNull();
+    expect(within(courseInfoSection!).getByText(/Chem101/)).toBeInTheDocument();
+    expect(courseInfoSection).toHaveTextContent('Section: K1');
     expect(screen.getByText('ta@bu.edu')).toBeInTheDocument();
     expect(screen.getByText('Waste Handling')).toBeInTheDocument();
 
@@ -163,8 +166,8 @@ describe('Roster member profile page', () => {
     expect(screen.getByText('Vent Hood Safety')).toBeInTheDocument();
   });
 
-  it('loads and displays the selected assessor profile with the same layout', async () => {
-    mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
+  it('loads and displays the selected assessor profile', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1');
     mockUsePathname.mockReturnValue('/roster/checker-1');
     mockUseParams.mockReturnValue({ studentId: 'checker-1' });
 
@@ -191,7 +194,7 @@ describe('Roster member profile page', () => {
         course: {
           id: 'course-1',
           title: 'Chem101',
-          section: 'K1',
+          sections: ['K1', 'K2'],
           createdBy: {
             id: 'prof-1',
             name: 'Professor Demo',
@@ -238,12 +241,9 @@ describe('Roster member profile page', () => {
     render(<InstructorStudentProfilePage />);
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith(
-        '/api/courses/course-1/students/checker-1?email=prof%40example.edu&role=CHECKER',
-        {
-          headers: { Accept: 'application/json' },
-        }
-      );
+      expect(mockFetch).toHaveBeenCalledWith('/api/courses/course-1/students/checker-1?email=prof%40example.edu', {
+        headers: { Accept: 'application/json' },
+      });
     });
 
     expect(await screen.findByRole('heading', { name: 'Assessor Profile' })).toBeInTheDocument();
@@ -254,8 +254,11 @@ describe('Roster member profile page', () => {
     expect(screen.getByText('Assessor Info:')).toBeInTheDocument();
     expect(screen.getByText('Instructor')).toBeInTheDocument();
     expect(screen.getByText('Professor Demo')).toBeInTheDocument();
-    expect(screen.getByText('Assessor Badges')).toBeInTheDocument();
-    expect(screen.getByText('Waste Handling')).toBeInTheDocument();
+    const assessorCourseInfoSection = screen.getByText('Course Info:').closest('section');
+    expect(assessorCourseInfoSection).not.toBeNull();
+    expect(assessorCourseInfoSection).toHaveTextContent('Sections: K1, K2');
+    expect(screen.queryByText('Assessor Badges')).not.toBeInTheDocument();
+    expect(screen.queryByText('Waste Handling')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Demographic Info/i }));
 
@@ -263,7 +266,6 @@ describe('Roster member profile page', () => {
     expect(screen.getByText('College graduate')).toBeInTheDocument();
     expect(screen.getByText('No')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Not yet started/i }));
-    expect(screen.getByText('Bunsen Burners')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Not yet started/i })).not.toBeInTheDocument();
   });
 });

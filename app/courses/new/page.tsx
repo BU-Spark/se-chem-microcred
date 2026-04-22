@@ -68,7 +68,7 @@ type EditableCourseResponse = {
     enrollments: Array<{
       id: string;
       role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-      section: string | null;
+      sections: string[];
       student: {
         id: string;
         name: string | null;
@@ -100,7 +100,7 @@ function toRosterRow(person: {
   name?: string | null;
   email?: string | null;
   buid?: string | null;
-  section?: string | null;
+  sections?: string[] | null;
 }): StudentRow {
   const { firstName, lastName } = splitName(person.name);
 
@@ -109,7 +109,7 @@ function toRosterRow(person: {
     lastName,
     buid: person.buid?.trim() ?? '',
     email: person.email?.trim() ?? '',
-    section: person.section?.trim() ?? '',
+    section: (person.sections ?? []).join(', '),
   };
 }
 
@@ -118,6 +118,31 @@ function parseSections(sectionValue?: string | null): string[] {
     .split(',')
     .map((section) => section.trim())
     .filter(Boolean);
+}
+
+function mergeAssessorRows(rows: AssessorRow[]) {
+  return Array.from(
+    rows.reduce((map, row) => {
+      const email = row.email.trim().toLowerCase();
+      const buid = row.buid.trim();
+      const key = email || buid || `${row.firstName.trim()}|${row.lastName.trim()}`;
+      const existing = map.get(key);
+
+      if (!existing) {
+        map.set(key, {
+          ...row,
+          email,
+          buid,
+          section: Array.from(new Set(parseSections(row.section))).join(', '),
+        });
+        return map;
+      }
+
+      const nextSections = new Set([...parseSections(existing.section), ...parseSections(row.section)]);
+      existing.section = Array.from(nextSections).join(', ');
+      return map;
+    }, new Map<string, AssessorRow>())
+  ).map(([, row]) => row);
 }
 
 export default function CourseNewPage() {
@@ -222,42 +247,20 @@ export default function CourseNewPage() {
               name: enrollment.student.name,
               email: enrollment.student.email,
               buid: enrollment.student.buid,
-              section: enrollment.section,
+              sections: enrollment.sections,
             })
           )
         );
         setAssessorRows(
           checkerEnrollments.length > 0
-            ? Array.from(
-                checkerEnrollments.reduce((map, enrollment) => {
-                  const email = enrollment.student.email?.trim().toLowerCase() ?? '';
-                  const buid = enrollment.student.buid?.trim() ?? '';
-                  const key = email || buid || enrollment.id;
-
-                  const existing = map.get(key);
-
-                  if (existing) {
-                    const nextSections = new Set([
-                      ...parseSections(existing.section),
-                      ...(enrollment.section ? [enrollment.section.trim()] : []),
-                    ]);
-
-                    existing.section = Array.from(nextSections).join(', ');
-                  } else {
-                    map.set(
-                      key,
-                      toRosterRow({
-                        name: enrollment.student.name,
-                        email: enrollment.student.email,
-                        buid: enrollment.student.buid,
-                        section: enrollment.section,
-                      })
-                    );
-                  }
-
-                  return map;
-                }, new Map<string, AssessorRow>())
-              ).map(([, row]) => row)
+            ? checkerEnrollments.map((enrollment) =>
+                toRosterRow({
+                  name: enrollment.student.name,
+                  email: enrollment.student.email,
+                  buid: enrollment.student.buid,
+                  sections: enrollment.sections,
+                })
+              )
             : course.contacts
                 .filter((contact) => contact.type === 'CHECKER')
                 .map((contact) =>
@@ -265,7 +268,7 @@ export default function CourseNewPage() {
                     name: contact.name,
                     email: contact.email,
                     buid: null,
-                    section: null,
+                    sections: [],
                   })
                 )
         );
@@ -347,7 +350,7 @@ export default function CourseNewPage() {
     try {
       const text = await file.text();
       const parsedRows = parser(text);
-      setRows(parsedRows);
+      setRows((target === 'assessor' ? mergeAssessorRows(parsedRows as AssessorRow[]) : parsedRows) as T[]);
     } catch (error) {
       console.error('Failed to parse CSV:', error);
       const message = error instanceof Error ? error.message : 'Failed to read CSV file.';

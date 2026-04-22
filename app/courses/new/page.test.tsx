@@ -102,7 +102,7 @@ describe('Course new page edit mode', () => {
               {
                 id: 'enrollment-1',
                 role: 'STUDENT',
-                section: '2',
+                sections: ['2'],
                 student: {
                   id: 'student-1',
                   name: 'Jane Student',
@@ -113,7 +113,7 @@ describe('Course new page edit mode', () => {
               {
                 id: 'enrollment-2',
                 role: 'CHECKER',
-                section: '3',
+                sections: ['3', '4'],
                 student: {
                   id: 'checker-1',
                   name: 'Alex Checker',
@@ -156,6 +156,7 @@ describe('Course new page edit mode', () => {
     expect(screen.getByText('Checker')).toBeInTheDocument();
     expect(screen.getByText('U87654321')).toBeInTheDocument();
     expect(screen.getByText('checker@bu.edu')).toBeInTheDocument();
+    expect(screen.getByText('3, 4')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(await screen.findByText('1 students enrolled')).toBeInTheDocument();
@@ -204,7 +205,7 @@ describe('Course new page edit mode', () => {
           name: 'Alex Checker',
           buid: 'U87654321',
           role: 'CHECKER',
-          section: '3',
+          section: '3, 4',
         }),
       ])
     );

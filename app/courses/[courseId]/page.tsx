@@ -22,7 +22,7 @@ type CourseContact = {
 type EnrollmentSummary = {
   id: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-  section: string | null;
+  sections: string[];
   student: {
     id: string;
     name: string | null;

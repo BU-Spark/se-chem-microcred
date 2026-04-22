@@ -101,7 +101,7 @@ describe('Created course detail page', () => {
             {
               id: 'enrollment-1',
               role: 'INSTRUCTOR',
-              section: null,
+              sections: [],
               student: {
                 id: 'user-1',
                 name: 'Professor Demo',
@@ -112,7 +112,7 @@ describe('Created course detail page', () => {
             {
               id: 'enrollment-2',
               role: 'STUDENT',
-              section: '1',
+              sections: ['1'],
               student: {
                 id: 'student-1',
                 name: 'Student One',
@@ -123,7 +123,7 @@ describe('Created course detail page', () => {
             {
               id: 'enrollment-3',
               role: 'STUDENT',
-              section: '2',
+              sections: ['2'],
               student: {
                 id: 'student-2',
                 name: 'Student Two',
