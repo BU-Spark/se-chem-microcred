@@ -179,9 +179,11 @@ describe('Course new page edit mode', () => {
         headers: { 'Content-Type': 'application/json' },
       })
     );
+
     expect(saveBody).toEqual(
       expect.objectContaining({
         id: 'course-1',
+        code: '',
         title: 'Chemistry 101',
         sectionCount: '3',
         settings: {
@@ -191,6 +193,7 @@ describe('Course new page edit mode', () => {
         },
       })
     );
+
     expect(saveBody.roster).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -198,14 +201,14 @@ describe('Course new page edit mode', () => {
           name: 'Jane Student',
           buid: 'U12345678',
           role: 'STUDENT',
-          section: '2',
+          sections: ['2'],
         }),
         expect.objectContaining({
           email: 'checker@bu.edu',
           name: 'Alex Checker',
           buid: 'U87654321',
           role: 'CHECKER',
-          section: '3, 4',
+          sections: ['3', '4'],
         }),
       ])
     );
@@ -245,6 +248,7 @@ describe('Course new page edit mode', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
     });
+
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     await waitFor(() => {
@@ -258,18 +262,25 @@ describe('Course new page edit mode', () => {
 
     expect(
       await screen.findByRole('heading', {
-        name: 'Review your student roster file before uploading',
+        name: 'Review your file before uploading.',
       })
     ).toBeInTheDocument();
+
+    expect(within(screen.getByRole('dialog')).getByText(/Use the headers/i)).toBeInTheDocument();
+
+    expect(within(screen.getByRole('dialog')).getByText(/\|/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Continue Upload' }));
 
     expect(clickSpy).toHaveBeenCalled();
-    expect(
-      screen.queryByRole('heading', {
-        name: 'Review your student roster file before uploading',
-      })
-    ).not.toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('heading', {
+          name: 'Review your file before uploading.',
+        })
+      ).not.toBeInTheDocument();
+    });
   });
 
   it('shows an error modal when roster upload parsing fails', async () => {
@@ -302,6 +313,7 @@ describe('Course new page edit mode', () => {
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
     });
+
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     await waitFor(() => {
@@ -313,6 +325,7 @@ describe('Course new page edit mode', () => {
     const badCsv = new File(['wrong,lastName\nDoe,Jane'], 'bad.csv', {
       type: 'text/csv',
     });
+
     Object.defineProperty(badCsv, 'text', {
       value: async () => 'wrong,lastName\nDoe,Jane',
     });
@@ -323,21 +336,24 @@ describe('Course new page edit mode', () => {
 
     expect(
       await screen.findByRole('heading', {
-        name: 'Student roster upload failed',
+        name: 'File upload failed',
       })
     ).toBeInTheDocument();
+
     expect(
       within(screen.getByRole('dialog')).getByText(
-        'CSV must contain headers: lastName, firstName, buid, email, section'
+        'CSV must contain headers: lastName, firstName, buid, email, sections'
       )
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
-    expect(
-      screen.queryByRole('heading', {
-        name: 'Student roster upload failed',
-      })
-    ).not.toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('heading', {
+          name: 'File upload failed',
+        })
+      ).not.toBeInTheDocument();
+    });
   });
 });

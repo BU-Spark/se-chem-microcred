@@ -27,7 +27,7 @@ type CreateOrUpdateCoursePayload = {
     name?: string | null;
     buid?: string | null;
     role?: CourseRole;
-    section?: string | null;
+    sections?: string[] | string | null;
   }>;
 };
 
@@ -41,11 +41,15 @@ function normalizeEmail(email?: string | null) {
   return trimmed ? trimmed : null;
 }
 
-function parseSections(sectionValue?: string | null) {
+function parseSections(sectionValue?: string[] | string | null) {
+  if (Array.isArray(sectionValue)) {
+    return Array.from(new Set(sectionValue.map((section) => section.trim()).filter(Boolean)));
+  }
+
   return Array.from(
     new Set(
       (sectionValue ?? '')
-        .split(',')
+        .split('|')
         .map((section) => section.trim())
         .filter(Boolean)
     )
@@ -98,7 +102,7 @@ export async function POST(req: NextRequest) {
       name: normalizeString(member.name),
       buid: normalizeString(member.buid),
       role: member.role ?? CourseRole.STUDENT,
-      sections: parseSections(member.section),
+      sections: parseSections(member.sections),
     }));
 
     for (const member of roster) {

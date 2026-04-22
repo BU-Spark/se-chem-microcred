@@ -60,7 +60,7 @@ CREATE TABLE "AvatarSetting" (
 -- CreateTable
 CREATE TABLE "Course" (
     "id" TEXT NOT NULL,
-    "code" TEXT NOT NULL,
+    "code" TEXT NULL,
     "section" TEXT,
     "title" TEXT NOT NULL,
     "description" TEXT,

@@ -16,7 +16,7 @@ type StudentRow = {
   firstName: string;
   buid: string;
   email: string;
-  section: string;
+  sections: string;
 };
 
 type AssessorRow = {
@@ -24,7 +24,7 @@ type AssessorRow = {
   firstName: string;
   buid: string;
   email: string;
-  section: string;
+  sections: string;
 };
 
 type UploadTarget = 'student' | 'assessor';
@@ -109,13 +109,13 @@ function toRosterRow(person: {
     lastName,
     buid: person.buid?.trim() ?? '',
     email: person.email?.trim() ?? '',
-    section: (person.sections ?? []).join(', '),
+    sections: (person.sections ?? []).join('|'),
   };
 }
 
 function parseSections(sectionValue?: string | null): string[] {
   return (sectionValue ?? '')
-    .split(',')
+    .split('|')
     .map((section) => section.trim())
     .filter(Boolean);
 }
@@ -133,13 +133,13 @@ function mergeAssessorRows(rows: AssessorRow[]) {
           ...row,
           email,
           buid,
-          section: Array.from(new Set(parseSections(row.section))).join(', '),
+          sections: Array.from(new Set(parseSections(row.sections))).join('|'),
         });
         return map;
       }
 
-      const nextSections = new Set([...parseSections(existing.section), ...parseSections(row.section)]);
-      existing.section = Array.from(nextSections).join(', ');
+      const nextSections = new Set([...parseSections(existing.sections), ...parseSections(row.sections)]);
+      existing.sections = Array.from(nextSections).join('|');
       return map;
     }, new Map<string, AssessorRow>())
   ).map(([, row]) => row);
@@ -374,18 +374,20 @@ export default function CourseNewPage() {
 
     const headers = lines[0].split(',').map((h) => h.trim());
 
-    const lastNameIndex = headers.findIndex(
-      (h) => h.toLowerCase() === 'lastname' || h.toLowerCase() === 'lastName'.toLowerCase()
-    );
-    const firstNameIndex = headers.findIndex(
-      (h) => h.toLowerCase() === 'firstname' || h.toLowerCase() === 'firstName'.toLowerCase()
-    );
+    const lastNameIndex = headers.findIndex((h) => h.toLowerCase() === 'lastname');
+    const firstNameIndex = headers.findIndex((h) => h.toLowerCase() === 'firstname');
     const buidIndex = headers.findIndex((h) => h.toLowerCase() === 'buid');
     const emailIndex = headers.findIndex((h) => h.toLowerCase() === 'email');
-    const sectionIndex = headers.findIndex((h) => h.toLowerCase() === 'section');
+    const sectionsIndex = headers.findIndex((h) => h.toLowerCase() === 'sections' || h.toLowerCase() === 'section');
 
-    if (lastNameIndex === -1 || firstNameIndex === -1 || buidIndex === -1 || emailIndex === -1 || sectionIndex === -1) {
-      throw new Error('CSV must contain headers: lastName, firstName, buid, email, section');
+    if (
+      lastNameIndex === -1 ||
+      firstNameIndex === -1 ||
+      buidIndex === -1 ||
+      emailIndex === -1 ||
+      sectionsIndex === -1
+    ) {
+      throw new Error('CSV must contain headers: lastName, firstName, buid, email, sections');
     }
 
     return lines.slice(1).map((line) => {
@@ -396,7 +398,7 @@ export default function CourseNewPage() {
         firstName: cols[firstNameIndex] || '',
         buid: cols[buidIndex] || '',
         email: cols[emailIndex] || '',
-        section: cols[sectionIndex] || '',
+        sections: cols[sectionsIndex] || '',
       };
     });
   }
@@ -424,14 +426,14 @@ export default function CourseNewPage() {
           name: `${student.firstName} ${student.lastName}`.trim(),
           buid: student.buid || null,
           role: CourseRole.STUDENT,
-          section: student.section.trim() || null,
+          sections: parseSections(student.sections),
         })),
         ...assessorRows.map((assessor) => ({
           email: assessor.email.trim().toLowerCase(),
           name: `${assessor.firstName} ${assessor.lastName}`.trim(),
           buid: assessor.buid || null,
           role: CourseRole.CHECKER,
-          section: assessor.section.trim() || null,
+          sections: parseSections(assessor.sections),
         })),
       ],
     };
@@ -622,7 +624,7 @@ export default function CourseNewPage() {
                         <th>First Name</th>
                         <th>BUID Number</th>
                         <th>Email</th>
-                        <th>Section</th>
+                        <th>Sections</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -632,7 +634,7 @@ export default function CourseNewPage() {
                           <td>{student.firstName}</td>
                           <td>{student.buid}</td>
                           <td>{student.email}</td>
-                          <td>{student.section}</td>
+                          <td>{parseSections(student.sections).join(', ')}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -713,7 +715,7 @@ export default function CourseNewPage() {
                             <td>{assessor.firstName}</td>
                             <td>{assessor.buid}</td>
                             <td>{assessor.email}</td>
-                            <td>{assessor.section}</td>
+                            <td>{parseSections(assessor.sections).join(', ')}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -926,14 +928,7 @@ export default function CourseNewPage() {
                 {uploadDialog.type === 'error' ? 'Upload Error' : 'Warning'}
               </p>
               <h2 id="upload-dialog-title" className={styles.uploadWarningTitle}>
-                {uploadDialog.type === 'error' ? (
-                  <>{uploadDialog.target === 'assessor' ? 'Assessor roster' : 'Student roster'} upload failed</>
-                ) : (
-                  <>
-                    Review your {uploadDialog.target === 'assessor' ? 'assessor roster' : 'student roster'} file before
-                    uploading
-                  </>
-                )}
+                {uploadDialog.type === 'error' ? <>File upload failed</> : <>Review your file before uploading.</>}
               </h2>
 
               {uploadDialog.type === 'error' ? (
@@ -941,11 +936,8 @@ export default function CourseNewPage() {
               ) : (
                 <>
                   <p className={styles.uploadWarningText}>
-                    Uploading a new CSV will replace the roster preview currently shown on this page.
-                  </p>
-                  <p className={styles.uploadWarningText}>
-                    Use the headers <strong>lastName, firstName, buid, email, section</strong> so the roster imports
-                    correctly.
+                    Use the headers <strong>lastName, firstName, buid, email, sections</strong>. <br />
+                    For multiple sections, separate them with <strong>|</strong>
                   </p>
                 </>
               )}

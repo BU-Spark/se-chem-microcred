@@ -125,7 +125,7 @@ function AddCourseCard() {
       </div>
       <div className={styles.addCourseText}>
         <h3 className={styles.courseTitle}>Add Course</h3>
-        <p className={styles.courseMeta}>Create a new course space</p>
+        <p className={styles.courseMeta}>Create a course</p>
       </div>
     </Link>
   );
