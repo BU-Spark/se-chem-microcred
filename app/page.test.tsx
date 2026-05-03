@@ -1,6 +1,7 @@
+/* eslint-disable @next/next/no-img-element */
+import type { ImgHTMLAttributes } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import HomePage from './page';
-import type { LessonRecord } from './hooks/useStudentData';
 
 const mockReplace = jest.fn();
 const mockUsePathname = jest.fn();
@@ -8,6 +9,7 @@ const mockUseUser = jest.fn();
 const mockUseAuth = jest.fn();
 const mockUseStudentData = jest.fn();
 const mockUseSearchParams = jest.fn();
+const mockFetch = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace }),
@@ -18,6 +20,15 @@ jest.mock('next/navigation', () => ({
 jest.mock('@clerk/nextjs', () => ({
   useUser: () => mockUseUser(),
   useAuth: () => mockUseAuth(),
+}));
+
+jest.mock('next/image', () => ({
+  __esModule: true,
+  default: (nextImageProps: ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean }) => {
+    const { fill, ...props } = nextImageProps;
+    void fill;
+    return <img {...props} alt={props.alt} />;
+  },
 }));
 
 jest.mock('./hooks/useStudentData', () => ({
@@ -46,37 +57,6 @@ function createAuthState(overrides = {}) {
   };
 }
 
-function createLesson(id: string, overrides: Partial<LessonRecord> = {}): LessonRecord {
-  const baseLesson: LessonRecord = {
-    id,
-    slug: `${id}-slug`,
-    title: `Lesson ${id}`,
-    summary: 'Summary',
-    description: 'Description',
-    thumbnailUrl: null,
-    estimatedMinutes: 10,
-    dueDate: new Date().toISOString(),
-    sortOrder: 0,
-    passingPercent: 70,
-    status: 'NOT_STARTED',
-    percentComplete: 0,
-    completedCheckpointIds: [],
-    resumeTimeSeconds: 0,
-    answeredCheckpointIds: [],
-    segments: [],
-    checkpoints: [],
-    skills: [],
-    lastGradePercent: null,
-    lastGradePassed: null,
-    lastGradedAt: null,
-  };
-
-  return {
-    ...baseLesson,
-    ...overrides,
-  };
-}
-
 describe('Home Page', () => {
   beforeEach(() => {
     mockReplace.mockClear();
@@ -92,23 +72,11 @@ describe('Home Page', () => {
     mockUseAuth.mockImplementation(() => createAuthState());
 
     mockUseStudentData.mockReset();
-    const upNextLessons = [createLesson('up-1'), createLesson('up-2'), createLesson('up-3')];
-    const inProgressLessons = [
-      createLesson('in-1', { status: 'IN_PROGRESS', percentComplete: 75 }),
-      createLesson('in-2', { status: 'IN_PROGRESS', percentComplete: 50 }),
-      createLesson('in-3', { status: 'IN_PROGRESS', percentComplete: 20 }),
-    ];
-
     mockUseStudentData.mockReturnValue({
       data: {
         student: {
           name: 'Student Demo',
           email: 'student@example.edu',
-        },
-        lessons: {
-          upNext: upNextLessons,
-          inProgress: inProgressLessons,
-          catalog: [...upNextLessons, ...inProgressLessons],
         },
         badges: {
           completed: [],
@@ -126,24 +94,155 @@ describe('Home Page', () => {
       error: null,
       refresh: jest.fn(),
     });
+
+    mockFetch.mockReset();
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/created?email=student%40example.edu') {
+        return {
+          ok: true,
+          json: async () => ({
+            user: { name: 'Student Demo', email: 'student@example.edu' },
+            count: 2,
+            courses: [
+              {
+                id: 'created-course-1',
+                title: 'Created Course 1',
+                description: null,
+                section: null,
+                sectionCount: 2,
+                createdAt: '2026-03-30T18:35:48.000Z',
+                lessons: [],
+                enrollments: [{ id: 'enrollment-1', role: 'INSTRUCTOR' }],
+              },
+              {
+                id: 'created-course-2',
+                title: 'Created Course 2',
+                description: null,
+                section: null,
+                sectionCount: 1,
+                createdAt: '2026-03-29T18:35:48.000Z',
+                lessons: [],
+                enrollments: [{ id: 'enrollment-2', role: 'INSTRUCTOR' }],
+              },
+            ],
+          }),
+        };
+      }
+
+      if (url === '/api/courses/enrolled?email=student%40example.edu') {
+        return {
+          ok: true,
+          json: async () => ({
+            user: { name: 'Student Demo', email: 'student@example.edu' },
+            count: 2,
+            enrollments: [
+              {
+                id: 'student-enrollment-1',
+                role: 'STUDENT',
+                course: {
+                  id: 'course-1',
+                  code: 'CAS CH 101',
+                  section: 'A1',
+                  title: 'General Chemistry',
+                  description: 'Foundations of chemistry',
+                  contacts: [
+                    {
+                      id: 'contact-1',
+                      type: 'INSTRUCTOR',
+                      name: 'Prof. Curie',
+                      email: 'curie@example.edu',
+                    },
+                  ],
+                  lessons: [{ thumbnailUrl: null, segments: [] }],
+                },
+              },
+              {
+                id: 'student-enrollment-2',
+                role: 'STUDENT',
+                course: {
+                  id: 'course-2',
+                  code: 'CAS CH 102',
+                  section: 'B2',
+                  title: 'Organic Chemistry',
+                  description: 'Carbon compounds',
+                  contacts: [
+                    {
+                      id: 'contact-2',
+                      type: 'INSTRUCTOR',
+                      name: 'Prof. Dalton',
+                      email: 'dalton@example.edu',
+                    },
+                  ],
+                  lessons: [{ thumbnailUrl: null, segments: [] }],
+                },
+              },
+            ],
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    global.fetch = mockFetch as unknown as typeof fetch;
   });
 
-  it('renders the signed-in dashboard when authentication is ready', () => {
+  it('renders created and enrolled course sections on the merged home page', async () => {
     render(<HomePage />);
 
     expect(screen.getByText('Student Demo')).toBeInTheDocument();
     expect(screen.getByText('SD')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Up next' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Pick up where you left off' })).toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: 'Start' })).toHaveLength(3);
-    expect(screen.getAllByRole('link', { name: 'Continue' })).toHaveLength(3);
+    expect(screen.getByRole('heading', { name: 'My Courses' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'My Enrolled Courses' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/courses/created?email=student%40example.edu', {
+        headers: { Accept: 'application/json' },
+      });
+    });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/courses/enrolled?email=student%40example.edu', {
+      headers: { Accept: 'application/json' },
+    });
+
+    expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
+    expect(screen.getByText('Created Course 2')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Add course' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open Created Course 1' })).toHaveAttribute(
+      'href',
+      '/courses/created-course-1'
+    );
+    expect(screen.getByRole('link', { name: 'Open Created Course 2' })).toHaveAttribute(
+      'href',
+      '/courses/created-course-2'
+    );
+
+    expect(screen.getByText('General Chemistry')).toBeInTheDocument();
+    expect(screen.getByText('Organic Chemistry')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open General Chemistry' })).toHaveAttribute(
+      'href',
+      '/course_dashboard?courseId=course-1'
+    );
+    expect(screen.getByRole('link', { name: 'Open Organic Chemistry' })).toHaveAttribute(
+      'href',
+      '/course_dashboard?courseId=course-2'
+    );
+
+    const createdGrid = screen.getByTestId('created-courses-grid');
+    expect(createdGrid.firstElementChild).toHaveAttribute('data-testid', 'add-course-card');
+    expect(screen.getAllByTestId('course-card')).toHaveLength(2);
+    expect(screen.getAllByTestId('enrolled-course-card')).toHaveLength(2);
   });
 
-  it('highlights the active navigation item based on the current pathname', () => {
+  it('highlights the active navigation item based on the current pathname', async () => {
     mockUsePathname.mockReturnValue('/profile');
 
     render(<HomePage />);
+
+    await screen.findByText('Created Course 1');
 
     const profileLink = screen.getByRole('link', { name: 'Profile' });
     const homeLink = screen.getByRole('link', { name: 'Home' });
@@ -182,6 +281,8 @@ describe('Home Page', () => {
     );
 
     render(<HomePage />);
+
+    await screen.findByText('Created Course 1');
 
     const button = screen.getByRole('button', { name: 'Sign off' });
     fireEvent.click(button);

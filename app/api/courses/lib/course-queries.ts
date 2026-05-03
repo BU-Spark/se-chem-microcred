@@ -233,6 +233,21 @@ export async function fetchEnrolledCourses(userId: string) {
       course: {
         include: {
           settings: true,
+          lessons: {
+            orderBy: { sortOrder: 'asc' },
+            take: 1,
+            select: {
+              thumbnailUrl: true,
+              segments: {
+                orderBy: { sortOrder: 'asc' },
+                take: 1,
+                select: {
+                  videoUrl: true,
+                  thumbnailUrl: true,
+                },
+              },
+            },
+          },
           contacts: {
             orderBy: { type: 'asc' },
           },

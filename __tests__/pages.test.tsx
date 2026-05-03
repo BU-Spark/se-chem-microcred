@@ -15,6 +15,7 @@ const mockPush = jest.fn();
 const mockUsePathname = jest.fn(() => '/');
 let mockParams: Record<string, string> = {};
 let mockSearchParams = new URLSearchParams();
+const mockFetch = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, push: mockPush }),
@@ -68,6 +69,71 @@ beforeEach(() => {
     error: null,
     refresh: jest.fn(),
   });
+
+  mockFetch.mockReset();
+  mockFetch.mockImplementation(async (input: string | URL | Request) => {
+    const url = String(input);
+
+    if (url === '/api/courses/created?email=student%40example.edu') {
+      return {
+        ok: true,
+        json: async () => ({
+          user: { name: 'Student Demo', email: 'student@example.edu' },
+          count: 1,
+          courses: [
+            {
+              id: 'created-course-1',
+              title: 'Created Course 1',
+              description: null,
+              section: null,
+              sectionCount: 1,
+              createdAt: '2026-03-30T18:35:48.000Z',
+              lessons: [],
+              enrollments: [{ id: 'created-enrollment-1', role: 'INSTRUCTOR' }],
+            },
+          ],
+        }),
+      };
+    }
+
+    if (url === '/api/courses/enrolled?email=student%40example.edu') {
+      return {
+        ok: true,
+        json: async () => ({
+          user: { name: 'Student Demo', email: 'student@example.edu' },
+          count: 1,
+          enrollments: [
+            {
+              id: 'student-enrollment-1',
+              role: 'STUDENT',
+              course: {
+                id: 'course-1',
+                code: 'CHEM101',
+                section: 'K1',
+                title: 'Chem 101',
+                description: 'Basics',
+                contacts: [
+                  { id: 'c1', type: 'INSTRUCTOR', name: 'Prof A', email: 'prof@example.edu', avatarUrl: null },
+                ],
+                lessons: [{ thumbnailUrl: null, segments: [] }],
+              },
+            },
+          ],
+        }),
+      };
+    }
+
+    if (url.startsWith('/api/badges/export/')) {
+      return {
+        ok: true,
+        json: async () => ({ linkedInUrl: 'https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME' }),
+      };
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  });
+
+  global.fetch = mockFetch as unknown as typeof fetch;
 });
 
 function createStudentData(): StudentData {
@@ -234,14 +300,14 @@ describe('Home page', () => {
     expect(mockReplace).toHaveBeenCalledWith('/sign-in');
   });
 
-  it('renders lesson cards and surfaces survey modal when deep-linked', () => {
+  it('renders merged course sections and surfaces survey modal when deep-linked', async () => {
     mockSearchParams = new URLSearchParams({ surveyBadge: 'final-badge' });
     render(<HomePage />);
 
-    expect(screen.getByText(/Up next/i)).toBeInTheDocument();
-    expect(screen.getByText('Lesson 1')).toBeInTheDocument();
-    expect(screen.getByText(/Pick up where you left off/i)).toBeInTheDocument();
-    expect(screen.getByText('Lesson 2')).toBeInTheDocument();
+    expect(await screen.findByText(/My Courses/i)).toBeInTheDocument();
+    expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
+    expect(screen.getByText(/My Enrolled Courses/i)).toBeInTheDocument();
+    expect(await screen.findByText('Chem 101')).toBeInTheDocument();
 
     expect(screen.getByText(/Finish your survey/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Submit/i })).toBeInTheDocument();

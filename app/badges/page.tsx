@@ -48,13 +48,6 @@ const BADGE_STATUS_LABEL: Record<BadgeRecord['status'], string> = {
   LEARNING: 'Still learning',
 };
 
-function initialsFromName(name?: string | null) {
-  if (!name) return 'ST';
-  const parts = name.trim().split(/\s+/);
-  const initials = parts.slice(0, 2).map((p) => p.charAt(0).toUpperCase());
-  return initials.join('') || 'ST';
-}
-
 function ChevronIcon({ direction = 'down' }: { direction?: 'down' | 'up' }) {
   const rotate = direction === 'down' ? '0' : '180';
   return (
@@ -77,7 +70,6 @@ function formatBadgeStatus(status: BadgeRecord['status']) {
 
 export default function BadgeWalletPage() {
   const router = useRouter();
-  const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);

@@ -5,8 +5,9 @@ import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
-import { useStudentData, type LessonRecord } from './hooks/useStudentData';
+import { useStudentData, type StudentData } from './hooks/useStudentData';
 import styles from './page.module.css';
+import courseStyles from './courses/page.module.css';
 import veryUnhappy from '../public/assets/survey_faces/very_unhappy.svg';
 import slightlyUnhappy from '../public/assets/survey_faces/slightly_unhappy.svg';
 import neutral from '../public/assets/survey_faces/neutral.svg';
@@ -19,25 +20,72 @@ import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_
 import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
-interface LessonCard {
+interface EnrolledCourseCardData {
   id: string;
   title: string;
-  status: string;
-  meta: string;
-  actionLabel: string;
-  variant?: 'start' | 'continue';
   image?: string;
   href?: string;
 }
 
-interface CourseCard {
+type CourseContact = NonNullable<StudentData['course']>['contacts'][number];
+
+type CoursePreviewLesson = {
+  thumbnailUrl: string | null;
+  segments: Array<{
+    videoUrl: string | null;
+    thumbnailUrl: string | null;
+  }>;
+};
+
+type EnrollmentSummary = {
+  id: string;
+  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
+};
+
+type CreatedCourse = {
   id: string;
   title: string;
-  meta: string;
-  actionLabel: string;
-  image?: string;
-  href?: string;
-}
+  description: string | null;
+  section: string | null;
+  sectionCount: number;
+  createdAt: string;
+  lessons: Array<{
+    thumbnailUrl: string | null;
+  }>;
+  enrollments: EnrollmentSummary[];
+};
+
+type CreatedCoursesResponse = {
+  user: {
+    name: string | null;
+    email: string;
+  };
+  count: number;
+  courses: CreatedCourse[];
+};
+
+type EnrolledCourse = {
+  id: string;
+  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
+  course: {
+    id: string;
+    code: string;
+    section: string | null;
+    title: string;
+    description: string | null;
+    contacts: CourseContact[];
+    lessons: CoursePreviewLesson[];
+  };
+};
+
+type EnrolledCoursesResponse = {
+  user: {
+    name: string | null;
+    email: string;
+  };
+  count: number;
+  enrollments: EnrolledCourse[];
+};
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
 
@@ -64,19 +112,6 @@ const FACE_ALTS: Record<number, string> = {
   4: 'Slightly happy',
   5: 'Very happy',
 };
-
-function formatDueDate(dueDate: string | null) {
-  if (!dueDate) return null;
-  const date = new Date(dueDate);
-  if (Number.isNaN(date.getTime())) return null;
-
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
 
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
@@ -107,7 +142,9 @@ function extractYouTubeId(url?: string | null) {
   return match?.[1] ?? null;
 }
 
-function resolveLessonImage(record: LessonRecord) {
+function resolvePreviewImage(record?: CoursePreviewLesson | null) {
+  if (!record) return DEFAULT_LESSON_IMAGE;
+
   const clean = (u?: string | null) => {
     if (!u) return null;
     const trimmed = u.trim();
@@ -117,11 +154,6 @@ function resolveLessonImage(record: LessonRecord) {
   };
 
   const candidateUrls: (string | null | undefined)[] = [];
-
-  if ('videoUrl' in record) {
-    const maybeVideo = (record as Partial<{ videoUrl: string | null }>).videoUrl;
-    if (maybeVideo) candidateUrls.push(maybeVideo);
-  }
 
   if (record.segments && Array.isArray(record.segments)) {
     for (const seg of record.segments) {
@@ -144,31 +176,155 @@ function resolveLessonImage(record: LessonRecord) {
   return DEFAULT_LESSON_IMAGE;
 }
 
-function lessonRecordToCard(record: LessonRecord): LessonCard {
-  const due = formatDueDate(record.dueDate);
-  const metaParts: string[] = [];
+function useCreatedCourses(email?: string | null) {
+  const [data, setData] = useState<CreatedCoursesResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  if (due) metaParts.push(`Due: ${due}`);
-  if (record.estimatedMinutes) metaParts.push(`${record.estimatedMinutes} min`);
+  const fetchData = useCallback(async () => {
+    if (!email) {
+      setData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
 
-function courseRecordToCard(course: StudentData['course']): CourseCard {
-  if (!course) {
-    throw new Error('No course provided');
-  }
-  const metaParts = [
-    course.code ? `Code: ${course.code}` : '',
-    course.section ? `Section: ${course.section}` : '',
-  ].filter(Boolean);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/courses/created?email=${encodeURIComponent(email)}`, {
+        headers: { Accept: 'application/json' },
+      });
+
+      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to load created courses.');
+      }
+
+      setData(payload);
+    } catch (err) {
+      setData(null);
+      setError(err instanceof Error ? err.message : 'Unable to load created courses.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [email]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  return { data, isLoading, error };
+}
+
+function useEnrolledCourses(email?: string | null) {
+  const [data, setData] = useState<EnrolledCoursesResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!email) {
+      setData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/courses/enrolled?email=${encodeURIComponent(email)}`, {
+        headers: { Accept: 'application/json' },
+      });
+
+      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to load enrolled courses.');
+      }
+
+      setData(payload);
+    } catch (err) {
+      setData(null);
+      setError(err instanceof Error ? err.message : 'Unable to load enrolled courses.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [email]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  return { data, isLoading, error };
+}
+
+function resolveThumbnailUrl(course: CreatedCourse) {
+  const candidate = course.lessons[0]?.thumbnailUrl?.trim();
+  return candidate ? candidate : null;
+}
+
+function CreatedCourseCard({ course }: { course: CreatedCourse }) {
+  const thumbnailUrl = resolveThumbnailUrl(course);
+
+  return (
+    <Link
+      href={`/courses/${course.id}`}
+      className={courseStyles.courseCard}
+      data-testid="course-card"
+      aria-label={`Open ${course.title}`}
+    >
+      <div className={courseStyles.courseMedia}>
+        {thumbnailUrl ? (
+          <Image
+            src={thumbnailUrl}
+            alt={`${course.title} preview`}
+            fill
+            sizes="(max-width: 768px) 100vw, 240px"
+            className={courseStyles.courseImage}
+          />
+        ) : (
+          <div className={courseStyles.coursePlaceholder} aria-hidden="true" />
+        )}
+      </div>
+
+      <div className={courseStyles.courseText}>
+        <h3 className={courseStyles.courseTitle}>{course.title}</h3>
+      </div>
+    </Link>
+  );
+}
+
+function AddCourseCard() {
+  return (
+    <Link
+      href="/courses/new"
+      className={courseStyles.addCourseCard}
+      data-testid="add-course-card"
+      aria-label="Add course"
+    >
+      <div className={courseStyles.addCourseMedia}>
+        <span className={courseStyles.addCoursePlus}>+</span>
+      </div>
+      <div className={courseStyles.addCourseText}>
+        <h3 className={courseStyles.courseTitle}>Add Course</h3>
+        <p className={courseStyles.courseMeta}>Create a course</p>
+      </div>
+    </Link>
+  );
+}
+
+function enrollmentToCard(enrollment: EnrolledCourse): EnrolledCourseCardData {
+  const course = enrollment.course;
 
   return {
-    id: record.id,
-    title: record.title,
-    status: record.status === 'IN_PROGRESS' ? `${Math.max(record.percentComplete, 1)}% complete` : 'Not started',
-    meta: metaParts.join(' • ') || 'No due date',
-    actionLabel: record.status === 'IN_PROGRESS' ? 'Continue' : 'Start',
-    variant: record.status === 'IN_PROGRESS' ? 'continue' : 'start',
-    image: resolveLessonImage(record),
-    href: `/lessons/${record.slug}`,
+    id: enrollment.id,
+    title: course.title,
+    image: resolvePreviewImage(course.lessons[0]),
+    href: `/course_dashboard?courseId=${course.id}`,
   };
 }
 
@@ -178,8 +334,11 @@ function HomeContent() {
   const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
+  const email = user?.primaryEmailAddress?.emailAddress ?? null;
 
-  const { data: studentData, isLoading, refresh } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null);
+  const { data: studentData, refresh } = useStudentData(email);
+  const { data: createdData, isLoading: isLoadingCreated, error: createdError } = useCreatedCourses(email);
+  const { data: enrolledData, isLoading: isLoadingEnrolled, error: enrolledError } = useEnrolledCourses(email);
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{
@@ -192,7 +351,8 @@ function HomeContent() {
   const [surveyRating, setSurveyRating] = useState(3);
 
   const navItems = SIDEBAR_NAV;
-  const displayName = studentData?.student?.name || 'Student';
+  const displayName =
+    createdData?.user.name || enrolledData?.user.name || studentData?.student?.name || user?.fullName || 'Student';
 
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
 
@@ -210,9 +370,9 @@ function HomeContent() {
     }));
   }, [pendingSurveyBadges, readyForFinalization]);
 
-  const upNextLessons = useMemo(() => studentData?.lessons.upNext.map(lessonRecordToCard) ?? [], [studentData]);
+  const createdCourses = useMemo(() => createdData?.courses ?? [], [createdData]);
 
-  const continueLessons = useMemo(() => studentData?.lessons.inProgress.map(lessonRecordToCard) ?? [], [studentData]);
+  const enrolledCourseCards = useMemo(() => enrolledData?.enrollments.map(enrollmentToCard) ?? [], [enrolledData]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -237,17 +397,6 @@ function HomeContent() {
       setActiveSurvey(null);
     }
   }, [pendingSurveyBadges]);
-
-  const courseCards = useMemo(() => {
-    if (!studentData?.course) return [];
-    return [courseRecordToCard(studentData.course)];
-  }, [studentData]);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace('/sign-in');
-    }
-  }, [isLoaded, isSignedIn, router]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -319,36 +468,39 @@ function HomeContent() {
   }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal]);
 
   if (!isLoaded || !isSignedIn) return null;
-  if (isLoading || !studentData) return null;
 
-  const renderCard = (lesson: LessonCard) => {
-    const buttonClass =
-      lesson.variant === 'continue' ? `${styles.cardButton} ${styles.secondaryAction}` : styles.cardButton;
-
-    const imageSrc = lesson.image ?? DEFAULT_LESSON_IMAGE;
+  const renderEnrolledCourseCard = (course: EnrolledCourseCardData) => {
+    const imageSrc = course.image ?? DEFAULT_LESSON_IMAGE;
+    const isYouTubeThumb =
+      imageSrc.includes('ytimg.com') || imageSrc.includes('youtube.com') || imageSrc.includes('img.youtube.com');
 
     return (
-      <div key={lesson.id} className={styles.card}>
-        <div className={styles.cardMedia}>
-          <Image src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
+      <Link
+        key={course.id}
+        href={course.href ?? '#'}
+        className={courseStyles.courseCard}
+        data-testid="enrolled-course-card"
+        aria-label={`Open ${course.title}`}
+      >
+        <div className={courseStyles.courseMedia}>
+          {isYouTubeThumb ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageSrc} alt={`${course.title} preview`} className={courseStyles.courseImage} />
+          ) : (
+            <Image
+              src={imageSrc}
+              alt={`${course.title} preview`}
+              fill
+              sizes="(max-width: 768px) 100vw, 240px"
+              className={courseStyles.courseImage}
+            />
+          )}
         </div>
 
-        <div className={styles.cardTextBlock}>
-          <div className={styles.cardTitle}>{lesson.title}</div>
-          <div className={styles.cardStatus}>{lesson.status}</div>
-          <div className={styles.cardMeta}>{lesson.meta}</div>
+        <div className={courseStyles.courseText}>
+          <h3 className={courseStyles.courseTitle}>{course.title}</h3>
         </div>
-
-        {lesson.href ? (
-          <Link href={lesson.href} className={buttonClass}>
-            {lesson.actionLabel}
-          </Link>
-        ) : (
-          <button type="button" className={buttonClass}>
-            {lesson.actionLabel}
-          </button>
-        )}
-      </div>
+      </Link>
     );
   };
 
@@ -386,21 +538,36 @@ function HomeContent() {
           </div>
         </div>
 
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Up next</h2>
-          {upNextLessons.length === 0 ? (
-            <div className={styles.emptyState}>No lessons ready to start.</div>
-          ) : (
-            <div className={styles.cardRow}>{upNextLessons.map(renderCard)}</div>
-          )}
+        <section className={courseStyles.section}>
+          <h2 className={courseStyles.sectionTitle}>My Courses</h2>
+
+          <div className={courseStyles.courseGrid} data-testid="created-courses-grid">
+            <AddCourseCard />
+            {createdCourses.map((course) => (
+              <CreatedCourseCard key={course.id} course={course} />
+            ))}
+          </div>
+
+          {isLoadingCreated ? <p className={courseStyles.statusMessage}>Loading created courses…</p> : null}
+
+          {!isLoadingCreated && createdError ? <p className={courseStyles.statusMessage}>{createdError}</p> : null}
+
+          {!isLoadingCreated && !createdError && createdCourses.length === 0 ? (
+            <p className={courseStyles.statusMessage}>No courses yet. Add one from the first card.</p>
+          ) : null}
         </section>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Pick up where you left off</h2>
-          {continueLessons.length === 0 ? (
-            <div className={styles.emptyState}>There are no in-progress lessons right now.</div>
+          <h2 className={courseStyles.sectionTitle}>My Enrolled Courses</h2>
+
+          {isLoadingEnrolled ? (
+            <div className={styles.emptyState}>Loading enrolled courses…</div>
+          ) : enrolledError ? (
+            <div className={styles.emptyState}>{enrolledError}</div>
+          ) : enrolledCourseCards.length === 0 ? (
+            <div className={styles.emptyState}>You are not enrolled in any courses yet.</div>
           ) : (
-            <div className={styles.cardRow}>{continueLessons.map(renderCard)}</div>
+            <div className={courseStyles.courseGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
           )}
         </section>
       </main>
