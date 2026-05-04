@@ -19,7 +19,7 @@ interface SidebarProps {
 
 export const SIDEBAR_NAV: NavItem[] = [
   { label: 'Home', href: '/' },
-  { label: 'Badges', href: '/badge_creation' },
+  { label: 'Badges', href: '/my_badges' },
   // { label: 'Student Roster', href: '/roster' },
   // { label: 'Messages', href: '/messages' },
   { label: 'Profile', href: '/profile' },
