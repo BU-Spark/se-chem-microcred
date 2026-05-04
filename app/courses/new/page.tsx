@@ -293,7 +293,7 @@ export default function CourseNewPage() {
     return null;
   }
 
-  const displayName = studentData?.student?.name || 'Professor';
+  const displayName = studentData?.student?.name || '';
 
   const handleSignOut = async () => {
     if (isSigningOut) return;

@@ -253,7 +253,7 @@ export default function CreatedCourseDetailPage() {
   };
 
   const course = data?.course ?? null;
-  const displayName = course?.createdBy?.name || user?.fullName || 'Professor';
+  const displayName = course?.createdBy?.name || '';
 
   const studentCount = useMemo(
     () => course?.enrollments.filter((enrollment) => enrollment.role === 'STUDENT').length ?? 0,
@@ -394,7 +394,7 @@ export default function CreatedCourseDetailPage() {
                 )}
 
                 <div className={styles.badgeActionRow}>
-                  <Link href={`/badges_creation?courseId=${course.id}`} className={styles.primaryButton}>
+                  <Link href={`/badge_creation?courseId=${course.id}`} className={styles.primaryButton}>
                     Edit Badges
                   </Link>
                 </div>

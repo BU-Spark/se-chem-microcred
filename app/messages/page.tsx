@@ -8,7 +8,7 @@ import shellStyles from '../page.module.css';
 
 export default function MessagesPage() {
   const router = useRouter();
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isLoaded, isSignedIn } = useUser();
   const { signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -22,7 +22,7 @@ export default function MessagesPage() {
     return null;
   }
 
-  const displayName = user?.fullName || 'Professor';
+  const displayName = '';
 
   const handleSignOut = async () => {
     if (isSigningOut) return;

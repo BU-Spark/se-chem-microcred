@@ -220,7 +220,7 @@ describe('Created course detail page', () => {
     expect(screen.getByRole('link', { name: 'Edit Course' })).toHaveAttribute('href', '/courses/new?courseId=course-1');
     expect(screen.getByRole('link', { name: 'Edit Badges' })).toHaveAttribute(
       'href',
-      '/badges_creation?courseId=course-1'
+      '/badge_creation?courseId=course-1'
     );
   });
 });

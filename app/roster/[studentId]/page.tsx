@@ -472,7 +472,7 @@ export default function InstructorStudentProfilePage() {
   const emptyContactMessage = currentRole === 'CHECKER' ? 'No instructor assigned.' : 'No checker assigned.';
   const memberDisplay = useMemo(() => splitNameForProfile(data?.member.name), [data?.member.name]);
   const memberAvatarSrc = avatarAsset(data?.member.avatar?.base);
-  const displayName = user?.fullName || 'Professor';
+  const displayName = data?.course.createdBy?.name || '';
 
   if (!isLoaded || !isSignedIn) {
     return null;

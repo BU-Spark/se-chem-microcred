@@ -114,7 +114,7 @@ export default function BadgeWalletPage() {
     setExportStatus(null);
   }, [activeBadgeId]);
 
-  const displayName = studentData?.student.name || user?.fullName || 'Lastname, Student';
+  const displayName = studentData?.student.name || '';
 
   const badgesByStatus = useMemo(
     () =>

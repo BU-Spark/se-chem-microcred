@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useDatabaseDisplayNameContext } from './DatabaseDisplayNameProvider';
 import styles from '../page.module.css';
 
 interface NavItem {
@@ -18,7 +19,7 @@ interface SidebarProps {
 
 export const SIDEBAR_NAV: NavItem[] = [
   { label: 'Home', href: '/' },
-  // { label: 'Badges', href: '/badges_creation' },
+  { label: 'Badges', href: '/badge_creation' },
   // { label: 'Student Roster', href: '/roster' },
   // { label: 'Messages', href: '/messages' },
   { label: 'Profile', href: '/profile' },
@@ -41,13 +42,17 @@ export function initialsFromName(name?: string | null) {
 
 export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut }: SidebarProps) {
   const pathname = usePathname();
+  const contextDisplayName = useDatabaseDisplayNameContext();
+  const resolvedDisplayName =
+    contextDisplayName !== undefined ? (contextDisplayName?.trim() ?? '') : displayName.trim();
+  const resolvedInitials = resolvedDisplayName ? initialsFromName(resolvedDisplayName) : '';
 
   return (
     <aside className={`sidebar ${styles.sidebar}`}>
       {/* Avatar + Name */}
       <div className={styles.profile}>
-        <div className={styles.avatar}>{initialsFromName(displayName)}</div>
-        <div className={styles.name}>{displayName}</div>
+        <div className={styles.avatar}>{resolvedInitials}</div>
+        <div className={styles.name}>{resolvedDisplayName}</div>
       </div>
 
       {/* Nav Links */}

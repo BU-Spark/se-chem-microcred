@@ -134,7 +134,7 @@ export default function AnalyticsPage() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  const displayName = studentData?.student.name || user?.fullName || 'Lastname, Student';
+  const displayName = studentData?.student.name || '';
   const totalBadges =
     (studentData?.badges.completed.length ?? 0) +
     (studentData?.badges.readyForAssessment.length ?? 0) +

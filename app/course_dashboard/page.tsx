@@ -384,6 +384,7 @@ function HomePageContent() {
             { label: 'Home', href: '/' },
             { label: 'Profile', href: '/profile' },
             { label: 'My Analytics', href: '/analytics' },
+            { label: 'Badges', href: '/badge_creation' },
             { label: 'Badge Wallet', href: '/badges' },
             { label: 'Grades', href: '/grades' },
             { label: 'Settings', href: '/settings' },

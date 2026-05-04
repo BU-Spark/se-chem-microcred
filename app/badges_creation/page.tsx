@@ -1,50 +1,31 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
-import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
-import shellStyles from '../page.module.css';
+type BadgesCreationRedirectPageProps = {
+  searchParams?: Record<string, string | string[] | undefined>;
+};
 
-export default function BadgesCreationPage() {
-  const router = useRouter();
-  const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
-  const [isSigningOut, setIsSigningOut] = useState(false);
+function toSearchString(searchParams?: Record<string, string | string[] | undefined>) {
+  const params = new URLSearchParams();
 
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace('/sign-in');
-    }
-  }, [isLoaded, isSignedIn, router]);
-
-  if (!isLoaded || !isSignedIn) {
-    return null;
+  if (!searchParams) {
+    return '';
   }
 
-  const displayName = user?.fullName || 'Professor';
-
-  const handleSignOut = async () => {
-    if (isSigningOut) return;
-
-    setIsSigningOut(true);
-    try {
-      await signOut();
-      router.replace('/sign-in');
-    } catch (error) {
-      console.error('Failed to sign out', error);
-      setIsSigningOut(false);
+  for (const [key, value] of Object.entries(searchParams)) {
+    if (Array.isArray(value)) {
+      value.forEach((entry) => params.append(key, entry));
+      continue;
     }
-  };
 
-  return (
-    <div className={shellStyles.page}>
-      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
+    if (value !== undefined) {
+      params.set(key, value);
+    }
+  }
 
-      <main className={shellStyles.main}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Badges</h1>
-        <p style={{ color: '#4b5563' }}>Badges coming soon.</p>
-      </main>
-    </div>
-  );
+  return params.toString();
+}
+
+export default function BadgesCreationRedirectPage({ searchParams }: BadgesCreationRedirectPageProps) {
+  const query = toSearchString(searchParams);
+  redirect(query ? `/badge_creation?${query}` : '/badge_creation');
 }

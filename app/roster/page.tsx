@@ -196,7 +196,7 @@ export default function StudentRosterPage() {
   };
 
   const course = data?.course ?? null;
-  const displayName = course?.createdBy?.name || user?.fullName || 'Professor';
+  const displayName = course?.createdBy?.name || '';
 
   const rosterRows = useMemo<RosterMemberRow[]>(() => {
     if (!course) return [];

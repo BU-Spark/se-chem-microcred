@@ -2,6 +2,7 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import './globals.css';
+import { DatabaseDisplayNameProvider } from './_components/DatabaseDisplayNameProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalHeader } from './components/GlobalHeader'; // 👈 NEW
 import './globals.css';
@@ -31,10 +32,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <body>
           <ErrorBoundary>
-            {/* GLOBAL HEADER (auto-hides on /lesson/[lessonId]/video) */}
-            <GlobalHeader />
-            {/* PAGE CONTENT */}
-            <div className="main-content-container">{children}</div>
+            <DatabaseDisplayNameProvider>
+              <GlobalHeader />
+              <div className="main-content-container">{children}</div>
+            </DatabaseDisplayNameProvider>
           </ErrorBoundary>
         </body>
       </html>

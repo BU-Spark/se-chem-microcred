@@ -33,7 +33,7 @@ export default function LessonDetailPage() {
     if (signedOut) router.replace('/sign-in');
   }, [signedOut, router]);
 
-  const displayName = studentData?.student.name || user?.fullName || 'Student Demo';
+  const displayName = studentData?.student.name || '';
 
   const lessonRecord = studentData?.lessons.catalog.find((e) => e.slug === params.lessonId);
 

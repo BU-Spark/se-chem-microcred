@@ -257,7 +257,7 @@ export default function ProfilePage() {
     return null;
   }
 
-  const displayName = studentData?.student.name ?? user?.fullName ?? 'Student';
+  const displayName = studentData?.student.name ?? '';
   const {
     first: firstName,
     last: lastName,

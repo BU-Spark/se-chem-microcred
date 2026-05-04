@@ -163,7 +163,7 @@ export default function CoursesPage() {
   if (!isLoaded || !isSignedIn) return null;
 
   const courses = data?.courses ?? [];
-  const displayName = data?.user.name || user?.fullName || 'Professor';
+  const displayName = data?.user.name || '';
 
   return (
     <div className={styles.page}>

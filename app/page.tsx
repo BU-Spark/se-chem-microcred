@@ -351,8 +351,7 @@ function HomeContent() {
   const [surveyRating, setSurveyRating] = useState(3);
 
   const navItems = SIDEBAR_NAV;
-  const displayName =
-    createdData?.user.name || enrolledData?.user.name || studentData?.student?.name || user?.fullName || 'Student';
+  const displayName = createdData?.user.name || enrolledData?.user.name || studentData?.student?.name || '';
 
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
 

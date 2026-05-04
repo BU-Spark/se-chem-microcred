@@ -24,7 +24,7 @@ export default function GradesPage() {
     return null;
   }
 
-  const displayName = studentData?.student.name || user?.fullName || 'Student';
+  const displayName = studentData?.student.name || '';
 
   const handleSignOut = async () => {
     if (isSigningOut) {

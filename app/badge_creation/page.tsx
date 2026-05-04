@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
@@ -155,14 +155,6 @@ function initialsFromName(name?: string | null) {
   return initials.join('') || 'ST';
 }
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-}
-
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
 
@@ -276,6 +268,7 @@ export default function BadgeCreationPage() {
     { label: 'Home', href: '/' },
     { label: 'Profile', href: '/profile' },
     { label: 'My Analytics', href: '/analytics' },
+    { label: 'Badges', href: '/badge_creation' },
     { label: 'Badge Wallet', href: '/badges' },
     { label: 'My Badges', href: '/my_badges' },
     { label: 'Grades', href: '/grades' },
@@ -286,59 +279,6 @@ export default function BadgeCreationPage() {
   const activeStep = STEP_DEFINITIONS[currentStep];
   const videoEmbedUrl = buildVideoEmbedUrl(draft.youtubeUrl);
   const videoThumbnail = buildVideoThumbnail(draft.youtubeUrl);
-
-  const badgePayload = useMemo(
-    () => ({
-      badge: {
-        slug: slugify(draft.badgeName),
-        name: draft.badgeName,
-        description: draft.badgeDescription,
-        category: draft.category,
-      },
-      requirements: [],
-      lesson: {
-        title: draft.videoTitle || draft.badgeName,
-        slug: `${slugify(draft.badgeName)}-lesson`,
-        summary: draft.badgeDescription.slice(0, 120),
-        description: draft.badgeDescription,
-        dueDate: draft.neverCloses ? null : draft.closesOn || null,
-        segments: [
-          {
-            title: draft.videoTitle || DEFAULT_VIDEO_FALLBACK,
-            summary: `Embedded training for ${draft.badgeName}`,
-            videoUrl: draft.youtubeUrl,
-            durationLabel: draft.videoLength,
-          },
-        ],
-        checkpoints: draft.checkpoints.map((checkpoint, index) => ({
-          sortOrder: index,
-          title: checkpoint.title,
-          questionCount: 1,
-          timeOffsetSeconds: checkpoint.time,
-          description: checkpoint.question,
-          questions: [
-            {
-              prompt: checkpoint.question,
-              options: checkpoint.options,
-              correctIndex: checkpoint.correctIndex,
-            },
-          ],
-        })),
-        skills: [],
-      },
-      rubric: {
-        overview: draft.rubricOverview,
-        criteria: draft.rubricCriteria,
-      },
-      surveyPrompts: [
-        {
-          context: 'BADGE',
-          question: `How prepared did this badge leave you to safely perform ${draft.badgeName}?`,
-        },
-      ],
-    }),
-    [draft]
-  );
 
   if (!isLoaded || !isSignedIn) return null;
 
@@ -406,8 +346,6 @@ export default function BadgeCreationPage() {
       draft.checkpoints.filter((checkpoint) => checkpoint.id !== checkpointId)
     );
   };
-
-  
 
   const updateRubricCriterion = <K extends keyof RubricCriterion>(
     criterionId: string,
@@ -759,7 +697,6 @@ export default function BadgeCreationPage() {
               </div>
             )}
 
-
             {currentStep === 3 && (
               <div className={styles.rubricLayout}>
                 <div className={styles.editorCard}>
@@ -873,7 +810,6 @@ export default function BadgeCreationPage() {
                   </div>
                 </article>
 
-
                 <article className={styles.reviewCard}>
                   <div className={styles.reviewCardHeader}>
                     <h3>Rubric</h3>
@@ -891,8 +827,6 @@ export default function BadgeCreationPage() {
                     ))}
                   </div>
                 </article>
-
-                
               </div>
             )}
 
