@@ -34,7 +34,8 @@
 }
 
 .profileCard,
-.badgesCard {
+.badgesCard,
+.detailCard {
   border: 3px solid #d9d9d9;
   border-radius: 1.85rem;
   background: #ffffff;
@@ -176,17 +177,25 @@
   flex-direction: column;
 }
 
-.dropdownToggle {
+.dropdownToggle,
+.accordionRow,
+.subAccordionButton,
+.checkpointButton,
+.questionButton,
+.assessmentAttemptButton {
   padding: 0;
   border: none;
   background: transparent;
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  cursor: pointer;
+}
+
+.dropdownToggle {
   font-size: 0.98rem;
   font-weight: 600;
   color: #202020;
-  cursor: pointer;
   align-self: flex-start;
 }
 
@@ -331,9 +340,20 @@
 
 .badgeItem {
   display: flex;
+  justify-content: center;
+}
+
+.badgeTokenButton {
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.45rem;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
 }
 
 .badgeBubble {
@@ -342,6 +362,13 @@
   border-radius: 50%;
   background: #2E6AA9;
   border: 3px solid transparent;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+
+.badgeBubbleInteractive:hover,
+.badgeTokenButton:hover .badgeBubbleInteractive {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(46, 106, 169, 0.18);
 }
 
 .badgeBubblePending {
@@ -381,6 +408,253 @@
   margin-top: 0.8rem;
 }
 
+.detailCard {
+  padding: 1rem 1.45rem 1.25rem;
+}
+
+.detailCardHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: #1b1b1b;
+}
+
+.detailCardKicker,
+.detailCardHeading {
+  font-size: 0.98rem;
+}
+
+.detailCardKicker {
+  font-weight: 600;
+}
+
+.detailCardHeading {
+  font-weight: 700;
+}
+
+.detailSummary {
+  display: grid;
+  grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: center;
+  padding: 1rem 0 0.75rem;
+}
+
+.progressSummaryColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.progressRing {
+  position: relative;
+  width: 170px;
+  height: 170px;
+}
+
+.progressRingSvg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.progressRingTrack,
+.progressRingValue {
+  fill: none;
+  stroke-width: 12;
+  stroke-linecap: round;
+}
+
+.progressRingTrack {
+  stroke: #d4d8de;
+}
+
+.progressRingValue {
+  stroke: #2E6AA9;
+}
+
+.progressRingCenter {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-family: 'Lato', 'Open Sans', Arial, sans-serif;
+  font-size: 2.75rem;
+  font-weight: 700;
+  color: #2E6AA9;
+}
+
+.progressSummaryCaption {
+  margin: 0;
+  font-size: 0.72rem;
+  color: #575757;
+}
+
+.progressStatusColumn {
+  display: grid;
+  gap: 0.55rem;
+  align-content: center;
+}
+
+.progressStatusLine {
+  margin: 0;
+  font-size: 0.98rem;
+  color: #252525;
+}
+
+.progressStatusLabel {
+  font-weight: 600;
+}
+
+.progressStatusValue {
+  font-weight: 700;
+}
+
+.detailDivider {
+  height: 1px;
+  margin: 0.6rem 0 1rem;
+  background: #dddddd;
+}
+
+.detailContent {
+  display: grid;
+  gap: 1rem;
+}
+
+.detailSection {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.detailSectionTitle {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  color: #2a2a2a;
+}
+
+.subAccordionButton,
+.checkpointButton,
+.questionButton,
+.assessmentAttemptButton {
+  width: fit-content;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #2a2a2a;
+}
+
+.assessmentMeta,
+.assessmentAttemptLine,
+.questionPrompt {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #373737;
+}
+
+.gradingBox {
+  border: 1px solid #dedede;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.gradingRow {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1.1fr) minmax(0, 1.35fr);
+  gap: 0.9rem;
+  align-items: start;
+  padding: 0.9rem 1rem;
+}
+
+.gradingRow + .gradingRow,
+.answerRow + .answerRow {
+  border-top: 1px solid #ececec;
+}
+
+.gradingTitle,
+.gradingOutcome {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  color: #363636;
+}
+
+.gradingTitle {
+  font-weight: 600;
+}
+
+.assessmentAttemptList,
+.checkpointList,
+.checkpointQuestions {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.assessmentAttemptItem,
+.checkpointBlock,
+.questionBlock {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.assessmentAttemptPanel {
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.questionPanel {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.answerCard {
+  border: 1px solid #dedede;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+
+.answerRow {
+  display: grid;
+  grid-template-columns: 28px auto minmax(0, 1fr);
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.8rem 1rem;
+}
+
+.answerAttemptLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #4a4a4a;
+}
+
+.answerAttemptValue {
+  font-size: 0.82rem;
+  color: #404040;
+}
+
+.attemptStatusIcon {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.attemptStatusIconSuccess {
+  color: #bccb47;
+}
+
+.attemptStatusIconFailure {
+  color: #c9605b;
+}
+
+.attemptStatusIconNeutral {
+  color: #7f8aa3;
+}
+
 .emptyState {
   margin: 0;
   font-size: 0.95rem;
@@ -404,6 +678,16 @@
   .profileSide {
     border-left: none;
     border-top: 3px solid #e1e1e1;
+  }
+
+  .detailSummary {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .progressStatusColumn {
+    justify-items: center;
+    text-align: center;
   }
 }
 
@@ -434,5 +718,19 @@
   .badgesHeaderMeta {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .detailCard {
+    padding: 1rem;
+  }
+
+  .gradingRow,
+  .answerRow {
+    grid-template-columns: 28px 1fr;
+  }
+
+  .gradingOutcome,
+  .answerAttemptValue {
+    grid-column: 2;
   }
 }

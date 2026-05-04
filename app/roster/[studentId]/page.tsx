@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import editIcon from '@/public/assets/profile/edit.png';
+import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
 import styles from './page.module.css';
 
 type Contact = {
@@ -172,57 +173,6 @@ function initialsFromName(name?: string | null) {
   return splitNameForProfile(name).initials || 'ST';
 }
 
-function Chevron({ isOpen }: { isOpen: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width="18"
-      height="18"
-      aria-hidden="true"
-      className={[styles.chevron, isOpen ? styles.chevronOpen : ''].join(' ')}
-    >
-      <path
-        d="M3 6.25 8 11l5-4.75"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function BadgeGrid({
-  badges,
-  tone = 'progress',
-}: {
-  badges: StudentProfileBadge[];
-  tone?: 'progress' | 'pending' | 'completed';
-}) {
-  if (badges.length === 0) {
-    return <p className={styles.emptyState}>No badges in this section.</p>;
-  }
-
-  return (
-    <div className={styles.badgeGrid}>
-      {badges.map((badge) => (
-        <div key={badge.id} className={styles.badgeItem}>
-          <div
-            className={[
-              styles.badgeBubble,
-              tone === 'pending' ? styles.badgeBubblePending : '',
-              tone === 'completed' ? styles.badgeBubbleCompleted : '',
-            ].join(' ')}
-            aria-hidden="true"
-          />
-          <p className={styles.badgeName}>{badge.name}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function useInstructorStudentProfile(courseId?: string | null, studentId?: string | null, email?: string | null) {
   const [data, setData] = useState<InstructorMemberProfileResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -273,8 +223,133 @@ function useInstructorStudentProfile(courseId?: string | null, studentId?: strin
   return { data, isLoading, error };
 }
 
+function useInstructorStudentBadgeDetail(
+  courseId?: string | null,
+  studentId?: string | null,
+  badgeId?: string | null,
+  email?: string | null
+) {
+  const [data, setData] = useState<BadgeDetailResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!courseId || !studentId || !badgeId || !email) {
+      setData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams({ email });
+
+      const response = await fetch(
+        `/api/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(studentId)}/badges/${encodeURIComponent(badgeId)}?${params.toString()}`,
+        {
+          headers: { Accept: 'application/json' },
+        }
+      );
+
+      const payload = await response.json().catch(() => ({
+        error: `Request failed: ${response.status}`,
+      }));
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to load badge detail.');
+      }
+
+      setData(payload);
+    } catch (err) {
+      setData(null);
+      setError(err instanceof Error ? err.message : 'Unable to load badge detail.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [badgeId, courseId, studentId, email]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  return { data, isLoading, error };
+}
+
+function Chevron({ isOpen }: { isOpen: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 16 16"
+      width="18"
+      height="18"
+      aria-hidden="true"
+      className={[styles.chevron, isOpen ? styles.chevronOpen : ''].join(' ')}
+    >
+      <path
+        d="M3 6.25 8 11l5-4.75"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.9"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function BadgeGrid({
+  badges,
+  tone = 'progress',
+  onSelectBadge,
+}: {
+  badges: StudentProfileBadge[];
+  tone?: 'progress' | 'pending' | 'completed';
+  onSelectBadge?: (badgeId: string) => void;
+}) {
+  if (badges.length === 0) {
+    return <p className={styles.emptyState}>No badges in this section.</p>;
+  }
+
+  const isInteractive = tone !== 'pending' && typeof onSelectBadge === 'function';
+
+  return (
+    <div className={styles.badgeGrid}>
+      {badges.map((badge) => {
+        const badgeBubbleClass = [
+          styles.badgeBubble,
+          tone === 'pending' ? styles.badgeBubblePending : '',
+          tone === 'completed' ? styles.badgeBubbleCompleted : '',
+          isInteractive ? styles.badgeBubbleInteractive : '',
+        ].join(' ');
+
+        const badgeMarkup = (
+          <>
+            <div className={badgeBubbleClass} aria-hidden="true" />
+            <p className={styles.badgeName}>{badge.name}</p>
+          </>
+        );
+
+        return (
+          <div key={badge.id} className={styles.badgeItem}>
+            {isInteractive ? (
+              <button type="button" className={styles.badgeTokenButton} onClick={() => onSelectBadge?.(badge.id)}>
+                {badgeMarkup}
+              </button>
+            ) : (
+              badgeMarkup
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function InstructorStudentProfilePage() {
   const params = useParams<{ studentId: string }>();
+  const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useUser();
@@ -287,6 +362,7 @@ export default function InstructorStudentProfilePage() {
 
   const studentId = resolveParam(params?.studentId);
   const courseId = searchParams.get('courseId');
+  const selectedBadgeId = searchParams.get('badgeId');
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
   const { data, isLoading, error } = useInstructorStudentProfile(courseId, studentId, email);
   const currentRole = data?.memberRole ?? null;
@@ -295,11 +371,60 @@ export default function InstructorStudentProfilePage() {
   const showBadgesSection = currentRole === 'STUDENT';
   const courseSectionsLabel = data?.course.sections.join(', ') ?? '';
 
+  const selectedInProgressBadge = useMemo(
+    () => data?.badges.inProgress.find((badge) => badge.id === selectedBadgeId) ?? null,
+    [data?.badges.inProgress, selectedBadgeId]
+  );
+  const selectedCompletedBadge = useMemo(
+    () => data?.badges.completed.find((badge) => badge.id === selectedBadgeId) ?? null,
+    [data?.badges.completed, selectedBadgeId]
+  );
+  const selectedBadgeTone: BadgeDetailTone | null = selectedCompletedBadge
+    ? 'completed'
+    : selectedInProgressBadge
+      ? 'progress'
+      : null;
+
+  const {
+    data: selectedBadgeDetail,
+    isLoading: isBadgeDetailLoading,
+    error: badgeDetailError,
+  } = useInstructorStudentBadgeDetail(
+    courseId,
+    studentId,
+    showBadgesSection && selectedBadgeTone ? selectedBadgeId : null,
+    email
+  );
+
+  const buildProfileHref = useCallback(
+    (badgeId?: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (badgeId) {
+        params.set('badgeId', badgeId);
+      } else {
+        params.delete('badgeId');
+      }
+
+      const query = params.toString();
+      return query ? `${pathname}?${query}` : pathname;
+    },
+    [pathname, searchParams]
+  );
+
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.replace('/sign-in');
     }
   }, [isLoaded, isSignedIn, router]);
+
+  useEffect(() => {
+    if (!data || !showBadgesSection || !selectedBadgeId || selectedBadgeTone) {
+      return;
+    }
+
+    router.replace(buildProfileHref(null));
+  }, [buildProfileHref, data, router, selectedBadgeId, selectedBadgeTone, showBadgesSection]);
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -315,6 +440,13 @@ export default function InstructorStudentProfilePage() {
       setIsSigningOut(false);
     }
   };
+
+  const handleBadgeSelect = useCallback(
+    (badgeId: string) => {
+      router.push(buildProfileHref(badgeId));
+    },
+    [buildProfileHref, router]
+  );
 
   const sideContact = useMemo(() => {
     if (!data) {
@@ -335,6 +467,7 @@ export default function InstructorStudentProfilePage() {
 
     return data.contacts.find((contact) => contact.type === 'CHECKER') ?? null;
   }, [data, currentRole]);
+
   const sideContactTitle = currentRole === 'CHECKER' ? 'Instructor' : 'Checker';
   const emptyContactMessage = currentRole === 'CHECKER' ? 'No instructor assigned.' : 'No checker assigned.';
   const memberDisplay = useMemo(() => splitNameForProfile(data?.member.name), [data?.member.name]);
@@ -494,56 +627,76 @@ export default function InstructorStudentProfilePage() {
               </section>
 
               {showBadgesSection ? (
-                <section className={styles.badgesCard}>
-                  <div className={styles.badgesHeader}>
-                    <div>
-                      <h2 className={styles.badgesTitle}>{currentProfileLabel} Badges</h2>
+                selectedBadgeId && selectedBadgeTone ? (
+                  <>
+                    {isBadgeDetailLoading ? (
+                      <section className={styles.detailCard}>
+                        <p className={styles.statusMessage}>Loading badge details...</p>
+                      </section>
+                    ) : null}
+
+                    {!isBadgeDetailLoading && badgeDetailError ? (
+                      <section className={styles.detailCard}>
+                        <p className={styles.statusMessage}>{badgeDetailError}</p>
+                      </section>
+                    ) : null}
+
+                    {!isBadgeDetailLoading && !badgeDetailError && selectedBadgeDetail ? (
+                      <BadgeDetailCard detail={selectedBadgeDetail} tone={selectedBadgeTone} />
+                    ) : null}
+                  </>
+                ) : (
+                  <section className={styles.badgesCard}>
+                    <div className={styles.badgesHeader}>
+                      <div>
+                        <h2 className={styles.badgesTitle}>{currentProfileLabel} Badges</h2>
+                      </div>
+
+                      <div className={styles.badgesHeaderMeta}>
+                        <span className={styles.badgesHint}>Select a badge to edit</span>
+                        <span className={styles.editStub}>
+                          Edit
+                          <Image src={editIcon} alt="" width={15} height={15} />
+                        </span>
+                      </div>
                     </div>
 
-                    <div className={styles.badgesHeaderMeta}>
-                      <span className={styles.badgesHint}>Select a badge to edit</span>
-                      <span className={styles.editStub}>
-                        Edit
-                        <Image src={editIcon} alt="" width={15} height={15} />
-                      </span>
-                    </div>
-                  </div>
+                    <section className={styles.badgeSection}>
+                      <h3 className={styles.badgeSectionTitle}>In-progress</h3>
+                      <BadgeGrid badges={data.badges.inProgress} onSelectBadge={handleBadgeSelect} />
+                    </section>
 
-                  <section className={styles.badgeSection}>
-                    <h3 className={styles.badgeSectionTitle}>In-progress</h3>
-                    <BadgeGrid badges={data.badges.inProgress} />
+                    <button
+                      type="button"
+                      className={styles.accordionRow}
+                      onClick={() => setIsNotStartedOpen((current) => !current)}
+                    >
+                      <span>Not yet started</span>
+                      <Chevron isOpen={isNotStartedOpen} />
+                    </button>
+
+                    {isNotStartedOpen ? (
+                      <div className={styles.accordionPanel}>
+                        <BadgeGrid badges={data.badges.notStarted} tone="pending" />
+                      </div>
+                    ) : null}
+
+                    <button
+                      type="button"
+                      className={styles.accordionRow}
+                      onClick={() => setIsCompletedOpen((current) => !current)}
+                    >
+                      <span>Completed</span>
+                      <Chevron isOpen={isCompletedOpen} />
+                    </button>
+
+                    {isCompletedOpen ? (
+                      <div className={styles.accordionPanel}>
+                        <BadgeGrid badges={data.badges.completed} tone="completed" onSelectBadge={handleBadgeSelect} />
+                      </div>
+                    ) : null}
                   </section>
-
-                  <button
-                    type="button"
-                    className={styles.accordionRow}
-                    onClick={() => setIsNotStartedOpen((current) => !current)}
-                  >
-                    <span>Not yet started</span>
-                    <Chevron isOpen={isNotStartedOpen} />
-                  </button>
-
-                  {isNotStartedOpen ? (
-                    <div className={styles.accordionPanel}>
-                      <BadgeGrid badges={data.badges.notStarted} tone="pending" />
-                    </div>
-                  ) : null}
-
-                  <button
-                    type="button"
-                    className={styles.accordionRow}
-                    onClick={() => setIsCompletedOpen((current) => !current)}
-                  >
-                    <span>Completed</span>
-                    <Chevron isOpen={isCompletedOpen} />
-                  </button>
-
-                  {isCompletedOpen ? (
-                    <div className={styles.accordionPanel}>
-                      <BadgeGrid badges={data.badges.completed} tone="completed" />
-                    </div>
-                  ) : null}
-                </section>
+                )
               ) : null}
             </>
           ) : null}

@@ -24,6 +24,184 @@ jest.mock('@clerk/nextjs', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+function createStudentProfilePayload() {
+  return {
+    memberRole: 'STUDENT',
+    member: {
+      id: 'student-1',
+      name: 'Ada Lovelace',
+      email: 'ada@bu.edu',
+      buid: 'U11111111',
+      gender: 'Woman',
+      raceEthnicity: 'Not provided',
+      parentalEducation: 'College graduate',
+      pellGrantQualified: true,
+      createdAt: '2026-03-20T15:30:00.000Z',
+      avatar: {
+        base: 'EMERALD',
+        face: 'SMILE',
+        accessory: null,
+      },
+    },
+    course: {
+      id: 'course-1',
+      title: 'Chem101',
+      sections: ['K1'],
+      createdBy: {
+        id: 'prof-1',
+        name: 'Professor Demo',
+        email: 'prof@example.edu',
+        buid: 'P111',
+      },
+    },
+    contacts: [
+      {
+        id: 'contact-1',
+        type: 'CHECKER',
+        name: 'Last Name, First Name',
+        email: 'ta@bu.edu',
+        avatarUrl: '/edit_avatar/amethyst.svg',
+      },
+    ],
+    badges: {
+      inProgress: [
+        {
+          id: 'badge-1',
+          slug: 'waste-handling',
+          name: 'Waste Handling',
+          description: null,
+          category: 'WASTE',
+          status: 'LEARNING',
+          awardedAt: null,
+          score: null,
+        },
+      ],
+      notStarted: [
+        {
+          id: 'badge-2',
+          slug: 'bunsen-burner',
+          name: 'Bunsen Burners',
+          description: null,
+          category: 'EQUIPMENT',
+        },
+      ],
+      completed: [
+        {
+          id: 'badge-3',
+          slug: 'vent-hood',
+          name: 'Vent Hood Safety',
+          description: null,
+          category: 'SAFETY',
+          status: 'COMPLETED',
+          awardedAt: '2026-03-22T10:00:00.000Z',
+          score: 95,
+        },
+      ],
+    },
+  };
+}
+
+function createInProgressBadgeDetailPayload() {
+  return {
+    badge: {
+      id: 'badge-1',
+      slug: 'waste-handling',
+      name: 'Waste Handling',
+      description: null,
+      category: 'WASTE',
+      status: 'LEARNING',
+      awardedAt: null,
+      score: null,
+    },
+    progress: {
+      percentComplete: 70,
+      precheckComplete: false,
+      assessmentComplete: false,
+      currentCheckpoint: 'Checkpoint 3',
+      totalCheckpoints: 3,
+      completedCheckpoints: 2,
+    },
+    checkpoints: [
+      {
+        id: 'checkpoint-1',
+        title: 'Checkpoint 1',
+        lessonTitle: 'Waste Handling Lesson',
+        questions: [
+          {
+            id: 'question-1',
+            title: 'Question 1',
+            prompt: 'Which container should be used?',
+            attempts: [
+              {
+                id: 'attempt-1',
+                label: 'Attempt 1',
+                answeredText: 'Flask',
+                isCorrect: false,
+              },
+              {
+                id: 'attempt-2',
+                label: 'Attempt 2',
+                answeredText: 'Beaker',
+                isCorrect: true,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+    assessment: {
+      completedOn: null,
+      attemptCount: 0,
+      gradingRows: [],
+      attempts: [],
+    },
+  };
+}
+
+function createCompletedBadgeDetailPayload() {
+  return {
+    badge: {
+      id: 'badge-3',
+      slug: 'vent-hood',
+      name: 'Vent Hood Safety',
+      description: null,
+      category: 'SAFETY',
+      status: 'COMPLETED',
+      awardedAt: '2026-03-22T10:00:00.000Z',
+      score: 95,
+    },
+    progress: {
+      percentComplete: 100,
+      precheckComplete: true,
+      assessmentComplete: true,
+      currentCheckpoint: null,
+      totalCheckpoints: 3,
+      completedCheckpoints: 3,
+    },
+    checkpoints: [],
+    assessment: {
+      completedOn: '2026-03-22T10:00:00.000Z',
+      attemptCount: 1,
+      gradingRows: [
+        {
+          id: 'grading-1',
+          title: 'Assessor observed correct hood setup.',
+          outcome: 'Assessment score recorded: 95%',
+          passed: true,
+        },
+      ],
+      attempts: [
+        {
+          id: 'assessment-attempt-1',
+          label: 'Attempt 1',
+          score: 95,
+          completedAt: '2026-03-22T10:00:00.000Z',
+        },
+      ],
+    },
+  };
+}
+
 function createClerkState(overrides = {}) {
   return {
     isLoaded: true,
@@ -57,80 +235,7 @@ describe('Roster member profile page', () => {
   it('loads and displays the selected student profile for the course', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({
-        memberRole: 'STUDENT',
-        member: {
-          id: 'student-1',
-          name: 'Ada Lovelace',
-          email: 'ada@bu.edu',
-          buid: 'U11111111',
-          gender: 'Woman',
-          raceEthnicity: 'Not provided',
-          parentalEducation: 'College graduate',
-          pellGrantQualified: true,
-          createdAt: '2026-03-20T15:30:00.000Z',
-          avatar: {
-            base: 'EMERALD',
-            face: 'SMILE',
-            accessory: null,
-          },
-        },
-        course: {
-          id: 'course-1',
-          title: 'Chem101',
-          sections: ['K1'],
-          createdBy: {
-            id: 'prof-1',
-            name: 'Professor Demo',
-            email: 'prof@example.edu',
-            buid: 'P111',
-          },
-        },
-        contacts: [
-          {
-            id: 'contact-1',
-            type: 'CHECKER',
-            name: 'Last Name, First Name',
-            email: 'ta@bu.edu',
-            avatarUrl: '/edit_avatar/amethyst.svg',
-          },
-        ],
-        badges: {
-          inProgress: [
-            {
-              id: 'badge-1',
-              slug: 'waste-handling',
-              name: 'Waste Handling',
-              description: null,
-              category: 'WASTE',
-              status: 'LEARNING',
-              awardedAt: null,
-              score: null,
-            },
-          ],
-          notStarted: [
-            {
-              id: 'badge-2',
-              slug: 'bunsen-burner',
-              name: 'Bunsen Burners',
-              description: null,
-              category: 'EQUIPMENT',
-            },
-          ],
-          completed: [
-            {
-              id: 'badge-3',
-              slug: 'vent-hood',
-              name: 'Vent Hood Safety',
-              description: null,
-              category: 'SAFETY',
-              status: 'COMPLETED',
-              awardedAt: '2026-03-22T10:00:00.000Z',
-              score: 95,
-            },
-          ],
-        },
-      }),
+      json: async () => createStudentProfilePayload(),
     });
 
     render(<InstructorStudentProfilePage />);
@@ -164,6 +269,87 @@ describe('Roster member profile page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /Completed/i }));
     expect(screen.getByText('Vent Hood Safety')).toBeInTheDocument();
+  });
+
+  it('navigates to the selected badge detail view when a badge is clicked', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => createStudentProfilePayload(),
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByRole('heading', { name: 'Student Profile' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Waste Handling' }));
+
+    expect(mockPush).toHaveBeenCalledWith('/roster/student-1?courseId=course-1&badgeId=badge-1');
+  });
+
+  it('renders the in-progress badge detail layout when a badge is selected', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.includes('/badges/badge-1')) {
+        return {
+          ok: true,
+          json: async () => createInProgressBadgeDetailPayload(),
+        } as Response;
+      }
+
+      return {
+        ok: true,
+        json: async () => createStudentProfilePayload(),
+      } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu',
+        {
+          headers: { Accept: 'application/json' },
+        }
+      );
+    });
+
+    expect(await screen.findByText('Answer History')).toBeInTheDocument();
+    expect(screen.getByText('70%')).toBeInTheDocument();
+    expect(screen.getByText('Checkpoint 3')).toBeInTheDocument();
+    expect(screen.getByText('Which container should be used?')).toBeInTheDocument();
+    expect(screen.getByText('Answered: Beaker')).toBeInTheDocument();
+  });
+
+  it('renders the completed badge detail layout when a completed badge is selected', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-3');
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.includes('/badges/badge-3')) {
+        return {
+          ok: true,
+          json: async () => createCompletedBadgeDetailPayload(),
+        } as Response;
+      }
+
+      return {
+        ok: true,
+        json: async () => createStudentProfilePayload(),
+      } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByText('Assessment Info')).toBeInTheDocument();
+    expect(screen.getByText('Assessor Grading')).toBeInTheDocument();
+    expect(screen.getByText('Assessment History')).toBeInTheDocument();
+    expect(screen.getByText('100%')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Attempt 1' }));
+
+    expect(screen.getByText('Score: 95%')).toBeInTheDocument();
   });
 
   it('loads and displays the selected assessor profile', async () => {

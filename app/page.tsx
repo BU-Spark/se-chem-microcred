@@ -509,34 +509,26 @@ function HomeContent() {
       <Sidebar navItems={navItems} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
-        <div className={styles.topRow}>
-          <div className={styles.alertWrapper}>
-            <div
-              className={styles.alert}
-              data-active={readyBadgeAlerts.length > 0}
-              onClick={readyBadgeAlerts.length > 0 ? () => handleStartSurvey() : undefined}
-            >
-              {readyBadgeAlerts.length > 0 ? (
-                <>
-                  <Image
-                    src="/assets/survey_alarm/survey_alarm_x_icon.png"
-                    alt="Survey reminder"
-                    className={styles.alertIcon}
-                    width={24}
-                    height={24}
-                  />
-                  <span className={styles.alertText}>
-                    {readyBadgeAlerts.length === 1
-                      ? `Complete feedback for ${readyBadgeAlerts[0]?.badgeName ?? 'your badge'} to finalize it.`
-                      : `You have ${readyBadgeAlerts.length} badges ready to finalize. Start the surveys to finish.`}
-                  </span>
-                </>
-              ) : (
-                <span className={styles.alertText}>Welcome, Student</span>
-              )}
+        {readyBadgeAlerts.length > 0 ? (
+          <div className={styles.topRow}>
+            <div className={styles.alertWrapper}>
+              <div className={styles.alert} data-active="true" onClick={() => handleStartSurvey()}>
+                <Image
+                  src="/assets/survey_alarm/survey_alarm_x_icon.png"
+                  alt="Survey reminder"
+                  className={styles.alertIcon}
+                  width={24}
+                  height={24}
+                />
+                <span className={styles.alertText}>
+                  {readyBadgeAlerts.length === 1
+                    ? `Complete feedback for ${readyBadgeAlerts[0]?.badgeName ?? 'your badge'} to finalize it.`
+                    : `You have ${readyBadgeAlerts.length} badges ready to finalize. Start the surveys to finish.`}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
         <section className={courseStyles.section}>
           <h2 className={courseStyles.sectionTitle}>My Courses</h2>
