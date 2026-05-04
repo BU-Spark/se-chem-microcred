@@ -1,125 +1,505 @@
-/* 
-  Styling for app/page.tsx - CSS Modules 
-  This is a minimal set of styles for the starter page.
-  Students are encouraged to adapt or replace this with their chosen styling solution.
-*/
-
-/* This module uses global theme variables from app/globals.css. */
-
-.container {
+/* =========================
+   Shell / Layout
+   ========================= */
+.page {
   display: flex;
-  flex-direction: column;
-  flex: 1; /* Allows this container to grow and fill its parent (.main-content-container) */
-  padding: 2rem;
-  box-sizing: border-box;
+  gap: 0;
+  /* Seamless join between sidebar and main content */
+  min-height: calc(100vh - 80px);
+  /* If there's no top bar, use 100vh */
+  padding: 0;
+  /* Remove outer whitespace to avoid a large white card look */
+  background: #ffffff;
+  /* Page surface doubles as background */
 }
 
-.heroSection {
-  text-align: center;
-  padding: 4rem 1rem;
-  border-bottom: 1px solid var(--card-border);
-}
+/* =========================
+   Sidebar (square corners)
+   ========================= */
+.sidebar {
+  width: 240px;
+  flex: 0 0 240px;
+  min-width: 240px;
+  min-height: 100vh;
+  height: 100vh;
+  position: sticky;
+  top: 0;
 
-:global(.dark) .heroSection {
-  border-bottom-color: var(--card-border);
-}
-
-.title {
-  font-size: 3.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  background: linear-gradient(120deg, var(--primary-accent), var(--secondary-accent));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-:global(.dark) .title {
-  background: linear-gradient(120deg, var(--primary-accent), var(--secondary-accent));
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.subtitle {
-  font-size: 1.5rem;
-  margin-bottom: 2rem;
-  color: var(--text-color);
-  opacity: 0.8;
-}
-
-:global(.dark) .subtitle {
-  color: var(--text-color);
-}
-
-.ctaButtons {
-  display: flex;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 3rem;
-}
-
-/* Container for the columns of feature cards */
-.featuresContainer {
-  display: flex;
-  gap: 2rem; /* Gap between columns */
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 3rem 1rem;
-  align-items: start;
-}
-
-.featureColumn {
-  flex: 1;
+  background: #1f5fab;
+  border-radius: 0;
+  /* Square corners */
+  color: #f8fbff;
+  padding: 2rem 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+
+  /* Divider between sidebar and main content */
+  border-right: 1px solid rgba(15, 23, 42, 0.12);
+  box-shadow: none;
+  /* Remove card-style shadow */
 }
 
-/* Styles for .featureCard, .featureIcon, .featureTitle, .featureDescription, */
-/* .featureDetails, .detailsVisible, and .expanded have been moved to */
-/* app/components/FeatureCard/FeatureCard.module.css */
-
-.themeToggleContainer {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 1000;
-}
-
-.footer {
+.profile {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
   text-align: center;
-  padding: 2rem 1rem;
+}
+
+.avatar {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  display: grid;
+  place-items: center;
+  font-size: 1.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.name {
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.navList {
+  display: grid;
+  gap: 0.8rem;
+  font-size: 0.95rem;
+}
+
+.navItem {
+  padding: 0.55rem 0.85rem;
+  border-radius: 0.75rem;
+  transition: background-color 0.2s ease;
+}
+
+.navItemActive,
+.navItem:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.brandFooter {
+  font-size: 0.85rem;
+  opacity: 0.85;
+}
+
+.sidebarFooter {
   margin-top: auto;
-  border-top: 1px solid var(--card-border); /* Use global generic variable */
-  font-size: 0.9rem;
-  opacity: 0.7;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
-:global(.dark) .footer {
-  border-top-color: var(--card-border); /* Use global generic variable */
+.signOffButton {
+  padding: 0.55rem 1.35rem;
+  border-radius: 999px;
+  border: none;
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease, background-color 0.2s ease;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-  .title {
-    font-size: 2.8rem;
+.signOffButton:hover {
+  filter: brightness(1.05);
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.signOffButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  filter: none;
+}
+
+/* =========================
+   Main (card-free: no radius / no shadow)
+   ========================= */
+.main {
+  flex: 1;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  min-height: 100vh;
+
+  padding: 2rem 2rem 3rem;
+  /* Primary content padding */
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.topRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.alertWrapper {
+  display: flex;
+  justify-content: flex-start;
+  width: 654px;
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+
+  width: 654px;
+  height: 102px;
+
+  background: #ffffff;
+  border: 3px solid #dedede;
+  border-radius: 18px;
+  padding: 0 24px;
+
+  color: #285a9a;
+  cursor: pointer;
+}
+
+/* X icon */
+.alertIcon {
+  width: 31px;
+  height: 28.41px;
+  object-fit: contain;
+}
+
+.alertText {
+  width: 549px;
+  height: 49px;
+  line-height: 1.35;
+  display: flex;
+  align-items: center;
+}
+
+
+.alert[data-active='false'] {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #111827;
+}
+
+.brandLogo {
+  height: 48px;
+  width: 173px;
+  object-fit: contain;
+  display: block;
+}
+
+
+.brandMark {
+  font-weight: 700;
+  color: #1f5fab;
+  font-size: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.sectionTitle {
+  font-family: 'Lato', sans-serif;
+  /* match figma */
+  font-size: 36px;
+  /* 36px from figma */
+  font-weight: 700;
+  /* bold (figma) */
+  line-height: 100%;
+  /* figma */
+  letter-spacing: 0;
+  /* figma */
+  color: #000000;
+  /* figma */
+}
+
+/* =========================
+   Cards / Grid
+   ========================= */
+.cardRow {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(389px, 389px));
+  justify-content: flex-start;
+}
+
+.emptyState {
+  font-size: 0.95rem;
+  color: #4b5563;
+}
+
+.card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* text aligned with image left edge */
+}
+
+
+.cardMedia {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #dedede;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 0;
+
+  margin-bottom: 24px;
+  /* ⭐ space between image and title block */
+}
+
+.cardTextBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  /* ⭐ tight vertical gap like in Figma */
+  margin-bottom: 24px;
+  /* ⭐ space between meta and button */
+}
+
+.cardMediaImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 0% center;
+}
+
+
+.cardTitle {
+  font-family: 'Lato', sans-serif;
+  /* match figma */
+  font-size: 32px;
+  /* 36px from figma */
+  font-weight: 400;
+  /* bold (figma) */
+  line-height: 100%;
+  /* figma */
+  letter-spacing: 0;
+  /* figma */
+  color: #000000;
+  /* figma */
+}
+
+.cardStatus,
+.cardMeta {
+  font-family: 'Open Sans', sans-serif;
+  /* match figma */
+  font-size: 16px;
+  /* 36px from figma */
+  font-weight: 400;
+  /* bold (figma) */
+  line-height: 100%;
+  /* figma */
+  letter-spacing: 0;
+  /* figma */
+  color: #000000;
+  /* figma */
+  margin-left: 5px;
+}
+
+.cardButton {
+  width: 152px;
+  /* Figma width */
+  height: 59px;
+  /* Figma height */
+
+  background: #2E6AA9;
+  /* Figma button color */
+  border-radius: 19px;
+  /* Figma border radius */
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border: none;
+  cursor: pointer;
+  text-decoration: none;
+
+  font-family: 'Lato', sans-serif;
+  /* match design system */
+  font-size: 24px;
+  /* common Figma button size */
+  font-weight: 400;
+  /* bold */
+  color: white;
+
+  transition: filter 0.15s ease;
+}
+
+.cardButton:hover {
+  filter: brightness(0.95);
+}
+
+.secondaryAction {
+  background: #3c83d6;
+}
+
+/* =========================
+   Survey Modal
+   ========================= */
+.surveyOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.surveyModal {
+  position: relative;
+  width: min(640px, 92%);
+  background: #ffffff;
+  border-radius: 1.75rem;
+  padding: 2.75rem 3rem;
+  box-shadow: 0 45px 60px rgba(15, 23, 42, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1.8rem;
+}
+
+.surveyClose {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.5rem;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.surveyTitle {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.surveyQuestion {
+  font-size: 1rem;
+  color: #374151;
+}
+
+.surveyFaces {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.surveyFace {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.surveyFaceSelected {
+  transform: translateY(-4px);
+  /* small lift for selected */
+}
+
+/* Icon size – tweak if needed (64–72px works well) */
+.surveyFaceImage {
+  width: 44px;
+  height: 44px;
+  display: block;
+}
+
+
+/* For the slightly_happy icon: source is yellow -> force it to blue in default state */
+.surveyFaceImageForceBlue {
+  filter: none;
+}
+
+/* When selected: turn faces into yellow (#C9DB50) */
+.surveyFaceImageSelected {
+  filter: none;
+}
+
+
+.surveySubmit {
+  align-self: flex-end;
+  padding: 0.7rem 1.8rem;
+  border-radius: 999px;
+  border: none;
+  background: #1f5fab;
+  color: #ffffff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.surveySubmit:hover {
+  filter: brightness(0.95);
+}
+
+/* =========================
+   Responsive
+   ========================= */
+@media (max-width: 960px) {
+  .page {
+    flex-direction: column;
   }
-  .subtitle {
-    font-size: 1.2rem;
+
+  .sidebar {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    height: auto;
+    min-height: auto;
+
+    /* Top bar variant: square corners + bottom divider */
+    border-radius: 0;
+    border-right: none;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+    padding: 1rem 1.25rem;
   }
-  /* Adjust .featuresContainer for mobile, not .featuresSection */
-  .featuresContainer {
-    padding: 2rem 0.5rem;
-    flex-direction: column; /* Stack columns on narrower screens */
-    /* The gap between columns becomes a vertical gap on narrower screens */
+
+  .navList {
+    display: flex;
+    gap: 0.65rem;
   }
-  .heroSection {
-    padding: 3rem 0.5rem;
+
+  .navItem {
+    padding: 0.45rem 0.7rem;
   }
 }
 
-/* Style the main HTML element within this module's scope using a local class */
-.pageMain {
-  flex-grow: 1;
+@media (max-width: 640px) {
+  .topRow {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .brandMark {
+    align-self: flex-start;
+  }
 }

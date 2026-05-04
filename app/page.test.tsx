@@ -1,111 +1,194 @@
-import { render, screen, fireEvent } from '@testing-library/react';
-import Home from './page';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import HomePage from './page';
+import type { LessonRecord } from './hooks/useStudentData';
 
-// Mock window.open
-const mockOpen = jest.fn();
-window.open = mockOpen;
+const mockReplace = jest.fn();
+const mockUsePathname = jest.fn();
+const mockUseUser = jest.fn();
+const mockUseAuth = jest.fn();
+const mockUseStudentData = jest.fn();
+const mockUseSearchParams = jest.fn();
+
+jest.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: mockReplace }),
+  usePathname: () => mockUsePathname(),
+  useSearchParams: () => mockUseSearchParams(),
+}));
+
+jest.mock('@clerk/nextjs', () => ({
+  useUser: () => mockUseUser(),
+  useAuth: () => mockUseAuth(),
+}));
+
+jest.mock('./hooks/useStudentData', () => ({
+  useStudentData: () => mockUseStudentData(),
+}));
+
+function createClerkState(overrides = {}) {
+  return {
+    isLoaded: true,
+    isSignedIn: true,
+    user: {
+      fullName: 'Student Demo',
+      primaryEmailAddress: { emailAddress: 'student@example.edu' },
+      createdAt: '2024-01-01T00:00:00.000Z',
+    },
+    ...overrides,
+  };
+}
+
+function createAuthState(overrides = {}) {
+  return {
+    isLoaded: true,
+    isSignedIn: true,
+    signOut: jest.fn(),
+    ...overrides,
+  };
+}
+
+function createLesson(id: string, overrides: Partial<LessonRecord> = {}): LessonRecord {
+  const baseLesson: LessonRecord = {
+    id,
+    slug: `${id}-slug`,
+    title: `Lesson ${id}`,
+    summary: 'Summary',
+    description: 'Description',
+    thumbnailUrl: null,
+    estimatedMinutes: 10,
+    dueDate: new Date().toISOString(),
+    sortOrder: 0,
+    passingPercent: 70,
+    status: 'NOT_STARTED',
+    percentComplete: 0,
+    segments: [],
+    checkpoints: [],
+    skills: [],
+    lastGradePercent: null,
+    lastGradePassed: null,
+    lastGradedAt: null,
+  };
+
+  return {
+    ...baseLesson,
+    ...overrides,
+  };
+}
 
 describe('Home Page', () => {
   beforeEach(() => {
-    mockOpen.mockClear();
-  });
+    mockReplace.mockClear();
+    mockUsePathname.mockReset();
+    mockUsePathname.mockReturnValue('/');
+    mockUseSearchParams.mockReset();
+    mockUseSearchParams.mockReturnValue(new URLSearchParams());
 
-  it('renders the main hero heading and subtitle', () => {
-    render(<Home />);
-    expect(screen.getByText('Spark Your Next Creation! ✨')).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        'A Next.js & TypeScript template designed for rapid development and learning industry best practices.'
-      )
-    ).toBeInTheDocument();
-  });
+    mockUseUser.mockReset();
+    mockUseUser.mockImplementation(() => createClerkState());
 
-  it('renders the hero CTA buttons', () => {
-    render(<Home />);
-    expect(screen.getByRole('button', { name: 'Explore Next.js Docs' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'View on GitHub' })).toBeInTheDocument();
-  });
+    mockUseAuth.mockReset();
+    mockUseAuth.mockImplementation(() => createAuthState());
 
-  it('calls window.open with correct URLs for hero CTA buttons', () => {
-    render(<Home />);
-    fireEvent.click(screen.getByRole('button', { name: 'Explore Next.js Docs' }));
-    expect(mockOpen).toHaveBeenCalledWith('https://nextjs.org/docs', '_blank');
+    mockUseStudentData.mockReset();
+    const upNextLessons = [createLesson('up-1'), createLesson('up-2'), createLesson('up-3')];
+    const inProgressLessons = [
+      createLesson('in-1', { status: 'IN_PROGRESS', percentComplete: 75 }),
+      createLesson('in-2', { status: 'IN_PROGRESS', percentComplete: 50 }),
+      createLesson('in-3', { status: 'IN_PROGRESS', percentComplete: 20 }),
+    ];
 
-    fireEvent.click(screen.getByRole('button', { name: 'View on GitHub' }));
-    expect(mockOpen).toHaveBeenCalledWith('https://github.com/BU-Spark/TEMPLATE-next-js-starter', '_blank');
-  });
-
-  const featureData = [
-    {
-      id: 'modern-stack',
-      title: 'Modern Stack',
-      description: 'Next.js 15, React 19, TypeScript. Fast, efficient, and type-safe development.',
-      details:
-        'Leverage server components, client components, and the latest React features for optimal performance and developer experience. TypeScript ensures your codebase is robust and maintainable as it grows.',
-    },
-    {
-      id: 'styling-freedom',
-      title: 'Styling Freedom',
-      description: 'Styling agnostic! Choose Tailwind, CSS Modules, Emotion, or your favorite solution.',
-      details:
-        'This template does not impose a specific styling library, giving you the flexibility to integrate the solution that best fits your project needs and team expertise. CSS Modules are used for base template components as a lightweight example.',
-    },
-    {
-      id: 'dev-tools',
-      title: 'Dev Tools Ready',
-      description: 'ESLint, Prettier, Husky hooks, and Jest testing pre-configured for quality code.',
-      details:
-        'Automated linting, formatting, and pre-commit/pre-push checks ensure code consistency and quality. A solid testing foundation with Jest and React Testing Library is ready for you to build upon.',
-    },
-    {
-      id: 'responsive-design',
-      title: 'Responsive Design',
-      description: 'Built with a responsive layout in mind. Looks great on all devices.',
-      details:
-        'The foundational layout uses modern CSS techniques that adapt to various screen sizes. The provided example components and page structure serve as a starting point for building fully responsive user interfaces.',
-    },
-  ];
-
-  featureData.forEach((feature) => {
-    it(`renders the "${feature.title}" feature card title and description`, () => {
-      render(<Home />);
-      expect(screen.getByText(feature.title)).toBeInTheDocument();
-      expect(screen.getByText(feature.description)).toBeInTheDocument();
+    mockUseStudentData.mockReturnValue({
+      data: {
+        student: {
+          name: 'Student Demo',
+          email: 'student@example.edu',
+        },
+        lessons: {
+          upNext: upNextLessons,
+          inProgress: inProgressLessons,
+          catalog: [...upNextLessons, ...inProgressLessons],
+        },
+        badges: {
+          completed: [],
+          readyForAssessment: [],
+          readyForFinalization: [],
+          learning: [],
+        },
+        surveys: {
+          lesson: [],
+          badge: [],
+          pendingBadge: [],
+        },
+      },
+      isLoading: false,
+      error: null,
+      refresh: jest.fn(),
     });
   });
 
-  it('renders feature card details when a card is clicked and hides when clicked again', () => {
-    render(<Home />);
-    const modernStackTitle = 'Modern Stack'; // Title to find the card
-    // Text content we expect to find within the <p> tag of Modern Stack's JSX details
-    const expectedModernStackDetailsText = /This template utilizes a cutting-edge stack/i;
+  it('renders the signed-in dashboard when authentication is ready', () => {
+    render(<HomePage />);
 
-    const cardButton = screen.getByText(modernStackTitle).closest('div[role="button"]');
-    expect(cardButton).toBeInTheDocument();
-    expect(cardButton).toHaveAttribute('aria-expanded', 'false');
-
-    const detailsContainer = document.getElementById(`details-modern-stack`);
-    expect(detailsContainer).toBeInTheDocument();
-    expect(detailsContainer).toHaveAttribute('aria-hidden', 'true');
-
-    // Click to expand
-    fireEvent.click(cardButton!);
-    expect(cardButton).toHaveAttribute('aria-expanded', 'true');
-    expect(detailsContainer).toHaveAttribute('aria-hidden', 'false');
-    // Find the details text within the rendered JSX content
-    const detailsTextElement = screen.getByText(expectedModernStackDetailsText);
-    expect(detailsTextElement).toBeVisible();
-
-    // Click to collapse
-    fireEvent.click(cardButton!);
-    expect(cardButton).toHaveAttribute('aria-expanded', 'false');
-    expect(detailsContainer).toHaveAttribute('aria-hidden', 'true');
+    expect(screen.getByText('Student Demo')).toBeInTheDocument();
+    expect(screen.getByText('SD')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Up next' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Pick up where you left off' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Start' })).toHaveLength(3);
+    expect(screen.getAllByRole('link', { name: 'Continue' })).toHaveLength(3);
+    expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
   });
 
-  it('renders the footer with correct text', () => {
-    render(<Home />);
-    expect(
-      screen.getByText('This template is a launchpad for your amazing projects. Happy coding!')
-    ).toBeInTheDocument();
+  it('highlights the active navigation item based on the current pathname', () => {
+    mockUsePathname.mockReturnValue('/profile');
+
+    render(<HomePage />);
+
+    const profileLink = screen.getByRole('link', { name: 'Profile' });
+    const homeLink = screen.getByRole('link', { name: 'Home' });
+
+    expect(profileLink.className).toContain('navItemActive');
+    expect(homeLink.className).not.toContain('navItemActive');
+  });
+
+  it('redirects to sign-in when the user is not authenticated after loading', async () => {
+    mockUseUser.mockImplementation(() =>
+      createClerkState({
+        isSignedIn: false,
+        user: null,
+      })
+    );
+    mockUseAuth.mockImplementation(() =>
+      createAuthState({
+        isSignedIn: false,
+      })
+    );
+
+    const { container } = render(<HomePage />);
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/sign-in');
+    });
+    expect(container.firstChild).toBeNull();
+  });
+
+  it('signs off when the button is pressed', async () => {
+    const signOutMock = jest.fn().mockResolvedValue(undefined);
+    mockUseAuth.mockImplementation(() =>
+      createAuthState({
+        signOut: signOutMock,
+      })
+    );
+
+    render(<HomePage />);
+
+    const button = screen.getByRole('button', { name: 'Sign off' });
+    fireEvent.click(button);
+
+    expect(signOutMock).toHaveBeenCalledTimes(1);
+    expect(button).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Signing off…' })).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/sign-in');
+    });
   });
 });

@@ -1,133 +1,193 @@
-This is a template for Spark! DS 519 projects. It has pre-configured eslint.config.mjs - ([`ESLint`](https://eslint.org/)) and .prettierrc - ([`Prettier`](https://prettier.io/)) to reflect industry standard development guidelines.
+# ChemSkills Micro-Credential Demo
 
-## Setting Up Your Developer Experience
+A Next.js 15 (App Router) application that prototypes the student-facing micro-credential experience. The app is backed by Clerk for authentication and Prisma/PostgreSQL for seeded demo data. It includes a full student journey (dashboard, badge wallet, analytics, lesson and badge details, profile) plus a small instructor configuration prototype.
 
-To get the most out of ESLint and Prettier, It is recommended to make the changes to you IDE:
+## Overview
 
-#### Add this code to your _.vscode/settings.json_
+- **Framework:** Next.js 15 with TypeScript, App Router, and CSS Modules.
+- **Auth:** Clerk (`ClerkProvider` in `app/layout.tsx`, Sign In/Sign Up routes under `app/(auth)`); all student routes redirect to `/sign-in` when the session is missing.
+- **Data:** Prisma models seeded with demo course, student, badges, lessons, checkpoints, surveys, and analytics (see `prisma/schema.prisma` and `prisma/seed.js`). `useStudentData` fetches the signed-in student via `/api/demo/student`.
+- **UI:** Global header + shared sidebar layout on student pages; per-page CSS modules under `app/**/page.module.css`.
+- **Testing & Quality:** Jest/RTL (`npm test`) and ESLint (`npm run lint`). Turbopack dev server via `npm run dev`.
 
-```json
-{
-  "editor.formatOnSave": true,
-  "[javascript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  },
-  "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
-}
-```
+## Technical Architecture
 
-#### Download these VSCode extensions:
+- **Architecture diagram:**
 
-- [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint)
-- [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode)
+![ChemSkills architecture diagram](docs/architecture.png)
 
-## Getting Started
+- **App layer:** Next.js 15 App Router with a mix of Server Components and Client Components; shared layout (`app/layout.tsx`) provides Clerk context, header, and student sidebar framing.
+- **Authentication:** Clerk guards routes client-side with `useAuth`/`useUser`; middleware defers to page-level redirects; profile and sign-in/up flows live under `app/(auth)` and Clerk-hosted modals.
+- **Data & APIs:** Prisma + PostgreSQL schema (`prisma/schema.prisma`) with seed data (`prisma/seed.js`). Route handlers under `app/api/**` expose student data, badge export, surveys, lessons, and checkpoints, consumed via `useStudentData`.
+- **Media integrations:** Lesson playback uses the YouTube Iframe API (lazy-loaded in `app/lessons/[lessonId]/video.tsx` and `app/components/VideoPlayer/YoutubePlayer.tsx`) and prefers YouTube-derived thumbnails for lessons/checkpoints when URLs are available.
+- **QR flows:** Badge assessment/finalization modals autogenerate QR codes client-side via `api.qrserver.com`, encoding the student + badge payload for in-person validation.
+- **State & UI data flow:** Pages fetch signed-in student context from `/api/demo/student`, normalize into badge/lesson/analytics shapes, and render with CSS Modules scoped per page; media assets served from `public/`.
 
-This template uses Next.js. If you havent used Next before or need more information, take a look here:
+## How to Setup
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Use the provided Prisma/PostgreSQL connection string; you do **not** need to create your own database for this school project.
 
-To run the development server:
+1) Install prerequisites  
+   - Node.js 18.18+ (recommend `nvm install 18 && nvm use 18`)  
+   - npm 9+ (ships with Node 18)
 
-```bash
-npm run dev
-```
+2) Clone the project and install dependencies  
+   ```bash
+   git clone <your-fork-or-repo-url> chem-skills
+   cd chem-skills
+   npm install
+   ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser to see the result. Do not use Microsoft Edge 🤮
+3) Configure environment variables  
+   - Create `.env.local` in the repo root with the provided Prisma/PostgreSQL URL and your Clerk keys:  
+     ```bash
+     DATABASE_URL="<provided Prisma PostgreSQL URL>"
+     CLERK_SECRET_KEY="sk_test_or_live_from_clerk"
+     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_or_live_from_clerk"
+     ```
+   - To get Clerk keys, create a free Clerk project at https://clerk.com/ and copy the Secret and Publishable keys. The DATABASE_URL should be the shared Prisma connection string supplied for the course.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+4) Apply the database schema and seed demo data (runs against the provided DATABASE_URL)  
+   ```bash
+   npx prisma migrate dev --name init
+   npm run db:seed
+   ```
+   This creates tables and loads the CHEM101 demo student, lessons, badges, checkpoints, and surveys in the shared database.
 
-## Testing Your Application
+5) Run the dev server  
+   ```bash
+   npm run dev
+   ```
+   Visit http://localhost:3000 and sign in with a Clerk user whose email matches the seeded student. 🚨 **Use your own email** 🚨 Update the seed to your address and create a Clerk user by signing up with your own email/password (set in Clerk; there is no repo-defined password).
 
-This template comes pre-configured with a robust testing setup to help you ensure code quality and maintainability. We use [Jest](https://jestjs.io/) as the testing framework and [React Testing Library](https://testing-library.com/docs/react-testing-library/intro/) for testing React components.
+   Specifically, in the block between line 58 - 70 of the file /prisma/seed.js:
 
-<details>
-  <summary><strong>Key Testing Features & Configuration</strong></summary>
+   const students = await Promise.all([
+    prisma.user.create({
+      data: {
+        email: 'nx2004@bu.edu',
+        name: 'John Doe',
+        buid: 'U1234567',
+        gender: 'Male',
+        raceEthnicity: 'White',
+        parentalEducation: 'Bachelors degree',
+        pellGrantQualified: false,
+      },
+    }),
+  ]);
 
-#### Integrated Tools
+  change the line: `email: 'nx2004@bu.edu'` to use your own email.
 
-- **Jest:** A delightful JavaScript Testing Framework with a focus on simplicity. It works out of the box for most Next.js projects.
-- **React Testing Library (RTL):** Provides light-weight utility functions on top of `react-dom` and `react-dom/test-utils`, in a way that encourages better testing practices. Its primary guiding principle is: _"The more your tests resemble the way your software is used, the more confidence they can give you."_
-- **`@testing-library/jest-dom`:** Custom Jest matchers to extend Jest with useful assertions for DOM states (e.g., `toBeInTheDocument()`, `toHaveClass()`).
+6) (Optional) Validate tooling  
+   - Lint: `npm run lint`  
+   - Tests: `npm test`  
+   - Production build: `npm run build` (followed by `npm start` to serve the build)
 
-#### Configuration Files
+## Application Map
 
-- **`jest.config.ts`:** The main configuration file for Jest. It defines how Jest discovers and runs your tests, what environment to use (e.g., `jsdom` for browser-like environment), and any transformations needed (e.g., using `ts-node` for TypeScript).
-- **`jest.setup.ts`:** This file is run before each test suite. It's used for global test setup, such as importing `@testing-library/jest-dom` to make its matchers available in all tests, or for setting up global mocks (like the `window.matchMedia` mock included in this template).
+All student pages share the sidebar nav (Home, Profile, My Analytics, Badge Wallet, Grades, Settings) and sign-off control.
 
-#### Test File Location
+- **Authentication (`/sign-in`, `/sign-up`)** – Clerk-hosted forms embedded in the App Router. Every protected page checks `isLoaded`/`isSignedIn` and redirects to `/sign-in` when necessary.
 
-- Tests are co-located with the components or modules they are testing. For example, tests for `MyComponent.tsx` would typically be in a file named `MyComponent.test.tsx` within the same directory. This makes it easy to find and manage tests alongside the code they cover. Our `jest.config.ts` is set up to discover these `*.test.tsx` (and `*.test.ts`) files.
+- **Home / Dashboard (`/`)** – Pulls lessons and badge alerts from `useStudentData`.
+  - “Up next” and “Pick up where you left off” cards come from lesson catalog records, link to `/lessons/[lessonId]`, and include due dates and estimated minutes.
+  - Badge finalization surveys surface as modal prompts with 1–5 face ratings; submitting posts to `/api/badges/[badgeId]/survey` and refreshes data.
+  - Supports deep links (`?surveyBadge=slug`) from the Badge Wallet to open a specific survey prompt.
 
-</details>
+- **Profile (`/profile`)** – Centralizes nearly all student controls (intentionally absorbs settings/grade-related actions from the design).
+  - Sensitive fields (BUID, contact email) auto-hide after 10 minutes; re-auth uses the Clerk user profile modal.
+  - Language selector (currently English only) and demographic edit modal (gender, race/ethnicity, parental education, Pell status).
+  - Course details with instructor and checker contacts, quick links to badge/lesson counts, and security actions (change password, sign off).
+  - Avatar display that reflects saved avatar settings; dedicated editor lives at `/edit_avatar`.
 
-<details>
-  <summary><strong>Running Tests</strong></summary>
+- **Badge Wallet (`/badges`)** – Sectioned by badge status (Completed, Ready for assessment, Ready to be finalized, Still learning).
+  - Token grid per section with a modal that exposes status-specific actions:
+    - Ready for assessment → show QR code for in-person check plus link to skill review.
+    - Ready for finalization → start survey (routes back to home modal via querystring).
+    - Still learning → review badge feedback.
+    - Completed → export to LinkedIn via `/api/badges/export/[badgeId]`.
+  - QR modal encodes student + badge for in-person validation.
 
-You can run your tests using the following npm scripts:
+- **Badge Feedback (`/badges/[badgeSlug]/feedback`)** – Detailed badge review with status pill, cooldown messaging, lesson summary, checkpoint tiles, and optional extra resources. Redirects back to `/badges` if the slug is unknown for the signed-in student.
 
-- **`npm test`**: Runs all tests once. This is also the command used by the automated pre-commit and pre-push hooks.
-  ```bash
-  npm test
-  ```
-- **`npm run test:watch`**: Runs tests in watch mode. Jest will re-run tests related to changed files, which is very useful during development.
-  ```bash
-  npm run test:watch
-  ```
-- **`npm run test:coverage`**: Runs all tests and generates a code coverage report. This helps you see what percentage of your codebase is covered by tests. The report will be generated in a `coverage/` directory.
-  ```bash
-  npm run test:coverage
-  ```
-  </details>
+- **My Analytics (`/analytics`)** – Uses `studentData.analytics` to render progress cards (hours learned, badges completed/ready/not attempted, questions answered), circular score gauges, and summary tiles. Percent complete derives from badge counts; display name comes from student record or Clerk profile.
 
-<details>
-  <summary><strong>Automated Testing with Husky</strong></summary>
+- **Lesson Detail (`/lessons/[lessonId]`)** – Reads lesson checkpoints and segments to build the checkpoint timeline, video thumbnails (prefers YouTube thumbnails when URLs are provided), and requirement list. Shows resume/start CTA and progress stats (answered checkpoints, attempts, passing grade).
 
-To maintain code quality and prevent regressions, this template uses [Husky](https://typicode.github.io/husky/) to manage Git hooks. The following hooks are configured:
+- **Avatar Editor (`/edit_avatar`)** – Three-step flow to pick base character, face expression, and accessory with live preview and shareable summary of selections.
 
-- **`pre-commit`**: Before any commit is finalized, this hook runs:
+- **Instructor QEV Prototype (`/instructor/qev-demo`)** – “Question Embedded Video” configuration demo that lets instructors assign cue points, prompts, and question counts to a lesson video; renders a serialized cue list preview.
 
-  1.  `npx lint-staged`: Lints and formats staged files (`*.{js,jsx,ts,tsx}`) using ESLint and Prettier.
-  2.  `npm test`: Runs the entire test suite.
-      If either linting/formatting fails or any test fails, the commit will be aborted, allowing you to fix the issues before committing.
+- **Grades (`/grades`)** and **Settings (`/settings`)** – Present in navigation per design but intentionally empty (“coming soon”). All currently implemented settings and grade-related controls live on the Profile page.
 
-- **`pre-push`**: Before any push to a remote repository, this hook runs:
-  1.  `npm test`: Runs the entire test suite.
-      If any test fails, the push will be aborted.
+## Backend & Data Flow
 
-This ensures that your codebase remains well-formatted, lint-free, and that all tests are passing before changes are shared or integrated.
+- **API routes:** Located in `app/api/**`. `/api/demo/student` resolves the signed-in user via Clerk, loads the student/course/badge/lesson graph from Prisma, and returns normalized shapes consumed by `useStudentData`. Additional endpoints cover badge export, surveys, lessons, checkpoints, uploads, and webhook stubs.
+- **Database:** PostgreSQL schema in `prisma/schema.prisma`. Seed script (`npm run db:seed`) populates a CHEM101 course, demo student, instructors/checkers, lessons with segments/checkpoints/questions, badges, and survey prompts.
+- **Auth enforcement:** Most client pages guard with Clerk hooks; middleware currently defers to the pages for redirect logic.
 
-</details>
+## Testing & Quality
 
-<details>
-  <summary><strong>Testing Philosophy</strong></summary>
+- **Unit tests:** Jest + React Testing Library (`app/page.test.tsx` exercises dashboard rendering). Run with `npm test`.
+- **Linting/formatting:** `npm run lint` (ESLint) is configured with Prettier integration. `npm run lint:debug` enables ESLint debug logging.
 
-- **Focus on User Behavior:** Write tests that verify the functionality of your components from a user's perspective. React Testing Library encourages this by providing utilities to query and interact with the DOM in a way similar to how a user would.
-- **Unit & Integration Tests:** Aim for a healthy mix of unit tests (testing individual functions or components in isolation) and integration tests (testing how multiple components work together).
-- **Confidence, Not Coverage Alone:** While code coverage is a useful metric, the primary goal of testing is to give you confidence that your application works as expected. Prioritize tests that cover critical user flows and complex logic.
-- **Readable and Maintainable Tests:** Write clear, concise, and well-structured tests. Like your application code, test code should also be maintainable.
-</details>
+### Testing Strategy (what to add next)
 
-## Managing Environment Variables
+- **Badge Wallet:** Assert section toggles, modal open/close, QR/export/survey actions, and auth redirect for signed-out users.
+- **Lesson detail + video:** Cover checkpoint flow (question/result states), modal transitions, “Show QR code” routing to `/badges`, thumbnail fallback when YouTube IDs are missing, and completion banner visibility.
+- **Analytics/Profile:** Validate metrics rendering (including completion math), guard logic for unauthenticated access, and visibility toggles for sensitive fields.
+- **Hooks/APIs:** Unit-test `useStudentData` data shaping; add integration tests for `/api/demo/student` and `/api/qr` (200 response, `image/png`, `Content-Length` present).
+- **End-to-end smoke:** Playwright (or similar) flow for sign-in (mock Clerk), dashboard load, badge modal QR visibility, lesson playback through a checkpoint, and export action link presence.
+- **CI:** Run `npm run lint`, `npm test`, and `npm run build` in CI to catch regressions on every PR/commit.
 
-Properly managing environment variables is crucial for security and for configuring your application differently across various environments (development, testing, production). Next.js has built-in support for environment variables.
+## Deployment
 
-- **Key File: `.env.local`**: Use this for your local development. It **must** be added to `.gitignore` to protect sensitive information like API keys.
-- **Client-Side Variables**: To expose a variable to the browser, prefix it with `NEXT_PUBLIC_` (e.g., `NEXT_PUBLIC_ANALYTICS_ID`). These are accessible via `process.env.NEXT_PUBLIC_YOUR_VARIABLE`. **Never store secrets in `NEXT_PUBLIC_` variables.**
-- **Server-Side Variables**: Variables without the `NEXT_PUBLIC_` prefix (e.g., `DATABASE_URL`) are only available server-side via `process.env.YOUR_VARIABLE`.
-- **Best Practice: `.env.example`**: Create an `.env.example` file in your project root. This file should list all environment variables your application needs, with placeholder values. It **should be committed to version control** as a template for other developers.
+- Deployment guidance is not finalized. Only the student-facing experience is complete; instructor-facing work is still in progress.
+- When deploying, target a managed Next.js host (e.g., Vercel/Render) and provide the same env vars as local: `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`.
+- Full production steps will be added once the complete experience is ready.
 
-For more comprehensive details, refer to the [official Next.js documentation on environment variables](https://nextjs.org/docs/pages/building-your-application/configuring/environment-variables).
+## Known Issues
 
-## Adding Additional Tech
+- Skill tracking, and badge wallet page UI is not fully aligned with the intended Figma design.
+- Avatar does not render correctly on the QEV page.
+- Lesson checkpoint snapshots currently rely on YouTube thumbnails and do not capture true timestamp stills; proper snapshots would require downloading/processing the video.
+- Completion metrics need reinforcement—percent calculations can be inaccurate in edge cases.
 
-Most projects will require the use of other technologies. Below are a few guides and recommedations for integrating commonly used software into your Next.js project.
+## Notes for Contributors
 
-- [Next.js Setup w/ Prisma](https://www.dhiwise.com/post/the-ultimate-guide-to-next-js-prisma-setup)
-- [Emotion & Next.js](https://www.dhiwise.com/post/implementing-nextjs-emotions-in-your-project) - Emotion is the default CSS-in JS library for all new Spark! projects. Use Emotion instead of styled-components, as styled-components is not as easily compatible with Server Side Rendering, or Typed CSS variables. Emotion is also more readily compatible with a wide array of component libraries.
-- [Clerk Setup w/ Next.js](https://clerk.com/docs/quickstarts/nextjs) - Clerk will be the default user authentication software for all new Spark! projects. Please reach out to Omar for creating and retrieving API keys for your project. Do NOT use firebase/auth even if your project uses Firestore.
-- ### Component Libraries
-  All new projects will be required to use a [design system](https://www.figma.com/blog/design-systems-101-what-is-a-design-system/) You will receive designs from your DS488 design team which will utilize a design kit. Use the corresponding component library to implement those designs on the front end of your project.
+- Navigation highlights use `usePathname`; dynamic badge/lesson routes treat parent nav items as active.
+- Media assets live under `public/` (e.g., `public/assets/...` and `public/edit_avatar/...`); CSS variables and base styles are in `app/globals.css`.
+- The global header hides on lesson video routes (`app/components/GlobalHeader.tsx`) to match the design.
+- Settings and Grades routes exist for parity with the design but intentionally defer to the Profile page for functional controls. Avoid duplicating logic there unless the product direction changes.
+
+## File-by-File Functionality Guide
+
+Use this as a deep map of what each page/component does and how its styles are applied. The list focuses on the TSX entry points and their paired CSS modules.
+
+- **app/page.tsx** — Home/Dashboard. Loads student data via `useStudentData`, builds lesson cards (`lessonRecordToCard`), renders “Up next” and “Pick up where you left off” carousels, wires survey prompts for badge finalization, supports deep-link query `?surveyBadge=slug`, redirects to `/sign-in` when Clerk reports a missing session, and drives sign-out. Includes robust YouTube ID parsing and thumbnail resolution helpers for lessons. Uses `app/page.module.css` for the dashboard layout, grid cards, modals, sidebar alignment, and survey face picker styles.
+
+- **app/badges/page.tsx** — Badge Wallet. Segments badges by status with `SECTION_CONFIG`, renders collapsible sections, and manages badge-specific modal actions (QR code for assessment, survey start for finalization, feedback review, LinkedIn export). Guards authentication, drives sign-out, and keeps click-away handling for modals via `modalRef`. Uses `app/badges/page.module.css` for the layered wallet section stacks, badge tokens, modal styling, and QR overlay.
+
+- **app/badges/[badgeSlug]/feedback/page.tsx** — Badge Feedback detail. Fetches all badges for the signed-in student, validates slug and redirects back to `/badges` when unknown, and presents badge status, cooldown info, lesson summary, required checkpoints, and optional learning resources sourced from `REVIEW_CONTENT`. Navigation highlights the Badge Wallet when inside this nested route. Styling lives in `app/badges/[badgeSlug]/feedback/page.module.css` for the sidebar treatment, header row, badge status card, checkpoint grid, and optional resources list.
+
+- **app/analytics/page.tsx** — Student analytics dashboard. Consumes `studentData.analytics` to populate progress tiles (hours, badges completed/ready/not attempted, questions answered) and circular gauges for scores. Calculates completion percentages from badge counts. Includes nav highlighting, sign-out handling, and authentication redirect. Styled by `app/analytics/page.module.css` for the stat cards, gauge SVG container, grid layout, and color-coded icons.
+
+- **app/profile/page.tsx** — Profile hub. Centralizes sensitive info visibility (auto-hide after 10 minutes with re-auth trigger), language selection modal (currently English only), demographic edit modal (gender, race/ethnicity, parental education, Pell), avatar display from student record, course details with instructor/checker contacts, quick stats, and security shortcuts (change password via Clerk profile, sign out). Pulls student data via `useStudentData`; redirects unauthenticated users. Uses `app/profile/page.module.css` for two-column layout, cards, contact chips, modal overlays, and sensitive-field masking.
+
+- **app/grades/page.tsx** — Placeholder page with nav + sign-out guard and “Gradebook coming soon” copy. Uses global layout classes (no dedicated CSS module).
+
+- **app/settings/page.tsx** — Placeholder page mirroring Grades: guarded route, nav + sign-out, and “coming soon” message. Uses global layout classes.
+
+- **app/lessons/[lessonId]/page.tsx** — Lesson detail. Looks up lesson by slug from `useStudentData`, redirects to `/sign-in` if unauthenticated, and builds the checkpoint timeline with thumbnail resolution (prefers YouTube stills), duration math from checkpoint offsets, and optional trailing segment. Shows resume/start CTA with progress context (answered checkpoints, attempts, grades). Styled by `app/lessons/[lessonId]/page.module.css` (timeline grid, hero section, checkpoint tiles, right-rail summary).
+
+- **app/edit_avatar/page.tsx** — Avatar editor wizard. Three-step selection (base color, face expression, accessory) with live preview and summary of selections. Manages step state, option filtering, and simple navigation. Styled by `app/edit_avatar/page.module.css` for the wizard steps, preview card, and option tiles.
+
+- **app/instructor/qev-demo/page.tsx** — Instructor “Question Embedded Video” prototype. Lets instructors define cue points (timecode, prompt, question count), add/remove/update entries, and serializes the cue list preview. Uses `app/instructor/qev-demo/page.module.css` for form layout, cue item rows, and button variants.
+
+- **app/analytics/page.module.css, app/profile/page.module.css, app/badges/page.module.css, app/badges/[badgeSlug]/feedback/page.module.css, app/lessons/[lessonId]/page.module.css, app/edit_avatar/page.module.css, app/instructor/qev-demo/page.module.css** — Page-scoped styling for the corresponding TSX files: responsive grid/flex layouts, card surfaces, typography scales, icon treatments, modal overlays, and status badges. Each module is imported only by its page to avoid leakage and aligns with the global palette defined in `app/globals.css`.
+
+- **app/components/GlobalHeader.tsx** — Global top bar with logo that auto-hides on lesson video routes by inspecting the pathname. Styled via global classes from `app/globals.css`.
+
+- **app/hooks/useStudentData.ts** — Fetch hook for `/api/demo/student` with abort/timeout safety. Normalizes lesson, badge, survey, analytics shapes for all student-facing pages; exposes `data`, `isLoading`, `error`, and `refresh`.
+
+- **app/api/demo/student/route.ts** — Server route that reads the Clerk user, loads the student/course/lesson/badge graph from Prisma, groups badges by status, enriches lessons with checkpoints/segments/progress, and returns the shape consumed by `useStudentData`.

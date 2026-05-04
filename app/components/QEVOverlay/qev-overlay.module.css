@@ -1,0 +1,26 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #a3bffa;
+}
+
+.prompt {
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.55;
+  color: #f8fafc;
+}
+
+.placeholder {
+  margin: 0;
+  color: #cbd5f5;
+}
