@@ -38,6 +38,10 @@
   gap: 1.25rem;
 }
 
+.section + .section {
+  margin-top: 3rem;
+}
+
 .sectionTitle {
   margin: 0;
   font-size: 2rem;

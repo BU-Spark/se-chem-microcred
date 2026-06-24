@@ -21,6 +21,8 @@ const placeholderLessonImage =
 
 async function clearExistingData() {
   await prisma.$transaction([
+    prisma.assessmentCriterionResponse.deleteMany(),
+    prisma.assessmentAttempt.deleteMany(),
     prisma.checkpointResponse.deleteMany(),
     prisma.checkpointAttempt.deleteMany(),
     prisma.checkpointQuestion.deleteMany(),
@@ -51,7 +53,7 @@ async function seedDemo() {
   const users = await Promise.all([
     prisma.user.create({
       data: {
-        email: 'azemk@bu.edu',
+        email: 'nithin.senthilvel@gmail.com',
         name: 'John Doe',
         buid: 'U1234567',
         gender: 'Male',

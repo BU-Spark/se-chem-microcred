@@ -27,6 +27,9 @@ model User {
   analytics           StudentAnalytics?
   checkpointAttempts  CheckpointAttempt[]
   createdCourses      Course[]             @relation("CourseCreator")
+  createdBadges       Badge[]              @relation("BadgeCreator")
+  assessmentAttempts  AssessmentAttempt[]  @relation("AssessmentStudent")
+  assessmentsGiven    AssessmentAttempt[]  @relation("AssessmentAssessor")
 
   @@map("Student")
 }
@@ -80,6 +83,7 @@ model Course {
   lessons     Lesson[]
   contacts    CourseContact[]
   settings    CourseSettings?
+  assessments AssessmentAttempt[]
 }
 
 model CourseSettings {
@@ -125,6 +129,8 @@ model Enrollment {
   sections EnrollmentSection[]
 
   @@unique([studentId, courseId])
+  @@index([courseId])
+  @@index([role, courseId])
 }
 
 model EnrollmentSection {
@@ -165,6 +171,8 @@ model Lesson {
   badgeRequirements BadgeRequirement[] @relation("BadgeLessonRequirement")
   progress          LessonProgress[]
   surveys           SurveyPrompt[]
+
+  @@index([courseId])
 }
 
 model LessonSkill {
@@ -220,6 +228,7 @@ model LessonCheckpoint {
   attempts  CheckpointAttempt[]
 
   @@unique([lessonId, sortOrder])
+  @@index([segmentId])
 }
 
 model CheckpointQuestion {
@@ -330,11 +339,20 @@ model Badge {
   name            String
   description     String?
   category        BadgeCategory?
+  createdById     String?
+  sourceBadgeId   String?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+  createdBy       User?              @relation("BadgeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  sourceBadge     Badge?             @relation("BadgeSource", fields: [sourceBadgeId], references: [id], onDelete: SetNull)
+  importedCopies  Badge[]            @relation("BadgeSource")
   requirements    BadgeRequirement[]
   studentProgress StudentBadge[]
   surveys         SurveyPrompt[]
+  assessments     AssessmentAttempt[]
+
+  @@index([createdById])
+  @@index([sourceBadgeId])
 }
 
 enum BadgeCategory {
@@ -354,6 +372,9 @@ model BadgeRequirement {
 
   badge  Badge   @relation(fields: [badgeId], references: [id])
   lesson Lesson? @relation("BadgeLessonRequirement", fields: [lessonId], references: [id])
+
+  @@index([badgeId])
+  @@index([lessonId])
 }
 
 model StudentBadge {
@@ -370,6 +391,8 @@ model StudentBadge {
   badge   Badge @relation(fields: [badgeId], references: [id])
 
   @@unique([studentId, badgeId])
+  @@index([badgeId])
+  @@index([status, badgeId])
 }
 
 model StudentAnalytics {
@@ -386,6 +409,48 @@ model StudentAnalytics {
   updatedAt                DateTime @updatedAt
 
   student User @relation(fields: [studentId], references: [id])
+}
+
+model AssessmentAttempt {
+  id          String    @id @default(cuid())
+  courseId    String
+  badgeId     String
+  studentId   String
+  assessorId  String
+  passed      Boolean
+  score       Int?
+  feedback    String?
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  course    Course                       @relation(fields: [courseId], references: [id])
+  badge     Badge                        @relation(fields: [badgeId], references: [id])
+  student   User                         @relation("AssessmentStudent", fields: [studentId], references: [id])
+  assessor  User                         @relation("AssessmentAssessor", fields: [assessorId], references: [id])
+  responses AssessmentCriterionResponse[]
+
+  @@index([courseId, badgeId])
+  @@index([studentId, badgeId])
+  @@index([assessorId])
+  @@index([completedAt])
+}
+
+model AssessmentCriterionResponse {
+  id             String   @id @default(cuid())
+  attemptId      String
+  criterionKey   String
+  criterion      String
+  selectedOption String?
+  notes          String?
+  passed         Boolean?
+  sortOrder      Int
+  createdAt      DateTime @default(now())
+
+  attempt AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
 }
 
 enum BadgeStatus {

@@ -183,6 +183,33 @@ describe('Home Page', () => {
         };
       }
 
+      if (url === '/api/courses/assessor?email=student%40example.edu') {
+        return {
+          ok: true,
+          json: async () => ({
+            user: { name: 'Student Demo', email: 'student@example.edu' },
+            count: 1,
+            enrollments: [
+              {
+                id: 'checker-enrollment-1',
+                role: 'CHECKER',
+                sections: ['K1'],
+                course: {
+                  id: 'assessor-course-1',
+                  title: 'Assessor Course 1',
+                  description: null,
+                  section: null,
+                  sectionCount: 1,
+                  createdAt: '2026-03-28T18:35:48.000Z',
+                  lessons: [],
+                  enrollments: [{ id: 'checker-enrollment-1', role: 'CHECKER' }],
+                },
+              },
+            ],
+          }),
+        };
+      }
+
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
@@ -195,6 +222,7 @@ describe('Home Page', () => {
     expect(screen.getByText('Student Demo')).toBeInTheDocument();
     expect(screen.getByText('SD')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Courses' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Assessor Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Enrolled Courses' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
 
@@ -205,6 +233,9 @@ describe('Home Page', () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith('/api/courses/enrolled?email=student%40example.edu', {
+      headers: { Accept: 'application/json' },
+    });
+    expect(mockFetch).toHaveBeenCalledWith('/api/courses/assessor?email=student%40example.edu', {
       headers: { Accept: 'application/json' },
     });
 
@@ -218,6 +249,11 @@ describe('Home Page', () => {
     expect(screen.getByRole('link', { name: 'Open Created Course 2' })).toHaveAttribute(
       'href',
       '/courses/created-course-2'
+    );
+    expect(screen.getByText('Assessor Course 1')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open Assessor Course 1' })).toHaveAttribute(
+      'href',
+      '/courses/assessor-course-1?view=assessor'
     );
 
     expect(screen.getByText('General Chemistry')).toBeInTheDocument();
@@ -233,7 +269,7 @@ describe('Home Page', () => {
 
     const createdGrid = screen.getByTestId('created-courses-grid');
     expect(createdGrid.firstElementChild).toHaveAttribute('data-testid', 'add-course-card');
-    expect(screen.getAllByTestId('course-card')).toHaveLength(2);
+    expect(screen.getAllByTestId('course-card')).toHaveLength(3);
     expect(screen.getAllByTestId('enrolled-course-card')).toHaveLength(2);
   });
 

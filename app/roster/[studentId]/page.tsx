@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
@@ -64,6 +65,7 @@ type InstructorMemberProfileResponse = {
   badges: {
     inProgress: StudentProfileBadge[];
     notStarted: StudentProfileBadge[];
+    readyForFinalization: StudentProfileBadge[];
     completed: StudentProfileBadge[];
   };
 };
@@ -379,7 +381,11 @@ export default function InstructorStudentProfilePage() {
     () => data?.badges.completed.find((badge) => badge.id === selectedBadgeId) ?? null,
     [data?.badges.completed, selectedBadgeId]
   );
-  const selectedBadgeTone: BadgeDetailTone | null = selectedCompletedBadge
+  const selectedReadyForFinalizationBadge = useMemo(
+    () => data?.badges.readyForFinalization.find((badge) => badge.id === selectedBadgeId) ?? null,
+    [data?.badges.readyForFinalization, selectedBadgeId]
+  );
+  const selectedBadgeTone: BadgeDetailTone | null = selectedCompletedBadge || selectedReadyForFinalizationBadge
     ? 'completed'
     : selectedInProgressBadge
       ? 'progress'
@@ -395,6 +401,8 @@ export default function InstructorStudentProfilePage() {
     showBadgesSection && selectedBadgeTone ? selectedBadgeId : null,
     email
   );
+  const selectedBadgeDisplayTone: BadgeDetailTone | null =
+    selectedBadgeDetail?.progress.assessmentComplete === true ? 'completed' : selectedBadgeTone;
 
   const buildProfileHref = useCallback(
     (badgeId?: string | null) => {
@@ -641,8 +649,20 @@ export default function InstructorStudentProfilePage() {
                       </section>
                     ) : null}
 
-                    {!isBadgeDetailLoading && !badgeDetailError && selectedBadgeDetail ? (
-                      <BadgeDetailCard detail={selectedBadgeDetail} tone={selectedBadgeTone} />
+                    {!isBadgeDetailLoading && !badgeDetailError && selectedBadgeDetail && selectedBadgeDisplayTone ? (
+                      <>
+                        <BadgeDetailCard detail={selectedBadgeDetail} tone={selectedBadgeDisplayTone} />
+                        {selectedBadgeDisplayTone === 'progress' ? (
+                          <div className={styles.assessmentActionRow}>
+                            <Link
+                              href={`/assessments/${courseId}/students/${studentId}/badges/${selectedBadgeId}`}
+                              className={styles.assessmentLink}
+                            >
+                              Open Assessment View
+                            </Link>
+                          </div>
+                        ) : null}
+                      </>
                     ) : null}
                   </>
                 ) : (
@@ -664,6 +684,15 @@ export default function InstructorStudentProfilePage() {
                     <section className={styles.badgeSection}>
                       <h3 className={styles.badgeSectionTitle}>In-progress</h3>
                       <BadgeGrid badges={data.badges.inProgress} onSelectBadge={handleBadgeSelect} />
+                    </section>
+
+                    <section className={styles.badgeSection}>
+                      <h3 className={styles.badgeSectionTitle}>Ready for finalization</h3>
+                      <BadgeGrid
+                        badges={data.badges.readyForFinalization}
+                        tone="completed"
+                        onSelectBadge={handleBadgeSelect}
+                      />
                     </section>
 
                     <button

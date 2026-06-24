@@ -546,10 +546,18 @@
 
 .assessmentMeta,
 .assessmentAttemptLine,
+.assessmentAttemptFeedback,
 .questionPrompt {
   margin: 0;
   font-size: 0.9rem;
   color: #373737;
+}
+
+.assessmentAttemptFeedback {
+  max-width: 48rem;
+  border-left: 3px solid #2E6AA9;
+  padding-left: 0.75rem;
+  line-height: 1.45;
 }
 
 .gradingBox {
@@ -659,6 +667,24 @@
   margin: 0;
   font-size: 0.95rem;
   color: #6b7280;
+}
+
+.assessmentActionRow {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.9rem;
+}
+
+.assessmentLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.9rem;
+  padding: 0.85rem 1.15rem;
+  background: #2E6AA9;
+  color: #ffffff;
+  font-size: 0.95rem;
+  text-decoration: none;
 }
 
 .chevron {

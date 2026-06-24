@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import type { BadgeCategory } from '@prisma/client';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
@@ -21,17 +21,24 @@ type CheckpointDraft = {
   time: string;
   points: number;
   question: string;
+  questionType: 'multipleChoice' | 'shortAnswer';
   options: string[];
-  correctIndex: number;
+  correctIndices: number[];
+  numericAnswer: string;
+  numericRangeMin: string;
+  numericRangeMax: string;
   segmentLabel: string;
 };
 
 type RubricCriterion = {
   id: string;
   prompt: string;
-  failingFeedback: string;
-  coachingFeedback: string;
-  passingFeedback: string;
+  options: string[];
+};
+
+type RubricItem = {
+  id: string;
+  text: string;
 };
 
 type BadgeDraft = {
@@ -50,11 +57,40 @@ type BadgeDraft = {
   reassessmentRequired: boolean;
   reassessmentResources: string[];
   rubricOverview: string;
+  rubricItems: RubricItem[];
   rubricCriteria: RubricCriterion[];
 };
 
+type BadgeCatalogItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  category: BadgeCategory | null;
+  requirements: Array<{
+    displayText: string;
+    rubricItems: Array<{ number: number; text: string }>;
+    gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
+    checkpoints?: Array<Partial<CheckpointDraft> & { number?: number; correctIndex?: number | null }>;
+    lesson: {
+      title: string;
+      description: string | null;
+      dueDate: string | null;
+      estimatedMinutes: number | null;
+      segment: {
+        title: string;
+        duration: number | null;
+        videoUrl: string | null;
+      } | null;
+    } | null;
+  }>;
+};
+
+type BadgesResponse = {
+  badges: BadgeCatalogItem[];
+};
+
 const DRAFT_STORAGE_KEY = 'badge_creation_draft_v1';
-const DEFAULT_VIDEO_FALLBACK = 'How to use a Bunsen Burner';
+const DEFAULT_VIDEO_FALLBACK = 'Lesson video';
 
 const STEP_DEFINITIONS: StepDefinition[] = [
   { key: 'badgeInfo', label: 'Badge Info' },
@@ -65,95 +101,50 @@ const STEP_DEFINITIONS: StepDefinition[] = [
 ];
 
 const DEFAULT_DRAFT: BadgeDraft = {
-  badgeName: 'Bunsen Burner',
-  badgeDescription:
-    'While the hot plate has become the standard for heating aqueous reactions, the Bunsen burner retains its importance for precise flame applications, particularly in higher-temperature tasks like dehydrating salts and conducting flame tests. Additionally, it is commonly used in biological research labs for high-heat sterilization purposes. Knowing how to deliver consistent heating with a burner is paramount for its effective and safe utilization.',
-  category: 'EQUIPMENT',
-  availableOn: '2025-11-03',
-  closesOn: '2025-12-10',
-  neverCloses: false,
-  youtubeUrl: 'https://www.youtube.com/watch?v=4l0iG6kQk8Q',
-  videoTitle: DEFAULT_VIDEO_FALLBACK,
-  videoLength: '00:20:00',
+  badgeName: '',
+  badgeDescription: '',
+  category: 'OTHER',
+  availableOn: '',
+  closesOn: '',
+  neverCloses: true,
+  youtubeUrl: '',
+  videoTitle: '',
+  videoLength: '',
   checkpoints: [
     {
       id: 'checkpoint-1',
       title: 'Checkpoint 1',
-      time: '00:03:00',
+      time: '00:00:00',
       points: 5,
-      question: 'What is the safest first adjustment before lighting the burner?',
-      options: [
-        'Close or partially close the air hole',
-        'Open the gas valve fully',
-        'Remove the burner collar',
-        'Disconnect the tubing',
-      ],
-      correctIndex: 0,
+      question: '',
+      questionType: 'multipleChoice',
+      options: ['', '', '', ''],
+      correctIndices: [0],
+      numericAnswer: '',
+      numericRangeMin: '',
+      numericRangeMax: '',
       segmentLabel: 'Segment 1 Starts 00:00:00',
     },
+  ],
+  reassessmentLimit: 0,
+  cooldownDays: 0,
+  reassessmentRequired: false,
+  reassessmentResources: [],
+  rubricOverview: '',
+  rubricItems: [
     {
-      id: 'checkpoint-2',
-      title: 'Checkpoint 2',
-      time: '00:08:00',
-      points: 5,
-      question: 'Which flame color indicates the burner is adjusted correctly?',
-      options: ['Bright orange', 'Tight blue flame', 'White spark', 'No visible flame'],
-      correctIndex: 1,
-      segmentLabel: 'Segment 2 Starts 00:05:00',
-    },
-    {
-      id: 'checkpoint-3',
-      title: 'Checkpoint 3',
-      time: '00:13:00',
-      points: 10,
-      question: 'Why should the gas valve handle be perpendicular when off?',
-      options: [
-        'It confirms gas flow is stopped',
-        'It makes the flame taller',
-        'It keeps the tubing warm',
-        'It increases air intake',
-      ],
-      correctIndex: 0,
-      segmentLabel: 'Segment 3 Starts 00:10:00',
+      id: 'rubric-item-1',
+      text: '',
     },
   ],
-  reassessmentLimit: 3,
-  cooldownDays: 4,
-  reassessmentRequired: true,
-  reassessmentResources: ['https://reassessmentvideolinkgoeshere', 'https://reassessmentvideolinkgoeshere'],
-  rubricOverview:
-    'Make sure the lab bench is clear of flammable materials. Make sure the natural gas flow is off before connecting the burner or whenever the burner is not in use. The gas valve handle should be perpendicular to the nozzle when at the off position. Firmly connect the tubing from the burner to the gas nozzle. Close or partially close the air hole by adjusting the collar on the burner to make it easier to light. Turn on the gas nozzle to allow natural gas into the burner, then adjust after the flame is lit.',
   rubricCriteria: [
     {
       id: 'criterion-1',
-      prompt: 'Student could identify the on and off positions of the gas valve.',
-      failingFeedback: 'Did not identify the gas valve positions.',
-      coachingFeedback: 'Attempted to identify the valve positions but needed support.',
-      passingFeedback: 'Correctly identified the gas valve positions with confidence.',
-    },
-    {
-      id: 'criterion-2',
-      prompt: 'Student correctly adjusted the burner to get a tight and blue flame.',
-      failingFeedback: 'Did not adjust the flame.',
-      coachingFeedback: 'Attempted to adjust but did not succeed.',
-      passingFeedback: 'Adjusted the flame correctly.',
-    },
-    {
-      id: 'criterion-3',
-      prompt: 'Student could explain why they adjusted the gas nozzle and collar.',
-      failingFeedback: 'Unable to explain the purpose of the collar or gas nozzle.',
-      coachingFeedback: 'Could explain one adjustment but not both.',
-      passingFeedback: 'Clearly explained the purpose of each adjustment.',
+      prompt: '',
+      options: ['', '', ''],
     },
   ],
 };
-
-function initialsFromName(name?: string | null) {
-  if (!name) return 'ST';
-  const parts = name.trim().split(/\s+/);
-  const initials = parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase());
-  return initials.join('') || 'ST';
-}
 
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
@@ -202,13 +193,97 @@ function buildVideoThumbnail(url: string) {
   return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
 }
 
+function formatDateInput(value?: string | null) {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  return date.toISOString().slice(0, 10);
+}
+
+function formatDurationInput(seconds?: number | null, fallbackMinutes?: number | null) {
+  const totalSeconds = seconds ?? (fallbackMinutes ? fallbackMinutes * 60 : 0);
+  if (!totalSeconds) return '';
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const remainingSeconds = totalSeconds % 60;
+
+  return [hours, minutes, remainingSeconds].map((part) => String(part).padStart(2, '0')).join(':');
+}
+
+function checkpointFromCatalog(
+  checkpoint: (Partial<CheckpointDraft> & { number?: number; correctIndex?: number | null }) | undefined,
+  index: number
+): CheckpointDraft {
+  const title = checkpoint?.title || `Checkpoint ${index + 1}`;
+  const options = checkpoint?.options?.length ? checkpoint.options : ['', '', '', ''];
+  const correctIndices =
+    checkpoint?.correctIndices?.length && checkpoint.correctIndices.every((optionIndex) => typeof optionIndex === 'number')
+      ? checkpoint.correctIndices
+      : typeof checkpoint?.correctIndex === 'number'
+        ? [checkpoint.correctIndex]
+        : [0];
+
+  return {
+    id: `checkpoint-${index + 1}`,
+    title,
+    time: checkpoint?.time || '00:00:00',
+    points: Number(checkpoint?.points) || 5,
+    question: checkpoint?.question || '',
+    questionType: checkpoint?.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice',
+    options: [...options, '', '', '', ''].slice(0, Math.max(4, options.length)),
+    correctIndices,
+    numericAnswer: checkpoint?.numericAnswer ? String(checkpoint.numericAnswer) : '',
+    numericRangeMin: checkpoint?.numericRangeMin ? String(checkpoint.numericRangeMin) : '',
+    numericRangeMax: checkpoint?.numericRangeMax ? String(checkpoint.numericRangeMax) : '',
+    segmentLabel: checkpoint?.segmentLabel || `Segment ${index + 1} Starts ${checkpoint?.time || '00:00:00'}`,
+  };
+}
+
+function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
+  const requirement = badge.requirements[0];
+  const lesson = requirement?.lesson ?? null;
+  const segment = lesson?.segment ?? null;
+  const rubricItems = requirement?.rubricItems?.length
+    ? requirement.rubricItems.map((item) => ({
+        id: `rubric-item-${item.number}`,
+        text: item.text,
+      }))
+    : [{ id: 'rubric-item-1', text: requirement?.displayText ?? '' }];
+  const rubricCriteria = requirement?.gradingCriteria?.length
+    ? requirement.gradingCriteria.map((criterion) => ({
+        id: `criterion-${criterion.number}`,
+        prompt: criterion.criterion ?? '',
+        options: criterion.options.length ? criterion.options : ['', '', ''],
+      }))
+    : DEFAULT_DRAFT.rubricCriteria;
+
+  return {
+    ...DEFAULT_DRAFT,
+    badgeName: badge.name,
+    badgeDescription: badge.description ?? '',
+    category: badge.category ?? 'OTHER',
+    closesOn: formatDateInput(lesson?.dueDate),
+    neverCloses: !lesson?.dueDate,
+    youtubeUrl: segment?.videoUrl ?? '',
+    videoTitle: segment?.title ?? lesson?.title ?? '',
+    videoLength: formatDurationInput(segment?.duration, lesson?.estimatedMinutes),
+    checkpoints: requirement?.checkpoints?.length
+      ? requirement.checkpoints.map((checkpoint, index) => checkpointFromCatalog(checkpoint, index))
+      : DEFAULT_DRAFT.checkpoints,
+    rubricItems,
+    rubricCriteria,
+  };
+}
+
 function ProgressStep({ index, activeIndex, label }: { index: number; activeIndex: number; label: string }) {
   const isComplete = index < activeIndex;
   const isActive = index === activeIndex;
 
   return (
     <div className={styles.progressStep}>
-      <div className={styles.progressLine} aria-hidden={index === 0} data-complete={isComplete ? 'true' : 'false'} />
       <div
         className={styles.progressDot}
         data-active={isActive ? 'true' : 'false'}
@@ -223,15 +298,22 @@ function ProgressStep({ index, activeIndex, label }: { index: number; activeInde
 
 export default function BadgeCreationPage() {
   const router = useRouter();
-  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { user, isLoaded, isSignedIn } = useUser();
   const { signOut } = useAuth();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
+  const courseId = searchParams.get('courseId');
+  const editBadgeId = searchParams.get('badgeId');
+  const isEditMode = Boolean(editBadgeId);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [draft, setDraft] = useState<BadgeDraft>(DEFAULT_DRAFT);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [submissionState, setSubmissionState] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoadingEditBadge, setIsLoadingEditBadge] = useState(false);
+  const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -240,7 +322,7 @@ export default function BadgeCreationPage() {
   }, [isLoaded, isSignedIn, router]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || isEditMode) return;
 
     const storedDraft = window.localStorage.getItem(DRAFT_STORAGE_KEY);
     if (!storedDraft) return;
@@ -252,30 +334,67 @@ export default function BadgeCreationPage() {
         ...parsed,
         checkpoints: parsed.checkpoints ?? current.checkpoints,
         reassessmentResources: parsed.reassessmentResources ?? current.reassessmentResources,
+        rubricItems: parsed.rubricItems ?? current.rubricItems,
         rubricCriteria: parsed.rubricCriteria ?? current.rubricCriteria,
       }));
     } catch {
       window.localStorage.removeItem(DRAFT_STORAGE_KEY);
     }
-  }, []);
+  }, [isEditMode]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || isEditMode) return;
     window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
-  }, [draft]);
+  }, [draft, isEditMode]);
 
-  const navItems = [
-    { label: 'Home', href: '/' },
-    { label: 'Profile', href: '/profile' },
-    { label: 'My Analytics', href: '/analytics' },
-    { label: 'Badges', href: '/badge_creation' },
-    { label: 'Badge Wallet', href: '/badges' },
-    { label: 'My Badges', href: '/my_badges' },
-    { label: 'Grades', href: '/grades' },
-    { label: 'Settings', href: '/settings' },
-  ];
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn || !editBadgeId) return;
 
-  const displayName = studentData?.student?.name || user?.fullName || 'Professor';
+    let isActive = true;
+
+    const loadBadgeForEditing = async () => {
+      setIsLoadingEditBadge(true);
+      setSubmitError('');
+
+      try {
+        const response = await fetch('/api/badges', {
+          headers: { Accept: 'application/json' },
+        });
+        const payload = (await response.json().catch(() => ({
+          error: `Request failed with status ${response.status}`,
+        }))) as BadgesResponse & { error?: string };
+
+        if (!response.ok) {
+          throw new Error(payload.error ?? 'Failed to load badge.');
+        }
+
+        const badge = payload.badges.find((entry) => entry.id === editBadgeId);
+        if (!badge) {
+          throw new Error('Badge not found.');
+        }
+
+        if (isActive) {
+          setDraft(badgeToDraft(badge));
+        }
+      } catch (error) {
+        if (isActive) {
+          setSubmitError(error instanceof Error ? error.message : 'Failed to load badge.');
+        }
+      } finally {
+        if (isActive) {
+          setIsLoadingEditBadge(false);
+        }
+      }
+    };
+
+    void loadBadgeForEditing();
+
+    return () => {
+      isActive = false;
+    };
+  }, [editBadgeId, isLoaded, isSignedIn]);
+
+  const displayName = studentData?.student?.name || user?.fullName || '';
   const activeStep = STEP_DEFINITIONS[currentStep];
   const videoEmbedUrl = buildVideoEmbedUrl(draft.youtubeUrl);
   const videoThumbnail = buildVideoThumbnail(draft.youtubeUrl);
@@ -297,6 +416,7 @@ export default function BadgeCreationPage() {
   const updateDraft = <K extends keyof BadgeDraft>(field: K, value: BadgeDraft[K]) => {
     setDraft((current) => ({ ...current, [field]: value }));
     setSubmissionState(null);
+    setSubmitError('');
   };
 
   const updateCheckpoint = <K extends keyof CheckpointDraft>(
@@ -323,6 +443,27 @@ export default function BadgeCreationPage() {
     );
   };
 
+  const toggleCheckpointCorrectOption = (checkpointId: string, optionIndex: number) => {
+    updateDraft(
+      'checkpoints',
+      draft.checkpoints.map((checkpoint) => {
+        if (checkpoint.id !== checkpointId) return checkpoint;
+
+        const correctSet = new Set(checkpoint.correctIndices);
+        if (correctSet.has(optionIndex)) {
+          correctSet.delete(optionIndex);
+        } else {
+          correctSet.add(optionIndex);
+        }
+
+        return {
+          ...checkpoint,
+          correctIndices: Array.from(correctSet).sort((left, right) => left - right),
+        };
+      })
+    );
+  };
+
   const addCheckpoint = () => {
     const nextCount = draft.checkpoints.length + 1;
     updateDraft('checkpoints', [
@@ -333,8 +474,12 @@ export default function BadgeCreationPage() {
         time: '00:00:00',
         points: 5,
         question: '',
+        questionType: 'multipleChoice',
         options: ['', '', '', ''],
-        correctIndex: 0,
+        correctIndices: [0],
+        numericAnswer: '',
+        numericRangeMin: '',
+        numericRangeMax: '',
         segmentLabel: `Segment ${Math.max(nextCount, 1)} Starts 00:00:00`,
       },
     ]);
@@ -360,63 +505,150 @@ export default function BadgeCreationPage() {
     );
   };
 
+  const updateRubricItem = (itemId: string, text: string) => {
+    updateDraft(
+      'rubricItems',
+      draft.rubricItems.map((item) => (item.id === itemId ? { ...item, text } : item))
+    );
+  };
+
+  const addRubricItem = () => {
+    updateDraft('rubricItems', [
+      ...draft.rubricItems,
+      {
+        id: `rubric-item-${Date.now()}`,
+        text: '',
+      },
+    ]);
+  };
+
+  const removeRubricItem = (itemId: string) => {
+    if (draft.rubricItems.length <= 1) return;
+
+    updateDraft(
+      'rubricItems',
+      draft.rubricItems.filter((item) => item.id !== itemId)
+    );
+  };
+
+  const addRubricCriterion = () => {
+    updateDraft('rubricCriteria', [
+      ...draft.rubricCriteria,
+      {
+        id: `criterion-${Date.now()}`,
+        prompt: '',
+        options: ['', '', ''],
+      },
+    ]);
+  };
+
+  const removeRubricCriterion = (criterionId: string) => {
+    if (draft.rubricCriteria.length <= 1) return;
+
+    updateDraft(
+      'rubricCriteria',
+      draft.rubricCriteria.filter((criterion) => criterion.id !== criterionId)
+    );
+  };
+
+  const updateRubricCriterionOption = (criterionId: string, optionIndex: number, value: string) => {
+    updateDraft(
+      'rubricCriteria',
+      draft.rubricCriteria.map((criterion) => {
+        if (criterion.id !== criterionId) return criterion;
+
+        return {
+          ...criterion,
+          options: criterion.options.map((option, index) => (index === optionIndex ? value : option)),
+        };
+      })
+    );
+  };
+
+  const addRubricCriterionOption = (criterionId: string) => {
+    updateDraft(
+      'rubricCriteria',
+      draft.rubricCriteria.map((criterion) =>
+        criterion.id === criterionId ? { ...criterion, options: [...criterion.options, ''] } : criterion
+      )
+    );
+  };
+
+  const removeRubricCriterionOption = (criterionId: string, optionIndex: number) => {
+    updateDraft(
+      'rubricCriteria',
+      draft.rubricCriteria.map((criterion) => {
+        if (criterion.id !== criterionId || criterion.options.length <= 1) return criterion;
+
+        return {
+          ...criterion,
+          options: criterion.options.filter((_, index) => index !== optionIndex),
+        };
+      })
+    );
+  };
+
   const goToStep = (stepIndex: number) => {
     setCurrentStep(stepIndex);
     setSubmissionState(null);
   };
 
-  const handleNext = () => {
+  const saveBadge = async () => {
+    const response = await fetch('/api/badges', {
+      method: isEditMode ? 'PATCH' : 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        id: editBadgeId,
+        courseId,
+        ...draft,
+      }),
+    });
+
+    const payload = await response.json().catch(() => ({
+      error: `Request failed with status ${response.status}`,
+    }));
+
+    if (!response.ok) {
+      throw new Error(payload.error ?? `Failed to ${isEditMode ? 'update' : 'create'} badge.`);
+    }
+
+    return payload;
+  };
+
+  const handleNext = async () => {
     if (currentStep < STEP_DEFINITIONS.length - 1) {
       setCurrentStep((step) => step + 1);
       return;
     }
 
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+    setSubmitError('');
+    setIsSubmitting(true);
+
+    try {
+      await saveBadge();
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      }
+      setSubmissionState(`Badge ${isEditMode ? 'updated' : 'created'} successfully.`);
+      setIsSuccessModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      setSubmitError(error instanceof Error ? error.message : `Failed to ${isEditMode ? 'update' : 'create'} badge.`);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    setSubmissionState(
-      'Badge creation draft saved locally from the review step. No server-side create endpoint exists yet, so the flow currently preserves a schema-ready draft and returns you to My Badges.'
-    );
-
-    window.setTimeout(() => {
-      router.push('/my_badges');
-    }, 1200);
   };
 
   return (
-    <div className="page">
-      <aside className="sidebar">
-        <div className="profile">
-          <div className="avatar">{initialsFromName(displayName)}</div>
-          <div className="name">{displayName}</div>
-        </div>
+    <div className={`page ${styles.page}`}>
+      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
-        <nav className="navList" aria-label="Main">
-          {navItems.map((item) => {
-            const isActive = pathname === item.href;
-            return (
-              <Link key={item.href} href={item.href} className={`navItem${isActive ? ' navItemActive' : ''}`}>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="sidebarFooter">
-          <button type="button" onClick={handleSignOut} className="signOffButton" disabled={isSigningOut}>
-            {isSigningOut ? 'Signing off...' : 'Sign off'}
-          </button>
-        </div>
-      </aside>
-
-      <main className="main">
+      <main className={`main ${styles.main}`}>
         <div className={styles.pageShell}>
           <header className={styles.pageHeader}>
-            <div>
-              <h1 className={styles.pageTitle}>Create a Badge</h1>
-            </div>
-            <span className={styles.wordmark}>checkd.</span>
+            <h1 className={styles.pageTitle}>{isEditMode ? 'Edit Badge' : 'Create a Badge'}</h1>
           </header>
 
           <section className={styles.progressTrack} aria-label="Badge creation steps">
@@ -442,6 +674,8 @@ export default function BadgeCreationPage() {
             </div>
 
             {submissionState ? <div className={styles.noticeBanner}>{submissionState}</div> : null}
+            {isLoadingEditBadge ? <div className={styles.noticeBanner}>Loading badge details...</div> : null}
+            {submitError ? <p className={styles.errorText}>{submitError}</p> : null}
 
             {currentStep === 0 && (
               <div className={styles.badgeInfoLayout}>
@@ -454,6 +688,7 @@ export default function BadgeCreationPage() {
                     className={styles.underlineInput}
                     value={draft.badgeName}
                     onChange={(event) => updateDraft('badgeName', event.target.value)}
+                    placeholder="Badge Name"
                   />
                 </div>
 
@@ -466,7 +701,25 @@ export default function BadgeCreationPage() {
                     className={styles.descriptionInput}
                     value={draft.badgeDescription}
                     onChange={(event) => updateDraft('badgeDescription', event.target.value)}
+                    placeholder="Describe what students will learn and demonstrate."
                   />
+                </div>
+
+                <div className={styles.badgeInfoField}>
+                  <label className={styles.sectionLabel} htmlFor="badgeCategory">
+                    Category
+                  </label>
+                  <select
+                    id="badgeCategory"
+                    className={styles.selectField}
+                    value={draft.category}
+                    onChange={(event) => updateDraft('category', event.target.value as BadgeCategory)}
+                  >
+                    <option value="SAFETY">Safety</option>
+                    <option value="EQUIPMENT">Equipment</option>
+                    <option value="WASTE">Waste</option>
+                    <option value="OTHER">Other</option>
+                  </select>
                 </div>
 
                 <div className={styles.badgeInfoField}>
@@ -670,26 +923,89 @@ export default function BadgeCreationPage() {
                           />
                         </label>
 
-                        <div className={styles.optionList}>
-                          {checkpoint.options.map((option, optionIndex) => (
-                            <label key={`${checkpoint.id}-option-${optionIndex}`} className={styles.optionRow}>
+                        <label className={styles.fieldStack}>
+                          <span>Question type</span>
+                          <select
+                            aria-label={`${checkpoint.title} question type`}
+                            className={styles.selectField}
+                            value={checkpoint.questionType}
+                            onChange={(event) =>
+                              updateCheckpoint(
+                                checkpoint.id,
+                                'questionType',
+                                event.target.value as CheckpointDraft['questionType']
+                              )
+                            }
+                          >
+                            <option value="multipleChoice">Multiple choice</option>
+                            <option value="shortAnswer">Short answer number</option>
+                          </select>
+                        </label>
+
+                        {checkpoint.questionType === 'multipleChoice' ? (
+                          <div className={styles.optionList}>
+                            {checkpoint.options.map((option, optionIndex) => (
+                              <label key={`${checkpoint.id}-option-${optionIndex}`} className={styles.optionRow}>
+                                <input
+                                  type="checkbox"
+                                  checked={checkpoint.correctIndices.includes(optionIndex)}
+                                  onChange={() => toggleCheckpointCorrectOption(checkpoint.id, optionIndex)}
+                                  aria-label={`Choice ${optionIndex + 1} is correct`}
+                                />
+                                <input
+                                  className={styles.textField}
+                                  value={option}
+                                  placeholder={`Choice ${optionIndex + 1}`}
+                                  onChange={(event) =>
+                                    updateCheckpointOption(checkpoint.id, optionIndex, event.target.value)
+                                  }
+                                />
+                              </label>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className={styles.shortAnswerGrid}>
+                            <label className={styles.fieldStack}>
+                              <span>Exact numeric answer</span>
                               <input
-                                type="radio"
-                                name={`${checkpoint.id}-correct`}
-                                checked={checkpoint.correctIndex === optionIndex}
-                                onChange={() => updateCheckpoint(checkpoint.id, 'correctIndex', optionIndex)}
-                              />
-                              <input
+                                aria-label={`${checkpoint.title} exact numeric answer`}
                                 className={styles.textField}
-                                value={option}
-                                placeholder={`Choice ${optionIndex + 1}`}
+                                value={checkpoint.numericAnswer}
+                                inputMode="decimal"
+                                placeholder="42"
                                 onChange={(event) =>
-                                  updateCheckpointOption(checkpoint.id, optionIndex, event.target.value)
+                                  updateCheckpoint(checkpoint.id, 'numericAnswer', event.target.value)
                                 }
                               />
                             </label>
-                          ))}
-                        </div>
+                            <label className={styles.fieldStack}>
+                              <span>Accepted minimum</span>
+                              <input
+                                aria-label={`${checkpoint.title} accepted minimum`}
+                                className={styles.textField}
+                                value={checkpoint.numericRangeMin}
+                                inputMode="decimal"
+                                placeholder="40"
+                                onChange={(event) =>
+                                  updateCheckpoint(checkpoint.id, 'numericRangeMin', event.target.value)
+                                }
+                              />
+                            </label>
+                            <label className={styles.fieldStack}>
+                              <span>Accepted maximum</span>
+                              <input
+                                aria-label={`${checkpoint.title} accepted maximum`}
+                                className={styles.textField}
+                                value={checkpoint.numericRangeMax}
+                                inputMode="decimal"
+                                placeholder="45"
+                                onChange={(event) =>
+                                  updateCheckpoint(checkpoint.id, 'numericRangeMax', event.target.value)
+                                }
+                              />
+                            </label>
+                          </div>
+                        )}
                       </article>
                     ))}
                   </div>
@@ -701,61 +1017,97 @@ export default function BadgeCreationPage() {
               <div className={styles.rubricLayout}>
                 <div className={styles.editorCard}>
                   <h3 className={styles.panelTitle}>Create Rubric</h3>
-                  <textarea
-                    className={styles.longTextArea}
-                    value={draft.rubricOverview}
-                    onChange={(event) => updateDraft('rubricOverview', event.target.value)}
-                  />
+                  <div className={styles.numberedRubricList}>
+                    {draft.rubricItems.map((item, index) => (
+                      <div key={item.id} className={styles.numberedRubricItem}>
+                        <span className={styles.rubricNumber}>{index + 1}.</span>
+                        <textarea
+                          aria-label={`Rubric item ${index + 1}`}
+                          className={styles.textAreaCompact}
+                          value={item.text}
+                          onChange={(event) => updateRubricItem(item.id, event.target.value)}
+                          placeholder="Describe the performance expectation."
+                        />
+                        <button
+                          type="button"
+                          className={styles.removeTextButton}
+                          onClick={() => removeRubricItem(item.id)}
+                          disabled={draft.rubricItems.length <= 1}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <button type="button" className={styles.secondaryButton} onClick={addRubricItem}>
+                    Add Rubric Item
+                  </button>
                 </div>
 
                 <div className={styles.editorCard}>
                   <h3 className={styles.panelTitle}>Instructor Grading</h3>
                   <div className={styles.rubricList}>
-                    {draft.rubricCriteria.map((criterion) => (
+                    {draft.rubricCriteria.map((criterion, criterionIndex) => (
                       <div key={criterion.id} className={styles.rubricCriterionCard}>
                         <label className={styles.fieldStack}>
-                          <span>Criterion</span>
+                          <span>Criterion {criterionIndex + 1}</span>
                           <textarea
                             className={styles.textAreaCompact}
+                            aria-label={`Criterion ${criterionIndex + 1}`}
                             value={criterion.prompt}
                             onChange={(event) => updateRubricCriterion(criterion.id, 'prompt', event.target.value)}
+                            placeholder="What should the instructor evaluate?"
                           />
                         </label>
-                        <div className={styles.feedbackGrid}>
-                          <label className={styles.fieldStack}>
-                            <span>Needs work feedback</span>
-                            <input
-                              className={styles.textField}
-                              value={criterion.failingFeedback}
-                              onChange={(event) =>
-                                updateRubricCriterion(criterion.id, 'failingFeedback', event.target.value)
-                              }
-                            />
-                          </label>
-                          <label className={styles.fieldStack}>
-                            <span>Coaching feedback</span>
-                            <input
-                              className={styles.textField}
-                              value={criterion.coachingFeedback}
-                              onChange={(event) =>
-                                updateRubricCriterion(criterion.id, 'coachingFeedback', event.target.value)
-                              }
-                            />
-                          </label>
-                          <label className={styles.fieldStack}>
-                            <span>Passing feedback</span>
-                            <input
-                              className={styles.textField}
-                              value={criterion.passingFeedback}
-                              onChange={(event) =>
-                                updateRubricCriterion(criterion.id, 'passingFeedback', event.target.value)
-                              }
-                            />
-                          </label>
+                        <div className={styles.gradingOptionsList}>
+                          {criterion.options.map((option, optionIndex) => (
+                            <label key={`${criterion.id}-option-${optionIndex}`} className={styles.optionRow}>
+                              <input
+                                type="checkbox"
+                                aria-label={`Criterion ${criterionIndex + 1} option ${optionIndex + 1}`}
+                              />
+                              <input
+                                className={styles.textField}
+                                value={option}
+                                placeholder={`Selection option ${optionIndex + 1}`}
+                                onChange={(event) =>
+                                  updateRubricCriterionOption(criterion.id, optionIndex, event.target.value)
+                                }
+                              />
+                              <button
+                                type="button"
+                                className={styles.removeTextButton}
+                                onClick={() => removeRubricCriterionOption(criterion.id, optionIndex)}
+                                disabled={criterion.options.length <= 1}
+                              >
+                                Remove
+                              </button>
+                            </label>
+                          ))}
+                        </div>
+                        <div className={styles.inlineActions}>
+                          <button
+                            type="button"
+                            className={styles.secondaryButton}
+                            onClick={() => addRubricCriterionOption(criterion.id)}
+                          >
+                            Add Option
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.removeTextButton}
+                            onClick={() => removeRubricCriterion(criterion.id)}
+                            disabled={draft.rubricCriteria.length <= 1}
+                          >
+                            Remove Criterion
+                          </button>
                         </div>
                       </div>
                     ))}
                   </div>
+                  <button type="button" className={styles.secondaryButton} onClick={addRubricCriterion}>
+                    Add Criterion
+                  </button>
                 </div>
               </div>
             )}
@@ -819,10 +1171,11 @@ export default function BadgeCreationPage() {
                   </div>
                   <p>{draft.rubricOverview}</p>
                   <div className={styles.reviewList}>
-                    {draft.rubricCriteria.map((criterion) => (
-                      <div key={criterion.id} className={styles.reviewListItem}>
-                        <strong>{criterion.prompt}</strong>
-                        <span>{criterion.passingFeedback}</span>
+                    {draft.rubricItems.map((item, index) => (
+                      <div key={item.id} className={styles.reviewListItem}>
+                        <strong>
+                          {index + 1}. {item.text || 'Empty rubric item'}
+                        </strong>
                       </div>
                     ))}
                   </div>
@@ -839,13 +1192,51 @@ export default function BadgeCreationPage() {
               >
                 Back
               </button>
-              <button type="button" className={styles.nextButton} onClick={handleNext}>
-                {currentStep === STEP_DEFINITIONS.length - 1 ? 'Finish' : 'Next'}
+              <button
+                type="button"
+                className={styles.nextButton}
+                onClick={handleNext}
+                disabled={isSubmitting || isLoadingEditBadge}
+              >
+                {currentStep === STEP_DEFINITIONS.length - 1
+                  ? isSubmitting
+                    ? isEditMode
+                      ? 'Saving...'
+                      : 'Creating...'
+                    : isEditMode
+                      ? 'Save Badge'
+                      : 'Create Badge'
+                  : 'Next'}
               </button>
             </div>
           </section>
         </div>
       </main>
+
+      {isSuccessModalOpen ? (
+        <div className={styles.successOverlay} role="dialog" aria-modal="true" aria-labelledby="badge-success-title">
+          <div className={styles.successModal}>
+            <button
+              type="button"
+              className={styles.successCloseButton}
+              onClick={() => setIsSuccessModalOpen(false)}
+              aria-label="Close success message"
+            >
+              x
+            </button>
+            <h2 id="badge-success-title" className={styles.successTitle}>
+              Badge {isEditMode ? 'updated' : 'created'} successfully.
+            </h2>
+            <p className={styles.successText}>
+              {isEditMode
+                ? 'Your changes were saved to this badge.'
+                : courseId
+                  ? 'This badge was created and assigned to the selected course.'
+                  : 'This badge was created independently and can be assigned to a course later.'}
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

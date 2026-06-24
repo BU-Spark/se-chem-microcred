@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../../lib/prisma';
 import {
+  isAnswerWithinAcceptedRange,
   isAnswerWithinTolerance,
   normalizeCheckpointQuestion,
   parseNumericAnswer,
@@ -32,9 +33,10 @@ function evaluateAttempt(answers: AttemptRequestBody['answers'], questions: Norm
     const isCorrect =
       question.type === 'shortAnswer'
         ? numericAnswer != null &&
-          question.expectedAnswer != null &&
-          isAnswerWithinTolerance(question.expectedAnswer, numericAnswer, question.tolerancePercent)
-        : selectedIndex !== null && selectedIndex === (question.correctIndex ?? null);
+          (isAnswerWithinAcceptedRange(question.acceptedRange, numericAnswer) ||
+            (question.expectedAnswer != null &&
+              isAnswerWithinTolerance(question.expectedAnswer, numericAnswer, question.tolerancePercent)))
+        : selectedIndex !== null && question.correctIndices.includes(selectedIndex);
     return {
       questionId: question.id,
       prompt: question.prompt,

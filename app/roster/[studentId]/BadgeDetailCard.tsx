@@ -55,6 +55,9 @@ export type BadgeDetailResponse = {
       label: string;
       score: number | null;
       completedAt: string | null;
+      passed?: boolean;
+      feedback?: string | null;
+      assessorName?: string | null;
     }>;
   };
 };
@@ -252,8 +255,17 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
                         <div className={styles.assessmentAttemptPanel}>
                           <p className={styles.assessmentAttemptLine}>Completed: {formatDate(attempt.completedAt)}</p>
                           <p className={styles.assessmentAttemptLine}>
+                            Outcome: <strong>{attempt.passed === false ? 'Needs reassessment' : 'Passed'}</strong>
+                          </p>
+                          <p className={styles.assessmentAttemptLine}>
                             Score: {attempt.score != null ? `${attempt.score}%` : 'Not recorded'}
                           </p>
+                          {attempt.assessorName ? (
+                            <p className={styles.assessmentAttemptLine}>Assessor: {attempt.assessorName}</p>
+                          ) : null}
+                          {attempt.feedback ? (
+                            <p className={styles.assessmentAttemptFeedback}>{attempt.feedback}</p>
+                          ) : null}
                         </div>
                       ) : null}
                     </div>

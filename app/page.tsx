@@ -87,6 +87,22 @@ type EnrolledCoursesResponse = {
   enrollments: EnrolledCourse[];
 };
 
+type AssessorCourseEnrollment = {
+  id: string;
+  role: 'INSTRUCTOR' | 'CHECKER';
+  sections: string[];
+  course: CreatedCourse;
+};
+
+type AssessorCoursesResponse = {
+  user: {
+    name: string | null;
+    email: string;
+  };
+  count: number;
+  enrollments: AssessorCourseEnrollment[];
+};
+
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
 
 const FACE_IMAGES: Record<number, StaticImageData> = {
@@ -262,17 +278,60 @@ function useEnrolledCourses(email?: string | null) {
   return { data, isLoading, error };
 }
 
+function useAssessorCourses(email?: string | null) {
+  const [data, setData] = useState<AssessorCoursesResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!email) {
+      setData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/courses/assessor?email=${encodeURIComponent(email)}`, {
+        headers: { Accept: 'application/json' },
+      });
+
+      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to load assessor courses.');
+      }
+
+      setData(payload);
+    } catch (err) {
+      setData(null);
+      setError(err instanceof Error ? err.message : 'Unable to load assessor courses.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [email]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  return { data, isLoading, error };
+}
+
 function resolveThumbnailUrl(course: CreatedCourse) {
   const candidate = course.lessons[0]?.thumbnailUrl?.trim();
   return candidate ? candidate : null;
 }
 
-function CreatedCourseCard({ course }: { course: CreatedCourse }) {
+function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: string }) {
   const thumbnailUrl = resolveThumbnailUrl(course);
 
   return (
     <Link
-      href={`/courses/${course.id}`}
+      href={href ?? `/courses/${course.id}`}
       className={courseStyles.courseCard}
       data-testid="course-card"
       aria-label={`Open ${course.title}`}
@@ -339,6 +398,11 @@ function HomeContent() {
   const { data: studentData, refresh } = useStudentData(email);
   const { data: createdData, isLoading: isLoadingCreated, error: createdError } = useCreatedCourses(email);
   const { data: enrolledData, isLoading: isLoadingEnrolled, error: enrolledError } = useEnrolledCourses(email);
+  const {
+    data: assessorData,
+    isLoading: isLoadingAssessorCourses,
+    error: assessorCoursesError,
+  } = useAssessorCourses(email);
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{
@@ -351,7 +415,8 @@ function HomeContent() {
   const [surveyRating, setSurveyRating] = useState(3);
 
   const navItems = SIDEBAR_NAV;
-  const displayName = createdData?.user.name || enrolledData?.user.name || studentData?.student?.name || '';
+  const displayName =
+    createdData?.user.name || enrolledData?.user.name || assessorData?.user.name || studentData?.student?.name || '';
 
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
 
@@ -370,6 +435,7 @@ function HomeContent() {
   }, [pendingSurveyBadges, readyForFinalization]);
 
   const createdCourses = useMemo(() => createdData?.courses ?? [], [createdData]);
+  const assessorEnrollments = useMemo(() => assessorData?.enrollments ?? [], [assessorData]);
 
   const enrolledCourseCards = useMemo(() => enrolledData?.enrollments.map(enrollmentToCard) ?? [], [enrolledData]);
 
@@ -545,6 +611,32 @@ function HomeContent() {
 
           {!isLoadingCreated && !createdError && createdCourses.length === 0 ? (
             <p className={courseStyles.statusMessage}>No courses yet. Add one from the first card.</p>
+          ) : null}
+        </section>
+
+        <section className={courseStyles.section}>
+          <h2 className={courseStyles.sectionTitle}>Assessor Courses</h2>
+
+          <div className={courseStyles.courseGrid} data-testid="assessor-courses-grid">
+            {assessorEnrollments.map((enrollment) => (
+              <CreatedCourseCard
+                key={enrollment.id}
+                course={enrollment.course}
+                href={`/courses/${enrollment.course.id}?view=assessor`}
+              />
+            ))}
+          </div>
+
+          {isLoadingAssessorCourses ? (
+            <p className={courseStyles.statusMessage}>Loading assessor courses...</p>
+          ) : null}
+
+          {!isLoadingAssessorCourses && assessorCoursesError ? (
+            <p className={courseStyles.statusMessage}>{assessorCoursesError}</p>
+          ) : null}
+
+          {!isLoadingAssessorCourses && !assessorCoursesError && assessorEnrollments.length === 0 ? (
+            <p className={courseStyles.statusMessage}>No assessor courses assigned yet.</p>
           ) : null}
         </section>
 

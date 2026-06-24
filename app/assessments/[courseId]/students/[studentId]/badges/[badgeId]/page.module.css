@@ -1,0 +1,230 @@
+.readinessBody {
+  display: grid;
+  gap: 1.45rem;
+  padding-top: 1.35rem;
+}
+
+.clearanceRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-size: 1.1rem;
+  color: #161616;
+}
+
+.clearanceSuccess,
+.clearanceBlocked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.35rem;
+  height: 1.35rem;
+  font-size: 1.85rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.clearanceSuccess {
+  color: #bccb47;
+}
+
+.clearanceBlocked {
+  color: #c9605b;
+}
+
+.unablePanel {
+  max-width: 58rem;
+  border: 3px solid #d9d9d9;
+  border-radius: 1.85rem;
+  padding: 1.25rem 1.55rem;
+  background: #ffffff;
+}
+
+.unablePanel h2 {
+  margin: 0 0 1rem;
+  font-size: 1.65rem;
+  line-height: 1.1;
+  color: #111111;
+}
+
+.unablePanel p {
+  margin: 0;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: #242424;
+}
+
+.unablePanel p + p {
+  margin-top: 0.75rem;
+}
+
+.assessmentPanel {
+  display: grid;
+  gap: 1rem;
+  max-width: 64rem;
+  border: 3px solid #d9d9d9;
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  background: #ffffff;
+}
+
+.assessmentPanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.assessmentPanelHeader h2,
+.criterionHeader h3 {
+  margin: 0;
+  color: #111111;
+}
+
+.assessmentPanelHeader h2 {
+  font-size: 1.35rem;
+}
+
+.passToggle {
+  display: inline-flex;
+  gap: 0.35rem;
+  border: 2px solid #d9d9d9;
+  border-radius: 0.85rem;
+  padding: 0.2rem;
+  background: #f8fafc;
+}
+
+.toggleButton,
+.toggleButtonActive {
+  border: none;
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.8rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.toggleButton {
+  background: transparent;
+  color: #1f2937;
+}
+
+.toggleButtonActive {
+  background: #2E6AA9;
+  color: #ffffff;
+}
+
+.scoreField,
+.criteriaField {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.scoreField {
+  max-width: 9rem;
+}
+
+.scoreField input,
+.criteriaField select,
+.criteriaField textarea {
+  width: 100%;
+  border: 2px solid #d9d9d9;
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  font: inherit;
+  font-weight: 500;
+  color: #111111;
+  background: #ffffff;
+}
+
+.criteriaList {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.criterionCard {
+  display: grid;
+  gap: 0.85rem;
+  border: 2px solid #ececec;
+  border-radius: 1rem;
+  padding: 1rem;
+  background: #fbfbfb;
+}
+
+.criterionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.criterionHeader h3 {
+  font-size: 1.05rem;
+}
+
+.criterionPass {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  white-space: nowrap;
+  font-weight: 700;
+}
+
+.errorText,
+.successText {
+  margin: 0;
+  font-weight: 700;
+}
+
+.errorText {
+  color: #a33d38;
+}
+
+.successText {
+  color: #2f7d45;
+}
+
+.actionRow {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 1.25rem;
+  margin-top: 1.4rem;
+}
+
+.backLink {
+  color: #161616;
+  font-size: 0.98rem;
+  text-decoration: underline;
+  text-underline-offset: 0.35rem;
+}
+
+.primaryButton {
+  border: none;
+  border-radius: 0.9rem;
+  padding: 0.85rem 1.35rem;
+  background: #2E6AA9;
+  color: #ffffff;
+  font: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+@media (max-width: 900px) {
+  .actionRow {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .assessmentPanelHeader,
+  .criterionHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

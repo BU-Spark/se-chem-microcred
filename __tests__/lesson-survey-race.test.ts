@@ -8,7 +8,7 @@ const updateSpy = jest.fn();
 
 jest.mock('../lib/prisma', () => {
   const lessonProgress = { id: 'lp-1', status: 'IN_PROGRESS', percentComplete: 0, completedAt: null };
-  let txChain = Promise.resolve();
+  let txChain: Promise<unknown> = Promise.resolve();
   return {
     __esModule: true,
     default: {

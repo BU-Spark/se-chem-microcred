@@ -1,98 +1,101 @@
+.page {
+  display: flex;
+  min-height: 100vh;
+  background: #f3f3f3;
+}
+
+.main {
+  flex: 1;
+  padding: 36px 42px 48px;
+}
+
 .pageShell {
-  padding: 2rem 2.5rem 3rem;
   display: flex;
   flex-direction: column;
-  gap: 1.8rem;
+  gap: 18px;
 }
 
 .pageHeader {
   display: flex;
-  justify-content: space-between;
   align-items: flex-start;
-  gap: 1rem;
+  justify-content: space-between;
+  gap: 1.5rem;
 }
 
 .pageTitle {
-  color: #0f172a;
-  font-size: 2.9rem;
+  font-size: 48px;
   font-weight: 700;
-  line-height: 1;
-}
-
-.wordmark {
-  color: #1f5fab;
-  font-size: 2rem;
-  font-weight: 700;
-  letter-spacing: -0.03em;
+  color: #000000;
 }
 
 .progressTrack {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(76px, 1fr));
-  align-items: start;
-  gap: 0.2rem;
-  padding: 0 0.75rem;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin: 18px 60px 34px;
+}
+
+.progressTrack::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 95px;
+  right: 95px;
+  height: 2px;
+  background: #2e6aa9;
+  z-index: 0;
 }
 
 .progressStep {
   position: relative;
+  z-index: 1;
+  width: 190px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.75rem;
   text-align: center;
-}
-
-.progressLine {
-  position: absolute;
-  top: 16px;
-  left: -52%;
-  width: 104%;
-  height: 1px;
-  background: #1f5fab;
-  opacity: 1;
-}
-
-.progressLine[data-complete='true'] {
-  opacity: 1;
 }
 
 .progressDot {
   position: relative;
-  z-index: 1;
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 999px;
-  border: 1.5px solid #4a86c5;
   background: #ffffff;
-  display: grid;
-  place-items: center;
+  border: 2px solid #2e6aa9;
+  margin-bottom: 10px;
+}
+
+.progressDot[data-active='true'],
+.progressDot[data-complete='true'] {
+  background: #c7d63c;
 }
 
 .progressDotFill {
-  width: 24px;
-  height: 24px;
-  border-radius: 999px;
-  background: #d4ea53;
+  display: none;
 }
 
 .progressLabel {
-  color: #26415c;
-  font-size: 0.6rem;
-  font-weight: 500;
-  line-height: 1.2;
-  max-width: 80px;
+  font-size: 0.95rem;
+  color: #222222;
+}
+
+.canvasCard,
+.editorCard,
+.reviewCard,
+.timelineRail {
+  background: #f7f7f7;
+  border: 3px solid #d0d0d0;
+  border-radius: 30px;
 }
 
 .canvasCard {
-  background: #ffffff;
-  border: 1.5px solid #d3d1cb;
-  border-radius: 22px;
-  padding: 1.1rem 1rem 1.5rem;
-  box-shadow: none;
+  padding: 22px 26px 24px;
+  margin-bottom: 18px;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 24px;
 }
 
 .cardHeader {
@@ -102,450 +105,267 @@
   gap: 1rem;
 }
 
-.cardEyebrow {
-  color: #0f172a;
-  font-size: 0.95rem;
-  font-weight: 700;
-  text-transform: none;
-  letter-spacing: 0;
+.cardEyebrow,
+.cardTitle,
+.panelTitle,
+.editorCardHeader h3,
+.reviewCardHeader h3,
+.videoInfoBlock h3,
+.reviewCard h4 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
 }
 
 .cardTitle {
-  color: #0f172a;
-  font-size: 1rem;
-  font-weight: 700;
-  margin-top: 0.35rem;
+  margin-top: 10px;
 }
 
-.cardSubtitle {
-  color: #4a6785;
-  font-size: 1rem;
-  max-width: 60rem;
-  margin-top: 0.85rem;
+.cardSubtitle,
+.noticeBanner,
+.errorText,
+.emptyState {
+  font-size: 16px;
+  font-weight: 400;
+  color: #000000;
 }
 
 .noticeBanner {
-  background: #eff6ff;
-  border: 1px solid #bfd5f1;
-  border-radius: 18px;
-  color: #1f4f8a;
-  padding: 1rem 1.1rem;
-  font-size: 0.95rem;
-  line-height: 1.5;
+  border: 2px solid #2e6aa9;
+  border-radius: 19px;
+  background: #ffffff;
+  padding: 14px 18px;
+  color: #2e6aa9;
 }
 
-.primaryColumn,
-.secondaryColumn,
+.errorText {
+  color: #b91c1c;
+}
+
+.badgeInfoLayout,
 .videoInputPanel,
 .videoPreviewPanel,
 .checkpointMain,
 .reviewStack,
-.rubricLayout,
-.resourceList {
+.rubricList,
+.reviewCard,
+.editorCard,
+.rubricCriterionCard {
   display: flex;
   flex-direction: column;
-  gap: 1.2rem;
-}
-
-.fieldBlock,
-.editorCard,
-.reviewCard,
-.availabilityCard {
-  background: #f8fbff;
-  border: 1px solid #dbe7f5;
-  border-radius: 22px;
-  padding: 1.15rem 1.25rem;
+  gap: 18px;
 }
 
 .badgeInfoLayout {
-  display: flex;
-  flex-direction: column;
-  gap: 1.35rem;
-  max-width: 1040px;
-  padding: 0.15rem 0.2rem 0.4rem;
+  max-width: 920px;
 }
 
-.badgeInfoField {
+.badgeInfoField,
+.fieldBlock,
+.fieldStack,
+.dateField {
   display: flex;
   flex-direction: column;
-  gap: 0.7rem;
+  gap: 8px;
 }
 
-.sectionLabel {
-  color: #222222;
-  font-size: 0.72rem;
-  font-weight: 600;
+.sectionLabel,
+.fieldLabel,
+.fieldStack,
+.dateField {
+  font-size: 16px;
+  color: #000000;
 }
 
 .underlineInput {
-  width: 100%;
+  width: 486px;
+  max-width: 100%;
   border: none;
-  border-bottom: 1px solid #858585;
+  border-bottom: 1px solid #000000;
   background: transparent;
-  color: #121212;
-  font: inherit;
-  font-size: 1rem;
-  padding: 0 0 0.38rem;
-}
-
-.underlineInput:focus {
   outline: none;
-  border-bottom-color: #1f5fab;
+  font-size: 16px;
+  font-weight: 400;
+  padding: 0 0 8px;
+  color: #000000;
 }
 
-.descriptionInput {
-  width: 100%;
-  min-height: 108px;
-  border: 1px solid #bdb6ab;
-  border-radius: 10px;
-  background: #ffffff;
-  color: #222222;
-  font: inherit;
-  font-size: 0.72rem;
-  line-height: 1.45;
-  padding: 0.8rem 0.95rem;
-  resize: vertical;
+.underlineInput::placeholder {
+  color: #000000;
+  opacity: 1;
+  font-style: italic;
 }
 
-.descriptionInput:focus {
-  outline: none;
-  border-color: #1f5fab;
-  box-shadow: 0 0 0 3px rgba(31, 95, 171, 0.12);
-}
-
-.availabilityRow {
-  display: flex;
-  align-items: center;
-  gap: 0.8rem;
-  flex-wrap: wrap;
-}
-
-.availabilityPill {
-  min-width: 194px;
-  border-radius: 18px;
-  background: #2f73b9;
-  color: #ffffff;
-  padding: 0.55rem 0.85rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.12rem;
-  font-size: 0.58rem;
-}
-
-.availabilityPill strong {
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.compactToggleRow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65rem;
-  color: #222222;
-  font-size: 0.72rem;
-  font-weight: 500;
-}
-
-.availabilityInputs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 280px));
-  gap: 0.9rem;
-}
-
-.fieldLabel,
-.panelTitle {
-  color: #163a65;
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.helperText {
-  color: #60758d;
-  font-size: 0.92rem;
-  margin-top: 0.3rem;
-}
-
-.inlineHeaderRow {
-  display: flex;
-  justify-content: space-between;
-  gap: 1rem;
-  align-items: flex-start;
-}
-
-.counterBadge {
-  border-radius: 999px;
-  background: #e8f2fd;
-  color: #1f5fab;
-  padding: 0.45rem 0.8rem;
-  font-size: 0.82rem;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
+.descriptionInput,
 .textField,
-.textArea,
 .textAreaCompact,
-.longTextArea {
+.longTextArea,
+.selectField,
+.dateField input {
   width: 100%;
-  border: 1px solid #bdd1e8;
-  border-radius: 16px;
+  border: 2px solid #d0d0d0;
+  border-radius: 19px;
   background: #ffffff;
-  color: #0f172a;
+  color: #000000;
   font: inherit;
-  margin-top: 0.8rem;
-  padding: 0.95rem 1rem;
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
+  font-size: 16px;
+  padding: 12px 14px;
 }
 
-.textField:focus,
-.textArea:focus,
-.textAreaCompact:focus,
-.longTextArea:focus,
-.dateField input:focus {
-  outline: none;
-  border-color: #1f5fab;
-  box-shadow: 0 0 0 4px rgba(31, 95, 171, 0.14);
-}
-
-.textArea {
-  min-height: 140px;
-  resize: vertical;
-  line-height: 1.55;
-}
-
+.descriptionInput,
 .textAreaCompact {
-  min-height: 92px;
+  min-height: 96px;
   resize: vertical;
-  line-height: 1.45;
 }
 
 .longTextArea {
   min-height: 220px;
   resize: vertical;
-  line-height: 1.6;
 }
 
-.skillComposer,
-.dateFieldRow,
-.editorGrid,
-.configStats,
-.feedbackGrid {
-  display: grid;
-  gap: 0.9rem;
+.selectField {
+  max-width: 280px;
 }
 
-.skillComposer {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+.descriptionInput:focus,
+.textField:focus,
+.textAreaCompact:focus,
+.longTextArea:focus,
+.selectField:focus,
+.dateField input:focus,
+.underlineInput:focus {
+  outline: none;
+  border-color: #2e6aa9;
 }
 
-.addButton,
-.nextButton,
-.plusButton {
-  border: none;
-  border-radius: 999px;
-  background: #1f5fab;
-  color: #ffffff;
-  cursor: pointer;
-  font-weight: 700;
-  transition:
-    transform 0.2s ease,
-    filter 0.2s ease;
-}
-
-.addButton,
-.nextButton {
-  padding: 0.95rem 1.4rem;
-}
-
-.addButton:hover,
-.nextButton:hover,
-.plusButton:hover {
-  filter: brightness(0.95);
-  transform: translateY(-1px);
-}
-
-.addButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-  transform: none;
-}
-
-.skillList,
-.reviewTagList {
+.availabilityRow,
+.availabilityInputs,
+.navigationRow,
+.editorCardHeader,
+.reviewCardHeader,
+.optionRow,
+.timelineHeader {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-  margin-top: 1rem;
-}
-
-.skillTag {
-  display: inline-flex;
   align-items: center;
-  gap: 0.55rem;
-  border-radius: 999px;
-  background: #dcecfb;
-  color: #0f4c8c;
-  font-size: 0.92rem;
-  font-weight: 700;
-  padding: 0.7rem 0.9rem;
+  gap: 14px;
 }
 
-.skillTag button {
-  border: none;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font-size: 0.95rem;
-  line-height: 1;
+.availabilityRow,
+.availabilityInputs {
+  flex-wrap: wrap;
 }
 
-.categoryGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.8rem;
-  margin-top: 0.8rem;
-}
-
-.categoryButton {
-  border: 1px solid #bed2e7;
-  border-radius: 18px;
-  background: #ffffff;
-  color: #36506c;
-  cursor: pointer;
-  font-size: 0.92rem;
-  font-weight: 700;
-  padding: 0.9rem 1rem;
-  text-transform: capitalize;
-}
-
-.categoryButton[data-active='true'] {
-  border-color: #1f5fab;
-  background: #eff6ff;
-  color: #1f5fab;
-}
-
-.availabilityCard {
+.availabilityPill {
+  min-width: 194px;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 1rem;
-  margin-top: 0.75rem;
+  gap: 2px;
+  font-size: 14px;
 }
 
-.availabilitySummary {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
-}
-
-.availabilitySummary div {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  color: #54708c;
-  font-size: 0.9rem;
-}
-
-.availabilitySummary strong {
-  color: #0f172a;
-  font-size: 1rem;
-}
-
-.dateFieldRow,
-.editorGrid,
-.configStats {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.dateField {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  color: #36506c;
-  font-size: 0.9rem;
+.availabilityPill strong {
+  font-size: 18px;
   font-weight: 600;
 }
 
-.dateField input {
-  border: 1px solid #bdd1e8;
-  border-radius: 16px;
-  background: #ffffff;
-  color: #0f172a;
-  font: inherit;
-  padding: 0.95rem 1rem;
-}
-
+.compactToggleRow,
 .toggleRow {
-  display: flex;
-  justify-content: space-between;
+  display: inline-flex;
   align-items: center;
-  gap: 1rem;
-  color: #163a65;
-  font-size: 0.95rem;
-  font-weight: 700;
+  gap: 14px;
+  font-size: 16px;
+  color: #333333;
 }
 
 .toggleButton {
-  position: relative;
-  width: 54px;
+  width: 56px;
   height: 32px;
   border: none;
   border-radius: 999px;
-  background: #cddbed;
+  background: #d9d9d9;
+  position: relative;
   cursor: pointer;
+  padding: 0;
+  transition: background 0.2s ease;
   flex-shrink: 0;
 }
 
 .toggleButton span {
   position: absolute;
-  top: 4px;
-  left: 4px;
-  width: 24px;
-  height: 24px;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
   border-radius: 999px;
   background: #ffffff;
-  transition: transform 0.2s ease;
+  transition: left 0.2s ease;
 }
 
 .toggleButton[data-active='true'] {
-  background: #1f5fab;
+  background: #2e6aa9;
 }
 
 .toggleButton[data-active='true'] span {
-  transform: translateX(22px);
+  left: 27px;
+}
+
+.videoStepLayout,
+.checkpointLayout,
+.rubricLayout,
+.feedbackGrid,
+.editorGrid,
+.shortAnswerGrid {
+  display: grid;
+  gap: 22px;
 }
 
 .videoStepLayout {
-  display: grid;
-  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.1fr);
-  gap: 1.5rem;
-  align-items: start;
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+}
+
+.checkpointLayout {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.rubricLayout {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.feedbackGrid,
+.editorGrid,
+.shortAnswerGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fieldBlock,
+.editorCard,
+.reviewCard,
+.timelineRail,
+.rubricCriterionCard,
+.reviewListItem {
+  padding: 18px 20px;
 }
 
 .videoInfoBlock {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  color: #38546f;
-}
-
-.videoInfoBlock h3,
-.reviewCard h4 {
-  color: #0f172a;
-  font-size: 1.2rem;
-  font-weight: 700;
+  gap: 8px;
+  color: #222222;
 }
 
 .videoPoster,
 .videoFrameShell {
   position: relative;
-  border-radius: 24px;
-  background: linear-gradient(135deg, #d5e6fb 0%, #aac7eb 100%);
+  border: 3px solid #d0d0d0;
+  border-radius: 30px;
+  background: #ffffff;
   min-height: 320px;
   overflow: hidden;
-  border: 1px solid #bfd4ea;
 }
 
 .videoPoster {
@@ -555,96 +375,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(15, 23, 42, 0.75);
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.checkpointLayout {
-  display: grid;
-  grid-template-columns: 260px minmax(0, 1fr);
-  gap: 1.25rem;
-}
-
-.timelineRail {
-  background: #f6fafe;
-  border: 1px solid #dbe7f5;
-  border-radius: 24px;
-  padding: 1rem;
-}
-
-.timelineHeader {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.8rem;
-  color: #163a65;
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.plusButton {
-  width: 38px;
-  height: 38px;
-  font-size: 1.35rem;
-}
-
-.timelineList {
-  margin-top: 1rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.timelineItem {
-  position: relative;
-  padding-left: 1.35rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  color: #39556f;
-  font-size: 0.88rem;
-}
-
-.timelineSegment {
-  color: #163a65;
-  font-weight: 700;
-}
-
-.timelineCheckpointMarker {
-  position: absolute;
-  top: 1.85rem;
-  left: 0;
-  width: 11px;
-  height: 11px;
-  border-radius: 999px;
-  background: #d4ea53;
-  box-shadow: 0 0 0 4px #dce8f7;
-}
-
-.timelineCheckpointCopy {
-  color: #0f172a;
-  font-weight: 600;
-}
-
-.timelineConnector {
-  position: absolute;
-  top: 2.65rem;
-  left: 5px;
-  width: 1px;
-  height: calc(100% + 0.5rem);
-  background: #bcd0e8;
-}
-
-.removeTextButton {
-  border: none;
-  background: transparent;
-  color: #1f5fab;
-  cursor: pointer;
-  font-size: 0.82rem;
-  font-weight: 700;
-  padding: 0;
-  text-align: left;
+  color: #222222;
+  font-size: 16px;
 }
 
 .videoFrameShell {
@@ -654,8 +386,8 @@
 .videoFrame,
 .videoFallback {
   width: 100%;
-  height: 100%;
   min-height: 420px;
+  height: 100%;
   border: none;
 }
 
@@ -663,237 +395,266 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #36506c;
-  font-size: 1rem;
-  font-weight: 700;
-  padding: 2rem;
+  padding: 24px;
   text-align: center;
+  color: #222222;
 }
 
-.checkpointEditorList {
-  display: grid;
-  gap: 1rem;
+.timelineRail {
+  align-self: start;
 }
 
-.editorCard {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-.editorCardHeader,
-.reviewCardHeader {
-  display: flex;
+.timelineHeader {
   justify-content: space-between;
-  gap: 1rem;
-  align-items: center;
+  font-size: 16px;
+  color: #000000;
 }
 
-.editorCardHeader h3,
-.reviewCardHeader h3 {
-  color: #0f172a;
-  font-size: 1.1rem;
-  font-weight: 700;
+.timelineList,
+.checkpointEditorList,
+.optionList,
+.reviewList,
+.numberedRubricList,
+.gradingOptionsList {
+  display: grid;
+  gap: 14px;
 }
 
-.editorCardHeader span,
-.reviewCardHeader button {
-  color: #1f5fab;
-  font-size: 0.88rem;
-  font-weight: 700;
+.timelineList {
+  margin-top: 18px;
 }
 
-.reviewCardHeader button {
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  padding: 0;
-}
-
-.fieldStack {
+.timelineItem {
+  position: relative;
+  padding-left: 20px;
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  color: #36506c;
-  font-size: 0.88rem;
-  font-weight: 700;
+  gap: 6px;
+  color: #222222;
+  font-size: 16px;
 }
 
-.fieldStack .textField,
-.fieldStack .textAreaCompact {
-  margin-top: 0;
+.timelineSegment,
+.timelineCheckpointCopy {
+  color: #000000;
 }
 
-.optionList,
-.reviewList {
-  display: grid;
-  gap: 0.8rem;
+.timelineCheckpointMarker {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: #c7d63c;
+}
+
+.timelineConnector {
+  position: absolute;
+  top: 42px;
+  left: 5px;
+  width: 2px;
+  height: calc(100% + 8px);
+  background: #2e6aa9;
+}
+
+.removeTextButton,
+.reviewCardHeader button,
+.backButton {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #000000;
+  color: #000000;
+  font-size: 16px;
+  padding: 0 0 2px;
+  cursor: pointer;
+  width: fit-content;
 }
 
 .optionRow {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 0.8rem;
-  align-items: center;
+  grid-template-columns: auto minmax(0, 1fr) auto;
 }
 
-.configGrid,
-.rubricLayout {
+.numberedRubricItem {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.2rem;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
 }
 
-.resourceRow {
-  display: grid;
-  grid-template-columns: 56px minmax(0, 1fr);
-  gap: 0.9rem;
-  align-items: center;
+.rubricNumber {
+  padding-top: 12px;
+  font-size: 20px;
+  color: #000000;
 }
 
-.resourceThumb {
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, #d7e8fb 0%, #adc9ea 100%);
-  color: #1f5fab;
-  font-weight: 700;
-}
-
-.rubricList {
-  display: grid;
-  gap: 1rem;
-}
-
-.rubricCriterionCard {
-  border-radius: 20px;
-  border: 1px solid #dbe7f5;
-  background: #ffffff;
-  padding: 1rem;
-  display: grid;
-  gap: 0.9rem;
-}
-
-.feedbackGrid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.reviewStack {
-  display: grid;
-  gap: 1rem;
-}
-
-.reviewCard {
+.inlineActions {
   display: flex;
-  flex-direction: column;
-  gap: 0.9rem;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
 }
 
 .reviewCard p,
 .reviewListItem {
-  color: #38546f;
-  font-size: 0.94rem;
+  font-size: 16px;
   line-height: 1.55;
+  color: #222222;
 }
 
 .reviewListItem {
-  border-radius: 16px;
+  border: 2px solid #d0d0d0;
+  border-radius: 19px;
   background: #ffffff;
-  border: 1px solid #dbe7f5;
-  padding: 0.9rem 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-}
-
-.codeBlock {
-  border-radius: 18px;
-  background: #0f172a;
-  color: #e2e8f0;
-  font-size: 0.82rem;
-  line-height: 1.5;
-  overflow: auto;
-  padding: 1rem;
+  gap: 4px;
 }
 
 .navigationRow {
-  display: flex;
   justify-content: flex-end;
-  gap: 1rem;
-  align-items: center;
-  margin-top: 0.2rem;
+  margin-top: 4px;
 }
 
-.backButton {
+.nextButton,
+.plusButton,
+.secondaryButton {
+  display: inline-block;
+  background: #2e6aa9;
+  color: #ffffff;
+  border: none;
+  border-radius: 19px;
+  font-size: 20px;
+  font-weight: 400;
+  cursor: pointer;
+  width: fit-content;
+  height: auto;
+}
+
+.nextButton {
+  padding: 14px 35px;
+}
+
+.secondaryButton {
+  padding: 10px 20px;
+  font-size: 16px;
+  align-self: flex-start;
+}
+
+.plusButton {
+  width: 38px;
+  height: 38px;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.nextButton:disabled,
+.backButton:disabled,
+.removeTextButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.successOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 19, 33, 0.42);
+}
+
+.successModal {
+  position: relative;
+  width: min(520px, 100%);
+  border-radius: 30px;
+  background: #f7f7f7;
+  border: 3px solid #d0d0d0;
+  padding: 34px 36px 30px;
+  color: #000000;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
+}
+
+.successCloseButton {
+  position: absolute;
+  top: 18px;
+  right: 20px;
   border: none;
   background: transparent;
-  color: #1f5fab;
+  color: #000000;
   cursor: pointer;
-  font-size: 1rem;
-  font-weight: 700;
-  padding: 0.8rem 1rem;
-  text-decoration: underline;
+  font-size: 24px;
+  line-height: 1;
 }
 
-.backButton:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  text-decoration: none;
+.successTitle {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.successText {
+  margin: 14px 0 0;
+  font-size: 16px;
+  line-height: 1.55;
 }
 
 @media (max-width: 1200px) {
-  .infoLayout,
+  .progressTrack {
+    margin-left: 0;
+    margin-right: 0;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
   .videoStepLayout,
   .checkpointLayout,
-  .configGrid,
-  .rubricLayout {
-    grid-template-columns: 1fr;
-  }
-
-  .progressTrack {
-    grid-template-columns: repeat(3, minmax(90px, 1fr));
-    row-gap: 1rem;
-  }
-
-  .availabilityInputs {
+  .rubricLayout,
+  .feedbackGrid,
+  .editorGrid,
+  .shortAnswerGrid {
     grid-template-columns: 1fr;
   }
 }
 
-@media (max-width: 900px) {
-  .pageShell {
-    padding: 1.25rem 0.75rem 2rem;
-  }
-
-  .canvasCard {
-    padding: 1.25rem;
+@media (max-width: 720px) {
+  .main {
+    padding: 24px 20px 32px;
   }
 
   .pageTitle {
-    font-size: 2.2rem;
+    font-size: 38px;
   }
 
-  .wordmark {
-    font-size: 1.55rem;
+  .canvasCard,
+  .editorCard,
+  .reviewCard,
+  .timelineRail {
+    border-radius: 24px;
+    padding: 18px;
   }
 
-  .dateFieldRow,
-  .editorGrid,
-  .configStats,
-  .feedbackGrid,
-  .categoryGrid,
-  .progressTrack {
-    grid-template-columns: 1fr;
+  .progressStep {
+    flex: 0 0 auto;
+    width: 140px;
   }
 
-  .inlineHeaderRow,
-  .pageHeader,
-  .editorCardHeader,
-  .reviewCardHeader,
+  .progressTrack::before {
+    left: 70px;
+    right: 70px;
+  }
+
   .navigationRow {
-    flex-direction: column;
     align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .numberedRubricItem,
+  .optionRow {
+    grid-template-columns: 1fr;
   }
 }

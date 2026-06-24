@@ -38,6 +38,47 @@ type CreatedCoursesResponse = {
   courses: CreatedCourse[];
 };
 
+type AssessorCourseEnrollment = {
+  id: string;
+  role: 'INSTRUCTOR' | 'CHECKER';
+  sections: string[];
+  course: CreatedCourse;
+};
+
+type AssessorCoursesResponse = {
+  user: {
+    name: string | null;
+    email: string;
+  };
+  count: number;
+  enrollments: AssessorCourseEnrollment[];
+};
+
+type EnrolledCourse = {
+  id: string;
+  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
+  course: {
+    id: string;
+    title: string;
+    lessons: Array<{
+      thumbnailUrl: string | null;
+      segments?: Array<{
+        videoUrl: string | null;
+        thumbnailUrl: string | null;
+      }>;
+    }>;
+  };
+};
+
+type EnrolledCoursesResponse = {
+  user: {
+    name: string | null;
+    email: string;
+  };
+  count: number;
+  enrollments: EnrolledCourse[];
+};
+
 function useCreatedCourses(email?: string | null) {
   const [data, setData] = useState<CreatedCoursesResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -81,17 +122,103 @@ function useCreatedCourses(email?: string | null) {
   return { data, isLoading, error };
 }
 
+function useEnrolledCourses(email?: string | null) {
+  const [data, setData] = useState<EnrolledCoursesResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!email) {
+      setData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/courses/enrolled?email=${encodeURIComponent(email)}`, {
+        headers: { Accept: 'application/json' },
+      });
+
+      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to load enrolled courses.');
+      }
+
+      setData(payload);
+    } catch (err) {
+      setData(null);
+      setError(err instanceof Error ? err.message : 'Unable to load enrolled courses.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [email]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  return { data, isLoading, error };
+}
+
+function useAssessorCourses(email?: string | null) {
+  const [data, setData] = useState<AssessorCoursesResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    if (!email) {
+      setData(null);
+      setError(null);
+      setIsLoading(false);
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/courses/assessor?email=${encodeURIComponent(email)}`, {
+        headers: { Accept: 'application/json' },
+      });
+
+      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to load assessor courses.');
+      }
+
+      setData(payload);
+    } catch (err) {
+      setData(null);
+      setError(err instanceof Error ? err.message : 'Unable to load assessor courses.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [email]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
+
+  return { data, isLoading, error };
+}
+
 function resolveThumbnailUrl(course: CreatedCourse) {
   const candidate = course.lessons[0]?.thumbnailUrl?.trim();
   return candidate ? candidate : null;
 }
 
-function CourseCard({ course }: { course: CreatedCourse }) {
+function CourseCard({ course, href }: { course: CreatedCourse; href?: string }) {
   const thumbnailUrl = resolveThumbnailUrl(course);
 
   return (
     <Link
-      href={`/courses/${course.id}`}
+      href={href ?? `/courses/${course.id}`}
       className={styles.courseCard}
       data-testid="course-card"
       aria-label={`Open ${course.title}`}
@@ -112,6 +239,37 @@ function CourseCard({ course }: { course: CreatedCourse }) {
 
       <div className={styles.courseText}>
         <h3 className={styles.courseTitle}>{course.title}</h3>
+      </div>
+    </Link>
+  );
+}
+
+function EnrolledCourseCard({ enrollment }: { enrollment: EnrolledCourse }) {
+  const thumbnailUrl = enrollment.course.lessons[0]?.thumbnailUrl?.trim() || null;
+
+  return (
+    <Link
+      href={`/course_dashboard?courseId=${enrollment.course.id}`}
+      className={styles.courseCard}
+      data-testid="enrolled-course-card"
+      aria-label={`Open ${enrollment.course.title}`}
+    >
+      <div className={styles.courseMedia}>
+        {thumbnailUrl ? (
+          <Image
+            src={thumbnailUrl}
+            alt={`${enrollment.course.title} preview`}
+            fill
+            sizes="(max-width: 768px) 100vw, 240px"
+            className={styles.courseImage}
+          />
+        ) : (
+          <div className={styles.coursePlaceholder} aria-hidden="true" />
+        )}
+      </div>
+
+      <div className={styles.courseText}>
+        <h3 className={styles.courseTitle}>{enrollment.course.title}</h3>
       </div>
     </Link>
   );
@@ -140,6 +298,16 @@ export default function CoursesPage() {
 
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
   const { data, isLoading, error } = useCreatedCourses(email);
+  const {
+    data: enrolledData,
+    isLoading: isLoadingEnrolledCourses,
+    error: enrolledCoursesError,
+  } = useEnrolledCourses(email);
+  const {
+    data: assessorData,
+    isLoading: isLoadingAssessorCourses,
+    error: assessorCoursesError,
+  } = useAssessorCourses(email);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -163,7 +331,9 @@ export default function CoursesPage() {
   if (!isLoaded || !isSignedIn) return null;
 
   const courses = data?.courses ?? [];
-  const displayName = data?.user.name || '';
+  const enrolledCourses = enrolledData?.enrollments ?? [];
+  const assessorEnrollments = assessorData?.enrollments ?? [];
+  const displayName = data?.user.name || assessorData?.user.name || enrolledData?.user.name || '';
 
   return (
     <div className={styles.page}>
@@ -192,6 +362,50 @@ export default function CoursesPage() {
 
           {!isLoading && !error && courses.length === 0 && (
             <p className={styles.statusMessage}>No courses yet. Add one from the first card.</p>
+          )}
+        </section>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Assessor Courses</h2>
+
+          <div className={styles.courseGrid} data-testid="assessor-courses-grid">
+            {assessorEnrollments.map((enrollment) => (
+              <CourseCard
+                key={enrollment.id}
+                course={enrollment.course}
+                href={`/courses/${enrollment.course.id}?view=assessor`}
+              />
+            ))}
+          </div>
+
+          {isLoadingAssessorCourses && <p className={styles.statusMessage}>Loading assessor courses...</p>}
+
+          {!isLoadingAssessorCourses && assessorCoursesError && (
+            <p className={styles.statusMessage}>{assessorCoursesError}</p>
+          )}
+
+          {!isLoadingAssessorCourses && !assessorCoursesError && assessorEnrollments.length === 0 && (
+            <p className={styles.statusMessage}>No assessor courses assigned yet.</p>
+          )}
+        </section>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>My Enrolled Courses</h2>
+
+          <div className={styles.courseGrid} data-testid="enrolled-courses-grid">
+            {enrolledCourses.map((enrollment) => (
+              <EnrolledCourseCard key={enrollment.id} enrollment={enrollment} />
+            ))}
+          </div>
+
+          {isLoadingEnrolledCourses && <p className={styles.statusMessage}>Loading enrolled courses...</p>}
+
+          {!isLoadingEnrolledCourses && enrolledCoursesError && (
+            <p className={styles.statusMessage}>{enrolledCoursesError}</p>
+          )}
+
+          {!isLoadingEnrolledCourses && !enrolledCoursesError && enrolledCourses.length === 0 && (
+            <p className={styles.statusMessage}>You are not enrolled in any courses yet.</p>
           )}
         </section>
       </main>

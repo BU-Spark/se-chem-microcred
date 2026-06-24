@@ -85,6 +85,16 @@ function createStudentProfilePayload() {
           category: 'EQUIPMENT',
         },
       ],
+      readyForFinalization: [] as Array<{
+        id: string;
+        slug: string;
+        name: string;
+        description: string | null;
+        category: string | null;
+        status: string;
+        awardedAt: string | null;
+        score: number | null;
+      }>,
       completed: [
         {
           id: 'badge-3',
@@ -196,6 +206,9 @@ function createCompletedBadgeDetailPayload() {
           label: 'Attempt 1',
           score: 95,
           completedAt: '2026-03-22T10:00:00.000Z',
+          passed: true,
+          feedback: 'Student demonstrated safe setup and shutdown.',
+          assessorName: 'Alex Checker',
         },
       ],
     },
@@ -350,6 +363,71 @@ describe('Roster member profile page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Attempt 1' }));
 
     expect(screen.getByText('Score: 95%')).toBeInTheDocument();
+    expect(screen.getByText('Outcome:')).toBeInTheDocument();
+    expect(screen.getByText('Passed')).toBeInTheDocument();
+    expect(screen.getByText('Assessor: Alex Checker')).toBeInTheDocument();
+    expect(screen.getByText('Student demonstrated safe setup and shutdown.')).toBeInTheDocument();
+  });
+
+  it('shows assessment history for a badge ready for finalization', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    const profilePayload = createStudentProfilePayload();
+    profilePayload.badges.readyForFinalization = [
+      {
+        ...profilePayload.badges.inProgress[0],
+        status: 'READY_FOR_FINALIZATION',
+      },
+    ];
+    profilePayload.badges.inProgress = [];
+    const detailPayload = createCompletedBadgeDetailPayload();
+    detailPayload.badge.id = 'badge-1';
+    detailPayload.badge.slug = 'waste-handling';
+    detailPayload.badge.name = 'Waste Handling';
+    detailPayload.badge.status = 'READY_FOR_FINALIZATION';
+
+    mockFetch.mockImplementation(async (input) => {
+      const url = String(input);
+
+      if (url.includes('/badges/badge-1')) {
+        return {
+          ok: true,
+          json: async () => detailPayload,
+        } as Response;
+      }
+
+      return {
+        ok: true,
+        json: async () => profilePayload,
+      } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByText('Assessment Info')).toBeInTheDocument();
+    expect(screen.getByText('Assessment History')).toBeInTheDocument();
+    expect(screen.queryByText('Answer History')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Open Assessment View' })).not.toBeInTheDocument();
+  });
+
+  it('lists assessment-passed badges in the ready for finalization section', async () => {
+    const profilePayload = createStudentProfilePayload();
+    profilePayload.badges.readyForFinalization = [
+      {
+        ...profilePayload.badges.inProgress[0],
+        status: 'READY_FOR_FINALIZATION',
+      },
+    ];
+    profilePayload.badges.inProgress = [];
+
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => profilePayload,
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByRole('heading', { name: 'Ready for finalization' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Waste Handling' })).toBeInTheDocument();
   });
 
   it('loads and displays the selected assessor profile', async () => {
@@ -419,6 +497,7 @@ describe('Roster member profile page', () => {
               category: 'EQUIPMENT',
             },
           ],
+          readyForFinalization: [],
           completed: [],
         },
       }),

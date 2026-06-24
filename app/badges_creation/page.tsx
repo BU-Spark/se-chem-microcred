@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation';
 
 type BadgesCreationRedirectPageProps = {
-  searchParams?: Record<string, string | string[] | undefined>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function toSearchString(searchParams?: Record<string, string | string[] | undefined>) {
@@ -25,7 +25,7 @@ function toSearchString(searchParams?: Record<string, string | string[] | undefi
   return params.toString();
 }
 
-export default function BadgesCreationRedirectPage({ searchParams }: BadgesCreationRedirectPageProps) {
-  const query = toSearchString(searchParams);
+export default async function BadgesCreationRedirectPage({ searchParams }: BadgesCreationRedirectPageProps) {
+  const query = toSearchString(await searchParams);
   redirect(query ? `/badge_creation?${query}` : '/badge_creation');
 }

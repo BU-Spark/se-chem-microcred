@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchCreatedCourseMemberDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { fetchAccessibleCourseMemberDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 
 function normalizeEmail(email?: string | null) {
   const trimmed = email?.trim().toLowerCase();
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const course = await fetchCreatedCourseMemberDetail(user.id, courseId, studentId);
+    const course = await fetchAccessibleCourseMemberDetail(user.id, courseId, studentId);
 
     if (!course || course.enrollments.length === 0) {
       return NextResponse.json(
@@ -59,7 +59,35 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       );
     }
 
-    const enrollment = course.enrollments[0];
+    const enrollment = course.enrollments.find((entry) => entry.student.id === studentId);
+    const viewerEnrollment = course.enrollments.find((entry) => entry.student.id === user.id);
+    const isCourseCreator = course.createdById === user.id;
+    const viewerRole = isCourseCreator ? 'INSTRUCTOR' : viewerEnrollment?.role;
+
+    if (!enrollment || !viewerRole || viewerRole === 'STUDENT') {
+      return NextResponse.json(
+        {
+          error: 'Member not found in this course or you do not have permission to view it.',
+        },
+        { status: 404 }
+      );
+    }
+
+    if (viewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
+      const viewerSections = new Set(viewerEnrollment?.sections.map((assignment) => assignment.section) ?? []);
+      const memberSections = enrollment.sections.map((assignment) => assignment.section);
+      const canViewSection = memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
+
+      if (enrollment.role !== 'STUDENT' || !canViewSection) {
+        return NextResponse.json(
+          {
+            error: 'Member not found in this course or you do not have permission to view it.',
+          },
+          { status: 404 }
+        );
+      }
+    }
+
     const member = enrollment.student;
     const courseBadges = new Map<
       string,
@@ -99,6 +127,13 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         score: number | null;
       }
     > = [];
+    const readyForFinalization: Array<
+      ReturnType<typeof formatBadge> & {
+        status: string;
+        awardedAt: string | null;
+        score: number | null;
+      }
+    > = [];
 
     for (const badge of courseBadges.values()) {
       const progress = progressByBadgeId.get(badge.id);
@@ -117,6 +152,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
 
       if (progress.status === 'COMPLETED') {
         completed.push(badgeWithProgress);
+      } else if (progress.status === 'READY_FOR_FINALIZATION') {
+        readyForFinalization.push(badgeWithProgress);
       } else {
         inProgress.push(badgeWithProgress);
       }
@@ -166,6 +203,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         badges: {
           inProgress,
           notStarted,
+          readyForFinalization,
           completed,
         },
       },

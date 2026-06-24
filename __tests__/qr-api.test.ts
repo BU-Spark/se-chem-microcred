@@ -28,6 +28,10 @@ jest.mock('../lib/prisma', () => {
 
 const buildUrl = (qs: string) => new URL(`http://localhost/api/qr?${qs}`).toString();
 const requestLike = (qs: string, ip = '127.0.0.1') => new Request(buildUrl(qs), { headers: { 'x-forwarded-for': ip } });
+const expectResponse = (response: Response | undefined): Response => {
+  expect(response).toBeDefined();
+  return response as Response;
+};
 
 const mockCurrentUser = currentUser as jest.MockedFunction<typeof currentUser>;
 const mockPrisma = prisma as unknown as {
@@ -53,7 +57,7 @@ describe('QR API', () => {
   });
 
   it('returns a PNG with content length when user owns the badge', async () => {
-    const res = await GET(requestLike(`data=${encodeURIComponent(payload)}&size=180`));
+    const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(payload)}&size=180`)));
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
 
@@ -63,7 +67,7 @@ describe('QR API', () => {
   });
 
   it('handles HEAD requests with correct headers', async () => {
-    const res = await HEAD(requestLike(`data=${encodeURIComponent(payload)}&size=180`, '127.0.0.2'));
+    const res = expectResponse(await HEAD(requestLike(`data=${encodeURIComponent(payload)}&size=180`, '127.0.0.2')));
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
     expect(res.headers.get('content-length')).toBeNull();
@@ -73,24 +77,24 @@ describe('QR API', () => {
 
   it('returns 401 when not authenticated', async () => {
     mockCurrentUser.mockResolvedValue(null);
-    const res = await GET(requestLike(`data=${encodeURIComponent(payload)}`));
+    const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(payload)}`)));
     expect(res.status).toBe(401);
   });
 
   it('rejects QR generation for a different student', async () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'other-student' });
-    const res = await GET(requestLike(`data=${encodeURIComponent(payload)}`));
+    const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(payload)}`)));
     expect(res.status).toBe(403);
   });
 
   it('rejects QR generation when badge is not owned', async () => {
     mockPrisma.studentBadge.findUnique.mockResolvedValue(null);
-    const res = await GET(requestLike(`data=${encodeURIComponent(payload)}`));
+    const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(payload)}`)));
     expect(res.status).toBe(403);
   });
 
   it('returns 400 for invalid payload format', async () => {
-    const res = await GET(requestLike('data=just-text'));
+    const res = expectResponse(await GET(requestLike('data=just-text')));
     expect(res.status).toBe(400);
   });
 
@@ -98,11 +102,11 @@ describe('QR API', () => {
     const ip = '192.168.0.10';
     // First 30 requests should be allowed
     for (let i = 0; i < 30; i += 1) {
-      const res = await GET(requestLike(`data=${encodeURIComponent(payload)}`, ip));
+      const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(payload)}`, ip)));
       expect(res.status).toBe(200);
     }
     // 31st request should be blocked
-    const blocked = await GET(requestLike(`data=${encodeURIComponent(payload)}`, ip));
+    const blocked = expectResponse(await GET(requestLike(`data=${encodeURIComponent(payload)}`, ip)));
     expect(blocked.status).toBe(429);
     expect(blocked.headers.get('retry-after')).not.toBeNull();
   });

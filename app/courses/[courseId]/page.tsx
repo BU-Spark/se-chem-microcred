@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
@@ -76,11 +76,33 @@ type CourseDetail = {
 };
 
 type CourseDetailResponse = {
+  viewerRole: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
   course: CourseDetail;
 };
 
 type AssignedBadge = CourseBadge & {
   lessonCount: number;
+};
+
+type BadgeLibraryItem = {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  assignedStudentCount: number;
+  requirements: Array<{
+    displayText: string;
+    lesson: {
+      course: {
+        id: string;
+        title: string;
+      } | null;
+    } | null;
+  }>;
+};
+
+type BadgeLibraryResponse = {
+  badges: BadgeLibraryItem[];
 };
 
 const CHECKER_AVATARS = [emeraldAvatar, amethystAvatar, emeraldAvatar];
@@ -170,7 +192,7 @@ function useCreatedCourseDetail(courseId?: string | null, email?: string | null)
     void fetchData();
   }, [fetchData]);
 
-  return { data, isLoading, error };
+  return { data, isLoading, error, refresh: fetchData };
 }
 
 function PersonCard({
@@ -224,14 +246,22 @@ function MessageIcon() {
 export default function CreatedCourseDetailPage() {
   const params = useParams<{ courseId: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
+  const [badgeLibrary, setBadgeLibrary] = useState<BadgeLibraryItem[]>([]);
+  const [selectedImportBadgeId, setSelectedImportBadgeId] = useState('');
+  const [isLoadingBadgeLibrary, setIsLoadingBadgeLibrary] = useState(false);
+  const [isImportingBadge, setIsImportingBadge] = useState(false);
+  const [badgeImportError, setBadgeImportError] = useState('');
+  const [badgeImportStatus, setBadgeImportStatus] = useState('');
 
   const courseId = resolveCourseId(params?.courseId);
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
-  const { data, isLoading, error } = useCreatedCourseDetail(courseId, email);
+  const { data, isLoading, error, refresh } = useCreatedCourseDetail(courseId, email);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -253,7 +283,12 @@ export default function CreatedCourseDetailPage() {
   };
 
   const course = data?.course ?? null;
-  const displayName = course?.createdBy?.name || '';
+  const viewerRole = data?.viewerRole ?? null;
+  const isAssessorView = searchParams.get('view') === 'assessor';
+  const isInstructor = viewerRole === 'INSTRUCTOR' && !isAssessorView;
+  const canAssess = isAssessorView && viewerRole !== 'STUDENT';
+  const isStudent = viewerRole === 'STUDENT';
+  const displayName = isInstructor ? course?.createdBy?.name || '' : user?.fullName || '';
 
   const studentCount = useMemo(
     () => course?.enrollments.filter((enrollment) => enrollment.role === 'STUDENT').length ?? 0,
@@ -294,6 +329,85 @@ export default function CreatedCourseDetailPage() {
     return Array.from(badgeMap.values());
   }, [course]);
 
+  const importableBadges = useMemo(
+    () =>
+      badgeLibrary.filter((badge) => {
+        const isAlreadyInCourse = badge.requirements.some((requirement) => requirement.lesson?.course?.id === course?.id);
+        return !isAlreadyInCourse;
+      }),
+    [badgeLibrary, course?.id]
+  );
+
+  const loadBadgeLibrary = useCallback(async () => {
+    if (!isInstructor) return;
+
+    setIsLoadingBadgeLibrary(true);
+    setBadgeImportError('');
+
+    try {
+      const response = await fetch('/api/badges', {
+        headers: { Accept: 'application/json' },
+      });
+      const payload = (await response.json().catch(() => ({
+        error: `Request failed: ${response.status}`,
+      }))) as BadgeLibraryResponse & { error?: string };
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to load badge library.');
+      }
+
+      setBadgeLibrary(payload.badges ?? []);
+    } catch (err) {
+      setBadgeImportError(err instanceof Error ? err.message : 'Unable to load badge library.');
+    } finally {
+      setIsLoadingBadgeLibrary(false);
+    }
+  }, [isInstructor]);
+
+  const openImportPanel = () => {
+    setIsImportPanelOpen(true);
+    setBadgeImportStatus('');
+    setBadgeImportError('');
+    void loadBadgeLibrary();
+  };
+
+  const importSelectedBadge = async () => {
+    if (!course?.id || !selectedImportBadgeId) return;
+
+    setIsImportingBadge(true);
+    setBadgeImportError('');
+    setBadgeImportStatus('');
+
+    try {
+      const response = await fetch(`/api/courses/${encodeURIComponent(course.id)}/badges/import`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({
+          badgeId: selectedImportBadgeId,
+        }),
+      });
+      const payload = await response.json().catch(() => ({
+        error: `Request failed: ${response.status}`,
+      }));
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to import badge.');
+      }
+
+      setBadgeImportStatus('Badge imported successfully.');
+      setSelectedImportBadgeId('');
+      await refresh();
+      await loadBadgeLibrary();
+    } catch (err) {
+      setBadgeImportError(err instanceof Error ? err.message : 'Unable to import badge.');
+    } finally {
+      setIsImportingBadge(false);
+    }
+  };
+
   if (!isLoaded || !isSignedIn) {
     return null;
   }
@@ -327,7 +441,7 @@ export default function CreatedCourseDetailPage() {
                   <h2 className={styles.courseHeading}>{course.title}</h2>
 
                   <PersonCard
-                    label="Instructor (You)"
+                    label={isInstructor ? 'Instructor (You)' : 'Instructor'}
                     name={course.createdBy?.name}
                     email={course.createdBy?.email}
                     avatarSrc={emeraldAvatar}
@@ -336,13 +450,18 @@ export default function CreatedCourseDetailPage() {
                   <div className={styles.statLines}>
                     <p className={styles.statLine}>Number of Sections: {course.sectionCount}</p>
                     <p className={styles.statLine}>Number of Students Enrolled: {studentCount}</p>
+                    {viewerRole ? (
+                      <p className={styles.statLine}>Your Role: {isAssessorView ? 'ASSESSOR' : viewerRole}</p>
+                    ) : null}
                   </div>
 
-                  <div className={styles.actionRow}>
-                    <Link href={`/roster?courseId=${course.id}`} className={styles.primaryButton}>
-                      View Student Roster
-                    </Link>
-                  </div>
+                  {!isStudent ? (
+                    <div className={styles.actionRow}>
+                      <Link href={`/roster?courseId=${course.id}`} className={styles.primaryButton}>
+                        {canAssess ? 'View Students to Assess' : 'View Student Roster'}
+                      </Link>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className={styles.heroDivider} aria-hidden="true" />
@@ -365,14 +484,16 @@ export default function CreatedCourseDetailPage() {
                     <p className={styles.emptyMessage}>No checkers assigned yet.</p>
                   )}
 
-                  <div className={styles.sideActionRow}>
-                    <Link href={`/roster?courseId=${course.id}&role=CHECKER`} className={styles.primaryButton}>
-                      View Assessor Roster
-                    </Link>
-                    <Link href={`/courses/new?courseId=${course.id}`} className={styles.primaryButton}>
-                      Edit Course
-                    </Link>
-                  </div>
+                  {isInstructor ? (
+                    <div className={styles.sideActionRow}>
+                      <Link href={`/roster?courseId=${course.id}&role=CHECKER`} className={styles.primaryButton}>
+                        View Assessor Roster
+                      </Link>
+                      <Link href={`/courses/new?courseId=${course.id}`} className={styles.primaryButton}>
+                        Edit Course
+                      </Link>
+                    </div>
+                  ) : null}
                 </aside>
               </section>
 
@@ -382,22 +503,84 @@ export default function CreatedCourseDetailPage() {
                 {assignedBadges.length > 0 ? (
                   <div className={styles.badgeGrid}>
                     {assignedBadges.map((badge) => (
-                      <article key={badge.id} className={styles.badgeItem}>
+                      <Link key={badge.id} href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItem}>
                         <div className={styles.badgeToken} aria-hidden="true" />
                         <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
                         <MessageIcon />
-                      </article>
+                      </Link>
                     ))}
                   </div>
                 ) : (
                   <p className={styles.emptyMessage}>No badges assigned yet.</p>
                 )}
 
-                <div className={styles.badgeActionRow}>
-                  <Link href={`/badge_creation?courseId=${course.id}`} className={styles.primaryButton}>
-                    Edit Badges
-                  </Link>
-                </div>
+                {isInstructor ? (
+                  <div className={styles.badgeActionRow}>
+                    <button type="button" className={styles.primaryButton} onClick={openImportPanel}>
+                      Import Existing Badge
+                    </button>
+                    <Link href={`/badge_creation?courseId=${course.id}`} className={styles.primaryButton}>
+                      Create Badge
+                    </Link>
+                  </div>
+                ) : null}
+
+                {isInstructor && isImportPanelOpen ? (
+                  <div className={styles.importPanel}>
+                    <div className={styles.importPanelHeader}>
+                      <div>
+                        <h3 className={styles.importTitle}>Import Existing Badge</h3>
+                        <p className={styles.importSubtitle}>Add a reusable badge to this course.</p>
+                      </div>
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={() => {
+                          setIsImportPanelOpen(false);
+                          setBadgeImportError('');
+                          setBadgeImportStatus('');
+                        }}
+                      >
+                        Close
+                      </button>
+                    </div>
+
+                    {isLoadingBadgeLibrary ? <p className={styles.statusMessage}>Loading badge library...</p> : null}
+                    {badgeImportError ? <p className={styles.errorText}>{badgeImportError}</p> : null}
+                    {badgeImportStatus ? <p className={styles.successText}>{badgeImportStatus}</p> : null}
+
+                    {!isLoadingBadgeLibrary ? (
+                      <div className={styles.importControls}>
+                        <label className={styles.importField}>
+                          <span>Badge library</span>
+                          <select
+                            value={selectedImportBadgeId}
+                            onChange={(event) => setSelectedImportBadgeId(event.target.value)}
+                          >
+                            <option value="">Select a badge</option>
+                            {importableBadges.map((badge) => (
+                              <option key={badge.id} value={badge.id}>
+                                {badge.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <button
+                          type="button"
+                          className={styles.primaryButton}
+                          onClick={importSelectedBadge}
+                          disabled={!selectedImportBadgeId || isImportingBadge}
+                        >
+                          {isImportingBadge ? 'Importing...' : 'Import Badge'}
+                        </button>
+                      </div>
+                    ) : null}
+
+                    {!isLoadingBadgeLibrary && importableBadges.length === 0 ? (
+                      <p className={styles.emptyMessage}>No reusable badges are available to import.</p>
+                    ) : null}
+                  </div>
+                ) : null}
               </section>
             </>
           ) : null}

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchCreatedCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { currentUser } from '@clerk/nextjs/server';
+import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 
 function normalizeEmail(email?: string | null) {
   const trimmed = email?.trim().toLowerCase();
@@ -13,12 +14,14 @@ function normalizeCourseId(courseId?: string | null) {
 
 export async function GET(req: NextRequest, context: { params: Promise<{ courseId: string }> }) {
   try {
-    const email = normalizeEmail(req.nextUrl.searchParams.get('email'));
+    void req;
+    const clerkUser = await currentUser();
+    const email = normalizeEmail(clerkUser?.emailAddresses?.[0]?.emailAddress);
     const { courseId: rawCourseId } = await context.params;
     const courseId = normalizeCourseId(rawCourseId);
 
     if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     if (!courseId) {
@@ -31,7 +34,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const course = await fetchCreatedCourseDetail(user.id, courseId);
+    const course = await fetchAccessibleCourseDetail(user.id, courseId);
 
     if (!course) {
       return NextResponse.json(
@@ -40,8 +43,19 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       );
     }
 
+    const viewerEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === user.id);
+    const viewerRole = course.createdById === user.id ? 'INSTRUCTOR' : viewerEnrollment?.role;
+
+    if (!viewerRole) {
+      return NextResponse.json(
+        { error: 'Course not found or you do not have permission to view it.' },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json(
       {
+        viewerRole,
         course: {
           ...course,
           enrollments: course.enrollments.map((enrollment) => ({
