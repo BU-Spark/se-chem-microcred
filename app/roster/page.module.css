@@ -25,7 +25,8 @@
 
 .pageTitle {
   margin: 0;
-  font-size: clamp(2.35rem, 3.3vw, 3.1rem);
+  font-family: 'Lato', 'Open Sans', sans-serif;
+  font-size: 48px;
   font-weight: 700;
   line-height: 1;
   color: #000000;
@@ -53,14 +54,14 @@
 
 .searchField {
   flex: 1 1 446px;
-  min-height: 3rem;
-  border: 3px solid #d7d7d7;
-  border-radius: 1.15rem;
+  min-height: 57px;
+  border: 4px solid #d9d9d9;
+  border-radius: 28.5px;
   display: flex;
   align-items: center;
   gap: 0.72rem;
-  padding: 0 0.7rem 0 0.78rem;
-  color: #2E6AA9;
+  padding: 0 1rem 0 1.1rem;
+  color: #2e6aa9;
   background: #ffffff;
 }
 
@@ -132,8 +133,8 @@
 
 .filterPanel {
   margin-bottom: 0.95rem;
-  border: 3px solid #d7d7d7;
-  border-radius: 1.85rem;
+  border: 4px solid #d9d9d9;
+  border-radius: 40px;
   background: #ffffff;
   padding: 1.25rem 1.35rem 1.2rem;
 }
@@ -227,8 +228,8 @@
 }
 
 .tableCard {
-  border: 3px solid #d7d7d7;
-  border-radius: 1.85rem;
+  border: 4px solid #d9d9d9;
+  border-radius: 40px;
   background: #ffffff;
   overflow: hidden;
 }
