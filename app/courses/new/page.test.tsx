@@ -156,7 +156,8 @@ describe('Course new page edit mode', () => {
     expect(screen.getByText('Checker')).toBeInTheDocument();
     expect(screen.getByText('U87654321')).toBeInTheDocument();
     expect(screen.getByText('checker@bu.edu')).toBeInTheDocument();
-    expect(screen.getByText('3, 4')).toBeInTheDocument();
+    // Section is now an inline dropdown; the preloaded primary section is selected.
+    expect(screen.getByDisplayValue('3')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(await screen.findByText('1 students enrolled')).toBeInTheDocument();
