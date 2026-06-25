@@ -236,7 +236,8 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
 
         return { course: newCourse };
       },
-      { timeout: 30000 }
+      // Prisma Accelerate caps interactive-transaction timeout at 15s (P6005).
+      { maxWait: 5000, timeout: 15000 }
     );
 
     if ('error' in result) {

@@ -456,10 +456,10 @@ export async function POST(req: NextRequest) {
         };
       },
       {
-        // Large rosters do many sequential writes against the remote DB; give the
-        // interactive transaction headroom so it doesn't hit P2028 (timeout).
-        maxWait: 10000,
-        timeout: 60000,
+        // Writes are batched (createMany) so this runs in ~1-2s. Stay within Prisma
+        // Accelerate's hard 15s cap on interactive-transaction timeout (else P6005).
+        maxWait: 5000,
+        timeout: 15000,
       }
     );
 
