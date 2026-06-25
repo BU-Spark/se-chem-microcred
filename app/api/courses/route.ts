@@ -287,6 +287,59 @@ export async function POST(req: NextRequest) {
           existingUsers.filter((user) => user.email).map((user) => [user.email!.toLowerCase(), user])
         );
 
+        const resolveUser = (member: (typeof roster)[number]) =>
+          (member.buid ? userByBuid.get(member.buid) : undefined) ??
+          (member.email ? userByEmail.get(member.email) : undefined);
+
+        // 1. Batch-create every brand-new user in one query (deduped within the upload).
+        const newUserData: { email: string | null; name: string | null; buid: string | null }[] = [];
+        const seenNewKeys = new Set<string>();
+        for (const member of roster) {
+          if (resolveUser(member)) continue;
+          const key = member.buid || member.email;
+          if (!key || seenNewKeys.has(key)) continue;
+          seenNewKeys.add(key);
+          newUserData.push({ email: member.email, name: member.name, buid: member.buid });
+        }
+
+        if (newUserData.length > 0) {
+          await tx.user.createMany({ data: newUserData, skipDuplicates: true });
+
+          const newBuids = newUserData.map((u) => u.buid).filter((b): b is string => Boolean(b));
+          const newEmails = newUserData.map((u) => u.email).filter((e): e is string => Boolean(e));
+          const createdUsers = await tx.user.findMany({
+            where: {
+              OR: [
+                ...(newBuids.length ? [{ buid: { in: newBuids } }] : []),
+                ...(newEmails.length ? [{ email: { in: newEmails } }] : []),
+              ],
+            },
+          });
+          for (const user of createdUsers) {
+            if (user.buid) userByBuid.set(user.buid, user);
+            if (user.email) userByEmail.set(user.email.toLowerCase(), user);
+          }
+        }
+
+        // 2. Backfill missing name/buid/email on pre-existing users (usually none for a fresh upload).
+        const backfilled = new Set<string>();
+        for (const member of roster) {
+          const dbUser = resolveUser(member);
+          if (!dbUser || backfilled.has(dbUser.id)) continue;
+
+          const updates: { name?: string | null; buid?: string | null; email?: string | null } = {};
+          if (!dbUser.name && member.name) updates.name = member.name;
+          if (!dbUser.buid && member.buid) updates.buid = member.buid;
+          if (!dbUser.email && member.email) updates.email = member.email;
+
+          if (Object.keys(updates).length > 0) {
+            backfilled.add(dbUser.id);
+            const updated = await tx.user.update({ where: { id: dbUser.id }, data: updates });
+            if (updated.buid) userByBuid.set(updated.buid, updated);
+            if (updated.email) userByEmail.set(updated.email.toLowerCase(), updated);
+          }
+        }
+
         const analyticsStudentIds = new Set<string>();
         analyticsStudentIds.add(creator.id);
         const enrollmentInputs = new Map<
@@ -297,51 +350,10 @@ export async function POST(req: NextRequest) {
           }
         >();
 
+        // 3. Aggregate per-user enrollment inputs (pure in-memory, no DB calls).
         for (const member of roster) {
-          let dbUser =
-            (member.buid ? userByBuid.get(member.buid) : undefined) ??
-            (member.email ? userByEmail.get(member.email) : undefined);
-
-          if (!dbUser) {
-            dbUser = await tx.user.create({
-              data: {
-                email: member.email,
-                name: member.name,
-                buid: member.buid,
-              },
-            });
-
-            if (dbUser.buid) {
-              userByBuid.set(dbUser.buid, dbUser);
-            }
-            if (dbUser.email) {
-              userByEmail.set(dbUser.email.toLowerCase(), dbUser);
-            }
-          } else {
-            const updates: {
-              name?: string | null;
-              buid?: string | null;
-              email?: string | null;
-            } = {};
-
-            if (!dbUser.name && member.name) updates.name = member.name;
-            if (!dbUser.buid && member.buid) updates.buid = member.buid;
-            if (!dbUser.email && member.email) updates.email = member.email;
-
-            if (Object.keys(updates).length > 0) {
-              dbUser = await tx.user.update({
-                where: { id: dbUser.id },
-                data: updates,
-              });
-
-              if (dbUser.buid) {
-                userByBuid.set(dbUser.buid, dbUser);
-              }
-              if (dbUser.email) {
-                userByEmail.set(dbUser.email.toLowerCase(), dbUser);
-              }
-            }
-          }
+          const dbUser = resolveUser(member);
+          if (!dbUser) continue;
 
           analyticsStudentIds.add(dbUser.id);
 
@@ -374,38 +386,40 @@ export async function POST(req: NextRequest) {
           });
         }
 
-        for (const [userId, enrollmentInput] of enrollmentInputs) {
-          const enrollment = await tx.enrollment.upsert({
-            where: {
-              studentId_courseId: {
-                studentId: userId,
-                courseId: savedCourseId,
-              },
-            },
-            update: {
-              role: enrollmentInput.role,
-            },
-            create: {
-              studentId: userId,
-              courseId: savedCourseId,
-              role: enrollmentInput.role,
-            },
-            select: { id: true },
-          });
+        // 4. Create all non-creator enrollments + their sections in batches. These are always
+        //    fresh here (new course → none exist; edit → non-creator enrollments deleted above).
+        const enrollmentData = Array.from(enrollmentInputs.entries()).map(([studentId, input]) => ({
+          studentId,
+          courseId: savedCourseId,
+          role: input.role,
+        }));
 
-          await tx.enrollmentSection.deleteMany({
-            where: { enrollmentId: enrollment.id },
-          });
+        if (enrollmentData.length > 0) {
+          await tx.enrollment.createMany({ data: enrollmentData, skipDuplicates: true });
 
-          const sections = Array.from(enrollmentInput.sections);
+          const sectionUserIds = Array.from(enrollmentInputs.entries())
+            .filter(([, input]) => input.sections.size > 0)
+            .map(([studentId]) => studentId);
 
-          if (sections.length > 0) {
-            await tx.enrollmentSection.createMany({
-              data: sections.map((section) => ({
-                enrollmentId: enrollment.id,
-                section,
-              })),
+          if (sectionUserIds.length > 0) {
+            const createdEnrollments = await tx.enrollment.findMany({
+              where: { courseId: savedCourseId, studentId: { in: sectionUserIds } },
+              select: { id: true, studentId: true },
             });
+            const enrollmentIdByUser = new Map(createdEnrollments.map((e) => [e.studentId, e.id]));
+
+            const sectionData: { enrollmentId: string; section: string }[] = [];
+            for (const [studentId, input] of enrollmentInputs) {
+              const enrollmentId = enrollmentIdByUser.get(studentId);
+              if (!enrollmentId) continue;
+              for (const section of input.sections) {
+                sectionData.push({ enrollmentId, section });
+              }
+            }
+
+            if (sectionData.length > 0) {
+              await tx.enrollmentSection.createMany({ data: sectionData });
+            }
           }
         }
 
@@ -442,7 +456,10 @@ export async function POST(req: NextRequest) {
         };
       },
       {
-        timeout: 15000,
+        // Large rosters do many sequential writes against the remote DB; give the
+        // interactive transaction headroom so it doesn't hit P2028 (timeout).
+        maxWait: 10000,
+        timeout: 60000,
       }
     );
 
