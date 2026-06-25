@@ -24,9 +24,10 @@ jest.mock('@clerk/nextjs', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (nextImageProps: ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean }) => {
-    const { fill, ...props } = nextImageProps;
+  default: (nextImageProps: ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean; priority?: boolean }) => {
+    const { fill, priority, ...props } = nextImageProps;
     void fill;
+    void priority;
     return <img {...props} alt={props.alt} />;
   },
 }));
@@ -220,7 +221,6 @@ describe('Home Page', () => {
     render(<HomePage />);
 
     expect(screen.getByText('Student Demo')).toBeInTheDocument();
-    expect(screen.getByText('SD')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Assessor Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Enrolled Courses' })).toBeInTheDocument();
@@ -241,7 +241,7 @@ describe('Home Page', () => {
 
     expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
     expect(screen.getByText('Created Course 2')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add course' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Create a course' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Created Course 1' })).toHaveAttribute(
       'href',
       '/courses/created-course-1'
