@@ -9,6 +9,7 @@ import styles from './page.module.css';
 import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import { useDatabaseDisplayNameContext } from '../_components/DatabaseDisplayNameProvider';
 
 function parseName(fullName?: string | null) {
   if (!fullName) {
@@ -82,6 +83,9 @@ export default function ProfilePage() {
   const clerk = useClerk();
 
   const { data: studentData, refresh: refreshStudentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
+  // Cached avatar base (in-memory + localStorage) so the chosen avatar paints
+  // immediately instead of flashing the default gem while studentData loads.
+  const { avatarBase: cachedAvatarBase } = useDatabaseDisplayNameContext();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // ---------- 1. Sensitive-data visibility ----------
@@ -285,7 +289,7 @@ export default function ProfilePage() {
   const checkerContacts = studentData?.course?.contacts.filter((contact) => contact.type === 'CHECKER') ?? [];
   const courseTitle = studentData?.course?.title ?? 'Course information not available';
   const courseSection = studentData?.course?.section ?? 'Not provided';
-  const avatarSrc = avatarAsset(studentData?.student.avatar?.base);
+  const avatarSrc = avatarAsset(studentData?.student.avatar?.base ?? cachedAvatarBase);
 
   return (
     <div className="page">
@@ -306,14 +310,17 @@ export default function ProfilePage() {
 
                   {/* Name block: big name + subtitle (Student + Date) */}
                   <div className={styles.nameBlock}>
+                    {/* Figma shows "Last Name," on the first line and "First Name" below it. */}
                     <div className={styles.primaryName}>
-                      {firstName}
                       {lastName ? (
                         <>
+                          {lastName},
                           <br />
-                          {lastName}
+                          {firstName}
                         </>
-                      ) : null}
+                      ) : (
+                        firstName
+                      )}
                     </div>
 
                     <div className={styles.subtitleBlock}>

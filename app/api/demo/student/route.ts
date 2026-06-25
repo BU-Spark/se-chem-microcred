@@ -1,8 +1,22 @@
 import { NextResponse } from 'next/server';
-import { BadgeStatus, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
+import { BadgeStatus, CourseContactType, CourseRole, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
+
+// Converts a stored "First Last" name into the "Last, First" display format the designs use.
+// Names already containing a comma are assumed to be in the desired format and left as-is.
+function formatLastFirst(fullName?: string | null) {
+  if (!fullName) return null;
+  const trimmed = fullName.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes(',')) return trimmed;
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const last = parts[parts.length - 1];
+  const first = parts.slice(0, -1).join(' ');
+  return `${last}, ${first}`;
+}
 
 function groupBadgesByStatus(badges: Array<ReturnType<typeof formatBadge>>) {
   return badges.reduce(
@@ -197,6 +211,7 @@ export async function GET() {
   const enrollment = await prisma.enrollment.findFirst({
     where: { studentId: student.id },
     include: {
+      sections: true,
       course: {
         include: {
           contacts: {
@@ -206,6 +221,43 @@ export async function GET() {
       },
     },
   });
+
+  // The student's own section(s) for this course (e.g. "A1"). Stored on EnrollmentSection,
+  // NOT on Course.section (which is a legacy single-section field).
+  const studentSections = new Set((enrollment?.sections ?? []).map((s) => s.section));
+  const primarySection = enrollment?.sections[0]?.section ?? enrollment?.course.section ?? null;
+
+  // Build the instructor + checker contact list from enrollments (the section-aware source
+  // of truth) rather than CourseContact (which has no section). A student in section A1 must
+  // only see the checker(s) assigned to A1; instructors are course-wide and always shown.
+  const courseStaff = enrollment
+    ? await prisma.enrollment.findMany({
+        where: {
+          courseId: enrollment.courseId,
+          role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
+        },
+        include: {
+          sections: true,
+          student: { select: { id: true, name: true, email: true } },
+        },
+      })
+    : [];
+
+  const derivedContacts = courseStaff
+    .filter((staff) => {
+      if (staff.role === CourseRole.INSTRUCTOR) return true;
+      // CHECKER: only those sharing the student's section. If we don't know the student's
+      // section (none assigned), fall back to showing every checker.
+      if (studentSections.size === 0) return true;
+      return staff.sections.some((s) => studentSections.has(s.section));
+    })
+    .map((staff) => ({
+      id: staff.id,
+      type: staff.role === CourseRole.INSTRUCTOR ? CourseContactType.INSTRUCTOR : CourseContactType.CHECKER,
+      name: formatLastFirst(staff.student.name) ?? staff.student.email ?? 'Unknown',
+      email: staff.student.email ?? '',
+      avatarUrl: null as string | null,
+    }));
 
   const [lessonProgresses, lessons, studentBadges, passingCheckpointAttempts, surveyResponses, checkpointResponses] =
     await Promise.all([
@@ -496,16 +548,10 @@ export async function GET() {
       ? {
           id: enrollment.course.id,
           code: enrollment.course.code,
-          section: enrollment.course.section,
+          section: primarySection,
           title: enrollment.course.title,
           description: enrollment.course.description,
-          contacts: enrollment.course.contacts.map((contact) => ({
-            id: contact.id,
-            type: contact.type,
-            name: contact.name,
-            email: contact.email,
-            avatarUrl: contact.avatarUrl ?? null,
-          })),
+          contacts: derivedContacts,
         }
       : null,
     analytics: student.analytics
