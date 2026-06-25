@@ -50,6 +50,16 @@ function splitLastFirst(name?: string | null) {
   return { line1: parts[0], line2: parts[1] };
 }
 
+function formatCreatedDate(value?: string | null) {
+  if (!value) return 'Not available';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not available';
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  const yyyy = String(date.getFullYear());
+  return `${mm}/${dd}/${yyyy}`;
+}
+
 type Contact = {
   id: string;
   name: string;
@@ -91,6 +101,13 @@ export default function ProfilePage() {
   // ---------- 1. Sensitive-data visibility ----------
   const [sensitiveHidden, setSensitiveHidden] = useState(true);
   const [sensitiveTimerId, setSensitiveTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
+
+  // ---------- Demographic dropdown (expand/collapse) ----------
+  const [demographicOpen, setDemographicOpen] = useState(false);
+
+  // ---------- Badge section dropdowns ----------
+  const [notStartedOpen, setNotStartedOpen] = useState(false);
+  const [completedOpen, setCompletedOpen] = useState(false);
 
   // ---------- 2. Language picker ----------
   // language settings (ready for future languages)
@@ -138,6 +155,14 @@ export default function ProfilePage() {
     };
   }, [isLoaded, isSignedIn]);
 
+  // Collapse the demographic dropdown whenever sensitive info gets re-hidden
+  // (e.g. the 10-minute auto-hide timer fires) so masked values aren't shown.
+  useEffect(() => {
+    if (sensitiveHidden) {
+      setDemographicOpen(false);
+    }
+  }, [sensitiveHidden]);
+
   const restartSensitiveTimer = () => {
     if (sensitiveTimerId) clearTimeout(sensitiveTimerId);
     const id = setTimeout(() => setSensitiveHidden(true), SENSITIVE_TIMEOUT_MS);
@@ -160,16 +185,34 @@ export default function ProfilePage() {
     }
   };
 
-  const handleShowSensitive = async () => {
+  // Returns true if sensitive info became (or already was) visible.
+  const handleShowSensitive = async (): Promise<boolean> => {
     try {
       await requestReauthentication();
       const confirmed = window.confirm('Did you finish re-authentication?');
-      if (!confirmed) return;
+      if (!confirmed) return false;
       setSensitiveHidden(false);
       restartSensitiveTimer();
+      return true;
     } catch {
       // keep hidden on failure
+      return false;
     }
+  };
+
+  // Toggle the Demographic Info dropdown. Opening it requires the sensitive
+  // info to be unmasked (re-authentication), preserving the existing behavior.
+  const handleToggleDemographic = async () => {
+    if (demographicOpen) {
+      setDemographicOpen(false);
+      return;
+    }
+    if (sensitiveHidden) {
+      const revealed = await handleShowSensitive();
+      if (revealed) setDemographicOpen(true);
+      return;
+    }
+    setDemographicOpen(true);
   };
 
   const handleChangePassword = async () => {
@@ -271,9 +314,7 @@ export default function ProfilePage() {
   const greetingName = isFallback ? 'Student' : firstName;
   const studentEmail = studentData?.student.email ?? user?.primaryEmailAddress?.emailAddress ?? 'Not provided';
   const buid = studentData?.student.buid ?? 'Not provided';
-  const createdAt = studentData?.student.createdAt
-    ? new Date(studentData.student.createdAt).toLocaleDateString()
-    : 'Not available';
+  const createdAt = formatCreatedDate(studentData?.student.createdAt);
 
   const gender = studentData?.student.gender ?? 'Not provided';
   const raceEthnicity = studentData?.student.raceEthnicity ?? 'Not provided';
@@ -285,11 +326,13 @@ export default function ProfilePage() {
         ? 'Yes'
         : 'No';
 
-  const instructorContacts = studentData?.course?.contacts.filter((contact) => contact.type === 'INSTRUCTOR') ?? [];
   const checkerContacts = studentData?.course?.contacts.filter((contact) => contact.type === 'CHECKER') ?? [];
   const courseTitle = studentData?.course?.title ?? 'Course information not available';
   const courseSection = studentData?.course?.section ?? 'Not provided';
   const avatarSrc = avatarAsset(studentData?.student.avatar?.base ?? cachedAvatarBase);
+
+  const learningBadges = studentData?.badges.learning ?? [];
+  const completedBadges = studentData?.badges.completed ?? [];
 
   return (
     <div className="page">
@@ -298,78 +341,83 @@ export default function ProfilePage() {
       <main className="main">
         <div className={styles.pageContent}>
           <header className={styles.headerRow}>
-            <h1 className={styles.greeting}>Hello, {greetingName}</h1>
+            <h1 className={styles.pageTitle}>Student Profile</h1>
+            <span className={styles.greeting}>Hello, {greetingName}</span>
           </header>
 
+          {/* ===================== Profile card ===================== */}
           <section className={styles.profileCard}>
-            {/* LEFT PANEL: student info + avatar */}
-            <div className={styles.leftPanel}>
-              <div className={styles.infoColumn}>
+            {/* LEFT: student info */}
+            <div className={styles.infoColumn}>
+              <h2 className={styles.sectionTitle}>Student Info:</h2>
+
+              <div className={styles.primaryName}>
+                {lastName ? (
+                  <>
+                    {lastName},
+                    <br />
+                    {firstName}
+                  </>
+                ) : (
+                  firstName
+                )}
+              </div>
+
+              <div className={styles.roleLabel}>Student</div>
+              <div className={styles.metaLine}>Date Created: {createdAt}</div>
+
+              <div className={styles.detailGridTop}>
                 <div>
-                  <h2 className={styles.sectionTitle}>Student Info:</h2>
-
-                  {/* Name block: big name + subtitle (Student + Date) */}
-                  <div className={styles.nameBlock}>
-                    {/* Figma shows "Last Name," on the first line and "First Name" below it. */}
-                    <div className={styles.primaryName}>
-                      {lastName ? (
-                        <>
-                          {lastName},
-                          <br />
-                          {firstName}
-                        </>
-                      ) : (
-                        firstName
-                      )}
-                    </div>
-
-                    <div className={styles.subtitleBlock}>
-                      <div className={styles.roleLabel}>Student</div>
-                      <div className={styles.metaLine}>Date Created: {createdAt}</div>
-                    </div>
-                  </div>
-
-                  {/* Email / BUID row */}
-                  <div className={styles.detailGridTop}>
-                    <div>
-                      <div className={styles.detailLabel}>Email:</div>
-                      <div className={styles.detailValue}>{studentEmail}</div>
-                    </div>
-                    <div>
-                      <div className={styles.detailLabel}>BUID:</div>
-                      <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
-                        {sensitiveHidden ? 'XXXXXXX' : buid}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* New: change password & language links */}
-                  <div className={styles.inlineActionsRow}>
-                    <button type="button" className={styles.inlineLink} onClick={handleChangePassword}>
-                      Change Password
-                    </button>
-                    <button type="button" className={styles.inlineLink} onClick={handleOpenLanguageModal}>
-                      Change Language
-                    </button>
-                  </div>
-
-                  {/* Sensitive toggle button */}
-                  <div className={styles.sensitiveToggleRow}>
-                    {sensitiveHidden ? (
-                      <button type="button" className={styles.sensitiveToggleButton} onClick={handleShowSensitive}>
-                        Show BUID & demographic info
-                      </button>
-                    ) : (
-                      <span className={styles.sensitiveStatusText}>
-                        Sensitive info visible (auto-hides after 10 minutes)
-                      </span>
-                    )}
+                  <div className={styles.detailLabel}>Email:</div>
+                  <div className={styles.detailValue}>{studentEmail}</div>
+                </div>
+                <div>
+                  <div className={styles.detailLabel}>BUID:</div>
+                  <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
+                    {sensitiveHidden ? 'UXXXXXXXX' : buid}
                   </div>
                 </div>
+              </div>
 
-                {/* Demographic Info section */}
-                <div className={styles.demographicSection}>
-                  <h3 className={styles.demographicTitle}>Demographic Info:</h3>
+              <div className={styles.inlineActionsRow}>
+                <button type="button" className={styles.inlineLink} onClick={handleChangePassword}>
+                  Change Password
+                </button>
+                <button type="button" className={styles.inlineLink} onClick={handleOpenLanguageModal}>
+                  Change Language
+                </button>
+              </div>
+            </div>
+
+            {/* CENTER: avatar */}
+            <div className={styles.avatarColumn}>
+              <div className={styles.avatarFrame}>
+                <Image src={avatarSrc} alt="Student avatar" width={280} height={280} className={styles.avatarImage} />
+              </div>
+
+              <button type="button" className={styles.editAvatarLink} onClick={() => setIsEditAvatarOpen(true)}>
+                <span className={styles.editAvatarText}>Edit avatar</span>
+                <Image src={editIcon} alt="Edit avatar" width={16} height={16} className={styles.editAvatarIcon} />
+              </button>
+            </div>
+
+            {/* RIGHT: demographic dropdown + course + checker */}
+            <aside className={styles.rightColumn}>
+              {/* Demographic Info dropdown */}
+              <div className={styles.demographicSection}>
+                <button
+                  type="button"
+                  className={styles.demographicHeader}
+                  onClick={handleToggleDemographic}
+                  aria-expanded={demographicOpen}
+                >
+                  <span className={styles.demographicTitle}>Demographic Info</span>
+                  <span className={`${styles.caret} ${demographicOpen ? styles.caretOpen : ''}`} aria-hidden="true">
+                    ⌄
+                  </span>
+                </button>
+
+                {demographicOpen && (
                   <div className={styles.detailGrid}>
                     <div>
                       <div className={styles.detailLabel}>Gender:</div>
@@ -396,27 +444,12 @@ export default function ProfilePage() {
                       </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
-              {/* Avatar column */}
-              <div className={styles.avatarColumn}>
-                <div className={styles.avatarFrame}>
-                  <Image src={avatarSrc} alt="Student avatar" width={220} height={220} className={styles.avatarImage} />
-                </div>
-
-                <button type="button" className={styles.editAvatarLink} onClick={() => setIsEditAvatarOpen(true)}>
-                  <span className={styles.editAvatarText}>Edit avatar</span>
-                  <Image src={editIcon} alt="Edit avatar" width={16} height={16} className={styles.editAvatarIcon} />
-                </button>
-              </div>
-            </div>
-
-            {/* RIGHT PANEL: course info with vertical divider */}
-            <aside className={styles.courseColumn}>
-              {/* Course info */}
+              {/* Course Info */}
               <div className={styles.courseSection}>
-                <h2 className={`${styles.sectionTitle} ${styles.courseInfoTitle}`}>Course Info:</h2>
+                <h3 className={styles.courseInfoTitle}>Course Info:</h3>
                 <div className={styles.courseMeta}>
                   {courseTitle}
                   <br />
@@ -424,42 +457,9 @@ export default function ProfilePage() {
                 </div>
               </div>
 
-              {/* Instructor */}
-              <div className={styles.courseSection}>
-                <h2 className={`${styles.sectionTitle} ${styles.instructorTitle}`}>Instructor</h2>
-                <div className={styles.contactList}>
-                  {instructorContacts.length === 0 ? (
-                    <div className={styles.emptyState}>No instructors listed.</div>
-                  ) : (
-                    instructorContacts.map((contact) => {
-                      const { line1, line2 } = splitLastFirst(contact.name);
-                      return (
-                        <div key={contact.id} className={styles.contactItem}>
-                          <div className={styles.contactAvatar}>
-                            <Image src={getContactAvatarSrc(contact)} alt={contact.name} width={110} height={110} />
-                          </div>
-                          <div className={styles.contactInfo}>
-                            <span className={styles.contactName}>
-                              {line1}
-                              {line2 ? (
-                                <>
-                                  <br />
-                                  {line2}
-                                </>
-                              ) : null}
-                            </span>
-                            <span className={styles.contactEmail}>{contact.email}</span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
               {/* Checker */}
               <div className={styles.courseSection}>
-                <h2 className={`${styles.sectionTitle} ${styles.checkerTitle}`}>Checker</h2>
+                <h3 className={styles.checkerTitle}>Checker</h3>
                 <div className={styles.contactList}>
                   {checkerContacts.length === 0 ? (
                     <div className={styles.emptyState}>No checkers listed.</div>
@@ -489,13 +489,87 @@ export default function ProfilePage() {
                   )}
                 </div>
               </div>
-            </aside>
 
-            {/* Edit Info button inside card, aligned to bottom-right */}
-            <div className={styles.editInfoRow}>
-              <button type="button" className={styles.editInfoButton} onClick={handleOpenDemographicModal}>
-                Edit Info
+              {/* Edit pencil for course/checker area -> demographic/edit handler */}
+              <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
+                <span className={styles.editPencilText}>Edit</span>
+                <Image src={editIcon} alt="" width={20} height={20} className={styles.editPencilIcon} />
               </button>
+            </aside>
+          </section>
+
+          {/* ===================== Badges card ===================== */}
+          <section className={styles.badgesCard}>
+            <div className={styles.badgesHeader}>
+              <h2 className={styles.badgesTitle}>Student Badges</h2>
+              <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
+                <span className={styles.editPencilText}>Edit</span>
+                <Image src={editIcon} alt="" width={20} height={20} className={styles.editPencilIcon} />
+              </button>
+            </div>
+
+            {/* In-progress */}
+            <h3 className={styles.badgeSectionLabel}>In-progress</h3>
+            <div className={styles.badgeRow}>
+              {learningBadges.length === 0 ? (
+                <div className={styles.emptyState}>No badges in progress.</div>
+              ) : (
+                learningBadges.map((badge) => (
+                  <div key={badge.id} className={styles.badgeToken}>
+                    <div className={styles.badgeCircle} aria-hidden="true" />
+                    <div className={styles.badgeName}>{badge.name}</div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Not yet started */}
+            <div className={styles.badgeDropdownSection}>
+              <button
+                type="button"
+                className={styles.badgeDropdownHeader}
+                onClick={() => setNotStartedOpen((open) => !open)}
+                aria-expanded={notStartedOpen}
+              >
+                <span className={styles.badgeSectionLabel}>Not yet started</span>
+                <span className={`${styles.caret} ${notStartedOpen ? styles.caretOpen : ''}`} aria-hidden="true">
+                  ⌄
+                </span>
+              </button>
+              {notStartedOpen && (
+                <div className={styles.badgeRow}>
+                  <div className={styles.emptyState}>No badges to show.</div>
+                </div>
+              )}
+            </div>
+
+            {/* Completed */}
+            <div className={styles.badgeDropdownSection}>
+              <button
+                type="button"
+                className={styles.badgeDropdownHeader}
+                onClick={() => setCompletedOpen((open) => !open)}
+                aria-expanded={completedOpen}
+              >
+                <span className={styles.badgeSectionLabel}>Completed</span>
+                <span className={`${styles.caret} ${completedOpen ? styles.caretOpen : ''}`} aria-hidden="true">
+                  ⌄
+                </span>
+              </button>
+              {completedOpen && (
+                <div className={styles.badgeRow}>
+                  {completedBadges.length === 0 ? (
+                    <div className={styles.emptyState}>No completed badges yet.</div>
+                  ) : (
+                    completedBadges.map((badge) => (
+                      <div key={badge.id} className={styles.badgeToken}>
+                        <div className={styles.badgeCircle} aria-hidden="true" />
+                        <div className={styles.badgeName}>{badge.name}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </section>
         </div>

@@ -364,19 +364,21 @@ describe('Analytics page', () => {
 });
 
 describe('Profile page', () => {
-  it('masks sensitive info after timeout and shows toggle button', () => {
+  it('masks sensitive info after timeout and shows the demographic dropdown toggle', () => {
     jest.useFakeTimers();
     render(<ProfilePage />);
 
-    expect(screen.getByRole('button', { name: /Show BUID/i })).toBeInTheDocument();
-    expect(screen.getAllByText('XXXXXXX').length).toBeGreaterThan(0);
+    // Sensitive BUID is masked by default and revealing demographics is gated
+    // behind the "Demographic Info" dropdown (which requires re-auth to open).
+    expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
+    expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);
 
     act(() => {
       jest.advanceTimersByTime(10 * 60 * 1000 + 50);
     });
 
-    expect(screen.getAllByText('XXXXXXX').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /Show BUID/i })).toBeInTheDocument();
+    expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
     jest.useRealTimers();
   });
 
