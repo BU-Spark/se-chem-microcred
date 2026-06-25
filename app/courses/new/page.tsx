@@ -185,6 +185,11 @@ export default function CourseNewPage() {
 
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Synchronous guard against double/triple submission. The `isSubmitting` state flag
+  // only disables the button after a re-render, leaving a race window where rapid clicks
+  // (or clicks during a slow request) fire multiple create requests → duplicate courses.
+  // A ref mutates immediately, so it blocks re-entrant calls within the same tick.
+  const isSubmittingRef = useRef(false);
   const [uploadDialog, setUploadDialog] = useState<UploadDialogState | null>(null);
 
   useEffect(() => {
@@ -332,6 +337,9 @@ export default function CourseNewPage() {
 
   const goNext = async () => {
     if (currentStep === steps.length - 1) {
+      // Re-entrancy guard: ignore clicks while a save is already in flight.
+      if (isSubmittingRef.current) return;
+
       setSubmitError('');
 
       const rosterConflict = findRosterRoleConflict();
@@ -340,6 +348,7 @@ export default function CourseNewPage() {
         return;
       }
 
+      isSubmittingRef.current = true;
       setIsSubmitting(true);
       try {
         const result = await handleCreateCourse();
@@ -350,6 +359,7 @@ export default function CourseNewPage() {
         setSubmitError(error instanceof Error ? error.message : 'Failed to save course.');
       } finally {
         setIsSubmitting(false);
+        isSubmittingRef.current = false;
       }
       return;
     }
