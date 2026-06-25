@@ -8,6 +8,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 
 import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
 import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
+import sapphireAvatar from '@/public/edit_avatar/sapphire.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import styles from './page.module.css';
 
@@ -105,7 +106,7 @@ type BadgeLibraryResponse = {
   badges: BadgeLibraryItem[];
 };
 
-const CHECKER_AVATARS = [emeraldAvatar, amethystAvatar, emeraldAvatar];
+const CHECKER_AVATARS = [emeraldAvatar, sapphireAvatar, amethystAvatar];
 
 function resolveCourseId(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
@@ -136,18 +137,18 @@ function initialsFor(name?: string | null, email?: string | null) {
     .join('');
 }
 
-function splitDisplayName(name?: string | null, email?: string | null) {
+function formatLastFirst(name?: string | null, email?: string | null) {
   const resolved = formatPersonName(name, email);
   const parts = resolved.split(/\s+/).filter(Boolean);
 
   if (parts.length <= 1) {
-    return { primary: resolved, secondary: null as string | null };
+    return resolved;
   }
 
-  return {
-    primary: parts.slice(0, 2).join(' '),
-    secondary: parts.slice(2).join(' ') || null,
-  };
+  const last = parts[parts.length - 1];
+  const first = parts.slice(0, parts.length - 1).join(' ');
+
+  return `${last}, ${first}`;
 }
 
 function useCreatedCourseDetail(courseId?: string | null, email?: string | null) {
@@ -206,24 +207,25 @@ function PersonCard({
   email?: string | null;
   avatarSrc?: StaticImageData;
 }) {
-  const display = splitDisplayName(name, email);
+  const display = formatLastFirst(name, email);
 
   return (
     <div className={styles.personCard}>
-      <div className={styles.personAvatarShell}>
-        {avatarSrc ? (
-          <Image src={avatarSrc} alt="" width={88} height={88} className={styles.personAvatarImage} />
-        ) : (
-          <div className={styles.personAvatarFallback} aria-hidden="true">
-            {initialsFor(name, email)}
-          </div>
-        )}
-      </div>
-      <div className={styles.personInfo}>
-        {label ? <p className={styles.personLabel}>{label}</p> : null}
-        <p className={styles.personName}>{display.primary}</p>
-        {display.secondary ? <p className={styles.personName}>{display.secondary}</p> : null}
-        <p className={styles.personEmail}>{email?.trim() || 'Email unavailable'}</p>
+      {label ? <p className={styles.personLabel}>{label}</p> : null}
+      <div className={styles.personRow}>
+        <div className={styles.personAvatarShell}>
+          {avatarSrc ? (
+            <Image src={avatarSrc} alt="" width={88} height={88} className={styles.personAvatarImage} />
+          ) : (
+            <div className={styles.personAvatarFallback} aria-hidden="true">
+              {initialsFor(name, email)}
+            </div>
+          )}
+        </div>
+        <div className={styles.personInfo}>
+          <p className={styles.personName}>{display}</p>
+          <p className={styles.personEmail}>{email?.trim() || 'Email unavailable'}</p>
+        </div>
       </div>
     </div>
   );
@@ -231,12 +233,13 @@ function PersonCard({
 
 function MessageIcon() {
   return (
-    <svg viewBox="0 0 40 40" width="28" height="28" className={styles.badgeIcon} aria-hidden="true">
+    <svg viewBox="0 0 24 24" width="40" height="40" className={styles.badgeIcon} aria-hidden="true">
       <path
-        d="M20 6c7.732 0 14 5.596 14 12.5 0 6.904-6.268 12.5-14 12.5-1.663 0-3.258-.259-4.739-.733L8 34l2.688-6.122C7.788 25.59 6 22.246 6 18.5 6 11.596 12.268 6 20 6Z"
+        d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"
         fill="none"
         stroke="currentColor"
-        strokeWidth="3.2"
+        strokeWidth="2"
+        strokeLinecap="round"
         strokeLinejoin="round"
       />
     </svg>
@@ -332,7 +335,9 @@ export default function CreatedCourseDetailPage() {
   const importableBadges = useMemo(
     () =>
       badgeLibrary.filter((badge) => {
-        const isAlreadyInCourse = badge.requirements.some((requirement) => requirement.lesson?.course?.id === course?.id);
+        const isAlreadyInCourse = badge.requirements.some(
+          (requirement) => requirement.lesson?.course?.id === course?.id
+        );
         return !isAlreadyInCourse;
       }),
     [badgeLibrary, course?.id]
@@ -457,7 +462,7 @@ export default function CreatedCourseDetailPage() {
 
                   {!isStudent ? (
                     <div className={styles.actionRow}>
-                      <Link href={`/roster?courseId=${course.id}`} className={styles.primaryButton}>
+                      <Link href={`/roster?courseId=${course.id}&role=STUDENT`} className={styles.primaryButton}>
                         {canAssess ? 'View Students to Assess' : 'View Student Roster'}
                       </Link>
                     </div>
