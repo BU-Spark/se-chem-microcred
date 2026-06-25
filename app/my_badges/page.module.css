@@ -10,46 +10,42 @@
   padding: 2.5rem 2.75rem 3rem;
 }
 
-.header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-}
-
 .pageTitle {
   margin: 0;
-  font-size: clamp(2rem, 2.5vw, 2.75rem);
+  font-family: 'Lato', 'Open Sans', sans-serif;
+  font-size: 48px;
   font-weight: 700;
   line-height: 1.05;
   color: #161616;
 }
 
-.pageSubtitle {
-  margin: 0.45rem 0 0;
-  font-size: 1rem;
-  color: #5f6671;
+.createButton {
+  margin-top: 1.25rem;
+  border: 0;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  cursor: pointer;
+  font-family: 'Lato', 'Open Sans', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 500;
+  line-height: 1;
+  padding: 1rem 1.6rem;
+  text-decoration: none;
 }
 
-.createButton,
 .secondaryButton,
 .detailLink {
   border: 0;
   border-radius: 999px;
-  background: #1f5fab;
-  color: #ffffff;
+  background: #f0f5fb;
+  color: #1f5fab;
   cursor: pointer;
   font-size: 0.96rem;
   font-weight: 700;
   line-height: 1;
   padding: 0.9rem 1.35rem;
   text-decoration: none;
-}
-
-.secondaryButton {
-  background: #f0f5fb;
-  color: #1f5fab;
 }
 
 .statusMessage {
@@ -83,92 +79,52 @@
 }
 
 .badgeGrid {
+  margin-top: 2.5rem;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 320px));
-  gap: 1.5rem;
-  align-items: stretch;
-  justify-content: start;
-  max-width: 1120px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  column-gap: 1.75rem;
+  row-gap: 2.5rem;
+  align-items: start;
+  justify-items: center;
+  max-width: 1180px;
 }
 
+/* Each badge is a clickable token + name that opens the badge's main page. */
 .badgeCard {
-  border: 1px solid #d8e0ea;
-  border-radius: 8px;
-  background: #ffffff;
-  overflow: hidden;
-  box-shadow: 0 10px 24px rgba(17, 24, 39, 0.06);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  text-decoration: none;
+  cursor: pointer;
 }
 
 .badgeToken {
-  height: 112px;
-  background: radial-gradient(circle at 50% 42%, rgba(255, 255, 255, 0.88) 0 28px, transparent 29px),
-    linear-gradient(135deg, #1f5fab, #76a9d9);
+  width: 100%;
+  max-width: 219px;
+  aspect-ratio: 1 / 1;
+  border-radius: 50%;
+  background: #2e6aa9;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
 }
 
-.badgeBody {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
-  padding: 1.15rem;
-}
-
-.badgeTopLine,
-.badgeMeta,
-.cardActions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.categoryPill {
-  border-radius: 999px;
-  background: #eef5fc;
-  color: #1f5fab;
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 0.35rem 0.65rem;
-}
-
-.dateText,
-.badgeMeta {
-  color: #66717f;
-  font-size: 0.82rem;
+.badgeCard:hover .badgeToken,
+.badgeCard:focus-visible .badgeToken {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 26px rgba(46, 106, 169, 0.32);
 }
 
 .badgeName {
   margin: 0;
-  color: #151515;
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1.15;
-}
-
-.badgeDescription {
-  margin: 0;
-  min-height: 2.6rem;
-  color: #4f5b67;
-  font-size: 0.95rem;
-  line-height: 1.4;
-}
-
-.requirementList {
-  margin: 0;
-  padding-left: 1.15rem;
-  color: #364352;
-  font-size: 0.9rem;
-  line-height: 1.35;
-}
-
-.requirementList li + li {
-  margin-top: 0.35rem;
-}
-
-.detailLink {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.75rem 1rem;
+  color: #000000;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.25;
+  text-align: center;
 }
 
 .modalOverlay {
@@ -249,6 +205,12 @@
   font-size: 0.92rem;
 }
 
+@media (max-width: 1180px) {
+  .badgeGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 960px) {
   .page {
     flex-direction: column;
@@ -259,17 +221,8 @@
     padding: 1.5rem 1.25rem 2rem;
   }
 
-  .header {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .createButton {
-    align-self: flex-start;
-  }
-
   .badgeGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     max-width: none;
   }
 
