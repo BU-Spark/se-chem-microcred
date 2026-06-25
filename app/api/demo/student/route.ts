@@ -228,27 +228,81 @@ export async function GET() {
   const primarySection = enrollment?.sections[0]?.section ?? enrollment?.course.section ?? null;
 
   // Build the instructor + checker contact list from enrollments (the section-aware source
-  // of truth) rather than CourseContact (which has no section). A student in section A1 must
-  // only see the checker(s) assigned to A1; instructors are course-wide and always shown.
-  const courseStaff = enrollment
-    ? await prisma.enrollment.findMany({
-        where: {
-          courseId: enrollment.courseId,
-          role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
+  // of truth) rather than CourseContact (which has no section). The query is folded into the
+  // Promise.all below so it runs in parallel with the other reads instead of adding a serial
+  // round-trip to Prisma Accelerate.
+  const [
+    courseStaff,
+    lessonProgresses,
+    lessons,
+    studentBadges,
+    passingCheckpointAttempts,
+    surveyResponses,
+    checkpointResponses,
+  ] = await Promise.all([
+    enrollment
+      ? prisma.enrollment.findMany({
+          where: {
+            courseId: enrollment.courseId,
+            role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
+          },
+          include: {
+            sections: true,
+            student: { select: { id: true, name: true, email: true } },
+          },
+        })
+      : Promise.resolve([]),
+    fetchLessonProgress(student.id),
+    enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
+    prisma.studentBadge.findMany({
+      where: { studentId: student.id },
+      include: {
+        badge: {
+          include: {
+            requirements: {
+              include: {
+                lesson: {
+                  select: { slug: true, title: true },
+                },
+              },
+            },
+          },
         },
-        include: {
-          sections: true,
-          student: { select: { id: true, name: true, email: true } },
-        },
-      })
-    : [];
+      },
+    }),
+    prisma.checkpointAttempt.findMany({
+      where: {
+        userId: student.id,
+        isPassing: true,
+      },
+      select: {
+        checkpointId: true,
+      },
+    }),
+    prisma.surveyResponse.findMany({
+      where: {
+        studentId: student.id,
+      },
+      select: {
+        promptId: true,
+      },
+    }),
+    prisma.checkpointResponse.findMany({
+      where: { studentId: student.id },
+      select: {
+        checkpointId: true,
+        questionId: true,
+      },
+    }),
+  ]);
 
   const derivedContacts = courseStaff
     .filter((staff) => {
       if (staff.role === CourseRole.INSTRUCTOR) return true;
-      // CHECKER: only those sharing the student's section. If we don't know the student's
-      // section (none assigned), fall back to showing every checker.
+      // CHECKER: show those sharing the student's section. If the student has no section
+      // assigned, or the checker is course-wide (no sections of their own), show them too.
       if (studentSections.size === 0) return true;
+      if (staff.sections.length === 0) return true;
       return staff.sections.some((s) => studentSections.has(s.section));
     })
     .map((staff) => ({
@@ -258,52 +312,6 @@ export async function GET() {
       email: staff.student.email ?? '',
       avatarUrl: null as string | null,
     }));
-
-  const [lessonProgresses, lessons, studentBadges, passingCheckpointAttempts, surveyResponses, checkpointResponses] =
-    await Promise.all([
-      fetchLessonProgress(student.id),
-      enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
-      prisma.studentBadge.findMany({
-        where: { studentId: student.id },
-        include: {
-          badge: {
-            include: {
-              requirements: {
-                include: {
-                  lesson: {
-                    select: { slug: true, title: true },
-                  },
-                },
-              },
-            },
-          },
-        },
-      }),
-      prisma.checkpointAttempt.findMany({
-        where: {
-          userId: student.id,
-          isPassing: true,
-        },
-        select: {
-          checkpointId: true,
-        },
-      }),
-      prisma.surveyResponse.findMany({
-        where: {
-          studentId: student.id,
-        },
-        select: {
-          promptId: true,
-        },
-      }),
-      prisma.checkpointResponse.findMany({
-        where: { studentId: student.id },
-        select: {
-          checkpointId: true,
-          questionId: true,
-        },
-      }),
-    ]);
 
   const surveyPrompts = await prisma.surveyPrompt.findMany({
     where: {

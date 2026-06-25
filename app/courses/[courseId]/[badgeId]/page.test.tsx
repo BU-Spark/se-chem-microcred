@@ -144,7 +144,7 @@ describe('Course badge progress page', () => {
     expect(screen.getByText('Burner safety and setup.')).toBeInTheDocument();
     expect(screen.getAllByText('33%').length).toBeGreaterThan(0);
     expect(screen.getByText('Average assessment score')).toBeInTheDocument();
-    expect(screen.getByText('Average precheck score')).toBeInTheDocument();
+    expect(screen.getByText('Ready for assessment')).toBeInTheDocument();
     expect(screen.getByText('Got checkd on their first try')).toBeInTheDocument();
     expect(screen.getByText('Students who have completed this badge')).toBeInTheDocument();
     expect(screen.getByText('What should students check first?')).toBeInTheDocument();

@@ -150,7 +150,7 @@ function useBadgeDetails(courseId?: string | null, badgeId?: string | null, emai
 
 /** Circular ring indicator approximated with a conic-gradient. */
 function RingIndicator({ percent, caption }: { percent: number; caption: string }) {
-  const clamped = Math.max(0, Math.min(100, percent));
+  const clamped = Math.round(Math.max(0, Math.min(100, percent)));
 
   return (
     <div className={styles.ringIndicator}>
@@ -253,6 +253,15 @@ export default function CourseBadgeProgress() {
             </div>
           ) : null}
 
+          {!isLoading && !error && !(badge && summary && assessment) ? (
+            <div className={styles.statusBlock}>
+              <p className={styles.statusMessage}>Badge details could not be loaded.</p>
+              <Link href={`/courses/${courseId}`} className={styles.inlineLink}>
+                Back to course
+              </Link>
+            </div>
+          ) : null}
+
           {!isLoading && !error && badge && summary && assessment ? (
             <>
               <section className={styles.hero}>
@@ -337,8 +346,11 @@ export default function CourseBadgeProgress() {
                       </div>
                     </div>
 
+                    {/* The design shows "Average precheck score" + "Average assessment score",
+                        but the API only tracks one score. Show the metrics we actually have:
+                        % of students ready for assessment, and the average assessment score. */}
                     <div className={styles.ringRow}>
-                      <RingIndicator percent={summary.readyForAssessmentPercent} caption="Average precheck score" />
+                      <RingIndicator percent={summary.readyForAssessmentPercent} caption="Ready for assessment" />
                       <RingIndicator percent={summary.averageScore ?? 0} caption="Average assessment score" />
                     </div>
                   </div>
