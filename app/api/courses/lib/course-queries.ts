@@ -8,6 +8,7 @@ export async function fetchUserByEmail(email: string) {
       email: true,
       name: true,
       buid: true,
+      avatar: { select: { base: true } },
     },
   });
 }

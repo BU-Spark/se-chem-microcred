@@ -1,9 +1,21 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useDatabaseDisplayNameContext } from './DatabaseDisplayNameProvider';
+import sapphire from '../../public/edit_avatar/sapphire.svg';
+import ruby from '../../public/edit_avatar/ruby.svg';
+import emerald from '../../public/edit_avatar/emerald.svg';
+import amethyst from '../../public/edit_avatar/amethyst.svg';
 import styles from '../page.module.css';
+
+const AVATAR_SRC: Record<string, typeof sapphire> = {
+  SAPPHIRE: sapphire,
+  RUBY: ruby,
+  EMERALD: emerald,
+  AMETHYST: amethyst,
+};
 
 interface NavItem {
   label: string;
@@ -43,16 +55,18 @@ export function initialsFromName(name?: string | null) {
 
 export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut }: SidebarProps) {
   const pathname = usePathname();
-  const contextDisplayName = useDatabaseDisplayNameContext();
+  const { displayName: contextDisplayName, avatarBase } = useDatabaseDisplayNameContext();
   const resolvedDisplayName =
     contextDisplayName !== undefined ? (contextDisplayName?.trim() ?? '') : displayName.trim();
-  const resolvedInitials = resolvedDisplayName ? initialsFromName(resolvedDisplayName) : '';
+  const avatarSrc = (avatarBase && AVATAR_SRC[avatarBase]) || sapphire;
 
   return (
     <aside className={`sidebar ${styles.sidebar}`}>
       {/* Avatar + Name */}
       <div className={styles.profile}>
-        <div className={styles.avatar}>{resolvedInitials}</div>
+        <div className={styles.avatar}>
+          <Image src={avatarSrc} alt="" className={styles.avatarImage} width={140} height={140} priority />
+        </div>
         <div className={styles.name}>{resolvedDisplayName}</div>
       </div>
 

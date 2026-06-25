@@ -22,6 +22,7 @@ export async function GET() {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarBase: user.avatar?.base ?? null,
     },
   });
 }
