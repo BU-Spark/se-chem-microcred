@@ -258,26 +258,30 @@ function normalizeRubricItems(items?: RubricItemPayload[] | null, overview?: str
   return fallback ? [{ number: 1, text: fallback }] : [];
 }
 
+// Pair each option with its prewritten feedback (same index), then drop pairs
+// whose option is blank so options/optionFeedback stay aligned.
+function pairOptionsWithFeedback(options?: string[] | null, optionFeedback?: string[] | null) {
+  const rawFeedback = optionFeedback ?? [];
+  const pairs = (options ?? [])
+    .map((option, optionIndex) => ({
+      option: normalizeString(option),
+      feedback: normalizeString(rawFeedback[optionIndex]),
+    }))
+    .filter((pair): pair is { option: string; feedback: string | null } => Boolean(pair.option));
+
+  return {
+    options: pairs.map((pair) => pair.option),
+    optionFeedback: pairs.map((pair) => pair.feedback ?? ''),
+  };
+}
+
 function normalizeGradingCriteria(criteria?: RubricCriterionPayload[] | null) {
   return (criteria ?? [])
-    .map((criterion, index) => {
-      // Pair each option with its prewritten feedback (same index), then drop
-      // pairs whose option is blank so options/optionFeedback stay aligned.
-      const rawFeedback = criterion.optionFeedback ?? [];
-      const pairs = (criterion.options ?? [])
-        .map((option, optionIndex) => ({
-          option: normalizeString(option),
-          feedback: normalizeString(rawFeedback[optionIndex]),
-        }))
-        .filter((pair): pair is { option: string; feedback: string | null } => Boolean(pair.option));
-
-      return {
-        number: index + 1,
-        criterion: normalizeString(criterion.prompt),
-        options: pairs.map((pair) => pair.option),
-        optionFeedback: pairs.map((pair) => pair.feedback ?? ''),
-      };
-    })
+    .map((criterion, index) => ({
+      number: index + 1,
+      criterion: normalizeString(criterion.prompt),
+      ...pairOptionsWithFeedback(criterion.options, criterion.optionFeedback),
+    }))
     .filter((criterion) => Boolean(criterion.criterion) || criterion.options.length > 0);
 }
 
@@ -358,22 +362,11 @@ function parseRequirementSummary(summary?: string | null) {
         text: normalizeString(item.text),
       }))
       .filter((item): item is { number: number; text: string } => Boolean(item.text));
-    const gradingCriteria = (parsed.gradingCriteria ?? []).map((criterion, index) => {
-      const rawFeedback = criterion.optionFeedback ?? [];
-      const pairs = (criterion.options ?? [])
-        .map((option, optionIndex) => ({
-          option: normalizeString(option),
-          feedback: normalizeString(rawFeedback[optionIndex]),
-        }))
-        .filter((pair): pair is { option: string; feedback: string | null } => Boolean(pair.option));
-
-      return {
-        number: criterion.number ?? index + 1,
-        criterion: normalizeString(criterion.criterion),
-        options: pairs.map((pair) => pair.option),
-        optionFeedback: pairs.map((pair) => pair.feedback ?? ''),
-      };
-    });
+    const gradingCriteria = (parsed.gradingCriteria ?? []).map((criterion, index) => ({
+      number: criterion.number ?? index + 1,
+      criterion: normalizeString(criterion.criterion),
+      ...pairOptionsWithFeedback(criterion.options, criterion.optionFeedback),
+    }));
 
     return {
       displayText: rubricItems[0]?.text ?? gradingCriteria[0]?.criterion ?? 'Independent badge requirement',

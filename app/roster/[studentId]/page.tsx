@@ -375,24 +375,14 @@ export default function InstructorStudentProfilePage() {
   const showBadgesSection = currentRole === 'STUDENT';
   const courseSectionsLabel = data?.course.sections.join(', ') ?? '';
 
-  const selectedInProgressBadge = useMemo(
-    () => data?.badges.inProgress.find((badge) => badge.id === selectedBadgeId) ?? null,
-    [data?.badges.inProgress, selectedBadgeId]
-  );
-  const selectedCompletedBadge = useMemo(
-    () => data?.badges.completed.find((badge) => badge.id === selectedBadgeId) ?? null,
-    [data?.badges.completed, selectedBadgeId]
-  );
-  const selectedReadyForFinalizationBadge = useMemo(
-    () => data?.badges.readyForFinalization.find((badge) => badge.id === selectedBadgeId) ?? null,
-    [data?.badges.readyForFinalization, selectedBadgeId]
-  );
-  const selectedBadgeTone: BadgeDetailTone | null =
-    selectedCompletedBadge || selectedReadyForFinalizationBadge
-      ? 'completed'
-      : selectedInProgressBadge
-        ? 'progress'
-        : null;
+  const selectedBadgeTone: BadgeDetailTone | null = useMemo(() => {
+    if (!selectedBadgeId || !data) return null;
+    const { inProgress, completed, readyForFinalization } = data.badges;
+    const matches = (list: { id: string }[]) => list.some((badge) => badge.id === selectedBadgeId);
+    if (matches(completed) || matches(readyForFinalization)) return 'completed';
+    if (matches(inProgress)) return 'progress';
+    return null;
+  }, [data, selectedBadgeId]);
 
   const {
     data: selectedBadgeDetail,

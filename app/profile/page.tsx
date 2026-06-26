@@ -61,6 +61,11 @@ function formatCreatedDate(value?: string | null) {
   return `${mm}/${dd}/${yyyy}`;
 }
 
+function pellLabel(value?: boolean | null) {
+  if (value == null) return 'Not provided';
+  return value ? 'Yes' : 'No';
+}
+
 type Contact = {
   id: string;
   name: string;
@@ -229,12 +234,7 @@ export default function ProfilePage() {
     const gender = studentData?.student.gender ?? 'Not provided';
     const raceEthnicity = studentData?.student.raceEthnicity ?? 'Not provided';
     const parentalEducation = studentData?.student.parentalEducation ?? 'Not provided';
-    const pell =
-      studentData?.student.pellGrantQualified == null
-        ? 'Not provided'
-        : studentData.student.pellGrantQualified
-          ? 'Yes'
-          : 'No';
+    const pell = pellLabel(studentData?.student.pellGrantQualified);
 
     setDraftGender(gender);
     setDraftRaceEthnicity(raceEthnicity);
@@ -307,12 +307,14 @@ export default function ProfilePage() {
   const gender = studentData?.student.gender ?? 'Not provided';
   const raceEthnicity = studentData?.student.raceEthnicity ?? 'Not provided';
   const parentalEducation = studentData?.student.parentalEducation ?? 'Not provided';
-  const pellGrantQualified =
-    studentData?.student.pellGrantQualified == null
-      ? 'Not provided'
-      : studentData.student.pellGrantQualified
-        ? 'Yes'
-        : 'No';
+  const pellGrantQualified = pellLabel(studentData?.student.pellGrantQualified);
+
+  const demographicFields = [
+    { label: 'Gender:', value: gender },
+    { label: 'Race/Ethnicity:', value: raceEthnicity },
+    { label: 'Parental Education:', value: parentalEducation },
+    { label: 'Pell Grant Qualified?', value: pellGrantQualified },
+  ];
 
   const checkerContacts = studentData?.course?.contacts.filter((contact) => contact.type === 'CHECKER') ?? [];
   const courseTitle = studentData?.course?.title ?? 'Course information not available';
@@ -408,30 +410,14 @@ export default function ProfilePage() {
 
                 {demographicOpen && (
                   <div className={styles.detailGrid}>
-                    <div>
-                      <div className={styles.detailLabel}>Gender:</div>
-                      <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
-                        {sensitiveHidden ? 'XXXXXXX' : gender}
+                    {demographicFields.map((field) => (
+                      <div key={field.label}>
+                        <div className={styles.detailLabel}>{field.label}</div>
+                        <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
+                          {sensitiveHidden ? 'XXXXXXX' : field.value}
+                        </div>
                       </div>
-                    </div>
-                    <div>
-                      <div className={styles.detailLabel}>Race/Ethnicity:</div>
-                      <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
-                        {sensitiveHidden ? 'XXXXXXX' : raceEthnicity}
-                      </div>
-                    </div>
-                    <div>
-                      <div className={styles.detailLabel}>Parental Education:</div>
-                      <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
-                        {sensitiveHidden ? 'XXXXXXX' : parentalEducation}
-                      </div>
-                    </div>
-                    <div>
-                      <div className={styles.detailLabel}>Pell Grant Qualified?</div>
-                      <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
-                        {sensitiveHidden ? 'XXXXXXX' : pellGrantQualified}
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>

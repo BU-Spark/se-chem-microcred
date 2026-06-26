@@ -574,6 +574,38 @@ export default function CourseNewPage() {
     );
   }
 
+  const assessorConfigs: Array<{
+    label: string;
+    checked: boolean;
+    setChecked: React.Dispatch<React.SetStateAction<boolean>>;
+    infoText?: React.ReactNode;
+  }> = [
+    {
+      label: 'Allow manual override for cooldown?',
+      checked: allowCooldownOverride,
+      setChecked: setAllowCooldownOverride,
+      infoText: (
+        <>
+          <p>
+            If a student does not complete a satisfactory in-person assessment, they must wait during a cooldown period
+            before they are able to reassess.
+          </p>
+          <p>Enabling manual override allows assessors to override this cooldown period and assess students earlier.</p>
+        </>
+      ),
+    },
+    {
+      label: 'Allow assessor messages?',
+      checked: allowAssessorMessages,
+      setChecked: setAllowAssessorMessages,
+    },
+    {
+      label: 'Allow assessors to view other sections?',
+      checked: allowCrossSectionView,
+      setChecked: setAllowCrossSectionView,
+    },
+  ];
+
   return (
     <div className={`page ${styles.page}`}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
@@ -861,35 +893,15 @@ export default function CourseNewPage() {
               <h2 className={styles.cardTitle}>Assessor Configurations</h2>
 
               <div className={styles.configList}>
-                <ConfigRow
-                  label="Allow manual override for cooldown?"
-                  checked={allowCooldownOverride}
-                  onChange={setAllowCooldownOverride}
-                  infoText={
-                    <>
-                      <p>
-                        If a student does not complete a satisfactory in-person assessment, they must wait during a
-                        cooldown period before they are able to reassess.
-                      </p>
-                      <p>
-                        Enabling manual override allows assessors to override this cooldown period and assess students
-                        earlier.
-                      </p>
-                    </>
-                  }
-                />
-
-                <ConfigRow
-                  label="Allow assessor messages?"
-                  checked={allowAssessorMessages}
-                  onChange={setAllowAssessorMessages}
-                />
-
-                <ConfigRow
-                  label="Allow assessors to view other sections?"
-                  checked={allowCrossSectionView}
-                  onChange={setAllowCrossSectionView}
-                />
+                {assessorConfigs.map((config) => (
+                  <ConfigRow
+                    key={config.label}
+                    label={config.label}
+                    checked={config.checked}
+                    onChange={config.setChecked}
+                    infoText={config.infoText}
+                  />
+                ))}
               </div>
             </section>
           </>
@@ -966,53 +978,23 @@ export default function CourseNewPage() {
               </div>
 
               <div className={styles.reviewConfigList}>
-                <div className={styles.reviewConfigItem}>
-                  <span className={styles.reviewConfigLabel}>Allow manual override for cooldown?</span>
-                  <div className={styles.toggleRow}>
-                    <span className={styles.toggleText}>Don’t allow</span>
-                    <button
-                      type="button"
-                      className={`${styles.switch} ${allowCooldownOverride ? styles.switchOn : ''}`}
-                      onClick={() => setAllowCooldownOverride((prev) => !prev)}
-                      aria-pressed={allowCooldownOverride}
-                    >
-                      <span className={styles.switchThumb} />
-                    </button>
-                    <span className={styles.toggleText}>Allow</span>
+                {assessorConfigs.map((config) => (
+                  <div key={config.label} className={styles.reviewConfigItem}>
+                    <span className={styles.reviewConfigLabel}>{config.label}</span>
+                    <div className={styles.toggleRow}>
+                      <span className={styles.toggleText}>Don’t allow</span>
+                      <button
+                        type="button"
+                        className={`${styles.switch} ${config.checked ? styles.switchOn : ''}`}
+                        onClick={() => config.setChecked((prev) => !prev)}
+                        aria-pressed={config.checked}
+                      >
+                        <span className={styles.switchThumb} />
+                      </button>
+                      <span className={styles.toggleText}>Allow</span>
+                    </div>
                   </div>
-                </div>
-
-                <div className={styles.reviewConfigItem}>
-                  <span className={styles.reviewConfigLabel}>Allow assessor messages?</span>
-                  <div className={styles.toggleRow}>
-                    <span className={styles.toggleText}>Don’t allow</span>
-                    <button
-                      type="button"
-                      className={`${styles.switch} ${allowAssessorMessages ? styles.switchOn : ''}`}
-                      onClick={() => setAllowAssessorMessages((prev) => !prev)}
-                      aria-pressed={allowAssessorMessages}
-                    >
-                      <span className={styles.switchThumb} />
-                    </button>
-                    <span className={styles.toggleText}>Allow</span>
-                  </div>
-                </div>
-
-                <div className={styles.reviewConfigItem}>
-                  <span className={styles.reviewConfigLabel}>Allow assessors to view other sections?</span>
-                  <div className={styles.toggleRow}>
-                    <span className={styles.toggleText}>Don’t allow</span>
-                    <button
-                      type="button"
-                      className={`${styles.switch} ${allowCrossSectionView ? styles.switchOn : ''}`}
-                      onClick={() => setAllowCrossSectionView((prev) => !prev)}
-                      aria-pressed={allowCrossSectionView}
-                    >
-                      <span className={styles.switchThumb} />
-                    </button>
-                    <span className={styles.toggleText}>Allow</span>
-                  </div>
-                </div>
+                ))}
               </div>
             </div>
           </section>
