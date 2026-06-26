@@ -166,7 +166,7 @@ describe('Badge creation page', () => {
       expect.objectContaining({
         questionType: 'multipleChoice',
         question: 'What should you check first?',
-        options: ['Gas valve is off', 'Bench is wet', '', ''],
+        options: ['Gas valve is off', 'Bench is wet'],
         correctIndices: [0, 1],
       })
     );
@@ -213,14 +213,45 @@ describe('Badge creation page', () => {
 
     render(<BadgeCreationPage />);
 
+    // Step 1 - Badge info
     fireEvent.change(screen.getByLabelText('Badge Name'), {
       target: { value: 'Standalone Badge' },
     });
+    fireEvent.change(screen.getByLabelText('Badge Description'), {
+      target: { value: 'Students demonstrate a standalone skill.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
+    // Step 2 - Lesson video
+    fireEvent.change(screen.getByLabelText('Paste YouTube link here'), {
+      target: { value: 'https://www.youtube.com/watch?v=abc123' },
+    });
+    fireEvent.change(screen.getByLabelText('Video Title'), {
+      target: { value: 'Standalone lesson' },
+    });
+    fireEvent.change(screen.getByLabelText('Length'), {
+      target: { value: '00:15:00' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    // Step 3 - Checkpoints
+    fireEvent.change(screen.getByLabelText('Question prompt'), {
+      target: { value: 'What should you check first?' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Choice 1'), {
+      target: { value: 'Gas valve is off' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('Choice 2'), {
+      target: { value: 'Bench is wet' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    // Step 4 - Rubric
+    fireEvent.change(screen.getByLabelText('Rubric item 1'), {
+      target: { value: 'Student performs setup and shutdown safely.' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
     fireEvent.click(screen.getByRole('button', { name: 'Create Badge' }));
 
     await waitFor(() => {

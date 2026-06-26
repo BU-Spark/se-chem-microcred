@@ -118,7 +118,7 @@ const DEFAULT_DRAFT: BadgeDraft = {
       points: 5,
       question: '',
       questionType: 'multipleChoice',
-      options: ['', '', '', ''],
+      options: ['', ''],
       correctIndices: [0],
       numericAnswer: '',
       numericRangeMin: '',
@@ -193,6 +193,24 @@ function buildVideoThumbnail(url: string) {
   return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
 }
 
+const HMS_REGEX = /^\d{2}:\d{2}:\d{2}$/;
+const YOUTUBE_WATCH_REGEX = /^https:\/\/www\.youtube\.com\/watch\?v=[\w-]+/;
+const MIN_CHOICES = 2;
+const MAX_CHOICES = 4;
+
+function isLongerThanTwo(value: string) {
+  return value.trim().length > 2;
+}
+
+// Parses an HH:MM:SS string into total seconds, or null if the format is invalid.
+function parseHmsToSeconds(value: string): number | null {
+  const trimmed = value.trim();
+  if (!HMS_REGEX.test(trimmed)) return null;
+  const [hours, minutes, seconds] = trimmed.split(':').map(Number);
+  if (minutes > 59 || seconds > 59) return null;
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
 function formatDateInput(value?: string | null) {
   if (!value) return '';
 
@@ -234,7 +252,7 @@ function checkpointFromCatalog(
     points: Number(checkpoint?.points) || 5,
     question: checkpoint?.question || '',
     questionType: checkpoint?.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice',
-    options: [...options, '', '', '', ''].slice(0, Math.max(4, options.length)),
+    options: [...options, '', ''].slice(0, Math.max(MIN_CHOICES, options.length)),
     correctIndices,
     numericAnswer: checkpoint?.numericAnswer ? String(checkpoint.numericAnswer) : '',
     numericRangeMin: checkpoint?.numericRangeMin ? String(checkpoint.numericRangeMin) : '',
@@ -312,6 +330,7 @@ export default function BadgeCreationPage() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [submissionState, setSubmissionState] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState('');
+  const [stepError, setStepError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingEditBadge, setIsLoadingEditBadge] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -418,6 +437,7 @@ export default function BadgeCreationPage() {
     setDraft((current) => ({ ...current, [field]: value }));
     setSubmissionState(null);
     setSubmitError('');
+    setStepError('');
   };
 
   const updateCheckpoint = <K extends keyof CheckpointDraft>(
@@ -465,6 +485,33 @@ export default function BadgeCreationPage() {
     );
   };
 
+  const addCheckpointOption = (checkpointId: string) => {
+    updateDraft(
+      'checkpoints',
+      draft.checkpoints.map((checkpoint) => {
+        if (checkpoint.id !== checkpointId || checkpoint.options.length >= MAX_CHOICES) return checkpoint;
+        return { ...checkpoint, options: [...checkpoint.options, ''] };
+      })
+    );
+  };
+
+  const removeCheckpointOption = (checkpointId: string, optionIndex: number) => {
+    updateDraft(
+      'checkpoints',
+      draft.checkpoints.map((checkpoint) => {
+        if (checkpoint.id !== checkpointId || checkpoint.options.length <= MIN_CHOICES) return checkpoint;
+
+        const options = checkpoint.options.filter((_, index) => index !== optionIndex);
+        // Drop the removed option from the correct set and shift higher indices down.
+        const correctIndices = checkpoint.correctIndices
+          .filter((index) => index !== optionIndex)
+          .map((index) => (index > optionIndex ? index - 1 : index));
+
+        return { ...checkpoint, options, correctIndices };
+      })
+    );
+  };
+
   const addCheckpoint = () => {
     const nextCount = draft.checkpoints.length + 1;
     updateDraft('checkpoints', [
@@ -476,7 +523,7 @@ export default function BadgeCreationPage() {
         points: 5,
         question: '',
         questionType: 'multipleChoice',
-        options: ['', '', '', ''],
+        options: ['', ''],
         correctIndices: [0],
         numericAnswer: '',
         numericRangeMin: '',
@@ -630,10 +677,95 @@ export default function BadgeCreationPage() {
     router.push('/my_badges');
   };
 
+  // Validates a single step's fields, returning a user-facing message or null when valid.
+  const validateStep = (stepKey: StepKey): string | null => {
+    if (stepKey === 'badgeInfo') {
+      if (draft.badgeName.trim().length === 0) return 'Badge name is required.';
+      if (!isLongerThanTwo(draft.badgeDescription)) return 'Badge description must be longer than 2 characters.';
+      return null;
+    }
+
+    if (stepKey === 'lessonVideo') {
+      if (!YOUTUBE_WATCH_REGEX.test(draft.youtubeUrl.trim())) {
+        return 'Enter a valid YouTube video link (e.g. https://www.youtube.com/watch?v=...).';
+      }
+      if (!isLongerThanTwo(draft.videoTitle)) return 'Video title must be longer than 2 characters.';
+      if (parseHmsToSeconds(draft.videoLength) === null) {
+        return 'Length must be in HH:MM:SS format (e.g. 00:20:00).';
+      }
+      return null;
+    }
+
+    if (stepKey === 'checkpoints') {
+      const videoSeconds = parseHmsToSeconds(draft.videoLength);
+      for (const [index, checkpoint] of draft.checkpoints.entries()) {
+        const label = `Checkpoint ${index + 1}`;
+        if (!isLongerThanTwo(checkpoint.segmentLabel))
+          return `${label}: segment label must be longer than 2 characters.`;
+
+        const timeSeconds = parseHmsToSeconds(checkpoint.time);
+        if (timeSeconds === null) return `${label}: timestamp must be in HH:MM:SS format.`;
+        if (videoSeconds !== null && timeSeconds > videoSeconds) {
+          return `${label}: timestamp cannot be later than the video length (${draft.videoLength}).`;
+        }
+
+        if (!isLongerThanTwo(checkpoint.question)) return `${label}: question prompt must be longer than 2 characters.`;
+
+        if (checkpoint.questionType === 'multipleChoice') {
+          if (checkpoint.options.some((option) => option.trim().length === 0)) {
+            return `${label}: every choice must have text.`;
+          }
+          if (checkpoint.correctIndices.length === 0) {
+            return `${label}: mark at least one choice as correct.`;
+          }
+        } else {
+          const answer = checkpoint.numericAnswer.trim();
+          const min = checkpoint.numericRangeMin.trim();
+          const max = checkpoint.numericRangeMax.trim();
+          if (min !== '' && max !== '' && Number(min) > Number(max)) {
+            return `${label}: accepted minimum cannot be greater than accepted maximum.`;
+          }
+          if (answer !== '' && min !== '' && Number(answer) < Number(min)) {
+            return `${label}: accepted answer cannot be below the accepted minimum.`;
+          }
+          if (answer !== '' && max !== '' && Number(answer) > Number(max)) {
+            return `${label}: accepted answer cannot be above the accepted maximum.`;
+          }
+        }
+      }
+      return null;
+    }
+
+    if (stepKey === 'rubric') {
+      for (const [index, item] of draft.rubricItems.entries()) {
+        if (!isLongerThanTwo(item.text)) return `Rubric item ${index + 1} must be longer than 2 characters.`;
+      }
+      return null;
+    }
+
+    return null;
+  };
+
   const handleNext = async () => {
+    const currentError = validateStep(STEP_DEFINITIONS[currentStep].key);
+    if (currentError) {
+      setStepError(currentError);
+      return;
+    }
+    setStepError('');
+
     if (currentStep < STEP_DEFINITIONS.length - 1) {
       setCurrentStep((step) => step + 1);
       return;
+    }
+
+    // Final submit: re-validate every step so edits made via "Edit" links can't bypass checks.
+    for (const step of STEP_DEFINITIONS) {
+      const error = validateStep(step.key);
+      if (error) {
+        setStepError(error);
+        return;
+      }
     }
 
     setSubmitError('');
@@ -689,6 +821,7 @@ export default function BadgeCreationPage() {
             {submissionState ? <div className={styles.noticeBanner}>{submissionState}</div> : null}
             {isLoadingEditBadge ? <div className={styles.noticeBanner}>Loading badge details...</div> : null}
             {submitError ? <p className={styles.errorText}>{submitError}</p> : null}
+            {stepError ? <p className={styles.errorText}>{stepError}</p> : null}
 
             {currentStep === 0 && (
               <div className={styles.badgeInfoLayout}>
@@ -973,8 +1106,25 @@ export default function BadgeCreationPage() {
                                     updateCheckpointOption(checkpoint.id, optionIndex, event.target.value)
                                   }
                                 />
+                                <button
+                                  type="button"
+                                  className={styles.removeTextButton}
+                                  onClick={() => removeCheckpointOption(checkpoint.id, optionIndex)}
+                                  disabled={checkpoint.options.length <= MIN_CHOICES}
+                                  aria-label={`Remove choice ${optionIndex + 1}`}
+                                >
+                                  Remove
+                                </button>
                               </label>
                             ))}
+                            <button
+                              type="button"
+                              className={styles.secondaryButton}
+                              onClick={() => addCheckpointOption(checkpoint.id)}
+                              disabled={checkpoint.options.length >= MAX_CHOICES}
+                            >
+                              Add Choice
+                            </button>
                           </div>
                         ) : (
                           <div className={styles.shortAnswerGrid}>
