@@ -329,7 +329,8 @@ describe('Roster member profile page', () => {
     });
 
     expect(await screen.findByText('Answer History')).toBeInTheDocument();
-    expect(screen.getByText('70%')).toBeInTheDocument();
+    // The ring renders the number and "%" as separate spans inside .progressRingCenter.
+    expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('70%');
     expect(screen.getByText('Checkpoint 3')).toBeInTheDocument();
     expect(screen.getByText('Which container should be used?')).toBeInTheDocument();
     expect(screen.getByText('Answered: Beaker')).toBeInTheDocument();
@@ -358,7 +359,7 @@ describe('Roster member profile page', () => {
     expect(await screen.findByText('Assessment Info')).toBeInTheDocument();
     expect(screen.getByText('Assessor Grading')).toBeInTheDocument();
     expect(screen.getByText('Assessment History')).toBeInTheDocument();
-    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('100%');
 
     fireEvent.click(screen.getByRole('button', { name: 'Attempt 1' }));
 

@@ -138,7 +138,10 @@ function ProgressRing({ percent }: { percent: number }) {
           }}
         />
       </svg>
-      <div className={styles.progressRingCenter}>{boundedPercent}%</div>
+      <div className={styles.progressRingCenter}>
+        <span className={styles.progressRingNumber}>{boundedPercent}</span>
+        <span className={styles.progressRingPercent}>%</span>
+      </div>
     </div>
   );
 }
