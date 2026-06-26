@@ -271,17 +271,14 @@
   background: rgba(15, 23, 42, 0.68);
   display: grid;
   place-items: center;
-  padding: 3.0rem;
-  overflow: auto;
+  padding: 0rem 2rem;
+  overflow: hidden;
   z-index: 40;
 }
 
 .modalCard {
   /* Span essentially the full video player width (overlay padding sets the gap). */
   width: 100%;
-  /* Stay within the video frame (which clips overflow); scroll if taller. */
-  max-height: 100%;
-  overflow-y: auto;
   background: #ffffff;
   border-radius: 2.75rem;
   padding: 2.75rem 4rem;
