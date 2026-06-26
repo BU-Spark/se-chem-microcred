@@ -326,7 +326,11 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
         }
 
         if (badgeData.length > 0) {
-          await tx.badge.createMany({ data: badgeData, skipDuplicates: true });
+          // No skipDuplicates: slugs are UUID-suffixed and unique, so a real
+          // collision must surface as an error rather than be silently skipped
+          // (a skipped badge would leave badgeIdBySource empty and corrupt the
+          // requirement FK back to the source course's badge).
+          await tx.badge.createMany({ data: badgeData });
 
           const createdBadges = await tx.badge.findMany({
             where: { slug: { in: badgeData.map((badge) => badge.slug) } },

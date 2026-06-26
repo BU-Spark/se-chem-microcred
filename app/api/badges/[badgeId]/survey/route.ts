@@ -69,42 +69,47 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Badge is not ready for finalization.' }, { status: 409 });
   }
 
-  // SurveyResponse has no natural unique key (only @id), so it cannot be
-  // upserted; keep find-then-create-or-update.
-  if (surveyPrompt) {
-    const existingResponse = await prisma.surveyResponse.findFirst({
-      where: {
-        promptId: surveyPrompt.id,
-        studentId: user.id,
-      },
-    });
-
-    if (existingResponse) {
-      await prisma.surveyResponse.update({
-        where: { id: existingResponse.id },
-        data: {
-          rating: payload.rating ?? existingResponse.rating,
-          comment: payload.comment ?? existingResponse.comment,
-        },
-      });
-    } else {
-      await prisma.surveyResponse.create({
-        data: {
+  // Record the survey response (if any) and finalize the badge atomically so a
+  // double-submit can't apply one without the other. NOTE: SurveyResponse has
+  // no unique key on (promptId, studentId), so this tx guarantees atomicity of
+  // the two writes but not de-duplication of concurrent first-time creates —
+  // that requires a unique-constraint migration (tracked separately).
+  const updated = await prisma.$transaction(async (tx) => {
+    if (surveyPrompt) {
+      const existingResponse = await tx.surveyResponse.findFirst({
+        where: {
           promptId: surveyPrompt.id,
           studentId: user.id,
-          rating: payload.rating ?? 3,
-          comment: payload.comment ?? null,
         },
       });
-    }
-  }
 
-  const updated = await prisma.studentBadge.update({
-    where: { id: studentBadge.id },
-    data: {
-      status: BadgeStatus.COMPLETED,
-      awardedAt: studentBadge.awardedAt ?? new Date(),
-    },
+      if (existingResponse) {
+        await tx.surveyResponse.update({
+          where: { id: existingResponse.id },
+          data: {
+            rating: payload.rating ?? existingResponse.rating,
+            comment: payload.comment ?? existingResponse.comment,
+          },
+        });
+      } else {
+        await tx.surveyResponse.create({
+          data: {
+            promptId: surveyPrompt.id,
+            studentId: user.id,
+            rating: payload.rating ?? 3,
+            comment: payload.comment ?? null,
+          },
+        });
+      }
+    }
+
+    return tx.studentBadge.update({
+      where: { id: studentBadge.id },
+      data: {
+        status: BadgeStatus.COMPLETED,
+        awardedAt: studentBadge.awardedAt ?? new Date(),
+      },
+    });
   });
 
   return NextResponse.json({ status: updated.status }, { status: 200 });
