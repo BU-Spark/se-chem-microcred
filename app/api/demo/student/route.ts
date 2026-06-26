@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { BadgeStatus, CourseContactType, CourseRole, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
-import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
@@ -189,19 +188,16 @@ async function fetchLessons(courseId: string) {
 }
 
 export async function GET() {
-  const user = await currentUser();
+  // Resolve (and lazily provision on first sign-in) the signed-in user, then load
+  // the full record by id — avoids a second currentUser() call and an email re-query.
+  const provisioned = await ensureCurrentUser();
 
-  if (!user || !user.emailAddresses?.[0]) {
+  if (!provisioned) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const email = user.emailAddresses[0].emailAddress.toLowerCase();
-
-  // Provision the row on first sign-in so the profile resolves instead of 404ing.
-  await ensureCurrentUser();
-
   const student = await prisma.user.findUnique({
-    where: { email },
+    where: { id: provisioned.id },
     include: {
       avatar: true,
       analytics: true,
@@ -540,6 +536,7 @@ export async function GET() {
       question: prompt.question,
       lessonSlug: prompt.lesson?.slug ?? null,
       lessonTitle: prompt.lesson?.title ?? null,
+      completed: surveyPromptIdsCompleted.has(prompt.id),
     }));
 
   const badgeSurveyPrompts = surveyPrompts
@@ -550,6 +547,7 @@ export async function GET() {
       badgeSlug: prompt.badge?.slug ?? null,
       badgeName: prompt.badge?.name ?? null,
       badgeId: prompt.badgeId ?? null,
+      completed: surveyPromptIdsCompleted.has(prompt.id),
     }));
 
   const pendingBadgeSurveys = badgeSurveyPrompts

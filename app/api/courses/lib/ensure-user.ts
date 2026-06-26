@@ -1,14 +1,21 @@
 import { currentUser } from '@clerk/nextjs/server';
+import { Prisma } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
 
-type EnsuredUser = {
-  id: string;
-  email: string | null;
-  name: string | null;
-  buid: string | null;
-  avatar: { base: string } | null;
-};
+const USER_SELECT = {
+  id: true,
+  email: true,
+  name: true,
+  buid: true,
+  avatar: { select: { base: true } },
+} as const;
+
+type EnsuredUser = Prisma.UserGetPayload<{ select: typeof USER_SELECT }>;
+
+function isUniqueViolation(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
+}
 
 function clerkName(user: NonNullable<Awaited<ReturnType<typeof currentUser>>>): string | null {
   const full = user.fullName?.trim() || [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
@@ -23,7 +30,9 @@ function clerkName(user: NonNullable<Awaited<ReturnType<typeof currentUser>>>): 
  *
  * Idempotent and non-destructive: it never overwrites profile data the user has
  * already set; it only fills in a missing name and guarantees an analytics row.
- * Returns null when there is no authenticated user.
+ * Safe under the concurrent calls the home page makes (created/enrolled/assessor
+ * fire in parallel): a losing INSERT race throws P2002, which we treat as "already
+ * exists" and read back. Returns null when there is no authenticated user.
  */
 export async function ensureCurrentUser(): Promise<EnsuredUser | null> {
   const clerk = await currentUser();
@@ -36,31 +45,37 @@ export async function ensureCurrentUser(): Promise<EnsuredUser | null> {
 
   const name = clerkName(clerk);
 
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: {},
-    create: { email, name },
-    select: {
-      id: true,
-      email: true,
-      name: true,
-      buid: true,
-      avatar: { select: { base: true } },
-    },
-  });
+  let user: EnsuredUser;
+  try {
+    user = await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: { email, name },
+      select: USER_SELECT,
+    });
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+    // A concurrent request inserted the row first — read it back.
+    user = await prisma.user.findUniqueOrThrow({ where: { email }, select: USER_SELECT });
+  }
 
   // Backfill a missing name from Clerk without clobbering an existing one.
+  // updateMany with name:null is a no-op for concurrent callers that already set it.
   if (!user.name && name) {
-    await prisma.user.update({ where: { id: user.id }, data: { name } });
-    user.name = name;
+    await prisma.user.updateMany({ where: { id: user.id, name: null }, data: { name } });
+    user = { ...user, name };
   }
 
   // Guarantee an analytics row exists (other queries assume one may be present).
-  await prisma.studentAnalytics.upsert({
-    where: { studentId: user.id },
-    update: {},
-    create: { studentId: user.id },
-  });
+  try {
+    await prisma.studentAnalytics.upsert({
+      where: { studentId: user.id },
+      update: {},
+      create: { studentId: user.id },
+    });
+  } catch (error) {
+    if (!isUniqueViolation(error)) throw error;
+  }
 
   return user;
 }

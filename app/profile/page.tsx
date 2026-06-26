@@ -149,16 +149,14 @@ export default function ProfilePage() {
     sensitiveTimerRef.current = setTimeout(() => setSensitiveHidden(true), SENSITIVE_TIMEOUT_MS);
   }, []);
 
-  // start auto-hide timer on mount; clear any pending timer on unmount
+  // The auto-hide timer is started only when sensitive info is actually revealed
+  // (handleShowSensitive). Here we just clear any pending timer on unmount so it
+  // can't fire setState on a dead component.
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return;
-
-    restartSensitiveTimer();
-
     return () => {
       if (sensitiveTimerRef.current) clearTimeout(sensitiveTimerRef.current);
     };
-  }, [isLoaded, isSignedIn, restartSensitiveTimer]);
+  }, []);
 
   // Collapse the demographic dropdown whenever sensitive info gets re-hidden
   // (e.g. the 10-minute auto-hide timer fires) so masked values aren't shown.

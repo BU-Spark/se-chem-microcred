@@ -1,25 +1,16 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { fetchEnrolledCourses, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { NextResponse } from 'next/server';
+import { fetchEnrolledCourses } from '@/app/api/courses/lib/course-queries';
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 
-function normalizeEmail(email?: string | null) {
-  const trimmed = email?.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-}
-
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const email = normalizeEmail(req.nextUrl.searchParams.get('email'));
-
-    if (!email) {
-      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
-    }
-
-    // Lazily provision the signed-in user so a fresh sign-in isn't "User not found".
-    const user = (await ensureCurrentUser()) ?? (await fetchUserByEmail(email));
+    // Resolve (and lazily provision) the signed-in user from the Clerk session.
+    // We do NOT trust a client ?email= param — that would let any signed-in user
+    // read another user's enrollments.
+    const user = await ensureCurrentUser();
 
     if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const enrollments = await fetchEnrolledCourses(user.id);

@@ -50,10 +50,12 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, onClose: ()
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    // Capture phase so the trap still handles Escape/Tab even if a child element
+    // stops propagation for its own key handling.
+    document.addEventListener('keydown', handleKeyDown, { capture: true });
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleKeyDown, { capture: true });
       previouslyFocused?.focus?.();
     };
   }, [active]);
