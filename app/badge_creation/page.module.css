@@ -148,6 +148,29 @@
   color: #b91c1c;
 }
 
+.fieldError {
+  margin: 0.3rem 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+
+.feedbackBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.feedbackToggleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  color: #232323;
+}
+
 .badgeInfoLayout,
 .videoInputPanel,
 .videoPreviewPanel,

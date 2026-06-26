@@ -14,6 +14,11 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
         </div>
         <h4>{draft.badgeName}</h4>
         <p>{draft.badgeDescription}</p>
+        {draft.skills.length > 0 && (
+          <p>
+            <strong>Skills:</strong> {draft.skills.join(', ')}
+          </p>
+        )}
         <p>
           <strong>Content Available:</strong> {formatDisplayDate(draft.availableOn)} to{' '}
           {draft.neverCloses ? 'Never closes' : formatDisplayDate(draft.closesOn)}

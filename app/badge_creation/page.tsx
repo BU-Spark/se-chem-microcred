@@ -9,7 +9,13 @@ import styles from './page.module.css';
 
 import { DEFAULT_DRAFT, DRAFT_STORAGE_KEY, STEP_DEFINITIONS } from './types';
 import type { BadgeDraft, BadgesResponse, CheckpointDraft, RubricCriterion } from './types';
-import { badgeToDraft, buildVideoEmbedUrl, buildVideoThumbnail } from './lib/badge-helpers';
+import {
+  badgeToDraft,
+  buildVideoEmbedUrl,
+  buildVideoThumbnail,
+  isValidVideoLength,
+  isValidYouTubeUrl,
+} from './lib/badge-helpers';
 import ProgressStep from './components/ProgressStep';
 import SuccessModal from './components/SuccessModal';
 import BadgeInfoStep from './steps/BadgeInfoStep';
@@ -343,6 +349,17 @@ export default function BadgeCreationPage() {
   };
 
   const handleNext = async () => {
+    // Block leaving the Upload Lesson Video step with an invalid link/length so
+    // a value like "a" can't be saved.
+    if (currentStep === 1) {
+      const urlInvalid = Boolean(draft.youtubeUrl.trim()) && !isValidYouTubeUrl(draft.youtubeUrl);
+      const lengthInvalid = Boolean(draft.videoLength.trim()) && !isValidVideoLength(draft.videoLength);
+      if (urlInvalid || lengthInvalid) {
+        setSubmitError('Fix the highlighted video fields before continuing.');
+        return;
+      }
+    }
+
     if (currentStep < STEP_DEFINITIONS.length - 1) {
       setCurrentStep((step) => step + 1);
       return;

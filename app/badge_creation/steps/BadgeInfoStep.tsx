@@ -3,6 +3,8 @@ import type { BadgeCategory } from '@prisma/client';
 import styles from '../page.module.css';
 import { formatDisplayDate } from '../lib/badge-helpers';
 import type { BadgeDraft } from '../types';
+import ChipInput from '../components/ChipInput';
+import RangeCalendar from '../components/RangeCalendar';
 
 export default function BadgeInfoStep({
   draft,
@@ -23,6 +25,19 @@ export default function BadgeInfoStep({
           value={draft.badgeName}
           onChange={(event) => updateDraft('badgeName', event.target.value)}
           placeholder="Badge Name"
+        />
+      </div>
+
+      <div className={styles.badgeInfoField}>
+        <label className={styles.sectionLabel} htmlFor="badgeSkills">
+          Skills
+        </label>
+        <ChipInput
+          value={draft.skills}
+          onChange={(next) => updateDraft('skills', next)}
+          max={5}
+          ariaLabel="Add skill"
+          placeholder="Type a skill and press Enter"
         />
       </div>
 
@@ -67,39 +82,16 @@ export default function BadgeInfoStep({
             <span>Content Closes On:</span>
             <strong>{draft.neverCloses ? 'Never closes' : formatDisplayDate(draft.closesOn)}</strong>
           </div>
-          <label className={styles.compactToggleRow}>
-            <span>Never closes</span>
-            <button
-              type="button"
-              className={styles.toggleButton}
-              data-active={draft.neverCloses ? 'true' : 'false'}
-              onClick={() => updateDraft('neverCloses', !draft.neverCloses)}
-              aria-pressed={draft.neverCloses}
-            >
-              <span />
-            </button>
-          </label>
         </div>
 
-        <div className={styles.availabilityInputs}>
-          <label className={styles.dateField}>
-            <span>Available on</span>
-            <input
-              type="date"
-              value={draft.availableOn}
-              onChange={(event) => updateDraft('availableOn', event.target.value)}
-            />
-          </label>
-          <label className={styles.dateField}>
-            <span>Closes on</span>
-            <input
-              type="date"
-              value={draft.closesOn}
-              disabled={draft.neverCloses}
-              onChange={(event) => updateDraft('closesOn', event.target.value)}
-            />
-          </label>
-        </div>
+        <RangeCalendar
+          availableOn={draft.availableOn}
+          closesOn={draft.closesOn}
+          neverCloses={draft.neverCloses}
+          onAvailableOnChange={(value) => updateDraft('availableOn', value)}
+          onClosesOnChange={(value) => updateDraft('closesOn', value)}
+          onNeverClosesChange={(value) => updateDraft('neverCloses', value)}
+        />
       </div>
     </div>
   );

@@ -333,4 +333,62 @@ describe('Badge creation page', () => {
     );
     expect(await screen.findByRole('dialog', { name: 'Badge updated successfully.' })).toBeInTheDocument();
   });
+
+  it('captures skills and short-answer unit/feedback in the submitted draft', async () => {
+    render(<BadgeCreationPage />);
+
+    fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Pipetting' } });
+    fireEvent.change(screen.getByLabelText('Add skill'), { target: { value: 'Precision' } });
+    fireEvent.keyDown(screen.getByLabelText('Add skill'), { key: 'Enter' });
+    expect(screen.getByText('Precision')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> video
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
+
+    fireEvent.change(screen.getByLabelText('Question prompt'), { target: { value: 'What volume?' } });
+    fireEvent.change(screen.getByLabelText('Checkpoint 1 question type'), { target: { value: 'shortAnswer' } });
+    fireEvent.change(screen.getByLabelText('Checkpoint 1 exact numeric answer'), { target: { value: '10' } });
+    fireEvent.change(screen.getByLabelText('Checkpoint 1 unit'), { target: { value: 'mL' } });
+    fireEvent.click(screen.getByLabelText('Checkpoint 1 add incorrect-answer feedback'));
+    fireEvent.change(screen.getByLabelText('Checkpoint 1 incorrect-answer feedback'), {
+      target: { value: 'Re-measure carefully.' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> rubric
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> review
+    fireEvent.click(screen.getByRole('button', { name: 'Create Badge' }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/badges', expect.objectContaining({ method: 'POST' }));
+    });
+
+    const [, options] = mockFetch.mock.calls[0];
+    const body = JSON.parse((options as RequestInit).body as string);
+
+    expect(body.skills).toEqual(['Precision']);
+    expect(body.checkpoints[0]).toEqual(
+      expect.objectContaining({
+        questionType: 'shortAnswer',
+        numericAnswer: '10',
+        unit: 'mL',
+        incorrectFeedback: 'Re-measure carefully.',
+        incorrectFeedbackEnabled: true,
+      })
+    );
+  });
+
+  it('blocks advancing past the video step when the YouTube link is invalid', async () => {
+    render(<BadgeCreationPage />);
+
+    fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Burner' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> video
+
+    fireEvent.change(screen.getByLabelText('Paste YouTube link here'), { target: { value: 'a' } });
+    expect(screen.getByText('Enter a valid YouTube link.')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Fix the highlighted video fields before continuing.')).toBeInTheDocument();
+    // Still on the video step (link field remains visible).
+    expect(screen.getByLabelText('Paste YouTube link here')).toBeInTheDocument();
+  });
 });

@@ -185,8 +185,41 @@ export default function CheckpointsStep({
                       onChange={(event) => updateCheckpoint(checkpoint.id, 'numericRangeMax', event.target.value)}
                     />
                   </label>
+                  <label className={styles.fieldStack}>
+                    <span>Units set to</span>
+                    <input
+                      aria-label={`${checkpoint.title} unit`}
+                      className={styles.textField}
+                      value={checkpoint.unit}
+                      placeholder="e.g. °C (leave blank for none)"
+                      onChange={(event) => updateCheckpoint(checkpoint.id, 'unit', event.target.value)}
+                    />
+                  </label>
                 </div>
               )}
+
+              <div className={styles.feedbackBlock}>
+                <label className={styles.feedbackToggleRow}>
+                  <input
+                    type="checkbox"
+                    checked={checkpoint.incorrectFeedbackEnabled}
+                    aria-label={`${checkpoint.title} add incorrect-answer feedback`}
+                    onChange={(event) =>
+                      updateCheckpoint(checkpoint.id, 'incorrectFeedbackEnabled', event.target.checked)
+                    }
+                  />
+                  <span>Add feedback for incorrect answers</span>
+                </label>
+                {checkpoint.incorrectFeedbackEnabled && (
+                  <textarea
+                    aria-label={`${checkpoint.title} incorrect-answer feedback`}
+                    className={styles.textAreaCompact}
+                    value={checkpoint.incorrectFeedback}
+                    placeholder="Shown to learners who answer incorrectly."
+                    onChange={(event) => updateCheckpoint(checkpoint.id, 'incorrectFeedback', event.target.value)}
+                  />
+                )}
+              </div>
             </article>
           ))}
         </div>

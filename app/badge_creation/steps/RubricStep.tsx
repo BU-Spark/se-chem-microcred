@@ -41,6 +41,17 @@ export default function RubricStep({
                 className={styles.textAreaCompact}
                 value={item.text}
                 onChange={(event) => updateRubricItem(item.id, event.target.value)}
+                onKeyDown={(event) => {
+                  // Enter on a filled row spawns the next numbered row; Enter on
+                  // an empty row is a no-op; Backspace on an empty row removes it.
+                  if (event.key === 'Enter' && !event.shiftKey) {
+                    event.preventDefault();
+                    if (item.text.trim()) addRubricItem();
+                  } else if (event.key === 'Backspace' && !item.text && draft.rubricItems.length > 1) {
+                    event.preventDefault();
+                    removeRubricItem(item.id);
+                  }
+                }}
                 placeholder="Describe the performance expectation."
               />
               <button
