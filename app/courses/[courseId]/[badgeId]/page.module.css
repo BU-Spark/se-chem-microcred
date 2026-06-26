@@ -220,6 +220,9 @@
   inset: 18px;
   border-radius: 999px;
   background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* Bar breakdown */

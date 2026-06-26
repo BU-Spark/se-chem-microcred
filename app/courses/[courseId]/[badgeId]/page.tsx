@@ -212,9 +212,9 @@ export default function CourseBadgeProgress() {
     () =>
       summary
         ? [
-            { label: 'Students who have completed this badge', percent: summary.completedPercent, color: '#c6d369' },
+            { label: 'Students who have completed this badge', percent: summary.completedPercent, color: '#c9db50' },
             { label: 'Students still in progress', percent: summary.inProgressPercent, color: '#f3b55b' },
-            { label: 'Students not yet started', percent: summary.notStartedPercent, color: '#b15450' },
+            { label: 'Students not yet started', percent: summary.notStartedPercent, color: '#d4d4d4' },
           ]
         : [],
     [summary]
@@ -226,6 +226,14 @@ export default function CourseBadgeProgress() {
 
   // Completion ring uses the real completed percentage.
   const completionPercent = summary?.completedPercent ?? 0;
+  // Three-segment donut (completed / in-progress / not-started) matching the
+  // breakdown bars and the design, with a neutral grey remainder.
+  const completionRingGradient = (() => {
+    const completedDeg = (summary?.completedPercent ?? 0) * 3.6;
+    const inProgressDeg = (summary?.inProgressPercent ?? 0) * 3.6;
+    const inProgressEnd = completedDeg + inProgressDeg;
+    return `conic-gradient(#c9db50 0deg ${completedDeg}deg, #f3b55b ${completedDeg}deg ${inProgressEnd}deg, #e4e4e4 ${inProgressEnd}deg 360deg)`;
+  })();
   const checkpointCount = assessment?.checkpoints.length ?? 0;
   const videoTitle = badge?.lesson?.title || 'Lesson video';
 
@@ -316,13 +324,21 @@ export default function CourseBadgeProgress() {
                     <div className={styles.topCharts}>
                       <div
                         className={styles.completionRing}
-                        style={{
-                          background: `conic-gradient(#c6d369 0deg ${completionPercent * 3.6}deg, #b15450 ${completionPercent * 3.6}deg 360deg)`,
-                        }}
+                        style={{ background: completionRingGradient }}
                         role="img"
                         aria-label={`Badge completion: ${completionPercent}%`}
                       >
-                        <div className={styles.completionRingInner} />
+                        <div className={styles.completionRingInner}>
+                          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" aria-hidden="true">
+                            <path
+                              d="M5 13l4 4L19 7"
+                              stroke="#8aa30f"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </div>
                       </div>
 
                       <div className={styles.barBreakdown}>
