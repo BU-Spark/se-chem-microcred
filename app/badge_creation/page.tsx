@@ -485,7 +485,12 @@ export default function BadgeCreationPage() {
       </main>
 
       {isSuccessModalOpen ? (
-        <SuccessModal isEditMode={isEditMode} courseId={courseId} onClose={() => setIsSuccessModalOpen(false)} />
+        <SuccessModal
+          isEditMode={isEditMode}
+          courseId={courseId}
+          badgeName={draft.badgeName}
+          onClose={() => setIsSuccessModalOpen(false)}
+        />
       ) : null}
     </div>
   );

@@ -40,67 +40,60 @@ export default function LessonVideoStep({
   };
 
   return (
-    <div className={styles.videoStepLayout}>
-      <div className={styles.videoInputPanel}>
-        <div className={styles.fieldBlock}>
-          <label className={styles.fieldLabel} htmlFor="youtubeUrl">
-            Paste YouTube link here
-          </label>
-          <input
-            id="youtubeUrl"
-            className={styles.textField}
-            value={draft.youtubeUrl}
-            onChange={(event) => updateDraft('youtubeUrl', event.target.value)}
-            onBlur={handleUrlBlur}
-            placeholder="https://www.youtube.com/watch?v=..."
-            aria-invalid={urlInvalid}
-          />
-          {urlInvalid && <p className={styles.fieldError}>Enter a valid YouTube link.</p>}
-        </div>
-
-        <div className={styles.fieldBlock}>
-          <label className={styles.fieldLabel} htmlFor="videoTitle">
-            Video Title
-          </label>
-          <input
-            id="videoTitle"
-            className={styles.textField}
-            value={draft.videoTitle}
-            onChange={(event) => {
-              // Clearing the field re-enables auto-fill; any other edit suppresses it.
-              setTitleDirty(event.target.value.length > 0);
-              updateDraft('videoTitle', event.target.value);
-            }}
-          />
-        </div>
-
-        <div className={styles.fieldBlock}>
-          <label className={styles.fieldLabel} htmlFor="videoLength">
-            Length
-          </label>
-          <input
-            id="videoLength"
-            className={styles.textField}
-            value={draft.videoLength}
-            onChange={(event) => updateDraft('videoLength', event.target.value)}
-            placeholder="00:20:00"
-            aria-invalid={lengthInvalid}
-          />
-          {lengthInvalid && <p className={styles.fieldError}>Use a time like 00:20:00.</p>}
-        </div>
+    <div className={styles.videoStepColumn}>
+      <div className={styles.fieldBlock}>
+        <label className={styles.underlineFieldLabel} htmlFor="youtubeUrl">
+          Paste YouTube link here
+        </label>
+        <input
+          id="youtubeUrl"
+          className={styles.underlineInput}
+          value={draft.youtubeUrl}
+          onChange={(event) => updateDraft('youtubeUrl', event.target.value)}
+          onBlur={handleUrlBlur}
+          placeholder="https://www.youtube.com/watch?v=..."
+          aria-invalid={urlInvalid}
+        />
+        {urlInvalid && <p className={styles.fieldError}>Enter a valid YouTube link.</p>}
       </div>
 
-      <div className={styles.videoPreviewPanel}>
-        <div className={styles.videoInfoBlock}>
-          <h3>{draft.videoTitle || DEFAULT_VIDEO_FALLBACK}</h3>
-          <p>Length: {draft.videoLength || '00:00:00'}</p>
-        </div>
-        <div
-          className={styles.videoPoster}
-          style={videoThumbnail ? { backgroundImage: `url(${videoThumbnail})` } : undefined}
-        >
-          {!videoThumbnail && <span>Video preview</span>}
-        </div>
+      <div className={styles.videoTitleField}>
+        <label className={styles.srOnly} htmlFor="videoTitle">
+          Video Title
+        </label>
+        <input
+          id="videoTitle"
+          className={styles.videoTitleInput}
+          value={draft.videoTitle}
+          placeholder={DEFAULT_VIDEO_FALLBACK}
+          onChange={(event) => {
+            // Clearing the field re-enables auto-fill; any other edit suppresses it.
+            setTitleDirty(event.target.value.length > 0);
+            updateDraft('videoTitle', event.target.value);
+          }}
+        />
+      </div>
+
+      <div className={styles.videoLengthField}>
+        <label className={styles.videoLengthLabel} htmlFor="videoLength">
+          Length
+        </label>
+        <input
+          id="videoLength"
+          className={styles.videoLengthInput}
+          value={draft.videoLength}
+          onChange={(event) => updateDraft('videoLength', event.target.value)}
+          placeholder="00:20:00"
+          aria-invalid={lengthInvalid}
+        />
+        {lengthInvalid && <p className={styles.fieldError}>Use a time like 00:20:00.</p>}
+      </div>
+
+      <div
+        className={styles.videoPosterLarge}
+        style={videoThumbnail ? { backgroundImage: `url(${videoThumbnail})` } : undefined}
+      >
+        {!videoThumbnail && <span>Video preview</span>}
       </div>
     </div>
   );

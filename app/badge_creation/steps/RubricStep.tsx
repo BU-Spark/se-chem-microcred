@@ -38,8 +38,9 @@ export default function RubricStep({
               <span className={styles.rubricNumber}>{index + 1}.</span>
               <textarea
                 aria-label={`Rubric item ${index + 1}`}
-                className={styles.textAreaCompact}
+                className={styles.rubricLineInput}
                 value={item.text}
+                rows={1}
                 onChange={(event) => updateRubricItem(item.id, event.target.value)}
                 onKeyDown={(event) => {
                   // Enter on a filled row spawns the next numbered row; Enter on
@@ -52,7 +53,7 @@ export default function RubricStep({
                     removeRubricItem(item.id);
                   }
                 }}
-                placeholder="Describe the performance expectation."
+                placeholder="Start typing..."
               />
               <button
                 type="button"

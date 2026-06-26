@@ -162,6 +162,117 @@
   color: #4b5563;
 }
 
+/* Upload Lesson Video — single column matching Figma 571-2582 */
+.videoStepColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  max-width: 620px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.underlineFieldLabel {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #303030;
+}
+
+.videoTitleField {
+  display: flex;
+  flex-direction: column;
+}
+
+.videoTitleInput {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #111111;
+  padding: 0;
+}
+
+.videoLengthField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.videoLengthLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #303030;
+}
+
+.videoLengthInput {
+  width: 9rem;
+  border: none;
+  border-bottom: 2px solid #d7d7d7;
+  outline: none;
+  background: transparent;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.96rem;
+  color: #222222;
+  padding: 0.25rem 0.1rem;
+}
+
+.videoLengthInput:focus {
+  border-bottom-color: #2e6aa9;
+}
+
+.videoPosterLarge {
+  width: 100%;
+  max-width: 460px;
+  aspect-ratio: 16 / 11;
+  border-radius: 8px;
+  background: #1f2937 center / cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e5e7eb;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+}
+
+.rubricLineInput {
+  flex: 1;
+  resize: none;
+  border: none;
+  border-bottom: 2px solid #e2e2e2;
+  outline: none;
+  background: transparent;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: #202020;
+  padding: 0.3rem 0.1rem;
+}
+
+.rubricLineInput:focus {
+  border-bottom-color: #2e6aa9;
+}
+
+.rubricLineInput::placeholder {
+  font-style: italic;
+  color: #9aa1ab;
+}
+
 .feedbackBlock {
   display: flex;
   flex-direction: column;
@@ -621,11 +732,14 @@
   position: relative;
   width: min(520px, 100%);
   border-radius: 30px;
-  background: #f7f7f7;
-  border: 3px solid #d0d0d0;
-  padding: 34px 36px 30px;
+  background: #ffffff;
+  padding: 40px 44px 36px;
   color: #000000;
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .successCloseButton {
@@ -648,11 +762,44 @@
   font-weight: 700;
 }
 
+.successBadgeCircle {
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  background: #d9d9d9;
+  margin: 26px 0 22px;
+}
+
+.successBadgeName {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
+  color: #111111;
+}
+
 .successText {
   margin: 14px 0 0;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   line-height: 1.55;
+  color: #333333;
+}
+
+.successButton {
+  display: inline-block;
+  margin-top: 26px;
+  padding: 12px 26px;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.successButton:hover {
+  filter: brightness(1.05);
 }
 
 @media (max-width: 1200px) {
