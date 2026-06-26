@@ -264,20 +264,27 @@
 /* ===== Generic modal overlay ===== */
 
 .overlay {
-  position: fixed;
+  /* Absolute (not fixed) so the modal is confined to the video frame
+     (videoWrapper is position: relative), not the whole page. */
+  position: absolute;
   inset: 0;
   background: rgba(15, 23, 42, 0.68);
   display: grid;
   place-items: center;
-  padding: 2rem;
+  padding: 3.0rem;
+  overflow: auto;
   z-index: 40;
 }
 
 .modalCard {
-  width: min(480px, 100%);
+  /* Span essentially the full video player width (overlay padding sets the gap). */
+  width: 100%;
+  /* Stay within the video frame (which clips overflow); scroll if taller. */
+  max-height: 100%;
+  overflow-y: auto;
   background: #ffffff;
   border-radius: 2.75rem;
-  padding: 2.75rem 2.5rem;
+  padding: 2.75rem 4rem;
   box-shadow: 0 35px 70px rgba(15, 23, 42, 0.32);
   display: flex;
   flex-direction: column;
