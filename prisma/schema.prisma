@@ -30,8 +30,30 @@ model User {
   createdBadges       Badge[]              @relation("BadgeCreator")
   assessmentAttempts  AssessmentAttempt[]  @relation("AssessmentStudent")
   assessmentsGiven    AssessmentAttempt[]  @relation("AssessmentAssessor")
+  receivedMessages    Message[]            @relation("MessageRecipient")
+  sentMessages        Message[]            @relation("MessageSender")
 
   @@map("Student")
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  recipientId String
+  senderId    String?
+  courseId    String?
+  badgeId     String?
+  subject     String
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  recipient User    @relation("MessageRecipient", fields: [recipientId], references: [id])
+  sender    User?   @relation("MessageSender", fields: [senderId], references: [id])
+  course    Course? @relation(fields: [courseId], references: [id])
+  badge     Badge?  @relation(fields: [badgeId], references: [id])
+
+  @@index([recipientId, createdAt])
+  @@index([badgeId])
 }
 
 model AvatarSetting {
@@ -84,6 +106,7 @@ model Course {
   contacts    CourseContact[]
   settings    CourseSettings?
   assessments AssessmentAttempt[]
+  messages    Message[]
 }
 
 model CourseSettings {
@@ -353,6 +376,7 @@ model Badge {
   studentProgress StudentBadge[]
   surveys         SurveyPrompt[]
   assessments     AssessmentAttempt[]
+  messages        Message[]
 
   @@index([createdById])
   @@index([sourceBadgeId])

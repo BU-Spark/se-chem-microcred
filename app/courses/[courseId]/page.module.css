@@ -45,7 +45,7 @@
 
 .inlineLink {
   width: fit-content;
-  color: #2E6AA9;
+  color: #2e6aa9;
   font-weight: 600;
   text-decoration: none;
 }
@@ -120,7 +120,7 @@
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: #2E6AA9;
+  background: #2e6aa9;
   color: #ffffff;
   font-size: 1.4rem;
   font-weight: 700;
@@ -221,7 +221,7 @@
   font-weight: 400;
   text-decoration: none;
   transition: filter 0.16s ease;
-  background: #2E6AA9;
+  background: #2e6aa9;
   color: #ffffff;
   border: 0;
   cursor: pointer;
@@ -245,7 +245,7 @@
   border: 1px solid #cfd8e3;
   border-radius: 0.8rem;
   background: #ffffff;
-  color: #2E6AA9;
+  color: #2e6aa9;
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
@@ -303,7 +303,7 @@
   width: min(9.8rem, 100%);
   aspect-ratio: 1 / 1;
   border-radius: 999px;
-  background: #2E6AA9;
+  background: #2e6aa9;
 }
 
 .badgeName {
@@ -312,6 +312,24 @@
   font-size: 1rem;
   font-weight: 400;
   color: #000000;
+}
+
+.badgeItemLink {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.95rem;
+  text-align: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.badgeReminderButton {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  line-height: 0;
 }
 
 .badgeIcon {

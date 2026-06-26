@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
+import { LessonReminderModal } from './LessonReminderModal';
 import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
 import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
 import rubyAvatar from '@/public/edit_avatar/ruby.svg';
@@ -269,6 +270,7 @@ export default function CreatedCourseDetailPage() {
   const { signOut } = useAuth();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [reminderBadge, setReminderBadge] = useState<{ id: string; name: string } | null>(null);
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
   const [badgeLibrary, setBadgeLibrary] = useState<BadgeLibraryItem[]>([]);
   const [selectedImportBadgeId, setSelectedImportBadgeId] = useState('');
@@ -523,11 +525,24 @@ export default function CreatedCourseDetailPage() {
                 {assignedBadges.length > 0 ? (
                   <div className={styles.badgeGrid}>
                     {assignedBadges.map((badge) => (
-                      <Link key={badge.id} href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItem}>
-                        <div className={styles.badgeToken} aria-hidden="true" />
-                        <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
-                        <MessageIcon />
-                      </Link>
+                      <div key={badge.id} className={styles.badgeItem}>
+                        <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
+                          <div className={styles.badgeToken} aria-hidden="true" />
+                          <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
+                        </Link>
+                        {isInstructor ? (
+                          <button
+                            type="button"
+                            className={styles.badgeReminderButton}
+                            onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
+                            aria-label={`Send a lesson reminder for ${badge.name.replace(/ Badge$/i, '')}`}
+                          >
+                            <MessageIcon />
+                          </button>
+                        ) : (
+                          <MessageIcon />
+                        )}
+                      </div>
                     ))}
                   </div>
                 ) : (
@@ -606,6 +621,15 @@ export default function CreatedCourseDetailPage() {
           ) : null}
         </div>
       </main>
+
+      {reminderBadge && courseId ? (
+        <LessonReminderModal
+          courseId={courseId}
+          badgeId={reminderBadge.id}
+          badgeName={reminderBadge.name}
+          onClose={() => setReminderBadge(null)}
+        />
+      ) : null}
     </div>
   );
 }

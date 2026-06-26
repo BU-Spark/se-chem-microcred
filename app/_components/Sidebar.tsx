@@ -34,7 +34,7 @@ export const SIDEBAR_NAV: NavItem[] = [
   { label: 'Courses', href: '/courses' },
   { label: 'Badges', href: '/my_badges' },
   // { label: 'Student Roster', href: '/roster' },
-  // { label: 'Messages', href: '/messages' },
+  { label: 'Messages', href: '/messages' },
   { label: 'Profile', href: '/profile' },
   { label: 'My Analytics', href: '/analytics' },
   { label: 'Badge Wallet', href: '/badges' },
