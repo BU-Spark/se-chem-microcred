@@ -220,7 +220,8 @@ function checkpointFromCatalog(
   const title = checkpoint?.title || `Checkpoint ${index + 1}`;
   const options = checkpoint?.options?.length ? checkpoint.options : ['', '', '', ''];
   const correctIndices =
-    checkpoint?.correctIndices?.length && checkpoint.correctIndices.every((optionIndex) => typeof optionIndex === 'number')
+    checkpoint?.correctIndices?.length &&
+    checkpoint.correctIndices.every((optionIndex) => typeof optionIndex === 'number')
       ? checkpoint.correctIndices
       : typeof checkpoint?.correctIndex === 'number'
         ? [checkpoint.correctIndex]
@@ -617,6 +618,10 @@ export default function BadgeCreationPage() {
     return payload;
   };
 
+  const handleSuccessClose = () => {
+    setIsSuccessModalOpen(false);
+  };
+
   const handleNext = async () => {
     if (currentStep < STEP_DEFINITIONS.length - 1) {
       setCurrentStep((step) => step + 1);
@@ -628,15 +633,18 @@ export default function BadgeCreationPage() {
 
     try {
       await saveBadge();
+      console.log('[badge_creation] save succeeded, redirecting to /my_badges');
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        // Hard navigation: router.push() no-ops from an async handler after setState in Next 15,
+        // and a full load ensures /my_badges shows fresh data including the new badge.
+        window.location.assign('/my_badges');
+        return;
       }
-      setSubmissionState(`Badge ${isEditMode ? 'updated' : 'created'} successfully.`);
-      setIsSuccessModalOpen(true);
+      router.push('/my_badges');
     } catch (error) {
       console.error(error);
       setSubmitError(error instanceof Error ? error.message : `Failed to ${isEditMode ? 'update' : 'create'} badge.`);
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -1219,7 +1227,7 @@ export default function BadgeCreationPage() {
             <button
               type="button"
               className={styles.successCloseButton}
-              onClick={() => setIsSuccessModalOpen(false)}
+              onClick={handleSuccessClose}
               aria-label="Close success message"
             >
               x
@@ -1234,6 +1242,9 @@ export default function BadgeCreationPage() {
                   ? 'This badge was created and assigned to the selected course.'
                   : 'This badge was created independently and can be assigned to a course later.'}
             </p>
+            <button type="button" className={styles.nextButton} onClick={handleSuccessClose}>
+              View My Badges
+            </button>
           </div>
         </div>
       ) : null}
