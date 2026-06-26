@@ -2,6 +2,9 @@
   display: flex;
   min-height: calc(100vh - 80px);
   background: #ffffff;
+  /* Base body font so text/table cells inherit Open Sans instead of the
+     global Outfit/Arial default. Headings/labels/buttons override to Lato. */
+  font-family: 'Open Sans', sans-serif;
 }
 
 .main {
@@ -78,6 +81,7 @@
   border: none;
   outline: none;
   background: transparent;
+  font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
   color: #222222;
 }
@@ -116,6 +120,7 @@
   border: 2px solid #d7d7d7;
   background: #ffffff;
   color: #3b3b3b;
+  font-family: 'Lato', sans-serif;
   font-size: 0.9rem;
   cursor: pointer;
 }
@@ -149,6 +154,7 @@
 
 .filterPanelTitle {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: 1.28rem;
   font-weight: 700;
   line-height: 1.05;
@@ -168,6 +174,7 @@
 }
 
 .filterFieldLabel {
+  font-family: 'Lato', sans-serif;
   font-size: 0.94rem;
   font-weight: 600;
   color: #232323;
@@ -179,6 +186,7 @@
   border: 3px solid #d7d7d7;
   border-radius: 1.05rem;
   padding: 0.7rem 0.9rem;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.96rem;
   color: #222222;
   background: #ffffff;
@@ -204,6 +212,7 @@
   min-height: 3rem;
   padding: 0.7rem 1.2rem;
   border-radius: 1.05rem;
+  font-family: 'Lato', sans-serif;
   font-size: 0.94rem;
   font-weight: 600;
   cursor: pointer;
@@ -268,6 +277,7 @@
   border-bottom: 3px solid #dedede;
   padding: 1rem 1rem 0.82rem;
   text-align: left;
+  font-family: 'Lato', sans-serif;
   font-size: 1rem;
   font-weight: 700;
   color: #202020;
@@ -275,6 +285,7 @@
 
 .table tbody td {
   padding: 0.72rem 1rem;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.98rem;
   color: #202020;
   white-space: nowrap;
