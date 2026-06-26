@@ -341,6 +341,9 @@ model Badge {
   category        BadgeCategory?
   createdById     String?
   sourceBadgeId   String?
+  availableOn     DateTime?
+  closesOn        DateTime?
+  neverCloses     Boolean?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
   createdBy       User?              @relation("BadgeCreator", fields: [createdById], references: [id], onDelete: SetNull)
@@ -386,6 +389,9 @@ model StudentBadge {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   score     Int?
+  reassessmentLimit    Int?
+  cooldownDays         Int?
+  reassessmentRequired Boolean?
 
   student User  @relation(fields: [studentId], references: [id])
   badge   Badge @relation(fields: [badgeId], references: [id])

@@ -17,6 +17,9 @@ type CheckpointPayload = {
   numericAnswer?: string | number | null;
   numericRangeMin?: string | number | null;
   numericRangeMax?: string | number | null;
+  unit?: string | null;
+  incorrectFeedback?: string | null;
+  incorrectFeedbackEnabled?: boolean | null;
   segmentLabel?: string | null;
 };
 
@@ -36,6 +39,7 @@ type CreateBadgePayload = {
   badgeName?: string | null;
   badgeDescription?: string | null;
   category?: BadgeCategory | null;
+  skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
@@ -54,6 +58,10 @@ type UpdateBadgePayload = {
   badgeName?: string | null;
   badgeDescription?: string | null;
   category?: BadgeCategory | null;
+  skills?: string[] | null;
+  availableOn?: string | null;
+  closesOn?: string | null;
+  neverCloses?: boolean | null;
   rubricOverview?: string | null;
   rubricItems?: RubricItemPayload[] | null;
   rubricCriteria?: RubricCriterionPayload[] | null;
@@ -68,6 +76,23 @@ function normalizeString(value?: string | null) {
 
 function normalizeCategory(value?: string | null) {
   return value && Object.values(BadgeCategory).includes(value as BadgeCategory) ? (value as BadgeCategory) : null;
+}
+
+// Trim, drop empties, case-insensitive de-dupe, cap at 5. The API is the
+// authoritative gate even though the client also limits to 5.
+function normalizeSkills(skills?: string[] | null) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of skills ?? []) {
+    const value = normalizeString(raw);
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(value);
+    if (result.length >= 5) break;
+  }
+  return result;
 }
 
 function slugify(value: string) {
@@ -172,23 +197,31 @@ function normalizeCorrectIndices(checkpoint: CheckpointPayload, optionCount: num
 function buildQuestionOptions(checkpoint: CheckpointPayload) {
   const questionType = checkpoint.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice';
 
+  // Stored only when populated, so badges without a unit / feedback keep the
+  // exact prior shape (blank unit => no unit assigned, per the design note).
+  const unit = normalizeString(checkpoint.unit);
+  const incorrectFeedback = normalizeString(checkpoint.incorrectFeedback);
+  const feedbackEntry = incorrectFeedback ? { incorrectFeedback } : {};
+
   if (questionType === 'shortAnswer') {
     const expectedAnswer = parseFiniteNumber(checkpoint.numericAnswer);
     const rawMin = parseFiniteNumber(checkpoint.numericRangeMin);
     const rawMax = parseFiniteNumber(checkpoint.numericRangeMax);
-    const acceptedRange =
+    const baseRange =
       rawMin != null && rawMax != null
         ? {
             min: Math.min(rawMin, rawMax),
             max: Math.max(rawMin, rawMax),
           }
         : null;
+    const acceptedRange = baseRange ? (unit ? { ...baseRange, unit } : baseRange) : unit ? { unit } : null;
 
     return {
       options: {
         type: 'shortAnswer',
         expectedAnswer,
         acceptedRange,
+        ...feedbackEntry,
       },
       correctIndex: null,
     };
@@ -202,6 +235,7 @@ function buildQuestionOptions(checkpoint: CheckpointPayload) {
       type: 'multipleChoice',
       options,
       correctIndices: correctIndices.length > 0 ? correctIndices : [0],
+      ...feedbackEntry,
     },
     correctIndex: correctIndices[0] ?? 0,
   };
@@ -238,20 +272,23 @@ function normalizeGradingCriteria(criteria?: RubricCriterionPayload[] | null) {
 function buildRequirementSummary({
   badgeName,
   lessonTitle,
+  skills,
   rubricItems,
   gradingCriteria,
   checkpoints,
 }: {
   badgeName: string;
   lessonTitle?: string | null;
+  skills: string[];
   rubricItems: Array<{ number: number; text: string }>;
   gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
   checkpoints: CheckpointPayload[];
 }) {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     badgeName,
     lessonTitle: lessonTitle ?? null,
+    skills,
     rubricItems,
     gradingCriteria,
     checkpoints: checkpoints
@@ -268,6 +305,9 @@ function buildRequirementSummary({
         numericAnswer: parseFiniteNumber(checkpoint.numericAnswer),
         numericRangeMin: parseFiniteNumber(checkpoint.numericRangeMin),
         numericRangeMax: parseFiniteNumber(checkpoint.numericRangeMax),
+        unit: normalizeString(checkpoint.unit),
+        incorrectFeedback: normalizeString(checkpoint.incorrectFeedback),
+        incorrectFeedbackEnabled: Boolean(normalizeString(checkpoint.incorrectFeedback)),
       }))
       .filter((checkpoint) => Boolean(checkpoint.question)),
   });
@@ -281,6 +321,7 @@ function parseRequirementSummary(summary?: string | null) {
   if (!summary) {
     return {
       displayText: 'Independent badge requirement',
+      skills: [] as string[],
       rubricItems: [] as Array<{ number: number; text: string }>,
       gradingCriteria: [] as Array<{ number: number; criterion: string | null; options: string[] }>,
       checkpoints: [] as CheckpointPayload[],
@@ -289,6 +330,7 @@ function parseRequirementSummary(summary?: string | null) {
 
   try {
     const parsed = JSON.parse(summary) as {
+      skills?: string[];
       rubricItems?: Array<{ number?: number; text?: string | null }>;
       gradingCriteria?: Array<{ number?: number; criterion?: string | null; options?: string[] }>;
       checkpoints?: CheckpointPayload[];
@@ -309,6 +351,7 @@ function parseRequirementSummary(summary?: string | null) {
 
     return {
       displayText: rubricItems[0]?.text ?? gradingCriteria[0]?.criterion ?? 'Independent badge requirement',
+      skills: Array.isArray(parsed.skills) ? parsed.skills.filter((skill): skill is string => Boolean(skill)) : [],
       rubricItems,
       gradingCriteria,
       checkpoints: parsed.checkpoints ?? [],
@@ -316,6 +359,7 @@ function parseRequirementSummary(summary?: string | null) {
   } catch {
     return {
       displayText: summary,
+      skills: [] as string[],
       rubricItems: [] as Array<{ number: number; text: string }>,
       gradingCriteria: [] as Array<{ number: number; criterion: string | null; options: string[] }>,
       checkpoints: [] as CheckpointPayload[],
@@ -353,6 +397,9 @@ export async function GET() {
         name: true,
         description: true,
         category: true,
+        availableOn: true,
+        closesOn: true,
+        neverCloses: true,
         createdAt: true,
         requirements: {
           orderBy: { createdAt: 'asc' },
@@ -402,6 +449,9 @@ export async function GET() {
           name: badge.name,
           description: badge.description,
           category: badge.category,
+          availableOn: badge.availableOn?.toISOString() ?? null,
+          closesOn: badge.closesOn?.toISOString() ?? null,
+          neverCloses: badge.neverCloses ?? null,
           createdAt: badge.createdAt.toISOString(),
           assignedStudentCount: badge._count.studentProgress,
           requirements: badge.requirements.map((requirement) => {
@@ -411,6 +461,7 @@ export async function GET() {
               id: requirement.id,
               summary: requirement.summary,
               displayText: parsedSummary.displayText,
+              skills: parsedSummary.skills,
               rubricItems: parsedSummary.rubricItems,
               gradingCriteria: parsedSummary.gradingCriteria,
               checkpoints: parsedSummary.checkpoints,
@@ -462,10 +513,14 @@ export async function PATCH(req: NextRequest) {
     const badgeName = normalizeString(body.badgeName);
     const badgeDescription = normalizeString(body.badgeDescription);
     const category = normalizeCategory(body.category);
+    const skills = normalizeSkills(body.skills);
     const rubricOverview = normalizeString(body.rubricOverview);
     const rubricItems = normalizeRubricItems(body.rubricItems, rubricOverview);
     const gradingCriteria = normalizeGradingCriteria(body.gradingCriteria ?? body.rubricCriteria);
     const checkpoints = body.checkpoints ?? [];
+    const neverCloses = body.neverCloses ?? null;
+    const availableOn = parseDate(body.availableOn);
+    const closesOn = body.neverCloses ? null : parseDate(body.closesOn);
 
     if (!badgeId) {
       return badRequest('Badge id is required.');
@@ -482,6 +537,9 @@ export async function PATCH(req: NextRequest) {
           name: badgeName,
           description: badgeDescription,
           category,
+          availableOn,
+          closesOn,
+          neverCloses,
         },
         select: {
           id: true,
@@ -489,7 +547,19 @@ export async function PATCH(req: NextRequest) {
           name: true,
           description: true,
           category: true,
+          sourceBadgeId: true,
         },
+      });
+
+      // Keep the per-badge content window consistent across the source badge
+      // and all its course copies (availability is shared, not per-copy).
+      const familyRootId = badge.sourceBadgeId ?? badge.id;
+      await tx.badge.updateMany({
+        where: {
+          OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
+          NOT: { id: badge.id },
+        },
+        data: { availableOn, closesOn, neverCloses },
       });
 
       const firstRequirement = await tx.badgeRequirement.findFirst({
@@ -512,6 +582,7 @@ export async function PATCH(req: NextRequest) {
             summary: buildRequirementSummary({
               badgeName,
               lessonTitle: firstRequirement.lesson?.title ?? badgeName,
+              skills,
               rubricItems,
               gradingCriteria,
               checkpoints,
@@ -525,6 +596,7 @@ export async function PATCH(req: NextRequest) {
             summary: buildRequirementSummary({
               badgeName,
               lessonTitle: badgeName,
+              skills,
               rubricItems,
               gradingCriteria,
               checkpoints,
@@ -580,10 +652,16 @@ export async function POST(req: NextRequest) {
     const youtubeUrl = normalizeString(body.youtubeUrl);
     const category = normalizeCategory(body.category);
     const checkpoints = body.checkpoints ?? [];
+    const skills = normalizeSkills(body.skills);
     const rubricOverview = normalizeString(body.rubricOverview);
     const rubricItems = normalizeRubricItems(body.rubricItems, rubricOverview);
     const gradingCriteria = normalizeGradingCriteria(body.gradingCriteria ?? body.rubricCriteria);
-    const dueDate = body.neverCloses ? null : parseDate(body.closesOn);
+    // Per-badge content window (shared across students). neverCloses === true
+    // means the badge never closes; closesOn is ignored and dueDate is null.
+    const neverCloses = body.neverCloses ?? null;
+    const availableOn = parseDate(body.availableOn);
+    const closesOn = body.neverCloses ? null : parseDate(body.closesOn);
+    const dueDate = closesOn;
     const videoId = extractYouTubeId(youtubeUrl);
     const thumbnailUrl = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
     const videoDurationSeconds = parseTimeToSeconds(body.videoLength);
@@ -637,6 +715,7 @@ export async function POST(req: NextRequest) {
         const sourceSummary = buildRequirementSummary({
           badgeName,
           lessonTitle: videoTitle,
+          skills,
           rubricItems,
           gradingCriteria,
           checkpoints,
@@ -648,6 +727,9 @@ export async function POST(req: NextRequest) {
             name: badgeName,
             description: badgeDescription,
             category,
+            availableOn,
+            closesOn,
+            neverCloses,
             createdById: creator.id,
           },
           select: {
@@ -684,6 +766,9 @@ export async function POST(req: NextRequest) {
               name: badgeName,
               description: badgeDescription,
               category,
+              availableOn,
+              closesOn,
+              neverCloses,
               createdById: creator.id,
               sourceBadgeId: sourceBadge.id,
             },

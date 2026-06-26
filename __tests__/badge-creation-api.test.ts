@@ -9,7 +9,7 @@ jest.mock('@clerk/nextjs/server', () => ({
 
 const mockTx = {
   course: { findFirst: jest.fn() },
-  badge: { create: jest.fn(), update: jest.fn() },
+  badge: { create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   lesson: { create: jest.fn() },
   lessonSegment: { create: jest.fn() },
   lessonCheckpoint: { createMany: jest.fn(), findMany: jest.fn() },
