@@ -332,6 +332,44 @@
   line-height: 0;
 }
 
+/* MVP test-cleanup affordances — remove before handoff. */
+.dangerButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.7rem;
+  border: 1px solid #d9b1b1;
+  border-radius: 0.8rem;
+  background: #ffffff;
+  color: #b42318;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.65rem 1rem;
+}
+
+.dangerButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.badgeDeleteButton {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: #b42318;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.badgeDeleteButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .badgeIcon {
   color: #c9db50;
 }

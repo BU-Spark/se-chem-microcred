@@ -271,6 +271,8 @@ export default function CreatedCourseDetailPage() {
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [reminderBadge, setReminderBadge] = useState<{ id: string; name: string } | null>(null);
+  // MVP test-cleanup affordance (remove before handoff).
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
   const [badgeLibrary, setBadgeLibrary] = useState<BadgeLibraryItem[]>([]);
   const [selectedImportBadgeId, setSelectedImportBadgeId] = useState('');
@@ -299,6 +301,43 @@ export default function CreatedCourseDetailPage() {
     } catch (err) {
       console.error('Failed to sign out', err);
       setIsSigningOut(false);
+    }
+  };
+
+  // MVP test-cleanup handlers — delete a whole test course or a test badge.
+  // Remove these (and the buttons that call them) before handoff.
+  const handleDeleteCourse = async () => {
+    if (!data?.course || isDeleting) return;
+    if (!window.confirm(`Delete the course "${data.course.title}" and all its content? This cannot be undone.`)) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/courses/${encodeURIComponent(data.course.id)}`, { method: 'DELETE' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Failed to delete course.');
+      router.replace('/courses');
+    } catch (err) {
+      setIsDeleting(false);
+      window.alert(err instanceof Error ? err.message : 'Failed to delete course.');
+    }
+  };
+
+  const handleDeleteBadge = async (badge: { id: string; name: string }) => {
+    if (isDeleting) return;
+    if (!window.confirm(`Delete the badge "${badge.name}"? This removes it everywhere and cannot be undone.`)) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/badges/${encodeURIComponent(badge.id)}`, { method: 'DELETE' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Failed to delete badge.');
+      await refresh();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Failed to delete badge.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -514,6 +553,15 @@ export default function CreatedCourseDetailPage() {
                       <Link href={`/courses/new?courseId=${course.id}`} className={styles.primaryButton}>
                         Edit Course
                       </Link>
+                      {/* MVP test-cleanup button — remove before handoff. */}
+                      <button
+                        type="button"
+                        className={styles.dangerButton}
+                        onClick={handleDeleteCourse}
+                        disabled={isDeleting}
+                      >
+                        {isDeleting ? 'Deleting…' : 'Delete Course'}
+                      </button>
                     </div>
                   ) : null}
                 </aside>
@@ -531,14 +579,25 @@ export default function CreatedCourseDetailPage() {
                           <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
                         </Link>
                         {isInstructor ? (
-                          <button
-                            type="button"
-                            className={styles.badgeReminderButton}
-                            onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
-                            aria-label={`Send a lesson reminder for ${badge.name.replace(/ Badge$/i, '')}`}
-                          >
-                            <MessageIcon />
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              className={styles.badgeReminderButton}
+                              onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
+                              aria-label={`Send a lesson reminder for ${badge.name.replace(/ Badge$/i, '')}`}
+                            >
+                              <MessageIcon />
+                            </button>
+                            {/* MVP test-cleanup button — remove before handoff. */}
+                            <button
+                              type="button"
+                              className={styles.badgeDeleteButton}
+                              onClick={() => handleDeleteBadge({ id: badge.id, name: badge.name })}
+                              disabled={isDeleting}
+                            >
+                              Delete badge
+                            </button>
+                          </>
                         ) : (
                           <MessageIcon />
                         )}
