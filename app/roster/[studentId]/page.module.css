@@ -2,6 +2,7 @@
   display: flex;
   min-height: calc(100vh - 80px);
   background: #ffffff;
+  font-family: 'Open Sans', sans-serif;
 }
 
 .main {
@@ -21,6 +22,7 @@
 
 .pageTitle {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: clamp(2.3rem, 3.3vw, 2.8rem);
   line-height: 0.98;
   font-weight: 700;
@@ -29,6 +31,7 @@
 
 .statusMessage {
   margin: 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
   color: #5b6470;
 }
@@ -64,6 +67,7 @@
 
 .sectionKicker {
   margin: 0 0 0.7rem;
+  font-family: 'Lato', sans-serif;
   font-size: 1rem;
   font-weight: 600;
   color: #232323;
@@ -78,6 +82,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.05rem;
+  font-family: 'Lato', sans-serif;
   font-size: clamp(2.15rem, 3.2vw, 2.65rem);
   line-height: 0.95;
   font-weight: 700;
@@ -92,6 +97,7 @@
 
 .roleLabel {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: 1rem;
   font-weight: 600;
   color: #222222;
@@ -99,6 +105,7 @@
 
 .createdAt {
   margin: 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.85rem;
   color: #4f4f4f;
 }
@@ -118,12 +125,14 @@
 }
 
 .detailLabel {
+  font-family: 'Lato', sans-serif;
   font-size: 1rem;
   font-weight: 700;
   color: #161616;
 }
 
 .detailValue {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.92rem;
   color: #333333;
   word-break: break-word;
@@ -163,6 +172,7 @@
   justify-content: center;
   background: #2E6AA9;
   color: #ffffff;
+  font-family: 'Lato', sans-serif;
   font-weight: 700;
 }
 
@@ -189,6 +199,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
+  font-family: 'Lato', sans-serif;
   cursor: pointer;
 }
 
@@ -212,6 +223,7 @@
 
 .sideTitle {
   margin: 0 0 0.5rem;
+  font-family: 'Lato', sans-serif;
   font-size: 0.98rem;
   font-weight: 700;
   color: #161616;
@@ -219,6 +231,7 @@
 
 .sideMeta {
   margin: 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.88rem;
   line-height: 1.32;
   color: #333333;
@@ -259,6 +272,7 @@
 
 .contactName {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: 0.88rem;
   font-weight: 600;
   line-height: 1.15;
@@ -267,6 +281,7 @@
 
 .contactEmail {
   margin: 0.3rem 0 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.86rem;
   color: #3a3a3a;
   word-break: break-word;
@@ -283,6 +298,7 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.9rem;
   font-style: italic;
   color: #818181;
@@ -302,6 +318,7 @@
 
 .badgesTitle {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: clamp(2.1rem, 3vw, 2.45rem);
   line-height: 0.98;
   font-weight: 700;
@@ -316,6 +333,7 @@
 }
 
 .badgesHint {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.88rem;
   font-style: italic;
   color: #787878;
@@ -327,6 +345,7 @@
 
 .badgeSectionTitle {
   margin: 0 0 0.8rem;
+  font-family: 'Lato', sans-serif;
   font-size: 0.98rem;
   font-weight: 600;
   color: #1f1f1f;
@@ -384,6 +403,7 @@
   margin: 0;
   max-width: 8.6rem;
   text-align: center;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.82rem;
   line-height: 1.2;
   color: #303030;
@@ -421,6 +441,7 @@
 
 .detailCardKicker,
 .detailCardHeading {
+  font-family: 'Lato', sans-serif;
   font-size: 0.98rem;
 }
 
@@ -487,6 +508,7 @@
 
 .progressSummaryCaption {
   margin: 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.72rem;
   color: #575757;
 }
@@ -499,15 +521,18 @@
 
 .progressStatusLine {
   margin: 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.98rem;
   color: #252525;
 }
 
 .progressStatusLabel {
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
 }
 
 .progressStatusValue {
+  font-family: 'Lato', sans-serif;
   font-weight: 700;
 }
 
@@ -529,6 +554,7 @@
 
 .detailSectionTitle {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: 0.98rem;
   font-weight: 600;
   color: #2a2a2a;
@@ -549,6 +575,7 @@
 .assessmentAttemptFeedback,
 .questionPrompt {
   margin: 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.9rem;
   color: #373737;
 }
@@ -582,12 +609,14 @@
 .gradingTitle,
 .gradingOutcome {
   margin: 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.82rem;
   line-height: 1.35;
   color: #363636;
 }
 
 .gradingTitle {
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
 }
 
@@ -631,12 +660,14 @@
 }
 
 .answerAttemptLabel {
+  font-family: 'Lato', sans-serif;
   font-size: 0.8rem;
   font-weight: 600;
   color: #4a4a4a;
 }
 
 .answerAttemptValue {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.82rem;
   color: #404040;
 }
@@ -665,6 +696,7 @@
 
 .emptyState {
   margin: 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;
   color: #6b7280;
 }
@@ -683,6 +715,7 @@
   padding: 0.85rem 1.15rem;
   background: #2E6AA9;
   color: #ffffff;
+  font-family: 'Lato', sans-serif;
   font-size: 0.95rem;
   text-decoration: none;
 }

@@ -2,6 +2,7 @@
   display: flex;
   min-height: 100vh;
   background: #f3f3f3;
+  font-family: 'Open Sans', sans-serif;
 }
 
 .main {
@@ -23,6 +24,7 @@
 }
 
 .pageTitle {
+  font-family: 'Lato', sans-serif;
   font-size: 48px;
   font-weight: 700;
   color: #000000;
@@ -77,6 +79,7 @@
 }
 
 .progressLabel {
+  font-family: 'Lato', sans-serif;
   font-size: 0.95rem;
   color: #222222;
 }
@@ -113,6 +116,7 @@
 .videoInfoBlock h3,
 .reviewCard h4 {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: 24px;
   font-weight: 400;
   color: #000000;
@@ -126,6 +130,7 @@
 .noticeBanner,
 .errorText,
 .emptyState {
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   font-weight: 400;
   color: #000000;
@@ -174,6 +179,7 @@
 .fieldLabel,
 .fieldStack,
 .dateField {
+  font-family: 'Lato', sans-serif;
   font-size: 16px;
   color: #000000;
 }
@@ -185,6 +191,7 @@
   border-bottom: 1px solid #000000;
   background: transparent;
   outline: none;
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   font-weight: 400;
   padding: 0 0 8px;
@@ -194,6 +201,7 @@
 .underlineInput::placeholder {
   color: #000000;
   opacity: 1;
+  font-family: 'Open Sans', sans-serif;
   font-style: italic;
 }
 
@@ -209,6 +217,7 @@
   background: #ffffff;
   color: #000000;
   font: inherit;
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   padding: 12px 14px;
 }
@@ -265,10 +274,12 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  font-family: 'Open Sans', sans-serif;
   font-size: 14px;
 }
 
 .availabilityPill strong {
+  font-family: 'Lato', sans-serif;
   font-size: 18px;
   font-weight: 600;
 }
@@ -278,6 +289,7 @@
   display: inline-flex;
   align-items: center;
   gap: 14px;
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   color: #333333;
 }
@@ -287,6 +299,7 @@
   height: 32px;
   border: none;
   border-radius: 999px;
+  font-family: 'Lato', sans-serif;
   background: #d9d9d9;
   position: relative;
   cursor: pointer;
@@ -355,6 +368,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  font-family: 'Open Sans', sans-serif;
   color: #222222;
 }
 
@@ -406,6 +420,7 @@
 
 .timelineHeader {
   justify-content: space-between;
+  font-family: 'Lato', sans-serif;
   font-size: 16px;
   color: #000000;
 }
@@ -431,6 +446,7 @@
   flex-direction: column;
   gap: 6px;
   color: #222222;
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
 }
 
@@ -465,6 +481,7 @@
   border: none;
   border-bottom: 1px solid #000000;
   color: #000000;
+  font-family: 'Lato', sans-serif;
   font-size: 16px;
   padding: 0 0 2px;
   cursor: pointer;
@@ -485,6 +502,7 @@
 
 .rubricNumber {
   padding-top: 12px;
+  font-family: 'Lato', sans-serif;
   font-size: 20px;
   color: #000000;
 }
@@ -498,6 +516,7 @@
 
 .reviewCard p,
 .reviewListItem {
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   line-height: 1.55;
   color: #222222;
@@ -525,6 +544,7 @@
   color: #ffffff;
   border: none;
   border-radius: 19px;
+  font-family: 'Lato', sans-serif;
   font-size: 20px;
   font-weight: 400;
   cursor: pointer;
@@ -586,18 +606,21 @@
   background: transparent;
   color: #000000;
   cursor: pointer;
+  font-family: 'Lato', sans-serif;
   font-size: 24px;
   line-height: 1;
 }
 
 .successTitle {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: 28px;
   font-weight: 700;
 }
 
 .successText {
   margin: 14px 0 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   line-height: 1.55;
 }
