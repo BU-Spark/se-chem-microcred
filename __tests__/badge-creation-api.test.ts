@@ -12,8 +12,8 @@ const mockTx = {
   badge: { create: jest.fn(), update: jest.fn() },
   lesson: { create: jest.fn() },
   lessonSegment: { create: jest.fn() },
-  lessonCheckpoint: { create: jest.fn() },
-  checkpointQuestion: { create: jest.fn() },
+  lessonCheckpoint: { createMany: jest.fn(), findMany: jest.fn() },
+  checkpointQuestion: { createMany: jest.fn() },
   badgeRequirement: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
   surveyPrompt: { create: jest.fn() },
   studentBadge: { createMany: jest.fn() },
@@ -91,7 +91,12 @@ describe('badge creation API', () => {
       title: 'Burner lesson',
     });
     mockPrisma.__tx.lessonSegment.create.mockResolvedValue({ id: 'segment-1' });
-    mockPrisma.__tx.lessonCheckpoint.create.mockResolvedValue({ id: 'checkpoint-1' });
+    mockPrisma.__tx.lessonCheckpoint.createMany.mockResolvedValue({ count: 2 });
+    mockPrisma.__tx.lessonCheckpoint.findMany.mockResolvedValue([
+      { id: 'checkpoint-1', sortOrder: 0 },
+      { id: 'checkpoint-2', sortOrder: 1 },
+    ]);
+    mockPrisma.__tx.checkpointQuestion.createMany.mockResolvedValue({ count: 2 });
     mockPrisma.__tx.badgeRequirement.create.mockResolvedValue({ id: 'requirement-1' });
     mockPrisma.__tx.badge.update.mockResolvedValue({
       id: 'badge-1',
@@ -183,9 +188,18 @@ describe('badge creation API', () => {
         }),
       })
     );
-    expect(mockPrisma.__tx.checkpointQuestion.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
+    expect(mockPrisma.__tx.lessonCheckpoint.createMany).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.__tx.checkpointQuestion.createMany).toHaveBeenCalledTimes(1);
+    const questionData = mockPrisma.__tx.checkpointQuestion.createMany.mock.calls[0][0].data as Array<{
+      checkpointId: string;
+      prompt: string;
+      options: unknown;
+      correctIndex: number | null;
+    }>;
+    expect(questionData).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          checkpointId: 'checkpoint-1',
           prompt: 'What should you check first?',
           options: {
             type: 'multipleChoice',
@@ -194,11 +208,8 @@ describe('badge creation API', () => {
           },
           correctIndex: 0,
         }),
-      })
-    );
-    expect(mockPrisma.__tx.checkpointQuestion.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
+        expect.objectContaining({
+          checkpointId: 'checkpoint-2',
           prompt: 'What temperature range is acceptable?',
           options: {
             type: 'shortAnswer',
@@ -207,7 +218,7 @@ describe('badge creation API', () => {
           },
           correctIndex: null,
         }),
-      })
+      ])
     );
     expect(mockPrisma.__tx.studentBadge.createMany).toHaveBeenCalledWith({
       data: [

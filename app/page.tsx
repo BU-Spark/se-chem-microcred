@@ -38,11 +38,6 @@ type CoursePreviewLesson = {
   }>;
 };
 
-type EnrollmentSummary = {
-  id: string;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-};
-
 type CreatedCourse = {
   id: string;
   title: string;
@@ -53,7 +48,6 @@ type CreatedCourse = {
   lessons: Array<{
     thumbnailUrl: string | null;
   }>;
-  enrollments: EnrollmentSummary[];
 };
 
 type CreatedCoursesResponse = {

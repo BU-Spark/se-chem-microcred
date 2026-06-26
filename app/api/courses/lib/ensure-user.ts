@@ -59,22 +59,29 @@ export async function ensureCurrentUser(): Promise<EnsuredUser | null> {
     user = await prisma.user.findUniqueOrThrow({ where: { email }, select: USER_SELECT });
   }
 
-  // Backfill a missing name from Clerk without clobbering an existing one.
-  // updateMany with name:null is a no-op for concurrent callers that already set it.
-  if (!user.name && name) {
-    await prisma.user.updateMany({ where: { id: user.id, name: null }, data: { name } });
-    user = { ...user, name };
-  }
+  // The name-backfill and the analytics-row guarantee both only depend on
+  // user.id and don't depend on each other, so run them concurrently to save a
+  // network round-trip on this hot auth path.
+  const backfillName = !user.name && name;
 
-  // Guarantee an analytics row exists (other queries assume one may be present).
-  try {
-    await prisma.studentAnalytics.upsert({
-      where: { studentId: user.id },
-      update: {},
-      create: { studentId: user.id },
-    });
-  } catch (error) {
-    if (!isUniqueViolation(error)) throw error;
+  await Promise.all([
+    // Backfill a missing name from Clerk without clobbering an existing one.
+    // updateMany with name:null is a no-op for concurrent callers that already set it.
+    backfillName ? prisma.user.updateMany({ where: { id: user.id, name: null }, data: { name } }) : Promise.resolve(),
+    // Guarantee an analytics row exists (other queries assume one may be present).
+    prisma.studentAnalytics
+      .upsert({
+        where: { studentId: user.id },
+        update: {},
+        create: { studentId: user.id },
+      })
+      .catch((error) => {
+        if (!isUniqueViolation(error)) throw error;
+      }),
+  ]);
+
+  if (backfillName) {
+    user = { ...user, name };
   }
 
   return user;

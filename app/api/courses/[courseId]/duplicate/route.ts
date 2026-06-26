@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { CourseRole, Prisma, SurveyContext } from '@prisma/client';
+import { BadgeCategory, CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
 import prisma from '@/lib/prisma';
@@ -111,127 +111,278 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
           });
         }
 
-        // Avoid cloning the same badge twice if referenced by multiple requirements.
+        // ---------------------------------------------------------------------
+        // Deep-copy is rewritten to batch every entity type with createMany +
+        // a read-back findMany to recover generated ids, instead of issuing one
+        // .create() per row. This keeps the whole copy within a handful of
+        // round-trips so it stays under Prisma Accelerate's 15s tx cap.
+        //
+        // Read-back natural keys (all backed by @@unique in schema.prisma):
+        //   lessons      -> slug (globally @unique)
+        //   segments     -> (lessonId, sortOrder)
+        //   checkpoints  -> (lessonId, sortOrder)
+        //   badges       -> slug (globally @unique)
+        // skills, questions, surveyPrompts and badgeRequirements need no
+        // read-back (nothing references their generated ids), so they are pure
+        // createMany.
+        // ---------------------------------------------------------------------
+
+        // 1. Lessons. Precompute a unique slug per source lesson and remember
+        //    the mapping so we can recover new ids by slug after createMany.
+        const newSlugBySourceLesson = new Map<string, string>();
+        const lessonData = source.lessons.map((lesson) => {
+          const newSlug = `${lesson.slug}-${randomUUID().slice(0, 8)}`;
+          newSlugBySourceLesson.set(lesson.id, newSlug);
+          return {
+            courseId: newCourse.id,
+            slug: newSlug,
+            title: lesson.title,
+            summary: lesson.summary,
+            description: lesson.description,
+            thumbnailUrl: lesson.thumbnailUrl,
+            estimatedMinutes: lesson.estimatedMinutes,
+            dueDate: lesson.dueDate,
+            passingPercent: lesson.passingPercent,
+            sortOrder: lesson.sortOrder,
+          };
+        });
+
+        const lessonIdBySource = new Map<string, string>();
+
+        if (lessonData.length > 0) {
+          await tx.lesson.createMany({ data: lessonData });
+
+          const createdLessons = await tx.lesson.findMany({
+            where: { slug: { in: lessonData.map((lesson) => lesson.slug) } },
+            select: { id: true, slug: true },
+          });
+          const lessonIdBySlug = new Map(createdLessons.map((lesson) => [lesson.slug, lesson.id]));
+          for (const lesson of source.lessons) {
+            const newId = lessonIdBySlug.get(newSlugBySourceLesson.get(lesson.id)!);
+            if (newId) lessonIdBySource.set(lesson.id, newId);
+          }
+        }
+
+        const newLessonIds = Array.from(lessonIdBySource.values());
+
+        // 2. Segments (all lessons batched). Read back by (lessonId, sortOrder).
+        const segmentData = source.lessons.flatMap((lesson) => {
+          const lessonId = lessonIdBySource.get(lesson.id);
+          if (!lessonId) return [];
+          return lesson.segments.map((segment) => ({
+            lessonId,
+            sortOrder: segment.sortOrder,
+            title: segment.title,
+            summary: segment.summary,
+            duration: segment.duration,
+            videoUrl: segment.videoUrl,
+            muxPlaybackId: segment.muxPlaybackId,
+            thumbnailUrl: segment.thumbnailUrl,
+          }));
+        });
+
+        const segmentIdBySource = new Map<string, string>();
+
+        if (segmentData.length > 0) {
+          await tx.lessonSegment.createMany({ data: segmentData });
+
+          const createdSegments = await tx.lessonSegment.findMany({
+            where: { lessonId: { in: newLessonIds } },
+            select: { id: true, lessonId: true, sortOrder: true },
+          });
+          const segmentIdByKey = new Map(createdSegments.map((s) => [`${s.lessonId}:${s.sortOrder}`, s.id]));
+          for (const lesson of source.lessons) {
+            const lessonId = lessonIdBySource.get(lesson.id);
+            if (!lessonId) continue;
+            for (const segment of lesson.segments) {
+              const newId = segmentIdByKey.get(`${lessonId}:${segment.sortOrder}`);
+              if (newId) segmentIdBySource.set(segment.id, newId);
+            }
+          }
+        }
+
+        // 3. Skills (all lessons batched). No read-back needed.
+        const skillData = source.lessons.flatMap((lesson) => {
+          const lessonId = lessonIdBySource.get(lesson.id);
+          if (!lessonId) return [];
+          return lesson.skills.map((skill) => ({
+            lessonId,
+            sortOrder: skill.sortOrder,
+            text: skill.text,
+          }));
+        });
+
+        if (skillData.length > 0) {
+          await tx.lessonSkill.createMany({ data: skillData });
+        }
+
+        // 4. Checkpoints (all lessons batched). Remap segmentId via the map from
+        //    step 2, then read back by (lessonId, sortOrder) for the questions.
+        const checkpointData = source.lessons.flatMap((lesson) => {
+          const lessonId = lessonIdBySource.get(lesson.id);
+          if (!lessonId) return [];
+          return lesson.checkpoints.map((checkpoint) => ({
+            lessonId,
+            segmentId: checkpoint.segmentId ? (segmentIdBySource.get(checkpoint.segmentId) ?? null) : null,
+            sortOrder: checkpoint.sortOrder,
+            title: checkpoint.title,
+            description: checkpoint.description,
+            label: checkpoint.label,
+            meta: checkpoint.meta,
+            questionCount: checkpoint.questionCount,
+            timeOffsetSeconds: checkpoint.timeOffsetSeconds,
+            snapshotUrl: checkpoint.snapshotUrl,
+          }));
+        });
+
+        // sourceCheckpointId -> newCheckpointId, so questions can be remapped.
+        const checkpointIdBySource = new Map<string, string>();
+
+        if (checkpointData.length > 0) {
+          await tx.lessonCheckpoint.createMany({ data: checkpointData });
+
+          const createdCheckpoints = await tx.lessonCheckpoint.findMany({
+            where: { lessonId: { in: newLessonIds } },
+            select: { id: true, lessonId: true, sortOrder: true },
+          });
+          const checkpointIdByKey = new Map(createdCheckpoints.map((c) => [`${c.lessonId}:${c.sortOrder}`, c.id]));
+          for (const lesson of source.lessons) {
+            const lessonId = lessonIdBySource.get(lesson.id);
+            if (!lessonId) continue;
+            for (const checkpoint of lesson.checkpoints) {
+              const newId = checkpointIdByKey.get(`${lessonId}:${checkpoint.sortOrder}`);
+              if (newId) checkpointIdBySource.set(checkpoint.id, newId);
+            }
+          }
+        }
+
+        // 5. Questions (all checkpoints batched). No read-back needed.
+        const questionData = source.lessons.flatMap((lesson) =>
+          lesson.checkpoints.flatMap((checkpoint) => {
+            const checkpointId = checkpointIdBySource.get(checkpoint.id);
+            if (!checkpointId) return [];
+            return checkpoint.questions.map((question) => ({
+              checkpointId,
+              sortOrder: question.sortOrder,
+              prompt: question.prompt,
+              options: question.options as Prisma.InputJsonValue,
+              correctIndex: question.correctIndex,
+            }));
+          })
+        );
+
+        if (questionData.length > 0) {
+          await tx.checkpointQuestion.createMany({ data: questionData });
+        }
+
+        // 6. Lesson-context survey prompts (all lessons batched).
+        const lessonSurveyData = source.lessons.flatMap((lesson) => {
+          const lessonId = lessonIdBySource.get(lesson.id);
+          if (!lessonId) return [];
+          return lesson.surveys
+            .filter((survey) => survey.context === SurveyContext.LESSON)
+            .map((survey) => ({
+              context: SurveyContext.LESSON,
+              lessonId,
+              question: survey.question,
+            }));
+        });
+
+        if (lessonSurveyData.length > 0) {
+          await tx.surveyPrompt.createMany({ data: lessonSurveyData });
+        }
+
+        // 7. Badges. Dedupe per source badge (referenced by multiple
+        //    requirements). Batch-create with skipDuplicates, read back by slug.
         const badgeIdBySource = new Map<string, string>();
+        const newSlugBySourceBadge = new Map<string, string>();
+        const badgeData: {
+          slug: string;
+          name: string;
+          description: string | null;
+          category: BadgeCategory | null;
+          createdById: string;
+          sourceBadgeId: string;
+        }[] = [];
+        const seenSourceBadges = new Set<string>();
 
         for (const lesson of source.lessons) {
-          const lessonSuffix = randomUUID().slice(0, 8);
-
-          const newLesson = await tx.lesson.create({
-            data: {
-              courseId: newCourse.id,
-              slug: `${lesson.slug}-${lessonSuffix}`,
-              title: lesson.title,
-              summary: lesson.summary,
-              description: lesson.description,
-              thumbnailUrl: lesson.thumbnailUrl,
-              estimatedMinutes: lesson.estimatedMinutes,
-              dueDate: lesson.dueDate,
-              passingPercent: lesson.passingPercent,
-              sortOrder: lesson.sortOrder,
-            },
-            select: { id: true },
-          });
-
-          const segmentIdBySource = new Map<string, string>();
-          for (const segment of lesson.segments) {
-            const newSegment = await tx.lessonSegment.create({
-              data: {
-                lessonId: newLesson.id,
-                sortOrder: segment.sortOrder,
-                title: segment.title,
-                summary: segment.summary,
-                duration: segment.duration,
-                videoUrl: segment.videoUrl,
-                muxPlaybackId: segment.muxPlaybackId,
-                thumbnailUrl: segment.thumbnailUrl,
-              },
-              select: { id: true },
-            });
-            segmentIdBySource.set(segment.id, newSegment.id);
-          }
-
-          for (const skill of lesson.skills) {
-            await tx.lessonSkill.create({
-              data: { lessonId: newLesson.id, sortOrder: skill.sortOrder, text: skill.text },
-            });
-          }
-
-          for (const checkpoint of lesson.checkpoints) {
-            const newCheckpoint = await tx.lessonCheckpoint.create({
-              data: {
-                lessonId: newLesson.id,
-                segmentId: checkpoint.segmentId ? (segmentIdBySource.get(checkpoint.segmentId) ?? null) : null,
-                sortOrder: checkpoint.sortOrder,
-                title: checkpoint.title,
-                description: checkpoint.description,
-                label: checkpoint.label,
-                meta: checkpoint.meta,
-                questionCount: checkpoint.questionCount,
-                timeOffsetSeconds: checkpoint.timeOffsetSeconds,
-                snapshotUrl: checkpoint.snapshotUrl,
-              },
-              select: { id: true },
-            });
-
-            for (const question of checkpoint.questions) {
-              await tx.checkpointQuestion.create({
-                data: {
-                  checkpointId: newCheckpoint.id,
-                  sortOrder: question.sortOrder,
-                  prompt: question.prompt,
-                  options: question.options as Prisma.InputJsonValue,
-                  correctIndex: question.correctIndex,
-                },
-              });
-            }
-          }
-
-          // Lesson-context survey prompts.
-          for (const survey of lesson.surveys) {
-            if (survey.context !== SurveyContext.LESSON) continue;
-            await tx.surveyPrompt.create({
-              data: { context: SurveyContext.LESSON, lessonId: newLesson.id, question: survey.question },
-            });
-          }
-
-          // Badges attached to this lesson via requirements.
           for (const requirement of lesson.badgeRequirements) {
             const sourceBadge = requirement.badge;
-            let newBadgeId = sourceBadge ? badgeIdBySource.get(sourceBadge.id) : undefined;
+            if (!sourceBadge || seenSourceBadges.has(sourceBadge.id)) continue;
+            seenSourceBadges.add(sourceBadge.id);
 
-            if (sourceBadge && !newBadgeId) {
-              const badgeSuffix = randomUUID().slice(0, 8);
-              const newBadge = await tx.badge.create({
-                data: {
-                  slug: `${sourceBadge.slug}-${badgeSuffix}`,
-                  name: sourceBadge.name,
-                  description: sourceBadge.description,
-                  category: sourceBadge.category,
-                  createdById: creator.id,
-                  sourceBadgeId: sourceBadge.sourceBadgeId ?? sourceBadge.id,
-                },
-                select: { id: true },
-              });
-              newBadgeId = newBadge.id;
-              badgeIdBySource.set(sourceBadge.id, newBadge.id);
-
-              for (const survey of sourceBadge.surveys) {
-                if (survey.context !== SurveyContext.BADGE) continue;
-                await tx.surveyPrompt.create({
-                  data: { context: SurveyContext.BADGE, badgeId: newBadge.id, question: survey.question },
-                });
-              }
-            }
-
-            await tx.badgeRequirement.create({
-              data: {
-                badgeId: newBadgeId ?? requirement.badgeId,
-                lessonId: newLesson.id,
-                summary: requirement.summary,
-              },
+            const newSlug = `${sourceBadge.slug}-${randomUUID().slice(0, 8)}`;
+            newSlugBySourceBadge.set(sourceBadge.id, newSlug);
+            badgeData.push({
+              slug: newSlug,
+              name: sourceBadge.name,
+              description: sourceBadge.description,
+              category: sourceBadge.category,
+              createdById: creator.id,
+              sourceBadgeId: sourceBadge.sourceBadgeId ?? sourceBadge.id,
             });
           }
+        }
+
+        if (badgeData.length > 0) {
+          await tx.badge.createMany({ data: badgeData, skipDuplicates: true });
+
+          const createdBadges = await tx.badge.findMany({
+            where: { slug: { in: badgeData.map((badge) => badge.slug) } },
+            select: { id: true, slug: true },
+          });
+          const badgeIdBySlug = new Map(createdBadges.map((badge) => [badge.slug, badge.id]));
+          for (const [sourceBadgeId, slug] of newSlugBySourceBadge) {
+            const newId = badgeIdBySlug.get(slug);
+            if (newId) badgeIdBySource.set(sourceBadgeId, newId);
+          }
+        }
+
+        // 8. Badge-context survey prompts for each newly-created badge.
+        const badgeSurveyData: { context: SurveyContext; badgeId: string; question: string }[] = [];
+        const seenBadgeSurveys = new Set<string>();
+        for (const lesson of source.lessons) {
+          for (const requirement of lesson.badgeRequirements) {
+            const sourceBadge = requirement.badge;
+            if (!sourceBadge) continue;
+            const newBadgeId = badgeIdBySource.get(sourceBadge.id);
+            if (!newBadgeId || seenBadgeSurveys.has(sourceBadge.id)) continue;
+            seenBadgeSurveys.add(sourceBadge.id);
+
+            for (const survey of sourceBadge.surveys) {
+              if (survey.context !== SurveyContext.BADGE) continue;
+              badgeSurveyData.push({
+                context: SurveyContext.BADGE,
+                badgeId: newBadgeId,
+                question: survey.question,
+              });
+            }
+          }
+        }
+
+        if (badgeSurveyData.length > 0) {
+          await tx.surveyPrompt.createMany({ data: badgeSurveyData });
+        }
+
+        // 9. Badge requirements (all lessons batched). Falls back to the source
+        //    badgeId when the badge could not be cloned, matching prior behavior.
+        const requirementData = source.lessons.flatMap((lesson) => {
+          const lessonId = lessonIdBySource.get(lesson.id);
+          if (!lessonId) return [];
+          return lesson.badgeRequirements.map((requirement) => {
+            const sourceBadge = requirement.badge;
+            const newBadgeId = sourceBadge ? badgeIdBySource.get(sourceBadge.id) : undefined;
+            return {
+              badgeId: newBadgeId ?? requirement.badgeId,
+              lessonId,
+              summary: requirement.summary,
+            };
+          });
+        });
+
+        if (requirementData.length > 0) {
+          await tx.badgeRequirement.createMany({ data: requirementData });
         }
 
         return { course: newCourse };

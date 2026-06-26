@@ -730,15 +730,23 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          for (const [checkpointIndex, checkpoint] of checkpoints.entries()) {
+          // Precompute each checkpoint's normalized data once, keyed by its sortOrder
+          // (== checkpointIndex). We batch-create checkpoints, read their generated ids
+          // back via the (lessonId, sortOrder) unique key, then batch-create questions.
+          // Capture lesson in a non-null local so the map closure narrows correctly.
+          const lessonId = lesson.id;
+          const checkpointPlans = checkpoints.map((checkpoint, checkpointIndex) => {
             const prompt = normalizeString(checkpoint.question);
             const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
             const points = Number(checkpoint.points) || 0;
             const questionOptions = buildQuestionOptions(checkpoint);
 
-            const savedCheckpoint = await tx.lessonCheckpoint.create({
+            return {
+              sortOrder: checkpointIndex,
+              prompt,
+              questionOptions,
               data: {
-                lessonId: lesson.id,
+                lessonId,
                 segmentId: segment.id,
                 sortOrder: checkpointIndex,
                 title,
@@ -750,21 +758,32 @@ export async function POST(req: NextRequest) {
                 questionCount: prompt ? 1 : 0,
                 timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
               },
-              select: {
-                id: true,
-              },
+            };
+          });
+
+          if (checkpointPlans.length > 0) {
+            await tx.lessonCheckpoint.createMany({
+              data: checkpointPlans.map((plan) => plan.data),
             });
 
-            if (prompt) {
-              await tx.checkpointQuestion.create({
-                data: {
-                  checkpointId: savedCheckpoint.id,
-                  sortOrder: 0,
-                  prompt,
-                  options: questionOptions.options,
-                  correctIndex: questionOptions.correctIndex,
-                },
-              });
+            const createdCheckpoints = await tx.lessonCheckpoint.findMany({
+              where: { lessonId: lesson.id },
+              select: { id: true, sortOrder: true },
+            });
+            const checkpointIdByOrder = new Map(createdCheckpoints.map((c) => [c.sortOrder, c.id]));
+
+            const questionData = checkpointPlans
+              .filter((plan) => plan.prompt)
+              .map((plan) => ({
+                checkpointId: checkpointIdByOrder.get(plan.sortOrder)!,
+                sortOrder: 0,
+                prompt: plan.prompt!,
+                options: plan.questionOptions.options,
+                correctIndex: plan.questionOptions.correctIndex,
+              }));
+
+            if (questionData.length > 0) {
+              await tx.checkpointQuestion.createMany({ data: questionData });
             }
           }
         }

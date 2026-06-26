@@ -9,11 +9,6 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
 import styles from './page.module.css';
 
-type EnrollmentSummary = {
-  id: string;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-};
-
 type CourseLessonPreview = {
   thumbnailUrl: string | null;
 };
@@ -26,7 +21,6 @@ type CreatedCourse = {
   sectionCount: number;
   createdAt: string;
   lessons: CourseLessonPreview[];
-  enrollments: EnrollmentSummary[];
 };
 
 type CreatedCoursesResponse = {

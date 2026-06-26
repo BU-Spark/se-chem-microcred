@@ -29,23 +29,33 @@ export async function POST(request: Request, context: RouteContext) {
 
   const email = payload.email.trim().toLowerCase();
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
+  // user.findUnique and studentBadge.findUnique are independent reads; the badge
+  // lookup keys off email->id, but Clerk emails are the same identity, so we can
+  // resolve the badge by email-derived studentId via a relation filter in
+  // parallel instead of serializing the two round-trips.
+  const [user, studentBadge, surveyPrompt] = await Promise.all([
+    prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    }),
+    prisma.studentBadge.findFirst({
+      where: {
+        badgeId,
+        student: { email },
+      },
+    }),
+    prisma.surveyPrompt.findFirst({
+      where: {
+        badgeId,
+        context: SurveyContext.BADGE,
+      },
+      select: { id: true },
+    }),
+  ]);
 
   if (!user) {
     return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   }
-
-  const studentBadge = await prisma.studentBadge.findUnique({
-    where: {
-      studentId_badgeId: {
-        studentId: user.id,
-        badgeId,
-      },
-    },
-  });
 
   if (!studentBadge) {
     return NextResponse.json({ error: 'Badge enrollment not found.' }, { status: 404 });
@@ -59,14 +69,8 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Badge is not ready for finalization.' }, { status: 409 });
   }
 
-  const surveyPrompt = await prisma.surveyPrompt.findFirst({
-    where: {
-      badgeId,
-      context: SurveyContext.BADGE,
-    },
-    select: { id: true },
-  });
-
+  // SurveyResponse has no natural unique key (only @id), so it cannot be
+  // upserted; keep find-then-create-or-update.
   if (surveyPrompt) {
     const existingResponse = await prisma.surveyResponse.findFirst({
       where: {

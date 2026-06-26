@@ -210,31 +210,35 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const student = await prisma.user.findUnique({
-    where: { id: provisioned.id },
-    include: {
-      avatar: true,
-      analytics: true,
-    },
-  });
+  // The signed-in user record and their first enrollment both depend only on
+  // provisioned.id (not on each other), so fetch them concurrently rather than
+  // adding two serial round-trips to Prisma Accelerate.
+  const [student, enrollment] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: provisioned.id },
+      include: {
+        avatar: true,
+        analytics: true,
+      },
+    }),
+    prisma.enrollment.findFirst({
+      where: { studentId: provisioned.id },
+      include: {
+        sections: true,
+        course: {
+          include: {
+            contacts: {
+              orderBy: { type: 'asc' },
+            },
+          },
+        },
+      },
+    }),
+  ]);
 
   if (!student) {
     return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   }
-
-  const enrollment = await prisma.enrollment.findFirst({
-    where: { studentId: student.id },
-    include: {
-      sections: true,
-      course: {
-        include: {
-          contacts: {
-            orderBy: { type: 'asc' },
-          },
-        },
-      },
-    },
-  });
 
   // The student's own section(s) for this course (e.g. "A1"). Stored on EnrollmentSection,
   // NOT on Course.section (which is a legacy single-section field).
