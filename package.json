@@ -24,7 +24,8 @@
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "svix": "^1.37.0"
+    "svix": "^1.37.0",
+    "swr": "^2.4.2"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.9",

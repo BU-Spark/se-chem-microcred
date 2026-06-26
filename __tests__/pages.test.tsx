@@ -125,6 +125,51 @@ beforeEach(() => {
       };
     }
 
+    if (url === '/api/courses/mine') {
+      return {
+        ok: true,
+        json: async () => ({
+          user: { name: 'Student Demo', email: 'student@example.edu' },
+          created: {
+            count: 1,
+            courses: [
+              {
+                id: 'created-course-1',
+                title: 'Created Course 1',
+                description: null,
+                section: null,
+                sectionCount: 1,
+                createdAt: '2026-03-30T18:35:48.000Z',
+                lessons: [],
+                enrollments: [{ id: 'created-enrollment-1', role: 'INSTRUCTOR' }],
+              },
+            ],
+          },
+          enrolled: {
+            count: 1,
+            enrollments: [
+              {
+                id: 'student-enrollment-1',
+                role: 'STUDENT',
+                course: {
+                  id: 'course-1',
+                  code: 'CHEM101',
+                  section: 'K1',
+                  title: 'Chem 101',
+                  description: 'Basics',
+                  contacts: [
+                    { id: 'c1', type: 'INSTRUCTOR', name: 'Prof A', email: 'prof@example.edu', avatarUrl: null },
+                  ],
+                  lessons: [{ thumbnailUrl: null, segments: [] }],
+                },
+              },
+            ],
+          },
+          assessor: { count: 0, enrollments: [] },
+        }),
+      };
+    }
+
     if (url.startsWith('/api/badges/export/')) {
       return {
         ok: true,

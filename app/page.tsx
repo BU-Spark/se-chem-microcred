@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useMyCourses } from './hooks/useMyCourses';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -50,15 +51,6 @@ type CreatedCourse = {
   }>;
 };
 
-type CreatedCoursesResponse = {
-  user: {
-    name: string | null;
-    email: string;
-  };
-  count: number;
-  courses: CreatedCourse[];
-};
-
 type EnrolledCourse = {
   id: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
@@ -73,29 +65,11 @@ type EnrolledCourse = {
   };
 };
 
-type EnrolledCoursesResponse = {
-  user: {
-    name: string | null;
-    email: string;
-  };
-  count: number;
-  enrollments: EnrolledCourse[];
-};
-
 type AssessorCourseEnrollment = {
   id: string;
   role: 'INSTRUCTOR' | 'CHECKER';
   sections: string[];
   course: CreatedCourse;
-};
-
-type AssessorCoursesResponse = {
-  user: {
-    name: string | null;
-    email: string;
-  };
-  count: number;
-  enrollments: AssessorCourseEnrollment[];
 };
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
@@ -187,135 +161,6 @@ function resolvePreviewImage(record?: CoursePreviewLesson | null) {
   return DEFAULT_LESSON_IMAGE;
 }
 
-function useCreatedCourses(email?: string | null) {
-  const [data, setData] = useState<CreatedCoursesResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/created?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load created courses.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load created courses.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error };
-}
-
-function useEnrolledCourses(email?: string | null) {
-  const [data, setData] = useState<EnrolledCoursesResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/enrolled?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load enrolled courses.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load enrolled courses.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error };
-}
-
-function useAssessorCourses(email?: string | null) {
-  const [data, setData] = useState<AssessorCoursesResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/assessor?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load assessor courses.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load assessor courses.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error };
-}
-
 function resolveThumbnailUrl(course: CreatedCourse) {
   const candidate = course.lessons[0]?.thumbnailUrl?.trim();
   return candidate ? candidate : null;
@@ -383,13 +228,31 @@ function HomeContent() {
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
 
   const { data: studentData, refresh } = useStudentData(email);
-  const { data: createdData, isLoading: isLoadingCreated, error: createdError } = useCreatedCourses(email);
-  const { data: enrolledData, isLoading: isLoadingEnrolled, error: enrolledError } = useEnrolledCourses(email);
+
+  // One consolidated SWR-cached fetch replaces the three per-role fetches. The
+  // single loading/error state applies to all sections, matching the prior
+  // behaviour where the three calls always resolved together. Gated on Clerk
+  // auth so we never fetch before the user is known to be signed in.
   const {
-    data: assessorData,
-    isLoading: isLoadingAssessorCourses,
-    error: assessorCoursesError,
-  } = useAssessorCourses(email);
+    data: myCourses,
+    created,
+    enrolled,
+    assessor,
+    isLoading,
+    error: fetchError,
+  } = useMyCourses(isLoaded && isSignedIn);
+  const coursesError = fetchError
+    ? fetchError instanceof Error
+      ? fetchError.message
+      : 'Unable to load courses.'
+    : null;
+
+  const isLoadingCreated = isLoading;
+  const createdError = coursesError;
+  const isLoadingEnrolled = isLoading;
+  const enrolledError = coursesError;
+  const isLoadingAssessorCourses = isLoading;
+  const assessorCoursesError = coursesError;
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{
@@ -406,8 +269,7 @@ function HomeContent() {
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   const navItems = SIDEBAR_NAV;
-  const displayName =
-    createdData?.user.name || enrolledData?.user.name || assessorData?.user.name || studentData?.student?.name || '';
+  const displayName = myCourses?.user.name || studentData?.student?.name || '';
 
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
 
@@ -425,10 +287,13 @@ function HomeContent() {
     }));
   }, [pendingSurveyBadges, readyForFinalization]);
 
-  const createdCourses = useMemo(() => createdData?.courses ?? [], [createdData]);
-  const assessorEnrollments = useMemo(() => assessorData?.enrollments ?? [], [assessorData]);
+  const createdCourses = useMemo<CreatedCourse[]>(() => created?.courses ?? [], [created]);
+  const assessorEnrollments = useMemo<AssessorCourseEnrollment[]>(() => assessor?.enrollments ?? [], [assessor]);
 
-  const enrolledCourseCards = useMemo(() => enrolledData?.enrollments.map(enrollmentToCard) ?? [], [enrolledData]);
+  const enrolledCourseCards = useMemo(
+    () => (enrolled?.enrollments ?? []).map((e: EnrolledCourse) => enrollmentToCard(e)),
+    [enrolled]
+  );
 
   // Role gating: the three course endpoints already segment by role, so data presence
   // is a reliable signal for which sections to surface.
