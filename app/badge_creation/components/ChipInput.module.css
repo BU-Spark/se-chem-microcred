@@ -1,0 +1,61 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.field {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3rem;
+  padding: 0.55rem 0.7rem;
+  border: 3px solid #d7d7d7;
+  border-radius: 1.05rem;
+  background: #ffffff;
+}
+
+.field:focus-within {
+  border-color: #2e6aa9;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 999px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.chipRemove {
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.input {
+  flex: 1;
+  min-width: 8rem;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #222222;
+}
+
+.counter {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
