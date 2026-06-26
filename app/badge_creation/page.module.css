@@ -155,6 +155,13 @@
   color: #b91c1c;
 }
 
+.fieldHelp {
+  margin: 0 0 0.6rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
 .feedbackBlock {
   display: flex;
   flex-direction: column;

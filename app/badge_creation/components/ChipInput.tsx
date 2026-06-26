@@ -52,21 +52,8 @@ export default function ChipInput({
   };
 
   return (
-    <div className={styles.wrapper}>
-      <div className={styles.field}>
-        {value.map((chip, index) => (
-          <span key={`${chip}-${index}`} className={styles.chip}>
-            {chip}
-            <button
-              type="button"
-              className={styles.chipRemove}
-              onClick={() => removeAt(index)}
-              aria-label={`Remove ${chip}`}
-            >
-              ×
-            </button>
-          </span>
-        ))}
+    <div className={styles.field}>
+      <div className={styles.topRow}>
         <input
           className={styles.input}
           value={pending}
@@ -77,8 +64,25 @@ export default function ChipInput({
           aria-label={ariaLabel}
           disabled={atMax}
         />
+        <span className={styles.counter}>{counterLabel(value.length, max)}</span>
       </div>
-      <span className={styles.counter}>{counterLabel(value.length, max)}</span>
+      {value.length > 0 && (
+        <div className={styles.chips}>
+          {value.map((chip, index) => (
+            <span key={`${chip}-${index}`} className={styles.chip}>
+              {chip}
+              <button
+                type="button"
+                className={styles.chipRemove}
+                onClick={() => removeAt(index)}
+                aria-label={`Remove ${chip}`}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

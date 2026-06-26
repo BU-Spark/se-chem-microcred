@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import styles from './RangeCalendar.module.css';
 
-const WEEKDAYS = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 const MONTH_NAMES = [
   'January',
   'February',
@@ -106,8 +106,8 @@ export default function RangeCalendar({
           {MONTH_NAMES[month]} {year}
         </div>
         <div className={styles.grid}>
-          {WEEKDAYS.map((weekday) => (
-            <div key={weekday} className={styles.weekday}>
+          {WEEKDAYS.map((weekday, weekdayIndex) => (
+            <div key={`${weekday}-${weekdayIndex}`} className={styles.weekday}>
               {weekday}
             </div>
           ))}

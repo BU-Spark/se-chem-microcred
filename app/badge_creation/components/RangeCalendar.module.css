@@ -79,7 +79,8 @@
 }
 
 .inRange {
-  background: #eef3f9;
+  background: #d7e25a;
+  border-radius: 0;
 }
 
 .endpoint {

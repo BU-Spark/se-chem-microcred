@@ -30,14 +30,15 @@ export default function BadgeInfoStep({
 
       <div className={styles.badgeInfoField}>
         <label className={styles.sectionLabel} htmlFor="badgeSkills">
-          Skills
+          Badge skills
         </label>
+        <p className={styles.fieldHelp}>Describe the skills students will learn in this badge. Add up to 5 skills.</p>
         <ChipInput
           value={draft.skills}
           onChange={(next) => updateDraft('skills', next)}
           max={5}
           ariaLabel="Add skill"
-          placeholder="Type a skill and press Enter"
+          placeholder="Add skill..."
         />
       </div>
 
