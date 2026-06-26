@@ -6,6 +6,7 @@
   flex-direction: column;
   gap: 2.5rem;
   padding: 2.5rem 3rem 3rem;
+  font-family: 'Open Sans', sans-serif;
 }
 
 /* Header */
@@ -17,6 +18,7 @@
 }
 
 .pageTitle {
+  font-family: 'Lato', sans-serif;
   font-size: 2.1rem;
   font-weight: 700;
   color: #111827;
@@ -27,6 +29,7 @@
   color: #ffffff;
   border: none;
   border-radius: 999px;
+  font-family: 'Lato', sans-serif;
   font-size: 0.9rem;
   font-weight: 700;
   padding: 0.65rem 1rem;
@@ -123,6 +126,7 @@
 }
 
 .sectionTitle h2 {
+  font-family: 'Lato', sans-serif;
   font-size: 1.45rem;
   font-weight: 700;
   color: #d8f66c;
@@ -130,6 +134,7 @@
 }
 
 .sectionTitle p {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.96rem;
   color: rgba(248, 251, 255, 0.9);
 }
@@ -138,6 +143,7 @@
   background: rgba(12, 32, 68, 0.24);
   border: 2px solid rgba(216, 246, 108, 0.85);
   border-radius: 50%;
+  font-family: 'Lato', sans-serif;
   width: 46px;
   height: 46px;
   min-width: 46px;
@@ -207,6 +213,7 @@
   display: grid;
   place-items: center;
   color: #f8fbff;
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   font-size: 0.9rem;
   text-align: center;
@@ -277,6 +284,7 @@
   right: 1.2rem;
   border: none;
   background: transparent;
+  font-family: 'Lato', sans-serif;
   font-size: 1.5rem;
   line-height: 1;
   cursor: pointer;
@@ -284,16 +292,19 @@
 }
 
 .badgeModal h3 {
+  font-family: 'Lato', sans-serif;
   font-size: 1.25rem;
   font-weight: 700;
 }
 
 .badgeModal p {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.9rem;
   color: #4b5563;
 }
 
 .badgeStatus {
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   color: #1560aa;
 }
@@ -312,6 +323,7 @@
   border: none;
   background: #1f5fab;
   color: #ffffff;
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   cursor: pointer;
 }
@@ -327,6 +339,7 @@
   border: 2px solid #1f5fab;
   background: transparent;
   color: #1f5fab;
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   cursor: pointer;
 }
@@ -341,12 +354,14 @@
   background: transparent;
   color: #6b7280;
   text-decoration: underline;
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   cursor: pointer;
   padding: 0;
 }
 
 .modalHelperText {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.9rem;
   color: #1f2937;
   font-weight: 500;
@@ -370,6 +385,7 @@
 }
 
 .qrCaption {
+  font-family: 'Lato', sans-serif;
   font-weight: 700;
   font-size: 1.2rem;
 }

@@ -20,8 +20,18 @@ jest.mock('../lib/prisma', () => {
               create: jest.fn(),
             },
             lessonProgress: {
-              findFirst: jest.fn().mockResolvedValue({ ...lessonProgress }),
-              create: jest.fn().mockResolvedValue({ ...lessonProgress }),
+              upsert: jest
+                .fn()
+                .mockImplementation(
+                  async (args: {
+                    create?: Partial<typeof lessonProgress>;
+                    update?: Partial<typeof lessonProgress>;
+                  }) => {
+                    // Existing row path: apply the update payload to the shared row.
+                    Object.assign(lessonProgress, args.update ?? {});
+                    return { ...lessonProgress };
+                  }
+                ),
               update: jest.fn().mockImplementation(async (args: { data: Partial<typeof lessonProgress> }) => {
                 Object.assign(lessonProgress, args.data);
                 return { ...lessonProgress };
@@ -59,6 +69,12 @@ jest.mock('../lib/prisma', () => {
       },
       lesson: {
         findUnique: jest.fn().mockResolvedValue({ id: 'lesson-1', title: 'Lesson' }),
+      },
+      // surveyPrompt lookup is hoisted out of the transaction, so it is now
+      // resolved on the top-level prisma client.
+      surveyPrompt: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'prompt-1', question: 'Q?' }),
+        create: jest.fn(),
       },
     },
   };

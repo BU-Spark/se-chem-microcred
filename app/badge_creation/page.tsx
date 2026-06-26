@@ -3,10 +3,26 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
-import type { BadgeCategory } from '@prisma/client';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
+import { DEFAULT_DRAFT, DRAFT_STORAGE_KEY, STEP_DEFINITIONS } from './types';
+import type { BadgeDraft, BadgesResponse, CheckpointDraft, RubricCriterion } from './types';
+import {
+  badgeToDraft,
+  buildVideoThumbnail,
+  extractYouTubeId,
+  formatSecondsToTimecode,
+  isValidVideoLength,
+  isValidYouTubeUrl,
+} from './lib/badge-helpers';
+import ProgressStep from './components/ProgressStep';
+import SuccessModal from './components/SuccessModal';
+import BadgeInfoStep from './steps/BadgeInfoStep';
+import LessonVideoStep from './steps/LessonVideoStep';
+import CheckpointsStep from './steps/CheckpointsStep';
+import RubricStep from './steps/RubricStep';
+import ReviewStep from './steps/ReviewStep';
 
 type StepKey = 'badgeInfo' | 'lessonVideo' | 'checkpoints' | 'configurations' | 'rubric' | 'review';
 
@@ -315,6 +331,7 @@ function ProgressStep({ index, activeIndex, label }: { index: number; activeInde
   );
 }
 
+
 export default function BadgeCreationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -416,7 +433,7 @@ export default function BadgeCreationPage() {
 
   const displayName = studentData?.student?.name || user?.fullName || '';
   const activeStep = STEP_DEFINITIONS[currentStep];
-  const videoEmbedUrl = buildVideoEmbedUrl(draft.youtubeUrl);
+  const videoId = extractYouTubeId(draft.youtubeUrl);
   const videoThumbnail = buildVideoThumbnail(draft.youtubeUrl);
 
   if (!isLoaded || !isSignedIn) return null;
@@ -440,23 +457,28 @@ export default function BadgeCreationPage() {
     setStepError('');
   };
 
+  // Apply a transform to the checkpoints list using the LATEST committed draft
+  // (functional setState), not the render-time closure. Reading draft.checkpoints
+  // directly would drop edits made in rapid succession / the same React batch.
+  const mutateCheckpoints = (updater: (checkpoints: CheckpointDraft[]) => CheckpointDraft[]) => {
+    setDraft((current) => ({ ...current, checkpoints: updater(current.checkpoints) }));
+    setSubmissionState(null);
+    setSubmitError('');
+  };
+
   const updateCheckpoint = <K extends keyof CheckpointDraft>(
     checkpointId: string,
     field: K,
     value: CheckpointDraft[K]
   ) => {
-    updateDraft(
-      'checkpoints',
-      draft.checkpoints.map((checkpoint) =>
-        checkpoint.id === checkpointId ? { ...checkpoint, [field]: value } : checkpoint
-      )
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => (checkpoint.id === checkpointId ? { ...checkpoint, [field]: value } : checkpoint))
     );
   };
 
   const updateCheckpointOption = (checkpointId: string, optionIndex: number, value: string) => {
-    updateDraft(
-      'checkpoints',
-      draft.checkpoints.map((checkpoint) => {
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => {
         if (checkpoint.id !== checkpointId) return checkpoint;
         const nextOptions = checkpoint.options.map((option, index) => (index === optionIndex ? value : option));
         return { ...checkpoint, options: nextOptions };
@@ -465,9 +487,8 @@ export default function BadgeCreationPage() {
   };
 
   const toggleCheckpointCorrectOption = (checkpointId: string, optionIndex: number) => {
-    updateDraft(
-      'checkpoints',
-      draft.checkpoints.map((checkpoint) => {
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => {
         if (checkpoint.id !== checkpointId) return checkpoint;
 
         const correctSet = new Set(checkpoint.correctIndices);
@@ -485,59 +506,44 @@ export default function BadgeCreationPage() {
     );
   };
 
-  const addCheckpointOption = (checkpointId: string) => {
-    updateDraft(
-      'checkpoints',
-      draft.checkpoints.map((checkpoint) => {
-        if (checkpoint.id !== checkpointId || checkpoint.options.length >= MAX_CHOICES) return checkpoint;
-        return { ...checkpoint, options: [...checkpoint.options, ''] };
-      })
-    );
-  };
-
-  const removeCheckpointOption = (checkpointId: string, optionIndex: number) => {
-    updateDraft(
-      'checkpoints',
-      draft.checkpoints.map((checkpoint) => {
-        if (checkpoint.id !== checkpointId || checkpoint.options.length <= MIN_CHOICES) return checkpoint;
-
-        const options = checkpoint.options.filter((_, index) => index !== optionIndex);
-        // Drop the removed option from the correct set and shift higher indices down.
-        const correctIndices = checkpoint.correctIndices
-          .filter((index) => index !== optionIndex)
-          .map((index) => (index > optionIndex ? index - 1 : index));
-
-        return { ...checkpoint, options, correctIndices };
-      })
-    );
-  };
-
-  const addCheckpoint = () => {
-    const nextCount = draft.checkpoints.length + 1;
-    updateDraft('checkpoints', [
-      ...draft.checkpoints,
-      {
-        id: `checkpoint-${Date.now()}`,
-        title: `Checkpoint ${nextCount}`,
-        time: '00:00:00',
-        points: 5,
-        question: '',
-        questionType: 'multipleChoice',
-        options: ['', ''],
-        correctIndices: [0],
-        numericAnswer: '',
-        numericRangeMin: '',
-        numericRangeMax: '',
-        segmentLabel: `Segment ${Math.max(nextCount, 1)} Starts 00:00:00`,
-      },
-    ]);
+  // Returns the new checkpoint's id so the step can immediately open its editor
+  // modal. `atSeconds` is the live playhead position from the video player.
+  const addCheckpoint = (atSeconds?: number) => {
+    const id = `checkpoint-${Date.now()}`;
+    const time = formatSecondsToTimecode(atSeconds ?? 0);
+    setDraft((current) => {
+      const nextCount = current.checkpoints.length + 1;
+      return {
+        ...current,
+        checkpoints: [
+          ...current.checkpoints,
+          {
+            id,
+            title: `Checkpoint ${nextCount}`,
+            time,
+            points: 5,
+            question: '',
+            questionType: 'multipleChoice',
+            options: ['', '', '', ''],
+            correctIndices: [0],
+            numericAnswer: '',
+            numericRangeMin: '',
+            numericRangeMax: '',
+            unit: '',
+            incorrectFeedback: '',
+            incorrectFeedbackEnabled: false,
+            segmentLabel: `Segment ${nextCount} Starts ${time}`,
+          },
+        ],
+      };
+    });
+    setSubmissionState(null);
+    setSubmitError('');
+    return id;
   };
 
   const removeCheckpoint = (checkpointId: string) => {
-    updateDraft(
-      'checkpoints',
-      draft.checkpoints.filter((checkpoint) => checkpoint.id !== checkpointId)
-    );
+    mutateCheckpoints((checkpoints) => checkpoints.filter((checkpoint) => checkpoint.id !== checkpointId));
   };
 
   const updateRubricCriterion = <K extends keyof RubricCriterion>(
@@ -586,6 +592,7 @@ export default function BadgeCreationPage() {
         id: `criterion-${Date.now()}`,
         prompt: '',
         options: ['', '', ''],
+        optionFeedback: ['', '', ''],
       },
     ]);
   };
@@ -613,11 +620,29 @@ export default function BadgeCreationPage() {
     );
   };
 
+  // Prewritten feedback is kept index-aligned with `options`.
+  const updateRubricCriterionOptionFeedback = (criterionId: string, optionIndex: number, value: string) => {
+    updateDraft(
+      'rubricCriteria',
+      draft.rubricCriteria.map((criterion) => {
+        if (criterion.id !== criterionId) return criterion;
+
+        const optionFeedback = [...criterion.optionFeedback];
+        while (optionFeedback.length < criterion.options.length) optionFeedback.push('');
+        optionFeedback[optionIndex] = value;
+
+        return { ...criterion, optionFeedback };
+      })
+    );
+  };
+
   const addRubricCriterionOption = (criterionId: string) => {
     updateDraft(
       'rubricCriteria',
       draft.rubricCriteria.map((criterion) =>
-        criterion.id === criterionId ? { ...criterion, options: [...criterion.options, ''] } : criterion
+        criterion.id === criterionId
+          ? { ...criterion, options: [...criterion.options, ''], optionFeedback: [...criterion.optionFeedback, ''] }
+          : criterion
       )
     );
   };
@@ -631,6 +656,7 @@ export default function BadgeCreationPage() {
         return {
           ...criterion,
           options: criterion.options.filter((_, index) => index !== optionIndex),
+          optionFeedback: criterion.optionFeedback.filter((_, index) => index !== optionIndex),
         };
       })
     );
@@ -747,12 +773,16 @@ export default function BadgeCreationPage() {
   };
 
   const handleNext = async () => {
-    const currentError = validateStep(STEP_DEFINITIONS[currentStep].key);
-    if (currentError) {
-      setStepError(currentError);
-      return;
+    // Block leaving the Upload Lesson Video step with an invalid link/length so
+    // a value like "a" can't be saved.
+    if (currentStep === 1) {
+      const urlInvalid = Boolean(draft.youtubeUrl.trim()) && !isValidYouTubeUrl(draft.youtubeUrl);
+      const lengthInvalid = Boolean(draft.videoLength.trim()) && !isValidVideoLength(draft.videoLength);
+      if (urlInvalid || lengthInvalid) {
+        setSubmitError('Fix the highlighted video fields before continuing.');
+        return;
+      }
     }
-    setStepError('');
 
     if (currentStep < STEP_DEFINITIONS.length - 1) {
       setCurrentStep((step) => step + 1);
@@ -823,528 +853,42 @@ export default function BadgeCreationPage() {
             {submitError ? <p className={styles.errorText}>{submitError}</p> : null}
             {stepError ? <p className={styles.errorText}>{stepError}</p> : null}
 
-            {currentStep === 0 && (
-              <div className={styles.badgeInfoLayout}>
-                <div className={styles.badgeInfoField}>
-                  <label className={styles.sectionLabel} htmlFor="badgeName">
-                    Badge Name
-                  </label>
-                  <input
-                    id="badgeName"
-                    className={styles.underlineInput}
-                    value={draft.badgeName}
-                    onChange={(event) => updateDraft('badgeName', event.target.value)}
-                    placeholder="Badge Name"
-                  />
-                </div>
-
-                <div className={styles.badgeInfoField}>
-                  <label className={styles.sectionLabel} htmlFor="badgeDescription">
-                    Badge Description
-                  </label>
-                  <textarea
-                    id="badgeDescription"
-                    className={styles.descriptionInput}
-                    value={draft.badgeDescription}
-                    onChange={(event) => updateDraft('badgeDescription', event.target.value)}
-                    placeholder="Describe what students will learn and demonstrate."
-                  />
-                </div>
-
-                <div className={styles.badgeInfoField}>
-                  <label className={styles.sectionLabel} htmlFor="badgeCategory">
-                    Category
-                  </label>
-                  <select
-                    id="badgeCategory"
-                    className={styles.selectField}
-                    value={draft.category}
-                    onChange={(event) => updateDraft('category', event.target.value as BadgeCategory)}
-                  >
-                    <option value="SAFETY">Safety</option>
-                    <option value="EQUIPMENT">Equipment</option>
-                    <option value="WASTE">Waste</option>
-                    <option value="OTHER">Other</option>
-                  </select>
-                </div>
-
-                <div className={styles.badgeInfoField}>
-                  <label className={styles.sectionLabel}>Content Availability</label>
-                  <div className={styles.availabilityRow}>
-                    <div className={styles.availabilityPill}>
-                      <span>Content Available On:</span>
-                      <strong>{formatDisplayDate(draft.availableOn)}</strong>
-                    </div>
-                    <div className={styles.availabilityPill}>
-                      <span>Content Closes On:</span>
-                      <strong>{draft.neverCloses ? 'Never closes' : formatDisplayDate(draft.closesOn)}</strong>
-                    </div>
-                    <label className={styles.compactToggleRow}>
-                      <span>Never closes</span>
-                      <button
-                        type="button"
-                        className={styles.toggleButton}
-                        data-active={draft.neverCloses ? 'true' : 'false'}
-                        onClick={() => updateDraft('neverCloses', !draft.neverCloses)}
-                        aria-pressed={draft.neverCloses}
-                      >
-                        <span />
-                      </button>
-                    </label>
-                  </div>
-
-                  <div className={styles.availabilityInputs}>
-                    <label className={styles.dateField}>
-                      <span>Available on</span>
-                      <input
-                        type="date"
-                        value={draft.availableOn}
-                        onChange={(event) => updateDraft('availableOn', event.target.value)}
-                      />
-                    </label>
-                    <label className={styles.dateField}>
-                      <span>Closes on</span>
-                      <input
-                        type="date"
-                        value={draft.closesOn}
-                        disabled={draft.neverCloses}
-                        onChange={(event) => updateDraft('closesOn', event.target.value)}
-                      />
-                    </label>
-                  </div>
-                </div>
-              </div>
-            )}
+            {currentStep === 0 && <BadgeInfoStep draft={draft} updateDraft={updateDraft} />}
 
             {currentStep === 1 && (
-              <div className={styles.videoStepLayout}>
-                <div className={styles.videoInputPanel}>
-                  <div className={styles.fieldBlock}>
-                    <label className={styles.fieldLabel} htmlFor="youtubeUrl">
-                      Paste YouTube link here
-                    </label>
-                    <input
-                      id="youtubeUrl"
-                      className={styles.textField}
-                      value={draft.youtubeUrl}
-                      onChange={(event) => updateDraft('youtubeUrl', event.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=..."
-                    />
-                  </div>
-
-                  <div className={styles.fieldBlock}>
-                    <label className={styles.fieldLabel} htmlFor="videoTitle">
-                      Video Title
-                    </label>
-                    <input
-                      id="videoTitle"
-                      className={styles.textField}
-                      value={draft.videoTitle}
-                      onChange={(event) => updateDraft('videoTitle', event.target.value)}
-                    />
-                  </div>
-
-                  <div className={styles.fieldBlock}>
-                    <label className={styles.fieldLabel} htmlFor="videoLength">
-                      Length
-                    </label>
-                    <input
-                      id="videoLength"
-                      className={styles.textField}
-                      value={draft.videoLength}
-                      onChange={(event) => updateDraft('videoLength', event.target.value)}
-                      placeholder="00:20:00"
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.videoPreviewPanel}>
-                  <div className={styles.videoInfoBlock}>
-                    <h3>{draft.videoTitle || DEFAULT_VIDEO_FALLBACK}</h3>
-                    <p>Length: {draft.videoLength || '00:00:00'}</p>
-                  </div>
-                  <div
-                    className={styles.videoPoster}
-                    style={videoThumbnail ? { backgroundImage: `url(${videoThumbnail})` } : undefined}
-                  >
-                    {!videoThumbnail && <span>Video preview</span>}
-                  </div>
-                </div>
-              </div>
+              <LessonVideoStep draft={draft} updateDraft={updateDraft} videoThumbnail={videoThumbnail} />
             )}
 
             {currentStep === 2 && (
-              <div className={styles.checkpointLayout}>
-                <div className={styles.timelineRail}>
-                  <div className={styles.timelineHeader}>
-                    <span># of Checkpoints: {draft.checkpoints.length}</span>
-                    <button type="button" className={styles.plusButton} onClick={addCheckpoint}>
-                      +
-                    </button>
-                  </div>
-
-                  <div className={styles.timelineList}>
-                    {draft.checkpoints.map((checkpoint, index) => (
-                      <div key={checkpoint.id} className={styles.timelineItem}>
-                        <div className={styles.timelineSegment}>{checkpoint.segmentLabel}</div>
-                        <div className={styles.timelineCheckpointMarker} />
-                        <div className={styles.timelineCheckpointCopy}>
-                          {checkpoint.title} {checkpoint.points} points
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.removeTextButton}
-                          onClick={() => removeCheckpoint(checkpoint.id)}
-                        >
-                          Remove
-                        </button>
-                        {index < draft.checkpoints.length - 1 && <div className={styles.timelineConnector} />}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className={styles.checkpointMain}>
-                  <div className={styles.videoFrameShell}>
-                    {videoEmbedUrl ? (
-                      <iframe
-                        className={styles.videoFrame}
-                        src={videoEmbedUrl}
-                        title={draft.videoTitle || 'Lesson video'}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                        allowFullScreen
-                      />
-                    ) : (
-                      <div className={styles.videoFallback}>Paste a valid YouTube link to load the training video.</div>
-                    )}
-                  </div>
-
-                  <div className={styles.checkpointEditorList}>
-                    {draft.checkpoints.map((checkpoint) => (
-                      <article key={checkpoint.id} className={styles.editorCard}>
-                        <div className={styles.editorCardHeader}>
-                          <h3>{checkpoint.title}</h3>
-                          <span>{checkpoint.time}</span>
-                        </div>
-
-                        <div className={styles.editorGrid}>
-                          <label className={styles.fieldStack}>
-                            <span>Segment label</span>
-                            <input
-                              className={styles.textField}
-                              value={checkpoint.segmentLabel}
-                              onChange={(event) => updateCheckpoint(checkpoint.id, 'segmentLabel', event.target.value)}
-                            />
-                          </label>
-
-                          <label className={styles.fieldStack}>
-                            <span>Timestamp</span>
-                            <input
-                              className={styles.textField}
-                              value={checkpoint.time}
-                              onChange={(event) => updateCheckpoint(checkpoint.id, 'time', event.target.value)}
-                            />
-                          </label>
-
-                          <label className={styles.fieldStack}>
-                            <span>Points</span>
-                            <input
-                              className={styles.textField}
-                              type="number"
-                              min={1}
-                              value={checkpoint.points}
-                              onChange={(event) =>
-                                updateCheckpoint(checkpoint.id, 'points', Number(event.target.value) || 1)
-                              }
-                            />
-                          </label>
-                        </div>
-
-                        <label className={styles.fieldStack}>
-                          <span>Question prompt</span>
-                          <textarea
-                            className={styles.textAreaCompact}
-                            value={checkpoint.question}
-                            onChange={(event) => updateCheckpoint(checkpoint.id, 'question', event.target.value)}
-                          />
-                        </label>
-
-                        <label className={styles.fieldStack}>
-                          <span>Question type</span>
-                          <select
-                            aria-label={`${checkpoint.title} question type`}
-                            className={styles.selectField}
-                            value={checkpoint.questionType}
-                            onChange={(event) =>
-                              updateCheckpoint(
-                                checkpoint.id,
-                                'questionType',
-                                event.target.value as CheckpointDraft['questionType']
-                              )
-                            }
-                          >
-                            <option value="multipleChoice">Multiple choice</option>
-                            <option value="shortAnswer">Short answer number</option>
-                          </select>
-                        </label>
-
-                        {checkpoint.questionType === 'multipleChoice' ? (
-                          <div className={styles.optionList}>
-                            {checkpoint.options.map((option, optionIndex) => (
-                              <label key={`${checkpoint.id}-option-${optionIndex}`} className={styles.optionRow}>
-                                <input
-                                  type="checkbox"
-                                  checked={checkpoint.correctIndices.includes(optionIndex)}
-                                  onChange={() => toggleCheckpointCorrectOption(checkpoint.id, optionIndex)}
-                                  aria-label={`Choice ${optionIndex + 1} is correct`}
-                                />
-                                <input
-                                  className={styles.textField}
-                                  value={option}
-                                  placeholder={`Choice ${optionIndex + 1}`}
-                                  onChange={(event) =>
-                                    updateCheckpointOption(checkpoint.id, optionIndex, event.target.value)
-                                  }
-                                />
-                                <button
-                                  type="button"
-                                  className={styles.removeTextButton}
-                                  onClick={() => removeCheckpointOption(checkpoint.id, optionIndex)}
-                                  disabled={checkpoint.options.length <= MIN_CHOICES}
-                                  aria-label={`Remove choice ${optionIndex + 1}`}
-                                >
-                                  Remove
-                                </button>
-                              </label>
-                            ))}
-                            <button
-                              type="button"
-                              className={styles.secondaryButton}
-                              onClick={() => addCheckpointOption(checkpoint.id)}
-                              disabled={checkpoint.options.length >= MAX_CHOICES}
-                            >
-                              Add Choice
-                            </button>
-                          </div>
-                        ) : (
-                          <div className={styles.shortAnswerGrid}>
-                            <label className={styles.fieldStack}>
-                              <span>Exact numeric answer</span>
-                              <input
-                                aria-label={`${checkpoint.title} exact numeric answer`}
-                                className={styles.textField}
-                                value={checkpoint.numericAnswer}
-                                inputMode="decimal"
-                                placeholder="42"
-                                onChange={(event) =>
-                                  updateCheckpoint(checkpoint.id, 'numericAnswer', event.target.value)
-                                }
-                              />
-                            </label>
-                            <label className={styles.fieldStack}>
-                              <span>Accepted minimum</span>
-                              <input
-                                aria-label={`${checkpoint.title} accepted minimum`}
-                                className={styles.textField}
-                                value={checkpoint.numericRangeMin}
-                                inputMode="decimal"
-                                placeholder="40"
-                                onChange={(event) =>
-                                  updateCheckpoint(checkpoint.id, 'numericRangeMin', event.target.value)
-                                }
-                              />
-                            </label>
-                            <label className={styles.fieldStack}>
-                              <span>Accepted maximum</span>
-                              <input
-                                aria-label={`${checkpoint.title} accepted maximum`}
-                                className={styles.textField}
-                                value={checkpoint.numericRangeMax}
-                                inputMode="decimal"
-                                placeholder="45"
-                                onChange={(event) =>
-                                  updateCheckpoint(checkpoint.id, 'numericRangeMax', event.target.value)
-                                }
-                              />
-                            </label>
-                          </div>
-                        )}
-                      </article>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              <CheckpointsStep
+                draft={draft}
+                videoId={videoId}
+                videoThumbnail={videoThumbnail}
+                addCheckpoint={addCheckpoint}
+                removeCheckpoint={removeCheckpoint}
+                updateCheckpoint={updateCheckpoint}
+                updateCheckpointOption={updateCheckpointOption}
+                toggleCheckpointCorrectOption={toggleCheckpointCorrectOption}
+              />
             )}
 
             {currentStep === 3 && (
-              <div className={styles.rubricLayout}>
-                <div className={styles.editorCard}>
-                  <h3 className={styles.panelTitle}>Create Rubric</h3>
-                  <div className={styles.numberedRubricList}>
-                    {draft.rubricItems.map((item, index) => (
-                      <div key={item.id} className={styles.numberedRubricItem}>
-                        <span className={styles.rubricNumber}>{index + 1}.</span>
-                        <textarea
-                          aria-label={`Rubric item ${index + 1}`}
-                          className={styles.textAreaCompact}
-                          value={item.text}
-                          onChange={(event) => updateRubricItem(item.id, event.target.value)}
-                          placeholder="Describe the performance expectation."
-                        />
-                        <button
-                          type="button"
-                          className={styles.removeTextButton}
-                          onClick={() => removeRubricItem(item.id)}
-                          disabled={draft.rubricItems.length <= 1}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                  <button type="button" className={styles.secondaryButton} onClick={addRubricItem}>
-                    Add Rubric Item
-                  </button>
-                </div>
-
-                <div className={styles.editorCard}>
-                  <h3 className={styles.panelTitle}>Instructor Grading</h3>
-                  <div className={styles.rubricList}>
-                    {draft.rubricCriteria.map((criterion, criterionIndex) => (
-                      <div key={criterion.id} className={styles.rubricCriterionCard}>
-                        <label className={styles.fieldStack}>
-                          <span>Criterion {criterionIndex + 1}</span>
-                          <textarea
-                            className={styles.textAreaCompact}
-                            aria-label={`Criterion ${criterionIndex + 1}`}
-                            value={criterion.prompt}
-                            onChange={(event) => updateRubricCriterion(criterion.id, 'prompt', event.target.value)}
-                            placeholder="What should the instructor evaluate?"
-                          />
-                        </label>
-                        <div className={styles.gradingOptionsList}>
-                          {criterion.options.map((option, optionIndex) => (
-                            <label key={`${criterion.id}-option-${optionIndex}`} className={styles.optionRow}>
-                              <input
-                                type="checkbox"
-                                aria-label={`Criterion ${criterionIndex + 1} option ${optionIndex + 1}`}
-                              />
-                              <input
-                                className={styles.textField}
-                                value={option}
-                                placeholder={`Selection option ${optionIndex + 1}`}
-                                onChange={(event) =>
-                                  updateRubricCriterionOption(criterion.id, optionIndex, event.target.value)
-                                }
-                              />
-                              <button
-                                type="button"
-                                className={styles.removeTextButton}
-                                onClick={() => removeRubricCriterionOption(criterion.id, optionIndex)}
-                                disabled={criterion.options.length <= 1}
-                              >
-                                Remove
-                              </button>
-                            </label>
-                          ))}
-                        </div>
-                        <div className={styles.inlineActions}>
-                          <button
-                            type="button"
-                            className={styles.secondaryButton}
-                            onClick={() => addRubricCriterionOption(criterion.id)}
-                          >
-                            Add Option
-                          </button>
-                          <button
-                            type="button"
-                            className={styles.removeTextButton}
-                            onClick={() => removeRubricCriterion(criterion.id)}
-                            disabled={draft.rubricCriteria.length <= 1}
-                          >
-                            Remove Criterion
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <button type="button" className={styles.secondaryButton} onClick={addRubricCriterion}>
-                    Add Criterion
-                  </button>
-                </div>
-              </div>
+              <RubricStep
+                draft={draft}
+                updateRubricItem={updateRubricItem}
+                addRubricItem={addRubricItem}
+                removeRubricItem={removeRubricItem}
+                updateRubricCriterion={updateRubricCriterion}
+                addRubricCriterion={addRubricCriterion}
+                removeRubricCriterion={removeRubricCriterion}
+                updateRubricCriterionOption={updateRubricCriterionOption}
+                updateRubricCriterionOptionFeedback={updateRubricCriterionOptionFeedback}
+                addRubricCriterionOption={addRubricCriterionOption}
+                removeRubricCriterionOption={removeRubricCriterionOption}
+              />
             )}
 
-            {currentStep === 4 && (
-              <div className={styles.reviewStack}>
-                <article className={styles.reviewCard}>
-                  <div className={styles.reviewCardHeader}>
-                    <h3>Badge Info</h3>
-                    <button type="button" onClick={() => goToStep(0)}>
-                      Edit
-                    </button>
-                  </div>
-                  <h4>{draft.badgeName}</h4>
-                  <p>{draft.badgeDescription}</p>
-                  <p>
-                    <strong>Content Available:</strong> {formatDisplayDate(draft.availableOn)} to{' '}
-                    {draft.neverCloses ? 'Never closes' : formatDisplayDate(draft.closesOn)}
-                  </p>
-                </article>
-
-                <article className={styles.reviewCard}>
-                  <div className={styles.reviewCardHeader}>
-                    <h3>Lesson Video</h3>
-                    <button type="button" onClick={() => goToStep(1)}>
-                      Edit
-                    </button>
-                  </div>
-                  <p>{draft.youtubeUrl}</p>
-                  <div className={styles.videoInfoBlock}>
-                    <h4>{draft.videoTitle}</h4>
-                    <p>Length: {draft.videoLength}</p>
-                  </div>
-                </article>
-
-                <article className={styles.reviewCard}>
-                  <div className={styles.reviewCardHeader}>
-                    <h3>Checkpoints</h3>
-                    <button type="button" onClick={() => goToStep(2)}>
-                      Edit
-                    </button>
-                  </div>
-                  <p># of Checkpoints: {draft.checkpoints.length}</p>
-                  <div className={styles.reviewList}>
-                    {draft.checkpoints.map((checkpoint) => (
-                      <div key={checkpoint.id} className={styles.reviewListItem}>
-                        <strong>{checkpoint.title}</strong>
-                        <span>{checkpoint.segmentLabel}</span>
-                        <span>{checkpoint.question}</span>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-
-                <article className={styles.reviewCard}>
-                  <div className={styles.reviewCardHeader}>
-                    <h3>Rubric</h3>
-                    <button type="button" onClick={() => goToStep(3)}>
-                      Edit
-                    </button>
-                  </div>
-                  <p>{draft.rubricOverview}</p>
-                  <div className={styles.reviewList}>
-                    {draft.rubricItems.map((item, index) => (
-                      <div key={item.id} className={styles.reviewListItem}>
-                        <strong>
-                          {index + 1}. {item.text || 'Empty rubric item'}
-                        </strong>
-                      </div>
-                    ))}
-                  </div>
-                </article>
-              </div>
-            )}
+            {currentStep === 4 && <ReviewStep draft={draft} goToStep={goToStep} />}
 
             <div className={styles.navigationRow}>
               <button
@@ -1377,31 +921,12 @@ export default function BadgeCreationPage() {
       </main>
 
       {isSuccessModalOpen ? (
-        <div className={styles.successOverlay} role="dialog" aria-modal="true" aria-labelledby="badge-success-title">
-          <div className={styles.successModal}>
-            <button
-              type="button"
-              className={styles.successCloseButton}
-              onClick={handleSuccessClose}
-              aria-label="Close success message"
-            >
-              x
-            </button>
-            <h2 id="badge-success-title" className={styles.successTitle}>
-              Badge {isEditMode ? 'updated' : 'created'} successfully.
-            </h2>
-            <p className={styles.successText}>
-              {isEditMode
-                ? 'Your changes were saved to this badge.'
-                : courseId
-                  ? 'This badge was created and assigned to the selected course.'
-                  : 'This badge was created independently and can be assigned to a course later.'}
-            </p>
-            <button type="button" className={styles.nextButton} onClick={handleSuccessClose}>
-              Return to badge list
-            </button>
-          </div>
-        </div>
+        <SuccessModal
+          isEditMode={isEditMode}
+          courseId={courseId}
+          badgeName={draft.badgeName}
+          onClose={() => setIsSuccessModalOpen(false)}
+        />
       ) : null}
     </div>
   );

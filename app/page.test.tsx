@@ -1,7 +1,18 @@
 /* eslint-disable @next/next/no-img-element */
 import type { ImgHTMLAttributes } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 import HomePage from './page';
+
+// Isolate the SWR cache per render so cached /api/courses/mine data does not
+// bleed between tests.
+function renderHome() {
+  return render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <HomePage />
+    </SWRConfig>
+  );
+}
 
 const mockReplace = jest.fn();
 const mockUsePathname = jest.fn();
@@ -24,9 +35,10 @@ jest.mock('@clerk/nextjs', () => ({
 
 jest.mock('next/image', () => ({
   __esModule: true,
-  default: (nextImageProps: ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean }) => {
-    const { fill, ...props } = nextImageProps;
+  default: (nextImageProps: ImgHTMLAttributes<HTMLImageElement> & { fill?: boolean; priority?: boolean }) => {
+    const { fill, priority, ...props } = nextImageProps;
     void fill;
+    void priority;
     return <img {...props} alt={props.alt} />;
   },
 }));
@@ -99,113 +111,101 @@ describe('Home Page', () => {
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
 
-      if (url === '/api/courses/created?email=student%40example.edu') {
+      if (url === '/api/courses/mine') {
         return {
           ok: true,
           json: async () => ({
             user: { name: 'Student Demo', email: 'student@example.edu' },
-            count: 2,
-            courses: [
-              {
-                id: 'created-course-1',
-                title: 'Created Course 1',
-                description: null,
-                section: null,
-                sectionCount: 2,
-                createdAt: '2026-03-30T18:35:48.000Z',
-                lessons: [],
-                enrollments: [{ id: 'enrollment-1', role: 'INSTRUCTOR' }],
-              },
-              {
-                id: 'created-course-2',
-                title: 'Created Course 2',
-                description: null,
-                section: null,
-                sectionCount: 1,
-                createdAt: '2026-03-29T18:35:48.000Z',
-                lessons: [],
-                enrollments: [{ id: 'enrollment-2', role: 'INSTRUCTOR' }],
-              },
-            ],
-          }),
-        };
-      }
-
-      if (url === '/api/courses/enrolled?email=student%40example.edu') {
-        return {
-          ok: true,
-          json: async () => ({
-            user: { name: 'Student Demo', email: 'student@example.edu' },
-            count: 2,
-            enrollments: [
-              {
-                id: 'student-enrollment-1',
-                role: 'STUDENT',
-                course: {
-                  id: 'course-1',
-                  code: 'CAS CH 101',
-                  section: 'A1',
-                  title: 'General Chemistry',
-                  description: 'Foundations of chemistry',
-                  contacts: [
-                    {
-                      id: 'contact-1',
-                      type: 'INSTRUCTOR',
-                      name: 'Prof. Curie',
-                      email: 'curie@example.edu',
-                    },
-                  ],
-                  lessons: [{ thumbnailUrl: null, segments: [] }],
+            created: {
+              count: 2,
+              courses: [
+                {
+                  id: 'created-course-1',
+                  title: 'Created Course 1',
+                  description: null,
+                  section: null,
+                  sectionCount: 2,
+                  createdAt: '2026-03-30T18:35:48.000Z',
+                  lessons: [],
+                  enrollments: [{ id: 'enrollment-1', role: 'INSTRUCTOR' }],
                 },
-              },
-              {
-                id: 'student-enrollment-2',
-                role: 'STUDENT',
-                course: {
-                  id: 'course-2',
-                  code: 'CAS CH 102',
-                  section: 'B2',
-                  title: 'Organic Chemistry',
-                  description: 'Carbon compounds',
-                  contacts: [
-                    {
-                      id: 'contact-2',
-                      type: 'INSTRUCTOR',
-                      name: 'Prof. Dalton',
-                      email: 'dalton@example.edu',
-                    },
-                  ],
-                  lessons: [{ thumbnailUrl: null, segments: [] }],
-                },
-              },
-            ],
-          }),
-        };
-      }
-
-      if (url === '/api/courses/assessor?email=student%40example.edu') {
-        return {
-          ok: true,
-          json: async () => ({
-            user: { name: 'Student Demo', email: 'student@example.edu' },
-            count: 1,
-            enrollments: [
-              {
-                id: 'checker-enrollment-1',
-                role: 'CHECKER',
-                sections: ['K1'],
-                course: {
-                  id: 'assessor-course-1',
-                  title: 'Assessor Course 1',
+                {
+                  id: 'created-course-2',
+                  title: 'Created Course 2',
                   description: null,
                   section: null,
                   sectionCount: 1,
-                  createdAt: '2026-03-28T18:35:48.000Z',
+                  createdAt: '2026-03-29T18:35:48.000Z',
                   lessons: [],
-                  enrollments: [{ id: 'checker-enrollment-1', role: 'CHECKER' }],
+                  enrollments: [{ id: 'enrollment-2', role: 'INSTRUCTOR' }],
                 },
-              },
-            ],
+              ],
+            },
+            enrolled: {
+              count: 2,
+              enrollments: [
+                {
+                  id: 'student-enrollment-1',
+                  role: 'STUDENT',
+                  course: {
+                    id: 'course-1',
+                    code: 'CAS CH 101',
+                    section: 'A1',
+                    title: 'General Chemistry',
+                    description: 'Foundations of chemistry',
+                    contacts: [
+                      {
+                        id: 'contact-1',
+                        type: 'INSTRUCTOR',
+                        name: 'Prof. Curie',
+                        email: 'curie@example.edu',
+                      },
+                    ],
+                    lessons: [{ thumbnailUrl: null, segments: [] }],
+                  },
+                },
+                {
+                  id: 'student-enrollment-2',
+                  role: 'STUDENT',
+                  course: {
+                    id: 'course-2',
+                    code: 'CAS CH 102',
+                    section: 'B2',
+                    title: 'Organic Chemistry',
+                    description: 'Carbon compounds',
+                    contacts: [
+                      {
+                        id: 'contact-2',
+                        type: 'INSTRUCTOR',
+                        name: 'Prof. Dalton',
+                        email: 'dalton@example.edu',
+                      },
+                    ],
+                    lessons: [{ thumbnailUrl: null, segments: [] }],
+                  },
+                },
+              ],
+            },
+            assessor: {
+              count: 1,
+              enrollments: [
+                {
+                  id: 'checker-enrollment-1',
+                  role: 'CHECKER',
+                  sections: ['K1'],
+                  course: {
+                    id: 'assessor-course-1',
+                    title: 'Assessor Course 1',
+                    description: null,
+                    section: null,
+                    sectionCount: 1,
+                    createdAt: '2026-03-28T18:35:48.000Z',
+                    lessons: [],
+                    enrollments: [{ id: 'checker-enrollment-1', role: 'CHECKER' }],
+                  },
+                },
+              ],
+            },
           }),
         };
       }
@@ -217,31 +217,27 @@ describe('Home Page', () => {
   });
 
   it('renders created and enrolled course sections on the merged home page', async () => {
-    render(<HomePage />);
+    renderHome();
 
     expect(screen.getByText('Student Demo')).toBeInTheDocument();
-    expect(screen.getByText('SD')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Assessor Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Enrolled Courses' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith('/api/courses/created?email=student%40example.edu', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/courses/mine', {
         headers: { Accept: 'application/json' },
+        credentials: 'include',
       });
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/courses/enrolled?email=student%40example.edu', {
-      headers: { Accept: 'application/json' },
-    });
-    expect(mockFetch).toHaveBeenCalledWith('/api/courses/assessor?email=student%40example.edu', {
-      headers: { Accept: 'application/json' },
-    });
+    // The three per-role fetches are consolidated into a single request.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
 
     expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
     expect(screen.getByText('Created Course 2')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Add course' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Create a course' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Created Course 1' })).toHaveAttribute(
       'href',
       '/courses/created-course-1'
@@ -276,7 +272,7 @@ describe('Home Page', () => {
   it('highlights the active navigation item based on the current pathname', async () => {
     mockUsePathname.mockReturnValue('/profile');
 
-    render(<HomePage />);
+    renderHome();
 
     await screen.findByText('Created Course 1');
 
@@ -300,7 +296,7 @@ describe('Home Page', () => {
       })
     );
 
-    const { container } = render(<HomePage />);
+    const { container } = renderHome();
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/sign-in');
@@ -316,7 +312,7 @@ describe('Home Page', () => {
       })
     );
 
-    render(<HomePage />);
+    renderHome();
 
     await screen.findByText('Created Course 1');
 

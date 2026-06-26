@@ -31,6 +31,8 @@ jest.mock('@clerk/nextjs', () => ({
   useUser: () => mockUseUser(),
   useAuth: () => mockUseAuth(),
   useClerk: () => mockUseClerk(),
+  // Passthrough: returns the wrapped action unchanged (no step-up UI in tests).
+  useReverification: (fn: (...args: unknown[]) => unknown) => fn,
 }));
 
 const mockUseStudentData = jest.fn();
@@ -119,6 +121,51 @@ beforeEach(() => {
               },
             },
           ],
+        }),
+      };
+    }
+
+    if (url === '/api/courses/mine') {
+      return {
+        ok: true,
+        json: async () => ({
+          user: { name: 'Student Demo', email: 'student@example.edu' },
+          created: {
+            count: 1,
+            courses: [
+              {
+                id: 'created-course-1',
+                title: 'Created Course 1',
+                description: null,
+                section: null,
+                sectionCount: 1,
+                createdAt: '2026-03-30T18:35:48.000Z',
+                lessons: [],
+                enrollments: [{ id: 'created-enrollment-1', role: 'INSTRUCTOR' }],
+              },
+            ],
+          },
+          enrolled: {
+            count: 1,
+            enrollments: [
+              {
+                id: 'student-enrollment-1',
+                role: 'STUDENT',
+                course: {
+                  id: 'course-1',
+                  code: 'CHEM101',
+                  section: 'K1',
+                  title: 'Chem 101',
+                  description: 'Basics',
+                  contacts: [
+                    { id: 'c1', type: 'INSTRUCTOR', name: 'Prof A', email: 'prof@example.edu', avatarUrl: null },
+                  ],
+                  lessons: [{ thumbnailUrl: null, segments: [] }],
+                },
+              },
+            ],
+          },
+          assessor: { count: 0, enrollments: [] },
         }),
       };
     }
@@ -276,6 +323,7 @@ function createStudentData(): StudentData {
           requirements: [{ summary: 'Req', lessonSlug: null, lessonTitle: null }],
         },
       ],
+      notStarted: [],
     },
     surveys: {
       lesson: [],
@@ -364,19 +412,21 @@ describe('Analytics page', () => {
 });
 
 describe('Profile page', () => {
-  it('masks sensitive info after timeout and shows toggle button', () => {
+  it('masks sensitive info after timeout and shows the demographic dropdown toggle', () => {
     jest.useFakeTimers();
     render(<ProfilePage />);
 
-    expect(screen.getByRole('button', { name: /Show BUID/i })).toBeInTheDocument();
-    expect(screen.getAllByText('XXXXXXX').length).toBeGreaterThan(0);
+    // Sensitive BUID is masked by default and revealing demographics is gated
+    // behind the "Demographic Info" dropdown (which requires re-auth to open).
+    expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
+    expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);
 
     act(() => {
       jest.advanceTimersByTime(10 * 60 * 1000 + 50);
     });
 
-    expect(screen.getAllByText('XXXXXXX').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /Show BUID/i })).toBeInTheDocument();
+    expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
     jest.useRealTimers();
   });
 

@@ -1,0 +1,150 @@
+.player {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #000000;
+}
+
+.frame,
+.mount {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.frame :global(iframe) {
+  width: 100%;
+  height: 100%;
+}
+
+.placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  background: #1f2937;
+  color: #e5e7eb;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  aspect-ratio: 16 / 11;
+}
+
+.stageGradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(217, 217, 217, 0) 55%, rgba(25, 25, 25, 0.42) 100%);
+}
+
+.addButton {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 56px;
+  height: 44px;
+  border: none;
+  border-radius: 14px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.addButton:hover {
+  filter: brightness(1.08);
+}
+
+.controls {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.scrubTrack {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(166, 166, 166, 0.81);
+  cursor: pointer;
+}
+
+.scrubFill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.scrubThumb {
+  position: absolute;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  background: #ffffff;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.scrubMarker {
+  position: absolute;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #2e6aa9;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 2px #ffffff;
+}
+
+.controlRow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.controlButton {
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.controlButton:hover {
+  opacity: 0.85;
+}
+
+.timecode {
+  margin-left: auto;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.8rem;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}

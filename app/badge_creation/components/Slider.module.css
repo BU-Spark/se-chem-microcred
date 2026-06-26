@@ -1,0 +1,37 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.range {
+  flex: 1;
+  accent-color: #2e6aa9;
+  cursor: pointer;
+}
+
+.range:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.value {
+  min-width: 4.5rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  color: #232323;
+}
+
+.ticks {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.78rem;
+  color: #6b7280;
+}

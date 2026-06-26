@@ -8,6 +8,7 @@ export async function fetchUserByEmail(email: string) {
       email: true,
       name: true,
       buid: true,
+      avatar: { select: { base: true } },
     },
   });
 }
@@ -125,19 +126,6 @@ export async function fetchCreatedCourses(userId: string) {
       contacts: {
         orderBy: { type: 'asc' },
       },
-      enrollments: {
-        include: {
-          student: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              buid: true,
-            },
-          },
-        },
-        orderBy: { createdAt: 'asc' },
-      },
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -165,19 +153,6 @@ export async function fetchAssessorCourseEnrollments(userId: string) {
           },
           contacts: {
             orderBy: { type: 'asc' },
-          },
-          enrollments: {
-            include: {
-              student: {
-                select: {
-                  id: true,
-                  name: true,
-                  email: true,
-                  buid: true,
-                },
-              },
-            },
-            orderBy: { createdAt: 'asc' },
           },
           createdBy: {
             select: {
@@ -389,6 +364,7 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
           name: true,
           email: true,
           buid: true,
+          avatar: { select: { base: true } },
         },
       },
       contacts: {

@@ -37,13 +37,6 @@ type BadgesResponse = {
   badges: BadgeCatalogItem[];
 };
 
-const CATEGORY_LABELS: Record<string, string> = {
-  SAFETY: 'Safety',
-  EQUIPMENT: 'Equipment',
-  WASTE: 'Waste',
-  OTHER: 'Other',
-};
-
 function useBadgesCatalog(enabled: boolean) {
   const [data, setData] = useState<BadgesResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -86,39 +79,12 @@ function useBadgesCatalog(enabled: boolean) {
   return { data, isLoading, error, refresh: fetchBadges };
 }
 
-function formatCategory(category?: string | null) {
-  return category ? (CATEGORY_LABELS[category] ?? category) : 'Uncategorized';
-}
-
-function formatDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Date unavailable';
-
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-}
-
-function resolveAssignmentLabel(badge: BadgeCatalogItem) {
-  const courseTitles = Array.from(
-    new Set(
-      badge.requirements
-        .map((requirement) => requirement.lesson?.course?.title)
-        .filter((title): title is string => Boolean(title))
-    )
-  );
-
-  if (courseTitles.length === 0) {
-    return 'Not assigned to a course';
-  }
-
-  if (courseTitles.length === 1) {
-    return `Assigned to ${courseTitles[0]}`;
-  }
-
-  return `Assigned to ${courseTitles.length} courses`;
+// A badge's "main page" lives at /courses/[courseId]/[badgeId], so we need the course it's
+// attached to (via any of its requirement lessons). Unassigned badges have no detail page,
+// so we fall back to opening them in the editor.
+function resolveBadgeHref(badge: BadgeCatalogItem) {
+  const courseId = badge.requirements.find((requirement) => requirement.lesson?.course?.id)?.lesson?.course?.id;
+  return courseId ? `/courses/${courseId}/${badge.id}` : `/badge_creation?badgeId=${badge.id}`;
 }
 
 export default function MyBadgesPage() {
@@ -153,32 +119,16 @@ export default function MyBadgesPage() {
     }
   };
 
-  const openEditBadge = (badge: BadgeCatalogItem) => {
-    const courseId = badge.requirements.find((requirement) => requirement.lesson?.course?.id)?.lesson?.course?.id;
-    const params = new URLSearchParams({ badgeId: badge.id });
-
-    if (courseId) {
-      params.set('courseId', courseId);
-    }
-
-    router.push(`/badge_creation?${params.toString()}`);
-  };
-
   return (
     <div className={`page ${styles.page}`}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
-        <header className={styles.header}>
-          <div>
-            <h1 className={styles.pageTitle}>Badges</h1>
-            <p className={styles.pageSubtitle}>All badges available in the system.</p>
-          </div>
+        <h1 className={styles.pageTitle}>Badges</h1>
 
-          <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
-            Create Badge
-          </button>
-        </header>
+        <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
+          Create New Badge
+        </button>
 
         {isLoading ? <p className={styles.statusMessage}>Loading badges...</p> : null}
 
@@ -201,57 +151,13 @@ export default function MyBadgesPage() {
         {!isLoading && !error && sortedBadges.length > 0 ? (
           <section className={styles.badgeGrid} aria-label="Badge catalog">
             {sortedBadges.map((badge) => (
-              <article key={badge.id} className={styles.badgeCard}>
-                <div className={styles.badgeToken} aria-hidden="true" />
-                <div className={styles.badgeBody}>
-                  <div className={styles.badgeTopLine}>
-                    <span className={styles.categoryPill}>{formatCategory(badge.category)}</span>
-                    <span className={styles.dateText}>{formatDate(badge.createdAt)}</span>
-                  </div>
-
-                  <h2 className={styles.badgeName}>{badge.name}</h2>
-                  <p className={styles.badgeDescription}>{badge.description || 'No description provided.'}</p>
-
-                  <div className={styles.badgeMeta}>
-                    <span>{resolveAssignmentLabel(badge)}</span>
-                    <span>{badge.assignedStudentCount} students assigned</span>
-                  </div>
-
-                  {badge.requirements.length > 0 ? (
-                    <ul className={styles.requirementList}>
-                      {badge.requirements.slice(0, 2).map((requirement) => (
-                        <li key={requirement.id}>{requirement.lesson?.title ?? requirement.displayText}</li>
-                      ))}
-                    </ul>
-                  ) : null}
-
-                  <div className={styles.cardActions}>
-                    <button type="button" className={styles.secondaryButton} onClick={() => openEditBadge(badge)}>
-                      Edit
-                    </button>
-                    {badge.requirements.some((requirement) => requirement.lesson?.course?.id)
-                      ? Array.from(
-                          new Map(
-                            badge.requirements
-                              .map((requirement) => requirement.lesson?.course)
-                              .filter((course): course is { id: string; title: string } => Boolean(course))
-                              .map((course) => [course.id, course])
-                          ).values()
-                        )
-                          .slice(0, 1)
-                          .map((course) => (
-                            <Link key={course.id} href={`/courses/${course.id}`} className={styles.detailLink}>
-                              View course
-                            </Link>
-                          ))
-                      : null}
-                  </div>
-                </div>
-              </article>
+              <Link key={badge.id} href={resolveBadgeHref(badge)} className={styles.badgeCard}>
+                <span className={styles.badgeToken} aria-hidden="true" />
+                <span className={styles.badgeName}>{badge.name}</span>
+              </Link>
             ))}
           </section>
         ) : null}
-
       </main>
     </div>
   );

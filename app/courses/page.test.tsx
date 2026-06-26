@@ -1,7 +1,18 @@
 /* eslint-disable @next/next/no-img-element */
 import type { ImgHTMLAttributes } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
+import { SWRConfig } from 'swr';
 import CoursesPage from './page';
+
+// Isolate the SWR cache per render so cached /api/courses/mine data does not
+// bleed between tests.
+function renderCourses() {
+  return render(
+    <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
+      <CoursesPage />
+    </SWRConfig>
+  );
+}
 
 const mockReplace = jest.fn();
 const mockUsePathname = jest.fn();
@@ -56,100 +67,88 @@ describe('Courses page', () => {
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
 
-      if (url === '/api/courses/created?email=prof%40example.edu') {
+      if (url === '/api/courses/mine') {
         return {
           ok: true,
           json: async () => ({
             user: { name: 'Professor Demo', email: 'prof@example.edu' },
-            count: 2,
-            courses: [
-              {
-                id: 'course-1',
-                title: 'Course 1',
-                description: null,
-                section: null,
-                sectionCount: 2,
-                createdAt: '2026-03-30T18:35:48.000Z',
-                lessons: [],
-                enrollments: [
-                  { id: 'enrollment-1', role: 'INSTRUCTOR' },
-                  { id: 'enrollment-2', role: 'STUDENT' },
-                ],
-              },
-              {
-                id: 'course-2',
-                title: 'Course 2',
-                description: null,
-                section: null,
-                sectionCount: 1,
-                createdAt: '2026-03-29T18:35:48.000Z',
-                lessons: [],
-                enrollments: [{ id: 'enrollment-3', role: 'INSTRUCTOR' }],
-              },
-            ],
-          }),
-        };
-      }
-
-      if (url === '/api/courses/assessor?email=prof%40example.edu') {
-        return {
-          ok: true,
-          json: async () => ({
-            user: { name: 'Professor Demo', email: 'prof@example.edu' },
-            count: 2,
-            enrollments: [
-              {
-                id: 'instructor-assessor-enrollment-1',
-                role: 'INSTRUCTOR',
-                sections: ['K1'],
-                course: {
-                  id: 'assessor-course-1',
-                  title: 'Assessor Course 1',
+            created: {
+              count: 2,
+              courses: [
+                {
+                  id: 'course-1',
+                  title: 'Course 1',
+                  description: null,
+                  section: null,
+                  sectionCount: 2,
+                  createdAt: '2026-03-30T18:35:48.000Z',
+                  lessons: [],
+                  enrollments: [
+                    { id: 'enrollment-1', role: 'INSTRUCTOR' },
+                    { id: 'enrollment-2', role: 'STUDENT' },
+                  ],
+                },
+                {
+                  id: 'course-2',
+                  title: 'Course 2',
                   description: null,
                   section: null,
                   sectionCount: 1,
-                  createdAt: '2026-03-28T18:35:48.000Z',
+                  createdAt: '2026-03-29T18:35:48.000Z',
                   lessons: [],
-                  enrollments: [{ id: 'instructor-assessor-enrollment-1', role: 'INSTRUCTOR' }],
+                  enrollments: [{ id: 'enrollment-3', role: 'INSTRUCTOR' }],
                 },
-              },
-              {
-                id: 'checker-enrollment-1',
-                role: 'CHECKER',
-                sections: ['K2'],
-                course: {
-                  id: 'checker-course-1',
-                  title: 'Checker Course 1',
-                  description: null,
-                  section: null,
-                  sectionCount: 1,
-                  createdAt: '2026-03-27T18:35:48.000Z',
-                  lessons: [],
-                  enrollments: [{ id: 'checker-enrollment-1', role: 'CHECKER' }],
+              ],
+            },
+            assessor: {
+              count: 2,
+              enrollments: [
+                {
+                  id: 'instructor-assessor-enrollment-1',
+                  role: 'INSTRUCTOR',
+                  sections: ['K1'],
+                  course: {
+                    id: 'assessor-course-1',
+                    title: 'Assessor Course 1',
+                    description: null,
+                    section: null,
+                    sectionCount: 1,
+                    createdAt: '2026-03-28T18:35:48.000Z',
+                    lessons: [],
+                    enrollments: [{ id: 'instructor-assessor-enrollment-1', role: 'INSTRUCTOR' }],
+                  },
                 },
-              },
-            ],
-          }),
-        };
-      }
-
-      if (url === '/api/courses/enrolled?email=prof%40example.edu') {
-        return {
-          ok: true,
-          json: async () => ({
-            user: { name: 'Professor Demo', email: 'prof@example.edu' },
-            count: 1,
-            enrollments: [
-              {
-                id: 'student-enrollment-1',
-                role: 'STUDENT',
-                course: {
-                  id: 'enrolled-course-1',
-                  title: 'Enrolled Course 1',
-                  lessons: [],
+                {
+                  id: 'checker-enrollment-1',
+                  role: 'CHECKER',
+                  sections: ['K2'],
+                  course: {
+                    id: 'checker-course-1',
+                    title: 'Checker Course 1',
+                    description: null,
+                    section: null,
+                    sectionCount: 1,
+                    createdAt: '2026-03-27T18:35:48.000Z',
+                    lessons: [],
+                    enrollments: [{ id: 'checker-enrollment-1', role: 'CHECKER' }],
+                  },
                 },
-              },
-            ],
+              ],
+            },
+            enrolled: {
+              count: 1,
+              enrollments: [
+                {
+                  id: 'student-enrollment-1',
+                  role: 'STUDENT',
+                  course: {
+                    id: 'enrolled-course-1',
+                    title: 'Enrolled Course 1',
+                    lessons: [],
+                  },
+                },
+              ],
+            },
           }),
         };
       }
@@ -157,13 +156,17 @@ describe('Courses page', () => {
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
-    render(<CoursesPage />);
+    renderCourses();
 
     await waitFor(() => {
-      expect(mockFetch).toHaveBeenCalledWith('/api/courses/created?email=prof%40example.edu', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/courses/mine', {
         headers: { Accept: 'application/json' },
+        credentials: 'include',
       });
     });
+
+    // The three per-role fetches are consolidated into a single request.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
 
     expect(screen.getByRole('link', { name: 'Add course' })).toBeInTheDocument();
     expect(await screen.findByText('Course 1')).toBeInTheDocument();
@@ -200,7 +203,7 @@ describe('Courses page', () => {
       })
     );
 
-    const { container } = render(<CoursesPage />);
+    const { container } = renderCourses();
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/sign-in');

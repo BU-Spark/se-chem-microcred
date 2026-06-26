@@ -208,18 +208,15 @@ describe('Created course detail page', () => {
     expect(screen.getByText('Course Info')).toBeInTheDocument();
     expect(screen.getByText('Number of Sections: 5')).toBeInTheDocument();
     expect(screen.getByText('Number of Students Enrolled: 2')).toBeInTheDocument();
-    expect(screen.getByText('Checker One')).toBeInTheDocument();
-    expect(screen.getByText('Checker Two')).toBeInTheDocument();
+    expect(screen.getByText('One, Checker')).toBeInTheDocument();
+    expect(screen.getByText('Two, Checker')).toBeInTheDocument();
     expect(screen.getByText('Assigned Badges')).toBeInTheDocument();
     expect(screen.getByText('Waste Handling')).toBeInTheDocument();
     expect(screen.getByText('Bunsen Burners')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Waste Handling/i })).toHaveAttribute(
-      'href',
-      '/courses/course-1/badge-1'
-    );
+    expect(screen.getByRole('link', { name: /Waste Handling/i })).toHaveAttribute('href', '/courses/course-1/badge-1');
     expect(screen.getByRole('link', { name: 'View Student Roster' })).toHaveAttribute(
       'href',
-      '/roster?courseId=course-1'
+      '/roster?courseId=course-1&role=STUDENT'
     );
     expect(screen.getByRole('link', { name: 'View Assessor Roster' })).toHaveAttribute(
       'href',
@@ -340,7 +337,7 @@ describe('Created course detail page', () => {
     expect(await screen.findByText('Your Role: ASSESSOR')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View Students to Assess' })).toHaveAttribute(
       'href',
-      '/roster?courseId=course-1'
+      '/roster?courseId=course-1&role=STUDENT'
     );
     expect(screen.queryByRole('link', { name: 'View Assessor Roster' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Edit Course' })).not.toBeInTheDocument();

@@ -195,6 +195,15 @@ export default function StudentRosterPage() {
     }
   };
 
+  // One-click section filter. Applies immediately (and mirrors into the draft so
+  // the filter panel's Section control stays in sync). Passing '' (the "All"
+  // chip) or re-clicking the active section clears the section filter.
+  const handleSectionQuickFilter = (section: string) => {
+    const next = appliedFilters.section === section ? '' : section;
+    setAppliedFilters((current) => ({ ...current, section: next }));
+    setDraftFilters((current) => ({ ...current, section: next }));
+  };
+
   const course = data?.course ?? null;
   const displayName = course?.createdBy?.name || '';
 
@@ -389,6 +398,38 @@ export default function StudentRosterPage() {
                   )}
                 </div>
               </div>
+
+              {sectionOptions.length > 1 ? (
+                <div className={styles.sectionFilters}>
+                  <span className={styles.filtersLabel}>Section:</span>
+                  <button
+                    type="button"
+                    className={[styles.filterPill, appliedFilters.section === '' ? styles.filterPillActive : ''].join(
+                      ' '
+                    )}
+                    aria-pressed={appliedFilters.section === ''}
+                    onClick={() => handleSectionQuickFilter('')}
+                  >
+                    All
+                  </button>
+                  {sectionOptions
+                    .filter((section) => section !== 'ALL')
+                    .map((section) => (
+                      <button
+                        key={section}
+                        type="button"
+                        className={[
+                          styles.filterPill,
+                          appliedFilters.section === section ? styles.filterPillActive : '',
+                        ].join(' ')}
+                        aria-pressed={appliedFilters.section === section}
+                        onClick={() => handleSectionQuickFilter(section)}
+                      >
+                        {section}
+                      </button>
+                    ))}
+                </div>
+              ) : null}
 
               {isFilterOpen ? (
                 <section className={styles.filterPanel}>

@@ -93,55 +93,27 @@ describe('My badges page', () => {
       });
     });
 
-    expect(await screen.findByText('Bunsen Burner Badge')).toBeInTheDocument();
-    expect(screen.getByText('Standalone Badge')).toBeInTheDocument();
-    expect(screen.getByText('Assigned to Chem 101: Safety Foundations')).toBeInTheDocument();
-    expect(screen.getByText('Not assigned to a course')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View course' })).toHaveAttribute('href', '/courses/course-1');
+    // Each badge is a clickable token + name that opens the badge's main page.
+    // Assigned badges link to their course-scoped detail page; unassigned ones
+    // fall back to the editor (no detail page exists for them).
+    const assignedBadge = await screen.findByRole('link', { name: 'Bunsen Burner Badge' });
+    expect(assignedBadge).toHaveAttribute('href', '/courses/course-1/badge-1');
+
+    const unassignedBadge = screen.getByRole('link', { name: 'Standalone Badge' });
+    expect(unassignedBadge).toHaveAttribute('href', '/badge_creation?badgeId=badge-2');
   });
 
-  it('opens the badge creation page when editing a badge', async () => {
+  it('opens the badge creation page from the Create New Badge button', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: async () => ({
-        count: 1,
-        badges: [
-          {
-            id: 'badge-1',
-            slug: 'bunsen-burner-badge',
-            name: 'Bunsen Burner Badge',
-            description: 'Prove safe usage and understanding of flame control.',
-            category: 'EQUIPMENT',
-            createdAt: '2025-02-20T17:00:00.000Z',
-            assignedStudentCount: 1,
-            requirements: [
-              {
-                id: 'requirement-1',
-                summary: null,
-                displayText: 'Use the burner safely.',
-                rubricItems: [{ number: 1, text: 'Use the burner safely.' }],
-                gradingCriteria: [],
-                checkpoints: [],
-                lesson: {
-                  id: 'lesson-1',
-                  title: 'Bunsen Burners',
-                  course: {
-                    id: 'course-1',
-                    title: 'Chem 101: Safety Foundations',
-                  },
-                },
-              },
-            ],
-          },
-        ],
-      }),
+      json: async () => ({ count: 0, badges: [] }),
     });
 
     render(<MyBadgesPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Create New Badge' }));
 
-    expect(mockPush).toHaveBeenCalledWith('/badge_creation?badgeId=badge-1&courseId=course-1');
+    expect(mockPush).toHaveBeenCalledWith('/badge_creation');
   });
 
   it('redirects to sign-in when signed out', async () => {

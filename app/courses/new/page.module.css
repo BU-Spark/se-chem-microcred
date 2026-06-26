@@ -1,12 +1,14 @@
 .page {
     display: flex;
     min-height: 100vh;
-    background: #f3f3f3;
+    background: #ffffff;
 }
 
 .main {
     flex: 1;
-    padding: 36px 42px 48px;
+    padding: 44px 48px 48px;
+    font-family: 'Open Sans', sans-serif;
+    color: #000000;
 }
 
 .topRow {
@@ -17,6 +19,7 @@
 }
 
 .pageTitle {
+    font-family: 'Lato', sans-serif;
     font-size: 48px;
     font-weight: 700;
     color: #000000;
@@ -38,9 +41,9 @@
 
 .stepLine {
     position: absolute;
-    top: 14px;
-    left: 30px;
-    right: 30px;
+    top: 18px;
+    left: 95px;
+    right: 95px;
     height: 2px;
     background: #2E6AA9;
     z-index: 0;
@@ -57,16 +60,22 @@
 }
 
 .stepCircle {
-    width: 28px;
-    height: 28px;
+    width: 36px;
+    height: 36px;
     border-radius: 999px;
     background: #fff;
     border: 2px solid #2E6AA9;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+    display: grid;
+    place-items: center;
 }
 
-.stepCircleActive {
-    background: #c7d63c;
+.stepCircleActive::after {
+    content: '';
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #c9db50;
 }
 
 .stepCircleCompleted {
@@ -74,20 +83,23 @@
 }
 
 .stepLabel {
-    font-size: 0.95rem;
-    color: #222;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 16px;
+    color: #000000;
 }
 
 .card {
-    background: #f7f7f7;
-    border: 3px solid #d0d0d0;
-    border-radius: 30px;
-    padding: 22px 26px 24px;
+    background: #ffffff;
+    border: 4px solid #d9d9d9;
+    border-radius: 40px;
+    padding: 36px 56px 40px;
     margin-bottom: 18px;
+    max-width: 1170px;
 }
 
 .cardTitle {
-    margin: 0 0 24px;
+    margin: 0 0 28px;
+    font-family: 'Lato', sans-serif;
     font-size: 24px;
     font-weight: 400;
     color: #000000;
@@ -95,6 +107,7 @@
 
 .rosterTitle {
     margin: 0;
+    font-family: 'Lato', sans-serif;
     font-size: 24px;
     font-weight: 400;
     color: #000000;
@@ -156,9 +169,9 @@
 }
 
 .sectionsInput {
-    width: 90px;
+    width: 60px;
     border: none;
-    border-bottom: 1px solid #444;
+    border-bottom: 1px solid #000000;
     background: transparent;
     outline: none;
     font-size: 16px;
@@ -187,8 +200,34 @@
     border: none;
     border-radius: 19px;
     padding: 14px 22px;
+    font-family: 'Lato', sans-serif;
     font-size: 20px;
     cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.uploadButton:hover {
+    filter: brightness(1.05);
+}
+
+.viewRosterButton {
+    margin-top: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #2E6AA9;
+    color: #ffffff;
+    border: none;
+    border-radius: 19px;
+    padding: 12px 26px;
+    font-family: 'Lato', sans-serif;
+    font-size: 20px;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.viewRosterButton:hover {
+    filter: brightness(1.05);
 }
 
 
@@ -206,7 +245,7 @@
 }
 
 .tableWrap {
-    max-height: 330px;
+    max-height: 480px;
     overflow-y: auto;
     padding-right: 8px;
 }
@@ -217,19 +256,37 @@
 }
 
 .table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #ffffff;
     text-align: left;
-    font-size: 24px;
+    font-family: 'Lato', sans-serif;
+    font-size: 22px;
     color: #000000;
     font-weight: 700;
-    padding: 0 8px 10px 0;
+    padding: 0 8px 12px 0;
     border-bottom: 3px solid #D9D9D9;
 }
 
 .table tbody td {
-    padding: 12px 8px 0 0;
+    padding: 14px 8px 0 0;
+    font-family: 'Open Sans', sans-serif;
     font-size: 16px;
     font-weight: 400;
     color: #000000;
+    vertical-align: middle;
+}
+
+.sectionSelect {
+    border: 1px solid #c9ced6;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 4px 8px;
+    font-family: 'Open Sans', sans-serif;
+    font-size: 15px;
+    color: #000000;
+    cursor: pointer;
 }
 
 .showMore {
@@ -346,15 +403,16 @@
 
 .uploadWarningModal {
     width: min(560px, 100%);
-    border-radius: 28px;
+    border-radius: 32px;
     background: #2E6AA9;
     color: #ffffff;
-    padding: 28px 30px 26px;
-    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
+    padding: 30px 34px 28px;
+    box-shadow: 0 24px 54px rgba(15, 23, 42, 0.32);
 }
 
 .uploadWarningEyebrow {
     margin: 0 0 10px;
+    font-family: 'Open Sans', sans-serif;
     font-size: 0.95rem;
     font-weight: 700;
     letter-spacing: 0.08em;
@@ -364,6 +422,7 @@
 
 .uploadWarningTitle {
     margin: 0;
+    font-family: 'Lato', sans-serif;
     font-size: clamp(1.65rem, 2.5vw, 2rem);
     line-height: 1.08;
     font-weight: 700;
@@ -387,11 +446,18 @@
 .uploadWarningSecondary,
 .uploadWarningPrimary {
     min-height: 48px;
-    padding: 0.8rem 1.2rem;
+    padding: 0.8rem 1.4rem;
     border-radius: 16px;
+    font-family: 'Lato', sans-serif;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.uploadWarningSecondary:hover,
+.uploadWarningPrimary:hover {
+    filter: brightness(1.05);
 }
 
 .uploadWarningSecondary {
@@ -411,23 +477,32 @@
     border: none;
     border-bottom: 1px solid #000000;
     color: #000000;
+    font-family: 'Lato', sans-serif;
     font-size: 20px;
     padding: 0 0 2px;
     cursor: pointer;
 }
 
 .nextButton {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: #2E6AA9;
     color: white;
     border: none;
     border-radius: 19px;
-    padding: 14px 35px;
-    font-size: 20px;
+    padding: 16px 40px;
+    font-family: 'Lato', sans-serif;
+    font-size: 24px;
     font-weight: 400;
     cursor: pointer;
-    width: fit-content;
-    height: auto;
+    min-width: 152px;
+    min-height: 59px;
+}
+
+.nextButton:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
 .errorText {
@@ -441,11 +516,20 @@
 }
 
 .showMore {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
     background: transparent;
     border: none;
+    font-family: 'Open Sans', sans-serif;
     font-size: 1rem;
     cursor: pointer;
-    color: #222;
+    color: #000000;
+}
+
+.showMoreChevron {
+    width: 18px;
+    height: 18px;
 }
 
 .dropdown {
@@ -493,6 +577,7 @@
 }
 
 .configLabel {
+    font-family: 'Lato', sans-serif;
     font-size: 24px;
     font-weight: 400;
     color: #111;
@@ -534,6 +619,14 @@
     padding: 24px 28px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
     z-index: 20;
+
+    /* Open on hover / keyboard focus instead of click */
+    display: none;
+}
+
+.infoWrapper:hover .infoPopover,
+.infoWrapper:focus-within .infoPopover {
+    display: block;
 }
 
 .infoPopover p {
@@ -592,10 +685,11 @@
 }
 
 .reviewCard {
-    border: 3px solid #d6d6d6;
-    border-radius: 36px;
-    background: #f8f8f8;
-    padding: 22px 30px 28px;
+    border: 4px solid #d9d9d9;
+    border-radius: 40px;
+    background: #ffffff;
+    padding: 36px 56px 40px;
+    max-width: 1170px;
 }
 
 .reviewSection {

@@ -3,9 +3,11 @@
   flex-direction: column;
   gap: 2rem;
   padding: 1rem 0 3rem;
+  font-family: 'Open Sans', sans-serif;
 }
 
 .breadcrumb {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.85rem;
   color: rgba(15, 23, 42, 0.6);
 }
@@ -28,11 +30,13 @@
   border-radius: 999px;
   background: rgba(40, 167, 69, 0.15);
   color: #1d6630;
+  font-family: 'Lato', sans-serif;
   font-size: 0.85rem;
   font-weight: 600;
 }
 
 .lead {
+  font-family: 'Open Sans', sans-serif;
   color: rgba(15, 23, 42, 0.7);
   line-height: 1.6;
   font-size: 1.05rem;
@@ -49,6 +53,7 @@
   border-radius: 0.75rem;
   padding: 0.75rem 1rem;
   border: 1px solid rgba(15, 23, 42, 0.1);
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;
 }
 
@@ -86,6 +91,7 @@
 }
 
 .sectionTitle {
+  font-family: 'Lato', sans-serif;
   font-size: 1.2rem;
   font-weight: 600;
 }
@@ -97,6 +103,7 @@
 }
 
 .htmlList li {
+  font-family: 'Open Sans', sans-serif;
   list-style: disc;
 }
 

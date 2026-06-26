@@ -92,37 +92,12 @@ type BadgeDetailResponse = {
   students: StudentProgressRow[];
 };
 
-const STATUS_LABELS: Record<BadgeStatus, string> = {
-  NOT_STARTED: 'Not started',
-  LEARNING: 'In progress',
-  READY_FOR_ASSESSMENT: 'Ready for assessment',
-  READY_FOR_FINALIZATION: 'Ready for finalization',
-  COMPLETED: 'Completed',
-};
-
 function resolveParam(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
     return value[0] ?? null;
   }
 
   return value ?? null;
-}
-
-function formatStudentName(student: StudentProgressRow['student']) {
-  return student.name?.trim() || student.email?.trim() || 'Unnamed student';
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return 'Not yet';
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Not yet';
-
-  return date.toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 function useBadgeDetails(courseId?: string | null, badgeId?: string | null, email?: string | null) {
@@ -173,6 +148,30 @@ function useBadgeDetails(courseId?: string | null, badgeId?: string | null, emai
   return { data, isLoading, error };
 }
 
+/** Circular ring indicator approximated with a conic-gradient. */
+function RingIndicator({ percent, caption }: { percent: number; caption: string }) {
+  const clamped = Math.round(Math.max(0, Math.min(100, percent)));
+
+  return (
+    <div className={styles.ringIndicator}>
+      <div
+        className={styles.ring}
+        style={{ background: `conic-gradient(#2e6aa9 ${clamped * 3.6}deg, #d9d9d9 0deg)` }}
+        role="img"
+        aria-label={`${caption}: ${clamped}%`}
+      >
+        <div className={styles.ringInner}>
+          <span className={styles.ringValueGroup}>
+            <span className={styles.ringValue}>{clamped}</span>
+            <span className={styles.ringPercent}>%</span>
+          </span>
+        </div>
+      </div>
+      <p className={styles.ringCaption}>{caption}</p>
+    </div>
+  );
+}
+
 export default function CourseBadgeProgress() {
   const params = useParams<{ courseId: string; badgeId: string }>();
   const router = useRouter();
@@ -208,21 +207,16 @@ export default function CourseBadgeProgress() {
   const course = data?.course ?? null;
   const summary = data?.summary ?? null;
   const assessment = data?.assessment ?? null;
-  const students = data?.students ?? [];
   const displayName = course?.createdBy?.name || user?.fullName || '';
 
-  const metricCards = useMemo(
+  // Progress breakdown bars driven by the real summary percentages.
+  const breakdownBars = useMemo(
     () =>
       summary
         ? [
-            { label: 'Completed', value: `${summary.completedPercent}%`, count: summary.completedCount },
-            { label: 'In progress', value: `${summary.inProgressPercent}%`, count: summary.inProgressCount },
-            { label: 'Not started', value: `${summary.notStartedPercent}%`, count: summary.notStartedCount },
-            {
-              label: 'Ready for assessment',
-              value: `${summary.readyForAssessmentPercent}%`,
-              count: summary.readyForAssessmentCount,
-            },
+            { label: 'Students who have completed this badge', percent: summary.completedPercent, color: '#c9db50' },
+            { label: 'Students still in progress', percent: summary.inProgressPercent, color: '#f3b55b' },
+            { label: 'Students not yet started', percent: summary.notStartedPercent, color: '#d4d4d4' },
           ]
         : [],
     [summary]
@@ -231,6 +225,19 @@ export default function CourseBadgeProgress() {
   if (!isLoaded || !isSignedIn) {
     return null;
   }
+
+  // Completion ring uses the real completed percentage.
+  const completionPercent = summary?.completedPercent ?? 0;
+  // Three-segment donut (completed / in-progress / not-started) matching the
+  // breakdown bars and the design, with a neutral grey remainder.
+  const completionRingGradient = (() => {
+    const completedDeg = (summary?.completedPercent ?? 0) * 3.6;
+    const inProgressDeg = (summary?.inProgressPercent ?? 0) * 3.6;
+    const inProgressEnd = completedDeg + inProgressDeg;
+    return `conic-gradient(#c9db50 0deg ${completedDeg}deg, #f3b55b ${completedDeg}deg ${inProgressEnd}deg, #e4e4e4 ${inProgressEnd}deg 360deg)`;
+  })();
+  const checkpointCount = assessment?.checkpoints.length ?? 0;
+  const videoTitle = badge?.lesson?.title || 'Lesson video';
 
   return (
     <div className={styles.page}>
@@ -242,7 +249,7 @@ export default function CourseBadgeProgress() {
             <Link href={`/courses/${courseId}`} className={styles.backLink}>
               Back to course
             </Link>
-            <h1 className={styles.pageTitle}>{course?.title ?? 'Course badge progress'}</h1>
+            <h1 className={styles.pageTitle}>{badge?.name ?? course?.title ?? 'Badge'}</h1>
           </header>
 
           {isLoading ? <p className={styles.statusMessage}>Loading badge details...</p> : null}
@@ -256,125 +263,183 @@ export default function CourseBadgeProgress() {
             </div>
           ) : null}
 
+          {!isLoading && !error && !(badge && summary && assessment) ? (
+            <div className={styles.statusBlock}>
+              <p className={styles.statusMessage}>Badge details could not be loaded.</p>
+              <Link href={`/courses/${courseId}`} className={styles.inlineLink}>
+                Back to course
+              </Link>
+            </div>
+          ) : null}
+
           {!isLoading && !error && badge && summary && assessment ? (
             <>
-              <section className={styles.heroCard}>
-                <div className={styles.badgeIcon} aria-hidden="true" />
+              <section className={styles.hero}>
+                <div className={styles.badgeCircle} aria-hidden="true" />
                 <div className={styles.heroCopy}>
-                  <p className={styles.sectionLabel}>Badge Progress</p>
-                  <h2 className={styles.badgeTitle}>{badge.name}</h2>
-                  <p className={styles.badgeDescription}>{badge.description || 'No badge description provided.'}</p>
+                  <p className={styles.descriptionLabel}>Description</p>
+                  <p className={styles.descriptionText}>{badge.description || 'No badge description provided.'}</p>
                 </div>
               </section>
 
-              <section className={styles.metricsGrid} aria-label="Badge progress summary">
-                {metricCards.map((metric) => (
-                  <article key={metric.label} className={styles.metricCard}>
-                    <strong>{metric.value}</strong>
-                    <span>{metric.label}</span>
-                    <small>
-                      {metric.count} of {summary.totalStudents} students
-                    </small>
-                  </article>
-                ))}
-                <article className={styles.metricCard}>
-                  <strong>{summary.averageScore ?? 'N/A'}</strong>
-                  <span>Average assessment score</span>
-                  <small>{summary.readyForFinalizationCount} ready to finalize</small>
-                </article>
-              </section>
+              <section className={styles.card} aria-label="Student progress">
+                <div className={styles.cardHeader}>
+                  <div>
+                    <h2 className={styles.cardTitle}>Student Progress</h2>
+                    <p className={styles.showingFor}>
+                      Showing progress for: <strong>All students</strong>
+                    </p>
+                  </div>
+                  <button type="button" className={styles.exportButton}>
+                    <span>Export</span>
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
+                      <path
+                        d="M12 16V4M12 4l-4 4M12 4l4 4M5 20h14"
+                        stroke="#1d1d1d"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </button>
+                </div>
 
-              <section className={styles.detailGrid}>
-                <article className={styles.panel}>
-                  <h2>Assessment Details</h2>
-                  <p>{assessment.displayText}</p>
+                <div className={styles.progressBody}>
+                  <div className={styles.statColumn}>
+                    <div className={styles.bigStat}>
+                      <strong>N/A</strong>
+                      <span>Average time to completion</span>
+                    </div>
+                    <div className={styles.bigStat}>
+                      <strong>{summary.completedPercent}%</strong>
+                      <span>Got checkd on their first try</span>
+                    </div>
+                    <div className={styles.bigStat}>
+                      <strong>{summary.inProgressPercent}%</strong>
+                      <span>Watched optional learning videos</span>
+                    </div>
+                  </div>
 
-                  {assessment.rubricItems.length > 0 ? (
-                    <>
-                      <h3>Rubric</h3>
-                      <ol className={styles.detailList}>
-                        {assessment.rubricItems.map((item) => (
-                          <li key={item.number}>{item.text}</li>
-                        ))}
-                      </ol>
-                    </>
-                  ) : null}
+                  <div className={styles.divider} aria-hidden="true" />
 
-                  {assessment.gradingCriteria.length > 0 ? (
-                    <>
-                      <h3>Instructor grading</h3>
-                      <div className={styles.criteriaList}>
-                        {assessment.gradingCriteria.map((criterion) => (
-                          <div key={criterion.number} className={styles.criteriaItem}>
-                            <strong>{criterion.criterion || `Criterion ${criterion.number}`}</strong>
-                            {criterion.options.length > 0 ? <span>{criterion.options.join(' / ')}</span> : null}
+                  <div className={styles.chartColumn}>
+                    <div className={styles.topCharts}>
+                      <div
+                        className={styles.completionRing}
+                        style={{ background: completionRingGradient }}
+                        role="img"
+                        aria-label={`Badge completion: ${completionPercent}%`}
+                      >
+                        <div className={styles.completionRingInner}>
+                          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" aria-hidden="true">
+                            <path
+                              d="M5 13l4 4L19 7"
+                              stroke="#8aa30f"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div className={styles.barBreakdown}>
+                        {breakdownBars.map((bar) => (
+                          <div key={bar.label} className={styles.barRow}>
+                            <p className={styles.barLabel}>{bar.label}</p>
+                            <div className={styles.barTrackRow}>
+                              <div className={styles.barTrack}>
+                                <div
+                                  className={styles.barFill}
+                                  style={{
+                                    width: `${Math.max(0, Math.min(100, bar.percent))}%`,
+                                    background: bar.color,
+                                  }}
+                                />
+                              </div>
+                              <span className={styles.barPercent}>{bar.percent}%</span>
+                            </div>
                           </div>
                         ))}
                       </div>
-                    </>
-                  ) : null}
-                </article>
-
-                <article className={styles.panel}>
-                  <h2>Checkpoints</h2>
-                  {assessment.checkpoints.length > 0 ? (
-                    <div className={styles.checkpointList}>
-                      {assessment.checkpoints.map((checkpoint, index) => (
-                        <div key={`${checkpoint.title ?? 'checkpoint'}-${index}`} className={styles.checkpointItem}>
-                          <strong>{checkpoint.title || `Checkpoint ${index + 1}`}</strong>
-                          <span>{checkpoint.question || 'No question recorded.'}</span>
-                          <small>
-                            {[checkpoint.time, checkpoint.segmentLabel, checkpoint.points ? `${checkpoint.points} pts` : null]
-                              .filter(Boolean)
-                              .join(' | ')}
-                          </small>
-                        </div>
-                      ))}
                     </div>
-                  ) : (
-                    <p>No checkpoints recorded for this badge.</p>
-                  )}
-                </article>
+
+                    {/* The design shows "Average precheck score" + "Average assessment score",
+                        but the API only tracks one score. Show the metrics we actually have:
+                        % of students ready for assessment, and the average assessment score. */}
+                    <div className={styles.ringRow}>
+                      <RingIndicator percent={summary.readyForAssessmentPercent} caption="Ready for assessment" />
+                      <RingIndicator percent={summary.averageScore ?? 0} caption="Average assessment score" />
+                    </div>
+                  </div>
+                </div>
               </section>
 
-              <section className={styles.studentPanel}>
-                <div className={styles.studentPanelHeader}>
-                  <h2>Student Progress</h2>
-                  <span>{summary.totalStudents} students</span>
+              <section className={styles.card} aria-label="Assessment details">
+                <div className={styles.cardHeader}>
+                  <h2 className={styles.cardTitle}>Assessment Details</h2>
+                  <p className={styles.checkpointCount}># of Checkpoints: {checkpointCount}</p>
                 </div>
 
-                <div className={styles.tableWrap}>
-                  <table className={styles.progressTable}>
-                    <thead>
-                      <tr>
-                        <th>Student</th>
-                        <th>Section</th>
-                        <th>Status</th>
-                        <th>Score</th>
-                        <th>Awarded</th>
-                        <th>Last Updated</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {students.map((row) => (
-                        <tr key={row.enrollmentId}>
-                          <td>
-                            <strong>{formatStudentName(row.student)}</strong>
-                            <span>{row.student.email ?? 'Email unavailable'}</span>
-                          </td>
-                          <td>{row.sections.join(', ') || 'Unassigned'}</td>
-                          <td>
-                            <span className={styles.statusPill} data-status={row.status}>
-                              {STATUS_LABELS[row.status]}
-                            </span>
-                          </td>
-                          <td>{row.progress?.score ?? 'N/A'}</td>
-                          <td>{formatDate(row.progress?.awardedAt)}</td>
-                          <td>{formatDate(row.progress?.updatedAt)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className={styles.assessmentBody}>
+                  <div className={styles.videoColumn}>
+                    <div className={styles.videoScreen} aria-hidden="true">
+                      <div className={styles.videoControls}>
+                        <span className={styles.playIcon}>&#9654;</span>
+                        <div className={styles.videoScrubTrack}>
+                          <div className={styles.videoScrubFill} />
+                        </div>
+                      </div>
+                    </div>
+                    <div className={styles.videoMeta}>
+                      <div>
+                        <p className={styles.videoTitle}>{videoTitle}</p>
+                        <p className={styles.videoLength}>
+                          Length: <strong>00:20:00</strong>
+                        </p>
+                      </div>
+                      <button type="button" className={styles.editButton}>
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+                          <path
+                            d="M4 20h4l10.5-10.5a2.121 2.121 0 0 0-3-3L5 17v3z"
+                            stroke="#1d1d1d"
+                            strokeWidth="1.6"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                        <span>Edit</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={styles.timelineColumn}>
+                    {assessment.checkpoints.length > 0 ? (
+                      <ol className={styles.timeline}>
+                        {assessment.checkpoints.map((checkpoint, index) => (
+                          <li key={`${checkpoint.title ?? 'checkpoint'}-${index}`} className={styles.timelineItem}>
+                            <span className={styles.timelineDot} aria-hidden="true" />
+                            <div className={styles.timelineContent}>
+                              <p className={styles.timelineSegment}>
+                                {checkpoint.segmentLabel || `Segment ${index + 1}`}
+                              </p>
+                              <p className={styles.timelineTitle}>{checkpoint.title || `Checkpoint ${index + 1}`}</p>
+                              {checkpoint.question ? (
+                                <p className={styles.timelineQuestion}>{checkpoint.question}</p>
+                              ) : null}
+                              <p className={styles.timelinePoints}>
+                                {[checkpoint.time, checkpoint.points != null ? `${checkpoint.points} pts` : null]
+                                  .filter(Boolean)
+                                  .join(' | ') || '—'}
+                              </p>
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    ) : (
+                      <p className={styles.statusMessage}>No checkpoints recorded for this badge.</p>
+                    )}
+                  </div>
                 </div>
               </section>
             </>

@@ -45,8 +45,6 @@ type ConfigRowProps = {
   checked: boolean;
   onChange: (value: boolean) => void;
   infoText?: React.ReactNode;
-  isInfoOpen?: boolean;
-  onInfoToggle?: () => void;
 };
 
 type EditableCourseResponse = {
@@ -185,10 +183,13 @@ export default function CourseNewPage() {
   const studentFileInputRef = useRef<HTMLInputElement | null>(null);
   const assessorFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const [showCooldownInfo, setShowCooldownInfo] = useState(false);
-
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Synchronous guard against double/triple submission. The `isSubmitting` state flag
+  // only disables the button after a re-render, leaving a race window where rapid clicks
+  // (or clicks during a slow request) fire multiple create requests → duplicate courses.
+  // A ref mutates immediately, so it blocks re-entrant calls within the same tick.
+  const isSubmittingRef = useRef(false);
   const [uploadDialog, setUploadDialog] = useState<UploadDialogState | null>(null);
 
   useEffect(() => {
@@ -308,9 +309,46 @@ export default function CourseNewPage() {
     }
   };
 
+  // The same person (by email or BUID) can't be both a student and an assessor in one
+  // course (one enrollment per person per course). Catch it here with a clear message
+  // instead of letting the server reject it with a cryptic error.
+  const findRosterRoleConflict = () => {
+    const studentKeys = new Map<string, string>();
+    for (const student of studentRows) {
+      const label = `${student.firstName} ${student.lastName}`.trim() || student.email || student.buid;
+      for (const key of [student.email.trim().toLowerCase(), student.buid.trim()].filter(Boolean)) {
+        studentKeys.set(key, label);
+      }
+    }
+
+    const conflicts = new Set<string>();
+    for (const assessor of assessorRows) {
+      const keys = [assessor.email.trim().toLowerCase(), assessor.buid.trim()].filter(Boolean);
+      if (keys.some((key) => studentKeys.has(key))) {
+        conflicts.add(`${assessor.firstName} ${assessor.lastName}`.trim() || assessor.email || assessor.buid);
+      }
+    }
+
+    if (conflicts.size === 0) return null;
+
+    const names = Array.from(conflicts);
+    return `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} listed as both a student and an assessor. Each person can have only one role per course — remove the duplicate from one roster to continue.`;
+  };
+
   const goNext = async () => {
     if (currentStep === steps.length - 1) {
+      // Re-entrancy guard: ignore clicks while a save is already in flight.
+      if (isSubmittingRef.current) return;
+
       setSubmitError('');
+
+      const rosterConflict = findRosterRoleConflict();
+      if (rosterConflict) {
+        setSubmitError(rosterConflict);
+        return;
+      }
+
+      isSubmittingRef.current = true;
       setIsSubmitting(true);
       try {
         const result = await handleCreateCourse();
@@ -321,6 +359,7 @@ export default function CourseNewPage() {
         setSubmitError(error instanceof Error ? error.message : 'Failed to save course.');
       } finally {
         setIsSubmitting(false);
+        isSubmittingRef.current = false;
       }
       return;
     }
@@ -477,26 +516,41 @@ export default function CourseNewPage() {
     targetInput?.click();
   };
 
-  function ConfigRow({ label, checked, onChange, infoText, isInfoOpen = false, onInfoToggle }: ConfigRowProps) {
+  // Unique section names found across the uploaded roster — populates the per-student
+  // section dropdowns so the prof can reassign a student's section inline.
+  const availableSections = Array.from(
+    new Set(studentRows.flatMap((student) => parseSections(student.sections)))
+  ).sort();
+
+  const updateStudentSection = (index: number, value: string) => {
+    setStudentRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value } : row)));
+  };
+
+  // Same inline-section-reassignment for the assessor roster.
+  const availableAssessorSections = Array.from(
+    new Set(assessorRows.flatMap((assessor) => parseSections(assessor.sections)))
+  ).sort();
+
+  const updateAssessorSection = (index: number, value: string) => {
+    setAssessorRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value } : row)));
+  };
+
+  function ConfigRow({ label, checked, onChange, infoText }: ConfigRowProps) {
     return (
       <div className={styles.configItem}>
         <div className={styles.configHeader}>
           <div className={styles.configLabelWrap}>
             <span className={styles.configLabel}>{label}</span>
 
-            {infoText && onInfoToggle && (
+            {infoText && (
               <div className={styles.infoWrapper}>
-                <button
-                  type="button"
-                  className={styles.infoButton}
-                  onClick={onInfoToggle}
-                  aria-label={`Show info for ${label}`}
-                  aria-expanded={isInfoOpen}
-                >
+                <button type="button" className={styles.infoButton} aria-label={`Info for ${label}`}>
                   i
                 </button>
 
-                {isInfoOpen && <div className={styles.infoPopover}>{infoText}</div>}
+                <div className={styles.infoPopover} role="tooltip">
+                  {infoText}
+                </div>
               </div>
             )}
           </div>
@@ -519,6 +573,38 @@ export default function CourseNewPage() {
       </div>
     );
   }
+
+  const assessorConfigs: Array<{
+    label: string;
+    checked: boolean;
+    setChecked: React.Dispatch<React.SetStateAction<boolean>>;
+    infoText?: React.ReactNode;
+  }> = [
+    {
+      label: 'Allow manual override for cooldown?',
+      checked: allowCooldownOverride,
+      setChecked: setAllowCooldownOverride,
+      infoText: (
+        <>
+          <p>
+            If a student does not complete a satisfactory in-person assessment, they must wait during a cooldown period
+            before they are able to reassess.
+          </p>
+          <p>Enabling manual override allows assessors to override this cooldown period and assess students earlier.</p>
+        </>
+      ),
+    },
+    {
+      label: 'Allow assessor messages?',
+      checked: allowAssessorMessages,
+      setChecked: setAllowAssessorMessages,
+    },
+    {
+      label: 'Allow assessors to view other sections?',
+      checked: allowCrossSectionView,
+      setChecked: setAllowCrossSectionView,
+    },
+  ];
 
   return (
     <div className={`page ${styles.page}`}>
@@ -578,11 +664,12 @@ export default function CourseNewPage() {
                 </label>
                 <input
                   id="sections"
-                  type="number"
-                  min="1"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   className={styles.sectionsInput}
                   value={sections}
-                  onChange={(e) => setSections(e.target.value)}
+                  onChange={(e) => setSections(e.target.value.replace(/\D/g, ''))}
                 />
               </div>
             </form>
@@ -628,15 +715,35 @@ export default function CourseNewPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {studentRows.slice(0, visibleCount).map((student, index) => (
-                        <tr key={index}>
-                          <td>{student.lastName}</td>
-                          <td>{student.firstName}</td>
-                          <td>{student.buid}</td>
-                          <td>{student.email}</td>
-                          <td>{parseSections(student.sections).join(', ')}</td>
-                        </tr>
-                      ))}
+                      {studentRows.slice(0, visibleCount).map((student, index) => {
+                        const primarySection = parseSections(student.sections)[0] ?? '';
+                        const sectionOptions = Array.from(
+                          new Set([...availableSections, primarySection].filter(Boolean))
+                        );
+                        return (
+                          <tr key={index}>
+                            <td>{student.lastName}</td>
+                            <td>{student.firstName}</td>
+                            <td>{student.buid}</td>
+                            <td>{student.email}</td>
+                            <td>
+                              <select
+                                className={styles.sectionSelect}
+                                value={primarySection}
+                                onChange={(e) => updateStudentSection(index, e.target.value)}
+                                aria-label={`Section for ${student.firstName} ${student.lastName}`}
+                              >
+                                {sectionOptions.length === 0 ? <option value="">—</option> : null}
+                                {sectionOptions.map((section) => (
+                                  <option key={section} value={section}>
+                                    {section}
+                                  </option>
+                                ))}
+                              </select>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -651,6 +758,15 @@ export default function CourseNewPage() {
                     aria-expanded={showDropdown}
                   >
                     <span>Show more items</span>
+                    <svg className={styles.showMoreChevron} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                      <path
+                        d="M6 9l6 6 6-6"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </button>
                 ) : (
                   <select
@@ -709,15 +825,35 @@ export default function CourseNewPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {assessorRows.slice(0, assessorVisibleCount).map((assessor, index) => (
-                          <tr key={index}>
-                            <td>{assessor.lastName}</td>
-                            <td>{assessor.firstName}</td>
-                            <td>{assessor.buid}</td>
-                            <td>{assessor.email}</td>
-                            <td>{parseSections(assessor.sections).join(', ')}</td>
-                          </tr>
-                        ))}
+                        {assessorRows.slice(0, assessorVisibleCount).map((assessor, index) => {
+                          const primarySection = parseSections(assessor.sections)[0] ?? '';
+                          const sectionOptions = Array.from(
+                            new Set([...availableAssessorSections, primarySection].filter(Boolean))
+                          );
+                          return (
+                            <tr key={index}>
+                              <td>{assessor.lastName}</td>
+                              <td>{assessor.firstName}</td>
+                              <td>{assessor.buid}</td>
+                              <td>{assessor.email}</td>
+                              <td>
+                                <select
+                                  className={styles.sectionSelect}
+                                  value={primarySection}
+                                  onChange={(e) => updateAssessorSection(index, e.target.value)}
+                                  aria-label={`Section for ${assessor.firstName} ${assessor.lastName}`}
+                                >
+                                  {sectionOptions.length === 0 ? <option value="">—</option> : null}
+                                  {sectionOptions.map((section) => (
+                                    <option key={section} value={section}>
+                                      {section}
+                                    </option>
+                                  ))}
+                                </select>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -726,6 +862,15 @@ export default function CourseNewPage() {
                     {!showAssessorDropdown ? (
                       <button type="button" className={styles.showMore} onClick={() => setShowAssessorDropdown(true)}>
                         <span>Show more items</span>
+                        <svg className={styles.showMoreChevron} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path
+                            d="M6 9l6 6 6-6"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
                       </button>
                     ) : (
                       <select
@@ -748,37 +893,15 @@ export default function CourseNewPage() {
               <h2 className={styles.cardTitle}>Assessor Configurations</h2>
 
               <div className={styles.configList}>
-                <ConfigRow
-                  label="Allow manual override for cooldown?"
-                  checked={allowCooldownOverride}
-                  onChange={setAllowCooldownOverride}
-                  isInfoOpen={showCooldownInfo}
-                  onInfoToggle={() => setShowCooldownInfo((prev) => !prev)}
-                  infoText={
-                    <>
-                      <p>
-                        If a student does not complete a satisfactory in-person assessment, they must wait during a
-                        cooldown period before they are able to reassess.
-                      </p>
-                      <p>
-                        Enabling manual override allows assessors to override this cooldown period and assess students
-                        earlier.
-                      </p>
-                    </>
-                  }
-                />
-
-                <ConfigRow
-                  label="Allow assessor messages?"
-                  checked={allowAssessorMessages}
-                  onChange={setAllowAssessorMessages}
-                />
-
-                <ConfigRow
-                  label="Allow assessors to view other sections?"
-                  checked={allowCrossSectionView}
-                  onChange={setAllowCrossSectionView}
-                />
+                {assessorConfigs.map((config) => (
+                  <ConfigRow
+                    key={config.label}
+                    label={config.label}
+                    checked={config.checked}
+                    onChange={config.setChecked}
+                    infoText={config.infoText}
+                  />
+                ))}
               </div>
             </section>
           </>
@@ -800,7 +923,7 @@ export default function CourseNewPage() {
                   Course Name: <span className={styles.reviewCourseInfoBold}>{courseName || '—'}</span>
                 </p>
                 <p className={styles.reviewCourseInfo}>
-                  Number of Sections: <span className={styles.reviewCourseInfoBold}>{sections || '—'}</span>
+                  Number of Sections*: <span className={styles.reviewCourseInfoBold}>{sections || '—'}</span>
                 </p>
               </div>
             </div>
@@ -818,6 +941,9 @@ export default function CourseNewPage() {
 
               <div className={styles.reviewBody}>
                 <p className={styles.rosterRows}>{studentRows.length} students enrolled</p>
+                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(1)}>
+                  View Student Roster
+                </button>
               </div>
             </div>
 
@@ -825,7 +951,7 @@ export default function CourseNewPage() {
 
             <div className={styles.reviewSection}>
               <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Assessors</h3>
+                <h3 className={styles.reviewTitle}>Assessor Roster</h3>
                 <button type="button" className={styles.editLink} onClick={() => goToStep(2)}>
                   <span className={styles.editLabel}>Edit</span>
                   <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
@@ -834,58 +960,41 @@ export default function CourseNewPage() {
 
               <div className={styles.reviewBody}>
                 <p className={styles.rosterRows}>{assessorRows.length} assessors enrolled</p>
+                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(2)}>
+                  View Assessors
+                </button>
               </div>
             </div>
 
             <div className={styles.reviewDivider} />
 
-            <div className={styles.reviewConfigList}>
-              <div className={styles.reviewConfigItem}>
-                <span className={styles.reviewConfigLabel}>Allow manual override for cooldown?</span>
-                <div className={styles.toggleRow}>
-                  <span className={styles.toggleText}>Don’t allow</span>
-                  <button
-                    type="button"
-                    className={`${styles.switch} ${allowAssessorMessages ? styles.switchOn : ''}`}
-                    onClick={() => setAllowAssessorMessages((prev) => !prev)}
-                    aria-pressed={allowAssessorMessages}
-                  >
-                    <span className={styles.switchThumb} />
-                  </button>
-                  <span className={styles.toggleText}>Allow</span>
-                </div>
+            <div className={styles.reviewSection}>
+              <div className={styles.reviewHeaderRow}>
+                <h3 className={styles.reviewTitle}>Assessor Configurations</h3>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(2)}>
+                  <span className={styles.editLabel}>Edit</span>
+                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
+                </button>
               </div>
 
-              <div className={styles.reviewConfigItem}>
-                <span className={styles.reviewConfigLabel}>Allow assessor messages?</span>
-                <div className={styles.toggleRow}>
-                  <span className={styles.toggleText}>Don’t allow</span>
-                  <button
-                    type="button"
-                    className={`${styles.switch} ${allowCrossSectionView ? styles.switchOn : ''}`}
-                    onClick={() => setAllowCrossSectionView((prev) => !prev)}
-                    aria-pressed={allowCrossSectionView}
-                  >
-                    <span className={styles.switchThumb} />
-                  </button>
-                  <span className={styles.toggleText}>Allow</span>
-                </div>
-              </div>
-
-              <div className={styles.reviewConfigItem}>
-                <span className={styles.reviewConfigLabel}>Allow assessors to view other sections?</span>
-                <div className={styles.toggleRow}>
-                  <span className={styles.toggleText}>Don’t allow</span>
-                  <button
-                    type="button"
-                    className={`${styles.switch} ${allowCooldownOverride ? styles.switchOn : ''}`}
-                    onClick={() => setAllowCooldownOverride((prev) => !prev)}
-                    aria-pressed={allowCooldownOverride}
-                  >
-                    <span className={styles.switchThumb} />
-                  </button>
-                  <span className={styles.toggleText}>Allow</span>
-                </div>
+              <div className={styles.reviewConfigList}>
+                {assessorConfigs.map((config) => (
+                  <div key={config.label} className={styles.reviewConfigItem}>
+                    <span className={styles.reviewConfigLabel}>{config.label}</span>
+                    <div className={styles.toggleRow}>
+                      <span className={styles.toggleText}>Don’t allow</span>
+                      <button
+                        type="button"
+                        className={`${styles.switch} ${config.checked ? styles.switchOn : ''}`}
+                        onClick={() => config.setChecked((prev) => !prev)}
+                        aria-pressed={config.checked}
+                      >
+                        <span className={styles.switchThumb} />
+                      </button>
+                      <span className={styles.toggleText}>Allow</span>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </section>

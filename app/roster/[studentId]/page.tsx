@@ -9,6 +9,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import editIcon from '@/public/assets/profile/edit.png';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
+import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
 import styles from './page.module.css';
 
 type Contact = {
@@ -277,7 +278,7 @@ function useInstructorStudentBadgeDetail(
     void fetchData();
   }, [fetchData]);
 
-  return { data, isLoading, error };
+  return { data, isLoading, error, refresh: fetchData };
 }
 
 function Chevron({ isOpen }: { isOpen: boolean }) {
@@ -361,6 +362,7 @@ export default function InstructorStudentProfilePage() {
   const [isDemographicOpen, setIsDemographicOpen] = useState(false);
   const [isNotStartedOpen, setIsNotStartedOpen] = useState(false);
   const [isCompletedOpen, setIsCompletedOpen] = useState(false);
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   const studentId = resolveParam(params?.studentId);
   const courseId = searchParams.get('courseId');
@@ -373,28 +375,20 @@ export default function InstructorStudentProfilePage() {
   const showBadgesSection = currentRole === 'STUDENT';
   const courseSectionsLabel = data?.course.sections.join(', ') ?? '';
 
-  const selectedInProgressBadge = useMemo(
-    () => data?.badges.inProgress.find((badge) => badge.id === selectedBadgeId) ?? null,
-    [data?.badges.inProgress, selectedBadgeId]
-  );
-  const selectedCompletedBadge = useMemo(
-    () => data?.badges.completed.find((badge) => badge.id === selectedBadgeId) ?? null,
-    [data?.badges.completed, selectedBadgeId]
-  );
-  const selectedReadyForFinalizationBadge = useMemo(
-    () => data?.badges.readyForFinalization.find((badge) => badge.id === selectedBadgeId) ?? null,
-    [data?.badges.readyForFinalization, selectedBadgeId]
-  );
-  const selectedBadgeTone: BadgeDetailTone | null = selectedCompletedBadge || selectedReadyForFinalizationBadge
-    ? 'completed'
-    : selectedInProgressBadge
-      ? 'progress'
-      : null;
+  const selectedBadgeTone: BadgeDetailTone | null = useMemo(() => {
+    if (!selectedBadgeId || !data) return null;
+    const { inProgress, completed, readyForFinalization } = data.badges;
+    const matches = (list: { id: string }[]) => list.some((badge) => badge.id === selectedBadgeId);
+    if (matches(completed) || matches(readyForFinalization)) return 'completed';
+    if (matches(inProgress)) return 'progress';
+    return null;
+  }, [data, selectedBadgeId]);
 
   const {
     data: selectedBadgeDetail,
     isLoading: isBadgeDetailLoading,
     error: badgeDetailError,
+    refresh: refreshBadgeDetail,
   } = useInstructorStudentBadgeDetail(
     courseId,
     studentId,
@@ -652,16 +646,19 @@ export default function InstructorStudentProfilePage() {
                     {!isBadgeDetailLoading && !badgeDetailError && selectedBadgeDetail && selectedBadgeDisplayTone ? (
                       <>
                         <BadgeDetailCard detail={selectedBadgeDetail} tone={selectedBadgeDisplayTone} />
-                        {selectedBadgeDisplayTone === 'progress' ? (
-                          <div className={styles.assessmentActionRow}>
+                        <div className={styles.assessmentActionRow}>
+                          <button type="button" className={styles.assessmentLink} onClick={() => setIsConfigOpen(true)}>
+                            Edit configurations
+                          </button>
+                          {selectedBadgeDisplayTone === 'progress' ? (
                             <Link
                               href={`/assessments/${courseId}/students/${studentId}/badges/${selectedBadgeId}`}
                               className={styles.assessmentLink}
                             >
                               Open Assessment View
                             </Link>
-                          </div>
-                        ) : null}
+                          ) : null}
+                        </div>
                       </>
                     ) : null}
                   </>
@@ -731,6 +728,26 @@ export default function InstructorStudentProfilePage() {
           ) : null}
         </div>
       </main>
+
+      {isConfigOpen && selectedBadgeDetail && courseId && studentId && selectedBadgeId && email ? (
+        <StudentBadgeConfigModal
+          studentName={data?.member.name ?? 'Student'}
+          courseId={courseId}
+          studentId={studentId}
+          badgeId={selectedBadgeId}
+          email={email}
+          initial={{
+            reassessmentLimit: selectedBadgeDetail.badge.reassessmentLimit ?? null,
+            cooldownDays: selectedBadgeDetail.badge.cooldownDays ?? null,
+            reassessmentRequired: selectedBadgeDetail.badge.reassessmentRequired ?? null,
+            allowCooldownOverride: selectedBadgeDetail.badge.allowCooldownOverride ?? false,
+          }}
+          onClose={() => setIsConfigOpen(false)}
+          onSaved={() => {
+            void refreshBadgeDetail();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

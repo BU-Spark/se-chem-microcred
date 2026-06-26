@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useMyCourses } from './hooks/useMyCourses';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -18,6 +19,7 @@ import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unha
 import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
 import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
 import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
+import gemAvatar from '../public/edit_avatar/sapphire.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
 interface EnrolledCourseCardData {
@@ -37,11 +39,6 @@ type CoursePreviewLesson = {
   }>;
 };
 
-type EnrollmentSummary = {
-  id: string;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-};
-
 type CreatedCourse = {
   id: string;
   title: string;
@@ -52,16 +49,6 @@ type CreatedCourse = {
   lessons: Array<{
     thumbnailUrl: string | null;
   }>;
-  enrollments: EnrollmentSummary[];
-};
-
-type CreatedCoursesResponse = {
-  user: {
-    name: string | null;
-    email: string;
-  };
-  count: number;
-  courses: CreatedCourse[];
 };
 
 type EnrolledCourse = {
@@ -78,29 +65,11 @@ type EnrolledCourse = {
   };
 };
 
-type EnrolledCoursesResponse = {
-  user: {
-    name: string | null;
-    email: string;
-  };
-  count: number;
-  enrollments: EnrolledCourse[];
-};
-
 type AssessorCourseEnrollment = {
   id: string;
   role: 'INSTRUCTOR' | 'CHECKER';
   sections: string[];
   course: CreatedCourse;
-};
-
-type AssessorCoursesResponse = {
-  user: {
-    name: string | null;
-    email: string;
-  };
-  count: number;
-  enrollments: AssessorCourseEnrollment[];
 };
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
@@ -192,135 +161,6 @@ function resolvePreviewImage(record?: CoursePreviewLesson | null) {
   return DEFAULT_LESSON_IMAGE;
 }
 
-function useCreatedCourses(email?: string | null) {
-  const [data, setData] = useState<CreatedCoursesResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/created?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load created courses.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load created courses.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error };
-}
-
-function useEnrolledCourses(email?: string | null) {
-  const [data, setData] = useState<EnrolledCoursesResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/enrolled?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load enrolled courses.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load enrolled courses.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error };
-}
-
-function useAssessorCourses(email?: string | null) {
-  const [data, setData] = useState<AssessorCoursesResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/assessor?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load assessor courses.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load assessor courses.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error };
-}
-
 function resolveThumbnailUrl(course: CreatedCourse) {
   const candidate = course.lessons[0]?.thumbnailUrl?.trim();
   return candidate ? candidate : null;
@@ -359,19 +199,11 @@ function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: str
 
 function AddCourseCard() {
   return (
-    <Link
-      href="/courses/new"
-      className={courseStyles.addCourseCard}
-      data-testid="add-course-card"
-      aria-label="Add course"
-    >
-      <div className={courseStyles.addCourseMedia}>
-        <span className={courseStyles.addCoursePlus}>+</span>
+    <Link href="/courses/new" className={styles.addTile} data-testid="add-course-card" aria-label="Create a course">
+      <div className={styles.addTileMedia}>
+        <span className={styles.addTilePlus}>+</span>
       </div>
-      <div className={courseStyles.addCourseText}>
-        <h3 className={courseStyles.courseTitle}>Add Course</h3>
-        <p className={courseStyles.courseMeta}>Create a course</p>
-      </div>
+      <p className={styles.addTileLabel}>Create a Course</p>
     </Link>
   );
 }
@@ -396,13 +228,31 @@ function HomeContent() {
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
 
   const { data: studentData, refresh } = useStudentData(email);
-  const { data: createdData, isLoading: isLoadingCreated, error: createdError } = useCreatedCourses(email);
-  const { data: enrolledData, isLoading: isLoadingEnrolled, error: enrolledError } = useEnrolledCourses(email);
+
+  // One consolidated SWR-cached fetch replaces the three per-role fetches. The
+  // single loading/error state applies to all sections, matching the prior
+  // behaviour where the three calls always resolved together. Gated on Clerk
+  // auth so we never fetch before the user is known to be signed in.
   const {
-    data: assessorData,
-    isLoading: isLoadingAssessorCourses,
-    error: assessorCoursesError,
-  } = useAssessorCourses(email);
+    data: myCourses,
+    created,
+    enrolled,
+    assessor,
+    isLoading,
+    error: fetchError,
+  } = useMyCourses(isLoaded && isSignedIn);
+  const coursesError = fetchError
+    ? fetchError instanceof Error
+      ? fetchError.message
+      : 'Unable to load courses.'
+    : null;
+
+  const isLoadingCreated = isLoading;
+  const createdError = coursesError;
+  const isLoadingEnrolled = isLoading;
+  const enrolledError = coursesError;
+  const isLoadingAssessorCourses = isLoading;
+  const assessorCoursesError = coursesError;
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{
@@ -413,10 +263,13 @@ function HomeContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
+  const [isWelcomeDismissed, setIsWelcomeDismissed] = useState(false);
+  const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   const navItems = SIDEBAR_NAV;
-  const displayName =
-    createdData?.user.name || enrolledData?.user.name || assessorData?.user.name || studentData?.student?.name || '';
+  const displayName = myCourses?.user.name || studentData?.student?.name || '';
 
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
 
@@ -434,10 +287,32 @@ function HomeContent() {
     }));
   }, [pendingSurveyBadges, readyForFinalization]);
 
-  const createdCourses = useMemo(() => createdData?.courses ?? [], [createdData]);
-  const assessorEnrollments = useMemo(() => assessorData?.enrollments ?? [], [assessorData]);
+  const createdCourses = useMemo<CreatedCourse[]>(() => created?.courses ?? [], [created]);
+  const assessorEnrollments = useMemo<AssessorCourseEnrollment[]>(() => assessor?.enrollments ?? [], [assessor]);
 
-  const enrolledCourseCards = useMemo(() => enrolledData?.enrollments.map(enrollmentToCard) ?? [], [enrolledData]);
+  const enrolledCourseCards = useMemo(
+    () => (enrolled?.enrollments ?? []).map((e: EnrolledCourse) => enrollmentToCard(e)),
+    [enrolled]
+  );
+
+  // Role gating: the three course endpoints already segment by role, so data presence
+  // is a reliable signal for which sections to surface.
+  const hasCreated = createdCourses.length > 0;
+  const hasAssessor = assessorEnrollments.length > 0;
+  const hasEnrolled = enrolledCourseCards.length > 0;
+  const isLoadingRoles = isLoadingCreated || isLoadingAssessorCourses || isLoadingEnrolled;
+  // Instructors (and brand-new users with no role context) see "My Courses".
+  const showMyCourses = hasCreated || (!hasAssessor && !hasEnrolled);
+  // Empty professor: signed in, finished loading, no courses in any role, no fetch error.
+  const isEmptyProfessor =
+    !isLoadingRoles &&
+    !hasCreated &&
+    !hasAssessor &&
+    !hasEnrolled &&
+    !createdError &&
+    !assessorCoursesError &&
+    !enrolledError;
+  const showWelcomeModal = isEmptyProfessor && !isWelcomeDismissed;
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -532,6 +407,23 @@ function HomeContent() {
     }
   }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal]);
 
+  const handleDuplicateCourse = useCallback(
+    async (courseId: string) => {
+      setDuplicatingId(courseId);
+      setDuplicateError(null);
+      try {
+        const response = await fetch(`/api/courses/${courseId}/duplicate`, { method: 'POST' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error ?? 'Failed to duplicate course.');
+        router.push(`/courses/${payload.course.id}`);
+      } catch (error) {
+        setDuplicateError(error instanceof Error ? error.message : 'Failed to duplicate course.');
+        setDuplicatingId(null);
+      }
+    },
+    [router]
+  );
+
   if (!isLoaded || !isSignedIn) return null;
 
   const renderEnrolledCourseCard = (course: EnrolledCourseCardData) => {
@@ -574,6 +466,21 @@ function HomeContent() {
       <Sidebar navItems={navItems} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
+        <header className={styles.welcomeHeader}>
+          <h1 className={styles.welcomeTitle}>Welcome, {displayName || 'Professor'}</h1>
+          <p className={styles.welcomeSubtitle}>
+            {isLoadingRoles
+              ? 'Loading your courses…'
+              : showMyCourses
+                ? hasCreated
+                  ? `You have ${createdCourses.length} course${createdCourses.length === 1 ? '' : 's'}.`
+                  : 'You have no existing courses.'
+                : hasEnrolled
+                  ? `You are enrolled in ${enrolledCourseCards.length} course${enrolledCourseCards.length === 1 ? '' : 's'}.`
+                  : `You are assessing ${assessorEnrollments.length} course${assessorEnrollments.length === 1 ? '' : 's'}.`}
+          </p>
+        </header>
+
         {readyBadgeAlerts.length > 0 ? (
           <div className={styles.topRow}>
             <div className={styles.alertWrapper}>
@@ -595,10 +502,12 @@ function HomeContent() {
           </div>
         ) : null}
 
+        {/* All three role sections are shown together on Home — the client validated this
+            combined professor/assessor/student view, so we intentionally do not role-gate them. */}
         <section className={courseStyles.section}>
           <h2 className={courseStyles.sectionTitle}>My Courses</h2>
 
-          <div className={courseStyles.courseGrid} data-testid="created-courses-grid">
+          <div className={styles.myCoursesGrid} data-testid="created-courses-grid">
             <AddCourseCard />
             {createdCourses.map((course) => (
               <CreatedCourseCard key={course.id} course={course} />
@@ -608,16 +517,12 @@ function HomeContent() {
           {isLoadingCreated ? <p className={courseStyles.statusMessage}>Loading created courses…</p> : null}
 
           {!isLoadingCreated && createdError ? <p className={courseStyles.statusMessage}>{createdError}</p> : null}
-
-          {!isLoadingCreated && !createdError && createdCourses.length === 0 ? (
-            <p className={courseStyles.statusMessage}>No courses yet. Add one from the first card.</p>
-          ) : null}
         </section>
 
         <section className={courseStyles.section}>
           <h2 className={courseStyles.sectionTitle}>Assessor Courses</h2>
 
-          <div className={courseStyles.courseGrid} data-testid="assessor-courses-grid">
+          <div className={styles.myCoursesGrid} data-testid="assessor-courses-grid">
             {assessorEnrollments.map((enrollment) => (
               <CreatedCourseCard
                 key={enrollment.id}
@@ -627,9 +532,7 @@ function HomeContent() {
             ))}
           </div>
 
-          {isLoadingAssessorCourses ? (
-            <p className={courseStyles.statusMessage}>Loading assessor courses...</p>
-          ) : null}
+          {isLoadingAssessorCourses ? <p className={courseStyles.statusMessage}>Loading assessor courses...</p> : null}
 
           {!isLoadingAssessorCourses && assessorCoursesError ? (
             <p className={courseStyles.statusMessage}>{assessorCoursesError}</p>
@@ -650,10 +553,93 @@ function HomeContent() {
           ) : enrolledCourseCards.length === 0 ? (
             <div className={styles.emptyState}>You are not enrolled in any courses yet.</div>
           ) : (
-            <div className={courseStyles.courseGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
+            <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
           )}
         </section>
+
+        <button
+          type="button"
+          className={styles.duplicateButton}
+          aria-label="Duplicate course"
+          onClick={() => {
+            setDuplicateError(null);
+            setIsDuplicateOpen(true);
+          }}
+        >
+          <svg className={styles.duplicateIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <rect x="8" y="8" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+            <path d="M4 15.5V5a2 2 0 0 1 2-2h9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+          </svg>
+          Duplicate Course
+        </button>
       </main>
+
+      {showWelcomeModal ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Welcome">
+          <div className={styles.welcomeModal}>
+            <button
+              type="button"
+              className={styles.welcomeClose}
+              onClick={() => setIsWelcomeDismissed(true)}
+              aria-label="Close"
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+              </svg>
+            </button>
+
+            <h2 className={styles.welcomeModalTitle}>Welcome, {displayName || 'Professor'}</h2>
+            <Image src={gemAvatar} alt="" className={styles.welcomeGem} width={168} height={168} priority />
+            <p className={styles.welcomeText}>You have no existing courses yet. Create a course to get started.</p>
+            <Link href="/courses/new" className={styles.welcomeCreateButton}>
+              Create Course
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {isDuplicateOpen ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Duplicate course">
+          <div className={styles.dupModal}>
+            <h2 className={styles.dupHeader}>Duplicate a course</h2>
+            <p className={styles.dupSubhead}>
+              Pick a course to copy. A new course is created with the same lessons and badges — students and progress
+              are not copied.
+            </p>
+
+            {duplicateError ? <p className={styles.dupError}>{duplicateError}</p> : null}
+
+            <div className={styles.dupList}>
+              {createdCourses.length === 0 ? (
+                <p className={styles.dupSubhead}>You haven&apos;t created any courses to duplicate yet.</p>
+              ) : (
+                createdCourses.map((course) => (
+                  <div key={course.id} className={styles.dupItem}>
+                    <span className={styles.dupItemTitle}>{course.title}</span>
+                    <button
+                      type="button"
+                      className={styles.dupItemButton}
+                      disabled={duplicatingId !== null}
+                      onClick={() => handleDuplicateCourse(course.id)}
+                    >
+                      {duplicatingId === course.id ? 'Duplicating…' : 'Duplicate'}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button
+              type="button"
+              className={styles.dupClose}
+              onClick={() => setIsDuplicateOpen(false)}
+              disabled={duplicatingId !== null}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {activeSurvey ? (
         <div className={styles.surveyOverlay} role="dialog" aria-modal="true">

@@ -9,23 +9,33 @@
    Page Layout
    =========================== */
 .pageContent {
-  padding: 2.5rem 1.5rem 3rem;
+  padding: 2.5rem 2.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
 }
 
 .headerRow {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: baseline;
   gap: 1.5rem;
-  margin-bottom: 1.5rem;
+}
+
+.pageTitle {
+  font-family: 'Lato', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: #000000;
+  line-height: 1.1;
 }
 
 .greeting {
-  font-size: 2.4rem;
-  font-weight: 700;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 400;
   font-style: italic;
-  color: #000000;
-  line-height: 1.1;
+  color: #4b5563;
 }
 
 /* ===========================
@@ -33,138 +43,72 @@
    =========================== */
 .profileCard {
   background: #ffffff;
-  border-radius: 1.25rem;
-  border: 2px solid #e5e7eb;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.02);
-  padding: 2rem 2rem 2.5rem;
+  border-radius: 40px;
+  border: 4px solid #d9d9d9;
+  padding: 2.5rem 3rem;
 
   display: grid;
-  grid-template-columns: minmax(480px, 2fr) minmax(260px, 1fr);
+  grid-template-columns: minmax(280px, 1fr) auto minmax(280px, 1fr);
   column-gap: 2.5rem;
-  align-items: flex-start;
+  align-items: start;
 }
 
 /* ===========================
-   Left Panel
+   Left column (Student Info)
    =========================== */
-.leftPanel {
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-  flex-direction: row;
-  gap: 1.5rem;
-}
-
-/* Student Info Column */
 .infoColumn {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
   color: #000000;
-  flex: 1 1 auto;
-  min-width: 360px;
 }
 
 .sectionTitle {
+  font-family: 'Lato', sans-serif;
   font-size: 24px;
   font-weight: 400;
   color: #000000;
 }
 
-/* Name Block */
-.nameBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 3rem;
-}
-
-/* Subtitle block: "Student" + "Date Created" */
-.subtitleBlock {
-  display: flex;
-  flex-direction: column;
-  gap: 0.2rem;
-}
-
 .primaryName {
-  margin-top: 1rem;
-  font-size: 2.6rem;
-  font-weight: 800;
+  margin-top: 1.25rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
   line-height: 1.05;
   color: #000000;
 }
 
 .roleLabel {
+  margin-top: 1.25rem;
+  font-family: 'Lato', sans-serif;
   font-weight: 400;
   font-size: 24px;
   color: #000000;
 }
 
 .metaLine {
-  font-size: 0.95rem;
-  color: #000000;
-}
-
-/* Top Email/BUID row */
-.detailGridTop {
-  margin-top: 3rem;
-  display: grid;
-  grid-template-columns: 150px 150px;
-  gap: 0.75rem 2rem;
-  /* tighten Email / BUID horizontal spacing here */
-  font-size: 1rem;
-}
-
-/* ===========================
-   Demographic Section
-   =========================== */
-.demographicSection {
-  margin-top: 2rem;
-}
-
-.demographicTitle {
-  font-family: 'Lato', sans-serif;
-  font-size: 24px;
-  font-weight: 400;
-  color: #000000;
-  margin-bottom: 0.9rem;
-}
-
-.detailGrid {
-  display: grid;
-  grid-template-columns: 275px 275px;
-  column-gap: 3rem;
-  row-gap: 1.2rem;
-}
-
-.detailLabel {
-  font-size: 24px;
-  font-weight: 400;
-  color: #000000;
-  font-family: 'Lato', sans-serif;
-  letter-spacing: 0.2px;
-}
-
-.detailValue {
-  font-size: 16px;
-  font-weight: 400;
-  color: #0f172a;
+  margin-top: 0.25rem;
   font-family: 'Open Sans', sans-serif;
-  letter-spacing: 0.2px;
+  font-size: 16px;
+  color: #000000;
+}
+
+/* Email / BUID row */
+.detailGridTop {
+  margin-top: 2.5rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1.5rem;
 }
 
 /* ===========================
-   Avatar
+   Center column (Avatar)
    =========================== */
 .avatarColumn {
-  margin-top: 1rem;
-  margin-left: 0;
-  align-self: flex-start;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.6rem;
-  flex-shrink: 0;
-  transform: translateX(-80px);
+  gap: 0.75rem;
 }
 
 .avatarFrame {
@@ -173,10 +117,10 @@
   height: 320px;
   max-width: 100%;
   border-radius: 50%;
-  border: 6px solid rgba(148, 163, 184, 0.35);
+  border: 4px solid #d9d9d9;
   display: grid;
   place-items: center;
-  background: radial-gradient(circle at 50% 40%, #e4f1ff 0%, #f7fbff 60%, #ffffff 100%);
+  background: #ffffff;
   overflow: hidden;
 }
 
@@ -198,6 +142,8 @@
   font-weight: 400;
   cursor: pointer;
   text-decoration: none;
+  background: none;
+  border: none;
 }
 
 .editAvatarText {
@@ -211,83 +157,139 @@
 }
 
 /* ===========================
-   Right Panel (Course Info)
+   Right column (Demographic / Course / Checker)
    =========================== */
-.courseColumn {
+.rightColumn {
   display: flex;
   flex-direction: column;
-  gap: 1.75rem;
-  /* spacing between Course Info / Instructor / Checker */
-  border-left: 2px solid #e5e7eb;
+  gap: 1.5rem;
+  border-left: 2px solid #d9d9d9;
   padding-left: 2.5rem;
+  position: relative;
 }
 
+/* ---------- Demographic dropdown ---------- */
+.demographicSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.demographicHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: #000000;
+}
+
+.demographicTitle {
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.caret {
+  display: inline-block;
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+  color: #000000;
+}
+
+.caretOpen {
+  transform: rotate(180deg);
+}
+
+.detailGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  row-gap: 0.9rem;
+}
+
+.detailLabel {
+  font-size: 20px;
+  font-weight: 400;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+}
+
+.detailValue {
+  font-size: 16px;
+  font-weight: 400;
+  color: #0f172a;
+  font-family: 'Open Sans', sans-serif;
+}
+
+/* ---------- Course info ---------- */
 .courseSection {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
+  gap: 0.4rem;
 }
 
-/* Course Info title on the right */
 .courseInfoTitle {
-  font-size: 20px;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
   font-weight: 400;
   color: #000000;
-  margin-bottom: 0.5rem;
 }
 
-/* Instructor title */
-.instructorTitle {
-  font-size: 20px;
-  font-weight: 400;
-  color: #000000;
-  margin-bottom: 0.3rem;
-}
-
-/* Checker title */
 .checkerTitle {
-  font-size: 20px;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
   font-weight: 400;
   color: #000000;
-  margin-top: 1rem;
-  /* more space above Checker */
-  margin-bottom: 0.3rem;
 }
 
 .courseMeta {
-  font-size: 1rem;
-  color: #111827;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
   line-height: 1.4;
 }
 
-/* Instructor / Checker List */
+/* Checker contact list */
 .contactList {
   display: grid;
   gap: 1rem;
+  margin-top: 0.25rem;
 }
 
 .contactItem {
   display: flex;
   align-items: center;
-  gap: 0.8rem;
+  gap: 1rem;
 }
 
 .contactAvatar {
-  width: 110px;
-  height: 110px;
+  width: 90px;
+  height: 90px;
   border-radius: 50%;
   background: #f3f4f6;
+  border: 1px solid #d9d9d9;
   overflow: hidden;
-  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.12);
+  flex-shrink: 0;
+}
+
+.contactAvatar :global(img) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 
 .contactInfo {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.35rem;
 }
 
 .contactName {
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   font-weight: 400;
   color: #000000;
@@ -295,66 +297,149 @@
 }
 
 .contactEmail {
-  font-size: 14px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
   color: #000000;
 }
 
-/* ===========================
-   Bottom Button
-   =========================== */
-.editInfoRow {
-  grid-column: 1 / -1;
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 2rem;
+.emptyState {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #6b7280;
 }
 
-.editInfoButton {
-  padding: 0.9rem 2.2rem;
-  border-radius: 999px;
+/* Edit pencil link */
+.editPencil {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: none;
   border: none;
-  background: #1f5fab;
-  color: #ffffff;
-  font-weight: 700;
-  font-size: 1rem;
   cursor: pointer;
-  box-shadow: 0 18px 36px rgba(31, 95, 171, 0.22);
-  transition: transform 0.2s, filter 0.2s, box-shadow 0.2s;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 20px;
+  font-style: italic;
+  font-weight: 300;
+  color: #000000;
+  padding: 0;
 }
 
-.editInfoButton:hover {
-  filter: brightness(0.97);
-  transform: translateY(-1px);
+.rightColumn .editPencil {
+  align-self: flex-end;
+  margin-top: auto;
 }
 
-.editInfoButton:active {
-  transform: translateY(0);
+.editPencilIcon {
+  width: 20px;
+  height: 20px;
+}
+
+/* ===========================
+   Badges card
+   =========================== */
+.badgesCard {
+  background: #ffffff;
+  border-radius: 40px;
+  border: 4px solid #d9d9d9;
+  padding: 2rem 3rem 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.badgesHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.badgesTitle {
+  font-family: 'Lato', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.badgeSectionLabel {
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.badgeRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.5rem;
+  padding: 0.5rem 0 1rem;
+}
+
+.badgeToken {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  width: 176px;
+}
+
+.badgeCircle {
+  width: 160px;
+  height: 160px;
+  border-radius: 50%;
+  background: #2e6aa9;
+  flex-shrink: 0;
+}
+
+.badgeName {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+  text-align: center;
+}
+
+.badgeDropdownSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.badgeDropdownHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.badgeDropdownHeader .caret {
+  color: #2e6aa9;
+  font-size: 22px;
 }
 
 /* ===========================
    Responsive
    =========================== */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .profileCard {
     grid-template-columns: 1fr;
     row-gap: 2rem;
+    justify-items: center;
+    text-align: left;
   }
 
-  .leftPanel {
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    gap: 1.5rem;
-  }
-
-  .courseColumn {
+  .rightColumn {
     border-left: none;
     padding-left: 0;
+    width: 100%;
+    max-width: 480px;
   }
 
-  .detailGrid,
-  .detailGridTop {
-    grid-template-columns: 1fr;
+  .infoColumn {
+    width: 100%;
+    max-width: 480px;
   }
 }
 
@@ -363,8 +448,14 @@
     padding: 2rem 1.25rem 2.5rem;
   }
 
-  .greeting {
+  .pageTitle,
+  .badgesTitle {
     font-size: 2rem;
+  }
+
+  .badgeCircle {
+    width: 120px;
+    height: 120px;
   }
 }
 
@@ -374,30 +465,10 @@
   letter-spacing: 0.12em;
 }
 
-.sensitiveToggleRow {
-  margin-top: 0.75rem;
-}
-
-.sensitiveToggleButton {
-  border: none;
-  background: transparent;
-  color: #1f5fab;
-  font-size: 0.9rem;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  padding: 0;
-}
-
-.sensitiveStatusText {
-  font-size: 0.85rem;
-  color: #6b7280;
-}
-
 /* ---------- Inline links under Student Info ---------- */
 
 .inlineActionsRow {
-  margin-top: 1.25rem;
+  margin-top: 1.5rem;
   display: flex;
   flex-wrap: wrap;
   gap: 1.5rem;
@@ -408,38 +479,12 @@
   border: none;
   background: none;
   padding: 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;
   font-weight: 400;
   color: #000000;
   cursor: pointer;
   text-decoration: underline;
-}
-
-/* Language popover */
-
-.languageMenu {
-  margin-top: 0.4rem;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.75rem;
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
-}
-
-.languageOption {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  border: none;
-  background: none;
-  padding: 0.2rem 0;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.languageTag {
-  font-size: 0.75rem;
-  color: #1f5fab;
 }
 
 /* ---------- Demographic edit modal ---------- */
@@ -466,14 +511,17 @@
 }
 
 .demographicModalTitle {
-  font-size: 1.4rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.6rem;
   font-weight: 700;
+  color: #1f2937;
   margin-bottom: 0.2rem;
 }
 
 .demographicModalHint {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.9rem;
-  color: #4b5563;
+  color: #6b7280;
   margin-bottom: 0.8rem;
 }
 
@@ -485,15 +533,25 @@
 
 .demographicModalField input,
 .demographicModalField select {
-  border-radius: 0.5rem;
+  font-family: 'Open Sans', sans-serif;
+  border-radius: 0.6rem;
   border: 1px solid #d1d5db;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.9rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.demographicModalField input:focus,
+.demographicModalField select:focus {
+  outline: none;
+  border-color: #2e6aa9;
+  box-shadow: 0 0 0 3px rgba(46, 106, 169, 0.15);
 }
 
 .demographicModalLabel {
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: #111827;
 }
 
@@ -505,23 +563,41 @@
 }
 
 .demographicModalCancel {
+  font-family: 'Lato', sans-serif;
   border-radius: 999px;
   border: 1px solid #d1d5db;
   background: #ffffff;
-  padding: 0.5rem 1.1rem;
-  font-size: 0.9rem;
+  padding: 0.5rem 1.3rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
   cursor: pointer;
 }
 
+.demographicModalCancel:hover {
+  background: #f3f4f6;
+}
+
 .demographicModalSave {
+  font-family: 'Lato', sans-serif;
   border-radius: 999px;
   border: none;
-  background: #1f5fab;
+  background: #2e6aa9;
   color: #ffffff;
-  padding: 0.5rem 1.4rem;
-  font-size: 0.9rem;
+  padding: 0.5rem 1.6rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.demographicModalSave:hover {
+  background: #285d94;
+}
+
+.demographicModalSave:disabled,
+.demographicModalCancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* ---------- Language modal (Change Language) ---------- */
@@ -600,7 +676,7 @@
 
 .languageTag {
   font-size: 0.75rem;
-  color: #1f5fab;
+  color: #2e6aa9;
 }
 
 /* actions at bottom of language modal */
@@ -624,7 +700,7 @@
 .languageModalSave {
   border-radius: 999px;
   border: none;
-  background: #1f5fab;
+  background: #2e6aa9;
   color: #ffffff;
   padding: 0.5rem 1.4rem;
   font-size: 0.9rem;

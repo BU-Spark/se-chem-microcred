@@ -1,18 +1,14 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
+import { useMyCourses } from '../hooks/useMyCourses';
 import styles from './page.module.css';
-
-type EnrollmentSummary = {
-  id: string;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-};
 
 type CourseLessonPreview = {
   thumbnailUrl: string | null;
@@ -26,16 +22,6 @@ type CreatedCourse = {
   sectionCount: number;
   createdAt: string;
   lessons: CourseLessonPreview[];
-  enrollments: EnrollmentSummary[];
-};
-
-type CreatedCoursesResponse = {
-  user: {
-    name: string | null;
-    email: string;
-  };
-  count: number;
-  courses: CreatedCourse[];
 };
 
 type AssessorCourseEnrollment = {
@@ -43,15 +29,6 @@ type AssessorCourseEnrollment = {
   role: 'INSTRUCTOR' | 'CHECKER';
   sections: string[];
   course: CreatedCourse;
-};
-
-type AssessorCoursesResponse = {
-  user: {
-    name: string | null;
-    email: string;
-  };
-  count: number;
-  enrollments: AssessorCourseEnrollment[];
 };
 
 type EnrolledCourse = {
@@ -69,144 +46,6 @@ type EnrolledCourse = {
     }>;
   };
 };
-
-type EnrolledCoursesResponse = {
-  user: {
-    name: string | null;
-    email: string;
-  };
-  count: number;
-  enrollments: EnrolledCourse[];
-};
-
-function useCreatedCourses(email?: string | null) {
-  const [data, setData] = useState<CreatedCoursesResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/created?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load created courses.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load created courses.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error };
-}
-
-function useEnrolledCourses(email?: string | null) {
-  const [data, setData] = useState<EnrolledCoursesResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/enrolled?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load enrolled courses.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load enrolled courses.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error };
-}
-
-function useAssessorCourses(email?: string | null) {
-  const [data, setData] = useState<AssessorCoursesResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/assessor?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load assessor courses.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load assessor courses.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error };
-}
 
 function resolveThumbnailUrl(course: CreatedCourse) {
   const candidate = course.lessons[0]?.thumbnailUrl?.trim();
@@ -291,23 +130,34 @@ function AddCourseCard() {
 
 export default function CoursesPage() {
   const router = useRouter();
-  const { isLoaded, isSignedIn, user } = useUser();
+  const { isLoaded, isSignedIn } = useUser();
   const { signOut } = useAuth();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const email = user?.primaryEmailAddress?.emailAddress ?? null;
-  const { data, isLoading, error } = useCreatedCourses(email);
+  // One consolidated SWR-cached fetch replaces the three per-role fetches. The
+  // single loading/error state applies to all sections, matching the prior
+  // behaviour where the three calls always resolved together. Gated on Clerk
+  // auth so we never fetch before the user is known to be signed in.
   const {
-    data: enrolledData,
-    isLoading: isLoadingEnrolledCourses,
-    error: enrolledCoursesError,
-  } = useEnrolledCourses(email);
-  const {
-    data: assessorData,
-    isLoading: isLoadingAssessorCourses,
-    error: assessorCoursesError,
-  } = useAssessorCourses(email);
+    data: myCourses,
+    created,
+    enrolled,
+    assessor,
+    isLoading,
+    error: fetchError,
+  } = useMyCourses(isLoaded && isSignedIn);
+  const errorMessage = fetchError
+    ? fetchError instanceof Error
+      ? fetchError.message
+      : 'Unable to load courses.'
+    : null;
+
+  const isLoadingEnrolledCourses = isLoading;
+  const enrolledCoursesError = errorMessage;
+  const isLoadingAssessorCourses = isLoading;
+  const assessorCoursesError = errorMessage;
+  const error = errorMessage;
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -330,10 +180,10 @@ export default function CoursesPage() {
 
   if (!isLoaded || !isSignedIn) return null;
 
-  const courses = data?.courses ?? [];
-  const enrolledCourses = enrolledData?.enrollments ?? [];
-  const assessorEnrollments = assessorData?.enrollments ?? [];
-  const displayName = data?.user.name || assessorData?.user.name || enrolledData?.user.name || '';
+  const courses: CreatedCourse[] = created?.courses ?? [];
+  const enrolledCourses: EnrolledCourse[] = enrolled?.enrollments ?? [];
+  const assessorEnrollments: AssessorCourseEnrollment[] = assessor?.enrollments ?? [];
+  const displayName = myCourses?.user.name || '';
 
   return (
     <div className={styles.page}>

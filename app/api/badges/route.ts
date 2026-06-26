@@ -17,6 +17,9 @@ type CheckpointPayload = {
   numericAnswer?: string | number | null;
   numericRangeMin?: string | number | null;
   numericRangeMax?: string | number | null;
+  unit?: string | null;
+  incorrectFeedback?: string | null;
+  incorrectFeedbackEnabled?: boolean | null;
   segmentLabel?: string | null;
 };
 
@@ -24,6 +27,7 @@ type RubricCriterionPayload = {
   id?: string;
   prompt?: string | null;
   options?: string[] | null;
+  optionFeedback?: string[] | null;
 };
 
 type RubricItemPayload = {
@@ -36,6 +40,7 @@ type CreateBadgePayload = {
   badgeName?: string | null;
   badgeDescription?: string | null;
   category?: BadgeCategory | null;
+  skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
@@ -54,6 +59,10 @@ type UpdateBadgePayload = {
   badgeName?: string | null;
   badgeDescription?: string | null;
   category?: BadgeCategory | null;
+  skills?: string[] | null;
+  availableOn?: string | null;
+  closesOn?: string | null;
+  neverCloses?: boolean | null;
   rubricOverview?: string | null;
   rubricItems?: RubricItemPayload[] | null;
   rubricCriteria?: RubricCriterionPayload[] | null;
@@ -68,6 +77,23 @@ function normalizeString(value?: string | null) {
 
 function normalizeCategory(value?: string | null) {
   return value && Object.values(BadgeCategory).includes(value as BadgeCategory) ? (value as BadgeCategory) : null;
+}
+
+// Trim, drop empties, case-insensitive de-dupe, cap at 5. The API is the
+// authoritative gate even though the client also limits to 5.
+function normalizeSkills(skills?: string[] | null) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of skills ?? []) {
+    const value = normalizeString(raw);
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(value);
+    if (result.length >= 5) break;
+  }
+  return result;
 }
 
 function slugify(value: string) {
@@ -172,23 +198,31 @@ function normalizeCorrectIndices(checkpoint: CheckpointPayload, optionCount: num
 function buildQuestionOptions(checkpoint: CheckpointPayload) {
   const questionType = checkpoint.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice';
 
+  // Stored only when populated, so badges without a unit / feedback keep the
+  // exact prior shape (blank unit => no unit assigned, per the design note).
+  const unit = normalizeString(checkpoint.unit);
+  const incorrectFeedback = normalizeString(checkpoint.incorrectFeedback);
+  const feedbackEntry = incorrectFeedback ? { incorrectFeedback } : {};
+
   if (questionType === 'shortAnswer') {
     const expectedAnswer = parseFiniteNumber(checkpoint.numericAnswer);
     const rawMin = parseFiniteNumber(checkpoint.numericRangeMin);
     const rawMax = parseFiniteNumber(checkpoint.numericRangeMax);
-    const acceptedRange =
+    const baseRange =
       rawMin != null && rawMax != null
         ? {
             min: Math.min(rawMin, rawMax),
             max: Math.max(rawMin, rawMax),
           }
         : null;
+    const acceptedRange = baseRange ? (unit ? { ...baseRange, unit } : baseRange) : unit ? { unit } : null;
 
     return {
       options: {
         type: 'shortAnswer',
         expectedAnswer,
         acceptedRange,
+        ...feedbackEntry,
       },
       correctIndex: null,
     };
@@ -202,6 +236,7 @@ function buildQuestionOptions(checkpoint: CheckpointPayload) {
       type: 'multipleChoice',
       options,
       correctIndices: correctIndices.length > 0 ? correctIndices : [0],
+      ...feedbackEntry,
     },
     correctIndex: correctIndices[0] ?? 0,
   };
@@ -223,14 +258,29 @@ function normalizeRubricItems(items?: RubricItemPayload[] | null, overview?: str
   return fallback ? [{ number: 1, text: fallback }] : [];
 }
 
+// Pair each option with its prewritten feedback (same index), then drop pairs
+// whose option is blank so options/optionFeedback stay aligned.
+function pairOptionsWithFeedback(options?: string[] | null, optionFeedback?: string[] | null) {
+  const rawFeedback = optionFeedback ?? [];
+  const pairs = (options ?? [])
+    .map((option, optionIndex) => ({
+      option: normalizeString(option),
+      feedback: normalizeString(rawFeedback[optionIndex]),
+    }))
+    .filter((pair): pair is { option: string; feedback: string | null } => Boolean(pair.option));
+
+  return {
+    options: pairs.map((pair) => pair.option),
+    optionFeedback: pairs.map((pair) => pair.feedback ?? ''),
+  };
+}
+
 function normalizeGradingCriteria(criteria?: RubricCriterionPayload[] | null) {
   return (criteria ?? [])
     .map((criterion, index) => ({
       number: index + 1,
       criterion: normalizeString(criterion.prompt),
-      options: (criterion.options ?? [])
-        .map((option) => normalizeString(option))
-        .filter((option): option is string => Boolean(option)),
+      ...pairOptionsWithFeedback(criterion.options, criterion.optionFeedback),
     }))
     .filter((criterion) => Boolean(criterion.criterion) || criterion.options.length > 0);
 }
@@ -238,20 +288,23 @@ function normalizeGradingCriteria(criteria?: RubricCriterionPayload[] | null) {
 function buildRequirementSummary({
   badgeName,
   lessonTitle,
+  skills,
   rubricItems,
   gradingCriteria,
   checkpoints,
 }: {
   badgeName: string;
   lessonTitle?: string | null;
+  skills: string[];
   rubricItems: Array<{ number: number; text: string }>;
-  gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
+  gradingCriteria: Array<{ number: number; criterion: string | null; options: string[]; optionFeedback: string[] }>;
   checkpoints: CheckpointPayload[];
 }) {
   return JSON.stringify({
-    version: 1,
+    version: 2,
     badgeName,
     lessonTitle: lessonTitle ?? null,
+    skills,
     rubricItems,
     gradingCriteria,
     checkpoints: checkpoints
@@ -268,6 +321,9 @@ function buildRequirementSummary({
         numericAnswer: parseFiniteNumber(checkpoint.numericAnswer),
         numericRangeMin: parseFiniteNumber(checkpoint.numericRangeMin),
         numericRangeMax: parseFiniteNumber(checkpoint.numericRangeMax),
+        unit: normalizeString(checkpoint.unit),
+        incorrectFeedback: normalizeString(checkpoint.incorrectFeedback),
+        incorrectFeedbackEnabled: Boolean(normalizeString(checkpoint.incorrectFeedback)),
       }))
       .filter((checkpoint) => Boolean(checkpoint.question)),
   });
@@ -281,6 +337,7 @@ function parseRequirementSummary(summary?: string | null) {
   if (!summary) {
     return {
       displayText: 'Independent badge requirement',
+      skills: [] as string[],
       rubricItems: [] as Array<{ number: number; text: string }>,
       gradingCriteria: [] as Array<{ number: number; criterion: string | null; options: string[] }>,
       checkpoints: [] as CheckpointPayload[],
@@ -289,8 +346,14 @@ function parseRequirementSummary(summary?: string | null) {
 
   try {
     const parsed = JSON.parse(summary) as {
+      skills?: string[];
       rubricItems?: Array<{ number?: number; text?: string | null }>;
-      gradingCriteria?: Array<{ number?: number; criterion?: string | null; options?: string[] }>;
+      gradingCriteria?: Array<{
+        number?: number;
+        criterion?: string | null;
+        options?: string[];
+        optionFeedback?: string[];
+      }>;
       checkpoints?: CheckpointPayload[];
     };
     const rubricItems = (parsed.rubricItems ?? [])
@@ -302,13 +365,12 @@ function parseRequirementSummary(summary?: string | null) {
     const gradingCriteria = (parsed.gradingCriteria ?? []).map((criterion, index) => ({
       number: criterion.number ?? index + 1,
       criterion: normalizeString(criterion.criterion),
-      options: (criterion.options ?? [])
-        .map((option) => normalizeString(option))
-        .filter((option): option is string => Boolean(option)),
+      ...pairOptionsWithFeedback(criterion.options, criterion.optionFeedback),
     }));
 
     return {
       displayText: rubricItems[0]?.text ?? gradingCriteria[0]?.criterion ?? 'Independent badge requirement',
+      skills: Array.isArray(parsed.skills) ? parsed.skills.filter((skill): skill is string => Boolean(skill)) : [],
       rubricItems,
       gradingCriteria,
       checkpoints: parsed.checkpoints ?? [],
@@ -316,6 +378,7 @@ function parseRequirementSummary(summary?: string | null) {
   } catch {
     return {
       displayText: summary,
+      skills: [] as string[],
       rubricItems: [] as Array<{ number: number; text: string }>,
       gradingCriteria: [] as Array<{ number: number; criterion: string | null; options: string[] }>,
       checkpoints: [] as CheckpointPayload[],
@@ -353,6 +416,9 @@ export async function GET() {
         name: true,
         description: true,
         category: true,
+        availableOn: true,
+        closesOn: true,
+        neverCloses: true,
         createdAt: true,
         requirements: {
           orderBy: { createdAt: 'asc' },
@@ -402,6 +468,9 @@ export async function GET() {
           name: badge.name,
           description: badge.description,
           category: badge.category,
+          availableOn: badge.availableOn?.toISOString() ?? null,
+          closesOn: badge.closesOn?.toISOString() ?? null,
+          neverCloses: badge.neverCloses ?? null,
           createdAt: badge.createdAt.toISOString(),
           assignedStudentCount: badge._count.studentProgress,
           requirements: badge.requirements.map((requirement) => {
@@ -411,6 +480,7 @@ export async function GET() {
               id: requirement.id,
               summary: requirement.summary,
               displayText: parsedSummary.displayText,
+              skills: parsedSummary.skills,
               rubricItems: parsedSummary.rubricItems,
               gradingCriteria: parsedSummary.gradingCriteria,
               checkpoints: parsedSummary.checkpoints,
@@ -457,15 +527,26 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const editorEmail = clerkUser.emailAddresses[0].emailAddress.trim().toLowerCase();
+    const editor = await prisma.user.findUnique({ where: { email: editorEmail }, select: { id: true } });
+
+    if (!editor) {
+      return NextResponse.json({ error: 'Creator user record was not found in the database.' }, { status: 404 });
+    }
+
     const body = (await req.json()) as UpdateBadgePayload;
     const badgeId = normalizeString(body.id);
     const badgeName = normalizeString(body.badgeName);
     const badgeDescription = normalizeString(body.badgeDescription);
     const category = normalizeCategory(body.category);
+    const skills = normalizeSkills(body.skills);
     const rubricOverview = normalizeString(body.rubricOverview);
     const rubricItems = normalizeRubricItems(body.rubricItems, rubricOverview);
     const gradingCriteria = normalizeGradingCriteria(body.gradingCriteria ?? body.rubricCriteria);
     const checkpoints = body.checkpoints ?? [];
+    const neverCloses = body.neverCloses ?? null;
+    const availableOn = parseDate(body.availableOn);
+    const closesOn = body.neverCloses ? null : parseDate(body.closesOn);
 
     if (!badgeId) {
       return badRequest('Badge id is required.');
@@ -476,12 +557,17 @@ export async function PATCH(req: NextRequest) {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      // Ownership filter: only the badge's creator may edit it. A non-owner (or
+      // unknown id) matches no row and Prisma throws P2025 -> 404 below.
       const badge = await tx.badge.update({
-        where: { id: badgeId },
+        where: { id: badgeId, createdById: editor.id },
         data: {
           name: badgeName,
           description: badgeDescription,
           category,
+          availableOn,
+          closesOn,
+          neverCloses,
         },
         select: {
           id: true,
@@ -489,7 +575,20 @@ export async function PATCH(req: NextRequest) {
           name: true,
           description: true,
           category: true,
+          sourceBadgeId: true,
         },
+      });
+
+      // Keep the per-badge content window consistent across the source badge
+      // and all its course copies (availability is shared, not per-copy).
+      const familyRootId = badge.sourceBadgeId ?? badge.id;
+      await tx.badge.updateMany({
+        where: {
+          OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
+          NOT: { id: badge.id },
+          createdById: editor.id,
+        },
+        data: { availableOn, closesOn, neverCloses },
       });
 
       const firstRequirement = await tx.badgeRequirement.findFirst({
@@ -505,31 +604,44 @@ export async function PATCH(req: NextRequest) {
         },
       });
 
+      const requirementSummary = buildRequirementSummary({
+        badgeName,
+        lessonTitle: firstRequirement?.lesson?.title ?? badgeName,
+        skills,
+        rubricItems,
+        gradingCriteria,
+        checkpoints,
+      });
+
       if (firstRequirement) {
         await tx.badgeRequirement.update({
           where: { id: firstRequirement.id },
-          data: {
-            summary: buildRequirementSummary({
-              badgeName,
-              lessonTitle: firstRequirement.lesson?.title ?? badgeName,
-              rubricItems,
-              gradingCriteria,
-              checkpoints,
-            }),
-          },
+          data: { summary: requirementSummary },
         });
       } else {
         await tx.badgeRequirement.create({
           data: {
             badgeId,
-            summary: buildRequirementSummary({
-              badgeName,
-              lessonTitle: badgeName,
-              rubricItems,
-              gradingCriteria,
-              checkpoints,
-            }),
+            summary: requirementSummary,
           },
+        });
+      }
+
+      // Sync the rest of the badge family's requirement summaries so course
+      // copies don't keep a stale rubric/skills after a source-badge edit.
+      const otherFamilyBadges = await tx.badge.findMany({
+        where: {
+          OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
+          NOT: { id: badge.id },
+          createdById: editor.id,
+        },
+        select: { id: true },
+      });
+
+      if (otherFamilyBadges.length > 0) {
+        await tx.badgeRequirement.updateMany({
+          where: { badgeId: { in: otherFamilyBadges.map((familyBadge) => familyBadge.id) } },
+          data: { summary: requirementSummary },
         });
       }
 
@@ -580,10 +692,16 @@ export async function POST(req: NextRequest) {
     const youtubeUrl = normalizeString(body.youtubeUrl);
     const category = normalizeCategory(body.category);
     const checkpoints = body.checkpoints ?? [];
+    const skills = normalizeSkills(body.skills);
     const rubricOverview = normalizeString(body.rubricOverview);
     const rubricItems = normalizeRubricItems(body.rubricItems, rubricOverview);
     const gradingCriteria = normalizeGradingCriteria(body.gradingCriteria ?? body.rubricCriteria);
-    const dueDate = body.neverCloses ? null : parseDate(body.closesOn);
+    // Per-badge content window (shared across students). neverCloses === true
+    // means the badge never closes; closesOn is ignored and dueDate is null.
+    const neverCloses = body.neverCloses ?? null;
+    const availableOn = parseDate(body.availableOn);
+    const closesOn = body.neverCloses ? null : parseDate(body.closesOn);
+    const dueDate = closesOn;
     const videoId = extractYouTubeId(youtubeUrl);
     const thumbnailUrl = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
     const videoDurationSeconds = parseTimeToSeconds(body.videoLength);
@@ -637,6 +755,7 @@ export async function POST(req: NextRequest) {
         const sourceSummary = buildRequirementSummary({
           badgeName,
           lessonTitle: videoTitle,
+          skills,
           rubricItems,
           gradingCriteria,
           checkpoints,
@@ -648,6 +767,9 @@ export async function POST(req: NextRequest) {
             name: badgeName,
             description: badgeDescription,
             category,
+            availableOn,
+            closesOn,
+            neverCloses,
             createdById: creator.id,
           },
           select: {
@@ -684,6 +806,9 @@ export async function POST(req: NextRequest) {
               name: badgeName,
               description: badgeDescription,
               category,
+              availableOn,
+              closesOn,
+              neverCloses,
               createdById: creator.id,
               sourceBadgeId: sourceBadge.id,
             },
@@ -730,15 +855,23 @@ export async function POST(req: NextRequest) {
             },
           });
 
-          for (const [checkpointIndex, checkpoint] of checkpoints.entries()) {
+          // Precompute each checkpoint's normalized data once, keyed by its sortOrder
+          // (== checkpointIndex). We batch-create checkpoints, read their generated ids
+          // back via the (lessonId, sortOrder) unique key, then batch-create questions.
+          // Capture lesson in a non-null local so the map closure narrows correctly.
+          const lessonId = lesson.id;
+          const checkpointPlans = checkpoints.map((checkpoint, checkpointIndex) => {
             const prompt = normalizeString(checkpoint.question);
             const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
             const points = Number(checkpoint.points) || 0;
             const questionOptions = buildQuestionOptions(checkpoint);
 
-            const savedCheckpoint = await tx.lessonCheckpoint.create({
+            return {
+              sortOrder: checkpointIndex,
+              prompt,
+              questionOptions,
               data: {
-                lessonId: lesson.id,
+                lessonId,
                 segmentId: segment.id,
                 sortOrder: checkpointIndex,
                 title,
@@ -750,21 +883,32 @@ export async function POST(req: NextRequest) {
                 questionCount: prompt ? 1 : 0,
                 timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
               },
-              select: {
-                id: true,
-              },
+            };
+          });
+
+          if (checkpointPlans.length > 0) {
+            await tx.lessonCheckpoint.createMany({
+              data: checkpointPlans.map((plan) => plan.data),
             });
 
-            if (prompt) {
-              await tx.checkpointQuestion.create({
-                data: {
-                  checkpointId: savedCheckpoint.id,
-                  sortOrder: 0,
-                  prompt,
-                  options: questionOptions.options,
-                  correctIndex: questionOptions.correctIndex,
-                },
-              });
+            const createdCheckpoints = await tx.lessonCheckpoint.findMany({
+              where: { lessonId: lesson.id },
+              select: { id: true, sortOrder: true },
+            });
+            const checkpointIdByOrder = new Map(createdCheckpoints.map((c) => [c.sortOrder, c.id]));
+
+            const questionData = checkpointPlans
+              .filter((plan) => plan.prompt)
+              .map((plan) => ({
+                checkpointId: checkpointIdByOrder.get(plan.sortOrder)!,
+                sortOrder: 0,
+                prompt: plan.prompt!,
+                options: plan.questionOptions.options,
+                correctIndex: plan.questionOptions.correctIndex,
+              }));
+
+            if (questionData.length > 0) {
+              await tx.checkpointQuestion.createMany({ data: questionData });
             }
           }
         }
