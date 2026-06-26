@@ -511,14 +511,17 @@
 }
 
 .demographicModalTitle {
-  font-size: 1.4rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.6rem;
   font-weight: 700;
+  color: #1f2937;
   margin-bottom: 0.2rem;
 }
 
 .demographicModalHint {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.9rem;
-  color: #4b5563;
+  color: #6b7280;
   margin-bottom: 0.8rem;
 }
 
@@ -530,15 +533,25 @@
 
 .demographicModalField input,
 .demographicModalField select {
-  border-radius: 0.5rem;
+  font-family: 'Open Sans', sans-serif;
+  border-radius: 0.6rem;
   border: 1px solid #d1d5db;
-  padding: 0.45rem 0.65rem;
-  font-size: 0.9rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.95rem;
+  color: #1f2937;
+}
+
+.demographicModalField input:focus,
+.demographicModalField select:focus {
+  outline: none;
+  border-color: #2e6aa9;
+  box-shadow: 0 0 0 3px rgba(46, 106, 169, 0.15);
 }
 
 .demographicModalLabel {
-  font-size: 0.9rem;
-  font-weight: 500;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
   color: #111827;
 }
 
@@ -550,23 +563,41 @@
 }
 
 .demographicModalCancel {
+  font-family: 'Lato', sans-serif;
   border-radius: 999px;
   border: 1px solid #d1d5db;
   background: #ffffff;
-  padding: 0.5rem 1.1rem;
-  font-size: 0.9rem;
+  padding: 0.5rem 1.3rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #1f2937;
   cursor: pointer;
 }
 
+.demographicModalCancel:hover {
+  background: #f3f4f6;
+}
+
 .demographicModalSave {
+  font-family: 'Lato', sans-serif;
   border-radius: 999px;
   border: none;
   background: #2e6aa9;
   color: #ffffff;
-  padding: 0.5rem 1.4rem;
-  font-size: 0.9rem;
+  padding: 0.5rem 1.6rem;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
+}
+
+.demographicModalSave:hover {
+  background: #285d94;
+}
+
+.demographicModalSave:disabled,
+.demographicModalCancel:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* ---------- Language modal (Change Language) ---------- */
