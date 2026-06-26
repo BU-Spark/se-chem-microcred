@@ -233,7 +233,12 @@ export default function AssessmentReadinessPage() {
   const studentId = resolveParam(params?.studentId);
   const badgeId = resolveParam(params?.badgeId);
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
-  const { profile, badgeDetail, isLoading, error, refresh } = useAssessmentReadiness(courseId, studentId, badgeId, email);
+  const { profile, badgeDetail, isLoading, error, refresh } = useAssessmentReadiness(
+    courseId,
+    studentId,
+    badgeId,
+    email
+  );
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
@@ -447,7 +452,9 @@ export default function AssessmentReadinessPage() {
                           )}
                         </div>
                         <div className={rosterStyles.contactInfo}>
-                          <p className={rosterStyles.contactName}>{contactDisplayName(sideContact.name, sideContact.email)}</p>
+                          <p className={rosterStyles.contactName}>
+                            {contactDisplayName(sideContact.name, sideContact.email)}
+                          </p>
                           <p className={rosterStyles.contactEmail}>{sideContact.email || 'Not provided'}</p>
                         </div>
                       </div>
@@ -606,7 +613,10 @@ export default function AssessmentReadinessPage() {
               </section>
 
               <div className={styles.actionRow}>
-                <Link href={`/roster/${profile.member.id}?courseId=${profile.course.id}&badgeId=${badgeDetail.badge.id}`} className={styles.backLink}>
+                <Link
+                  href={`/roster/${profile.member.id}?courseId=${profile.course.id}&badgeId=${badgeDetail.badge.id}`}
+                  className={styles.backLink}
+                >
                   Back
                 </Link>
                 <button
