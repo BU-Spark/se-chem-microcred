@@ -27,6 +27,7 @@ type RubricCriterionPayload = {
   id?: string;
   prompt?: string | null;
   options?: string[] | null;
+  optionFeedback?: string[] | null;
 };
 
 type RubricItemPayload = {
@@ -259,13 +260,24 @@ function normalizeRubricItems(items?: RubricItemPayload[] | null, overview?: str
 
 function normalizeGradingCriteria(criteria?: RubricCriterionPayload[] | null) {
   return (criteria ?? [])
-    .map((criterion, index) => ({
-      number: index + 1,
-      criterion: normalizeString(criterion.prompt),
-      options: (criterion.options ?? [])
-        .map((option) => normalizeString(option))
-        .filter((option): option is string => Boolean(option)),
-    }))
+    .map((criterion, index) => {
+      // Pair each option with its prewritten feedback (same index), then drop
+      // pairs whose option is blank so options/optionFeedback stay aligned.
+      const rawFeedback = criterion.optionFeedback ?? [];
+      const pairs = (criterion.options ?? [])
+        .map((option, optionIndex) => ({
+          option: normalizeString(option),
+          feedback: normalizeString(rawFeedback[optionIndex]),
+        }))
+        .filter((pair): pair is { option: string; feedback: string | null } => Boolean(pair.option));
+
+      return {
+        number: index + 1,
+        criterion: normalizeString(criterion.prompt),
+        options: pairs.map((pair) => pair.option),
+        optionFeedback: pairs.map((pair) => pair.feedback ?? ''),
+      };
+    })
     .filter((criterion) => Boolean(criterion.criterion) || criterion.options.length > 0);
 }
 
@@ -281,7 +293,7 @@ function buildRequirementSummary({
   lessonTitle?: string | null;
   skills: string[];
   rubricItems: Array<{ number: number; text: string }>;
-  gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
+  gradingCriteria: Array<{ number: number; criterion: string | null; options: string[]; optionFeedback: string[] }>;
   checkpoints: CheckpointPayload[];
 }) {
   return JSON.stringify({
@@ -332,7 +344,12 @@ function parseRequirementSummary(summary?: string | null) {
     const parsed = JSON.parse(summary) as {
       skills?: string[];
       rubricItems?: Array<{ number?: number; text?: string | null }>;
-      gradingCriteria?: Array<{ number?: number; criterion?: string | null; options?: string[] }>;
+      gradingCriteria?: Array<{
+        number?: number;
+        criterion?: string | null;
+        options?: string[];
+        optionFeedback?: string[];
+      }>;
       checkpoints?: CheckpointPayload[];
     };
     const rubricItems = (parsed.rubricItems ?? [])
@@ -341,13 +358,22 @@ function parseRequirementSummary(summary?: string | null) {
         text: normalizeString(item.text),
       }))
       .filter((item): item is { number: number; text: string } => Boolean(item.text));
-    const gradingCriteria = (parsed.gradingCriteria ?? []).map((criterion, index) => ({
-      number: criterion.number ?? index + 1,
-      criterion: normalizeString(criterion.criterion),
-      options: (criterion.options ?? [])
-        .map((option) => normalizeString(option))
-        .filter((option): option is string => Boolean(option)),
-    }));
+    const gradingCriteria = (parsed.gradingCriteria ?? []).map((criterion, index) => {
+      const rawFeedback = criterion.optionFeedback ?? [];
+      const pairs = (criterion.options ?? [])
+        .map((option, optionIndex) => ({
+          option: normalizeString(option),
+          feedback: normalizeString(rawFeedback[optionIndex]),
+        }))
+        .filter((pair): pair is { option: string; feedback: string | null } => Boolean(pair.option));
+
+      return {
+        number: criterion.number ?? index + 1,
+        criterion: normalizeString(criterion.criterion),
+        options: pairs.map((pair) => pair.option),
+        optionFeedback: pairs.map((pair) => pair.feedback ?? ''),
+      };
+    });
 
     return {
       displayText: rubricItems[0]?.text ?? gradingCriteria[0]?.criterion ?? 'Independent badge requirement',

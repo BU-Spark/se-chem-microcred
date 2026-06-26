@@ -11,8 +11,9 @@ import { DEFAULT_DRAFT, DRAFT_STORAGE_KEY, STEP_DEFINITIONS } from './types';
 import type { BadgeDraft, BadgesResponse, CheckpointDraft, RubricCriterion } from './types';
 import {
   badgeToDraft,
-  buildVideoEmbedUrl,
   buildVideoThumbnail,
+  extractYouTubeId,
+  formatSecondsToTimecode,
   isValidVideoLength,
   isValidYouTubeUrl,
 } from './lib/badge-helpers';
@@ -124,7 +125,7 @@ export default function BadgeCreationPage() {
 
   const displayName = studentData?.student?.name || user?.fullName || '';
   const activeStep = STEP_DEFINITIONS[currentStep];
-  const videoEmbedUrl = buildVideoEmbedUrl(draft.youtubeUrl);
+  const videoId = extractYouTubeId(draft.youtubeUrl);
   const videoThumbnail = buildVideoThumbnail(draft.youtubeUrl);
 
   if (!isLoaded || !isSignedIn) return null;
@@ -192,28 +193,40 @@ export default function BadgeCreationPage() {
     );
   };
 
-  const addCheckpoint = () => {
-    const nextCount = draft.checkpoints.length + 1;
-    updateDraft('checkpoints', [
-      ...draft.checkpoints,
-      {
-        id: `checkpoint-${Date.now()}`,
-        title: `Checkpoint ${nextCount}`,
-        time: '00:00:00',
-        points: 5,
-        question: '',
-        questionType: 'multipleChoice',
-        options: ['', '', '', ''],
-        correctIndices: [0],
-        numericAnswer: '',
-        numericRangeMin: '',
-        numericRangeMax: '',
-        unit: '',
-        incorrectFeedback: '',
-        incorrectFeedbackEnabled: false,
-        segmentLabel: `Segment ${Math.max(nextCount, 1)} Starts 00:00:00`,
-      },
-    ]);
+  // Returns the new checkpoint's id so the step can immediately open its editor
+  // modal. `atSeconds` is the live playhead position from the video player.
+  const addCheckpoint = (atSeconds?: number) => {
+    const id = `checkpoint-${Date.now()}`;
+    const time = formatSecondsToTimecode(atSeconds ?? 0);
+    setDraft((current) => {
+      const nextCount = current.checkpoints.length + 1;
+      return {
+        ...current,
+        checkpoints: [
+          ...current.checkpoints,
+          {
+            id,
+            title: `Checkpoint ${nextCount}`,
+            time,
+            points: 5,
+            question: '',
+            questionType: 'multipleChoice',
+            options: ['', '', '', ''],
+            correctIndices: [0],
+            numericAnswer: '',
+            numericRangeMin: '',
+            numericRangeMax: '',
+            unit: '',
+            incorrectFeedback: '',
+            incorrectFeedbackEnabled: false,
+            segmentLabel: `Segment ${nextCount} Starts ${time}`,
+          },
+        ],
+      };
+    });
+    setSubmissionState(null);
+    setSubmitError('');
+    return id;
   };
 
   const removeCheckpoint = (checkpointId: string) => {
@@ -269,6 +282,7 @@ export default function BadgeCreationPage() {
         id: `criterion-${Date.now()}`,
         prompt: '',
         options: ['', '', ''],
+        optionFeedback: ['', '', ''],
       },
     ]);
   };
@@ -296,11 +310,29 @@ export default function BadgeCreationPage() {
     );
   };
 
+  // Prewritten feedback is kept index-aligned with `options`.
+  const updateRubricCriterionOptionFeedback = (criterionId: string, optionIndex: number, value: string) => {
+    updateDraft(
+      'rubricCriteria',
+      draft.rubricCriteria.map((criterion) => {
+        if (criterion.id !== criterionId) return criterion;
+
+        const optionFeedback = [...criterion.optionFeedback];
+        while (optionFeedback.length < criterion.options.length) optionFeedback.push('');
+        optionFeedback[optionIndex] = value;
+
+        return { ...criterion, optionFeedback };
+      })
+    );
+  };
+
   const addRubricCriterionOption = (criterionId: string) => {
     updateDraft(
       'rubricCriteria',
       draft.rubricCriteria.map((criterion) =>
-        criterion.id === criterionId ? { ...criterion, options: [...criterion.options, ''] } : criterion
+        criterion.id === criterionId
+          ? { ...criterion, options: [...criterion.options, ''], optionFeedback: [...criterion.optionFeedback, ''] }
+          : criterion
       )
     );
   };
@@ -314,6 +346,7 @@ export default function BadgeCreationPage() {
         return {
           ...criterion,
           options: criterion.options.filter((_, index) => index !== optionIndex),
+          optionFeedback: criterion.optionFeedback.filter((_, index) => index !== optionIndex),
         };
       })
     );
@@ -428,7 +461,8 @@ export default function BadgeCreationPage() {
             {currentStep === 2 && (
               <CheckpointsStep
                 draft={draft}
-                videoEmbedUrl={videoEmbedUrl}
+                videoId={videoId}
+                videoThumbnail={videoThumbnail}
                 addCheckpoint={addCheckpoint}
                 removeCheckpoint={removeCheckpoint}
                 updateCheckpoint={updateCheckpoint}
@@ -447,6 +481,7 @@ export default function BadgeCreationPage() {
                 addRubricCriterion={addRubricCriterion}
                 removeRubricCriterion={removeRubricCriterion}
                 updateRubricCriterionOption={updateRubricCriterionOption}
+                updateRubricCriterionOptionFeedback={updateRubricCriterionOptionFeedback}
                 addRubricCriterionOption={addRubricCriterionOption}
                 removeRubricCriterionOption={removeRubricCriterionOption}
               />

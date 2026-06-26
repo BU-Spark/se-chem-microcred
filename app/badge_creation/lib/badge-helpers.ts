@@ -57,6 +57,31 @@ export function isValidVideoLength(value?: string | null) {
   return /^(\d{1,2}:)?\d{1,2}:\d{2}$/.test(value.trim());
 }
 
+// Parse "HH:MM:SS" / "MM:SS" / "SS" into whole seconds. Invalid input => 0.
+export function parseTimecodeToSeconds(value?: string | null) {
+  if (!value || !value.trim()) return 0;
+
+  const parts = value
+    .trim()
+    .split(':')
+    .map((part) => Number(part));
+  if (parts.some((part) => Number.isNaN(part) || part < 0)) return 0;
+
+  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+  if (parts.length === 2) return parts[0] * 60 + parts[1];
+  if (parts.length === 1) return parts[0];
+  return 0;
+}
+
+// Format whole seconds into a zero-padded "HH:MM:SS" timecode.
+export function formatSecondsToTimecode(totalSeconds?: number | null) {
+  const safe = Math.max(0, Math.floor(totalSeconds ?? 0));
+  const hours = Math.floor(safe / 3600);
+  const minutes = Math.floor((safe % 3600) / 60);
+  const seconds = safe % 60;
+  return [hours, minutes, seconds].map((part) => String(part).padStart(2, '0')).join(':');
+}
+
 export function formatDisplayDate(dateValue: string, fallback = 'Not scheduled') {
   if (!dateValue) return fallback;
 
@@ -149,11 +174,16 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
       }))
     : [{ id: 'rubric-item-1', text: requirement?.displayText ?? '' }];
   const rubricCriteria = requirement?.gradingCriteria?.length
-    ? requirement.gradingCriteria.map((criterion) => ({
-        id: `criterion-${criterion.number}`,
-        prompt: criterion.criterion ?? '',
-        options: criterion.options.length ? criterion.options : ['', '', ''],
-      }))
+    ? requirement.gradingCriteria.map((criterion) => {
+        const options = criterion.options.length ? criterion.options : ['', '', ''];
+        const feedback = criterion.optionFeedback ?? [];
+        return {
+          id: `criterion-${criterion.number}`,
+          prompt: criterion.criterion ?? '',
+          options,
+          optionFeedback: options.map((_, index) => feedback[index] ?? ''),
+        };
+      })
     : DEFAULT_DRAFT.rubricCriteria;
 
   // Availability prefers the new per-badge columns; fall back to lesson.dueDate

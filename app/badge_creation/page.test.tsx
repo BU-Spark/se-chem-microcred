@@ -85,6 +85,9 @@ describe('Badge creation page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
+    // Checkpoints are authored in a per-checkpoint modal opened from the rail
+    // node (or auto-opened when a new checkpoint is added via the video "+").
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Checkpoint 1' }));
     fireEvent.change(screen.getByLabelText('Question prompt'), {
       target: { value: 'What should you check first?' },
     });
@@ -95,10 +98,10 @@ describe('Badge creation page', () => {
       target: { value: 'Bench is wet' },
     });
     fireEvent.click(screen.getByLabelText('Choice 2 is correct'));
+    fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
 
-    fireEvent.click(screen.getByRole('button', { name: '+' }));
-    const questionPrompts = screen.getAllByLabelText('Question prompt');
-    fireEvent.change(questionPrompts[1], {
+    fireEvent.click(screen.getByRole('button', { name: 'Add a checkpoint at the current time' }));
+    fireEvent.change(screen.getByLabelText('Question prompt'), {
       target: { value: 'What temperature range is acceptable?' },
     });
     fireEvent.change(screen.getByLabelText('Checkpoint 2 question type'), {
@@ -113,13 +116,15 @@ describe('Badge creation page', () => {
     fireEvent.change(screen.getByLabelText('Checkpoint 2 accepted maximum'), {
       target: { value: '45' },
     });
+    fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     fireEvent.change(screen.getByLabelText('Rubric item 1'), {
       target: { value: 'Student performs setup and shutdown safely.' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Rubric Item' }));
+    // The rubric list auto-numbers: pressing Enter on a filled row spawns the next.
+    fireEvent.keyDown(screen.getByLabelText('Rubric item 1'), { key: 'Enter' });
     fireEvent.change(screen.getByLabelText('Rubric item 2'), {
       target: { value: 'Student explains the safety reason for each step.' },
     });
@@ -345,6 +350,7 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> video
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
 
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Checkpoint 1' }));
     fireEvent.change(screen.getByLabelText('Question prompt'), { target: { value: 'What volume?' } });
     fireEvent.change(screen.getByLabelText('Checkpoint 1 question type'), { target: { value: 'shortAnswer' } });
     fireEvent.change(screen.getByLabelText('Checkpoint 1 exact numeric answer'), { target: { value: '10' } });
@@ -353,6 +359,7 @@ describe('Badge creation page', () => {
     fireEvent.change(screen.getByLabelText('Checkpoint 1 incorrect-answer feedback'), {
       target: { value: 'Re-measure carefully.' },
     });
+    fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> rubric
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> review

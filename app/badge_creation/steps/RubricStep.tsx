@@ -10,6 +10,7 @@ export default function RubricStep({
   addRubricCriterion,
   removeRubricCriterion,
   updateRubricCriterionOption,
+  updateRubricCriterionOptionFeedback,
   addRubricCriterionOption,
   removeRubricCriterionOption,
 }: {
@@ -25,17 +26,18 @@ export default function RubricStep({
   addRubricCriterion: () => void;
   removeRubricCriterion: (criterionId: string) => void;
   updateRubricCriterionOption: (criterionId: string, optionIndex: number, value: string) => void;
+  updateRubricCriterionOptionFeedback: (criterionId: string, optionIndex: number, value: string) => void;
   addRubricCriterionOption: (criterionId: string) => void;
   removeRubricCriterionOption: (criterionId: string, optionIndex: number) => void;
 }) {
   return (
-    <div className={styles.rubricLayout}>
+    <div className={styles.rubricStack}>
       <div className={styles.editorCard}>
         <h3 className={styles.panelTitle}>Create Rubric</h3>
-        <div className={styles.numberedRubricList}>
+        <ol className={styles.rubricOrderedList}>
           {draft.rubricItems.map((item, index) => (
-            <div key={item.id} className={styles.numberedRubricItem}>
-              <span className={styles.rubricNumber}>{index + 1}.</span>
+            <li key={item.id} className={styles.rubricOrderedItem}>
+              <span className={styles.rubricOrderedNumber}>{index + 1}.</span>
               <textarea
                 aria-label={`Rubric item ${index + 1}`}
                 className={styles.rubricLineInput}
@@ -55,80 +57,119 @@ export default function RubricStep({
                 }}
                 placeholder="Start typing..."
               />
-              <button
-                type="button"
-                className={styles.removeTextButton}
-                onClick={() => removeRubricItem(item.id)}
-                disabled={draft.rubricItems.length <= 1}
-              >
-                Remove
-              </button>
-            </div>
+              {draft.rubricItems.length > 1 && (
+                <button
+                  type="button"
+                  className={styles.rubricGhostRemove}
+                  onClick={() => removeRubricItem(item.id)}
+                  aria-label={`Remove rubric item ${index + 1}`}
+                >
+                  ×
+                </button>
+              )}
+            </li>
           ))}
-        </div>
-        <button type="button" className={styles.secondaryButton} onClick={addRubricItem}>
-          Add Rubric Item
-        </button>
+        </ol>
       </div>
 
       <div className={styles.editorCard}>
         <h3 className={styles.panelTitle}>Instructor Grading</h3>
-        <div className={styles.rubricList}>
+        <div className={styles.gradingList}>
           {draft.rubricCriteria.map((criterion, criterionIndex) => (
-            <div key={criterion.id} className={styles.rubricCriterionCard}>
-              <label className={styles.fieldStack}>
-                <span>Criterion {criterionIndex + 1}</span>
-                <textarea
-                  className={styles.textAreaCompact}
+            <div key={criterion.id} className={styles.gradingCriterion}>
+              <div className={styles.gradingPromptRow}>
+                <input
+                  id={`criterion-prompt-${criterion.id}`}
                   aria-label={`Criterion ${criterionIndex + 1}`}
+                  className={styles.gradingPromptInput}
                   value={criterion.prompt}
-                  onChange={(event) => updateRubricCriterion(criterion.id, 'prompt', event.target.value)}
                   placeholder="What should the instructor evaluate?"
+                  onChange={(event) => updateRubricCriterion(criterion.id, 'prompt', event.target.value)}
                 />
-              </label>
-              <div className={styles.gradingOptionsList}>
+                <label
+                  htmlFor={`criterion-prompt-${criterion.id}`}
+                  className={styles.gradingPencil}
+                  aria-label={`Edit criterion ${criterionIndex + 1}`}
+                  title="Edit criterion"
+                >
+                  ✎
+                </label>
+              </div>
+
+              <div className={styles.gradingOptionsGrid}>
                 {criterion.options.map((option, optionIndex) => (
-                  <label key={`${criterion.id}-option-${optionIndex}`} className={styles.optionRow}>
-                    <input type="checkbox" aria-label={`Criterion ${criterionIndex + 1} option ${optionIndex + 1}`} />
-                    <input
-                      className={styles.textField}
-                      value={option}
-                      placeholder={`Selection option ${optionIndex + 1}`}
-                      onChange={(event) => updateRubricCriterionOption(criterion.id, optionIndex, event.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className={styles.removeTextButton}
-                      onClick={() => removeRubricCriterionOption(criterion.id, optionIndex)}
-                      disabled={criterion.options.length <= 1}
-                    >
-                      Remove
-                    </button>
-                  </label>
+                  <div key={`${criterion.id}-option-${optionIndex}`} className={styles.gradingOptionRow}>
+                    <div className={styles.gradingOptionLeft}>
+                      <span className={styles.gradingCheckbox} aria-hidden="true" />
+                      <input
+                        className={styles.gradingUnderlineInput}
+                        value={option}
+                        placeholder={`Selection option ${optionIndex + 1}`}
+                        onChange={(event) => updateRubricCriterionOption(criterion.id, optionIndex, event.target.value)}
+                      />
+                    </div>
+                    <div className={styles.gradingFeedbackCell}>
+                      <span
+                        className={`${styles.gradingCheckbox} ${
+                          criterion.optionFeedback[optionIndex]?.trim() ? styles.gradingCheckboxFilled : ''
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <input
+                        className={`${styles.gradingUnderlineInput} ${styles.gradingFeedbackInput}`}
+                        value={criterion.optionFeedback[optionIndex] ?? ''}
+                        placeholder="Add prewritten feedback for this option"
+                        aria-label={`Criterion ${criterionIndex + 1} option ${optionIndex + 1} feedback`}
+                        onChange={(event) =>
+                          updateRubricCriterionOptionFeedback(criterion.id, optionIndex, event.target.value)
+                        }
+                      />
+                    </div>
+                    {criterion.options.length > 1 && (
+                      <button
+                        type="button"
+                        className={styles.rubricGhostRemove}
+                        onClick={() => removeRubricCriterionOption(criterion.id, optionIndex)}
+                        aria-label={`Remove criterion ${criterionIndex + 1} option ${optionIndex + 1}`}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
                 ))}
               </div>
-              <div className={styles.inlineActions}>
+
+              <div className={styles.gradingCriterionActions}>
                 <button
                   type="button"
-                  className={styles.secondaryButton}
+                  className={styles.gradingAddItem}
                   onClick={() => addRubricCriterionOption(criterion.id)}
                 >
-                  Add Option
+                  <span className={styles.gradingCheckbox} aria-hidden="true" />
+                  Add rubric item
                 </button>
-                <button
-                  type="button"
-                  className={styles.removeTextButton}
-                  onClick={() => removeRubricCriterion(criterion.id)}
-                  disabled={draft.rubricCriteria.length <= 1}
-                >
-                  Remove Criterion
-                </button>
+                {draft.rubricCriteria.length > 1 && (
+                  <button
+                    type="button"
+                    className={styles.rubricGhostRemove}
+                    onClick={() => removeRubricCriterion(criterion.id)}
+                    aria-label={`Remove criterion ${criterionIndex + 1}`}
+                  >
+                    Remove criterion
+                  </button>
+                )}
               </div>
             </div>
           ))}
         </div>
-        <button type="button" className={styles.secondaryButton} onClick={addRubricCriterion}>
-          Add Criterion
+
+        <button
+          type="button"
+          className={styles.addCriterionButton}
+          aria-label="Add Criterion"
+          onClick={addRubricCriterion}
+        >
+          +
         </button>
       </div>
     </div>

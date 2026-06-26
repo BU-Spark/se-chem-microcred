@@ -31,6 +31,8 @@ export type RubricCriterion = {
   id: string;
   prompt: string;
   options: string[];
+  // Prewritten feedback paired 1:1 with `options` (same index). Blank => none.
+  optionFeedback: string[];
 };
 
 export type RubricItem = {
@@ -72,7 +74,12 @@ export type BadgeCatalogItem = {
     displayText: string;
     skills?: string[];
     rubricItems: Array<{ number: number; text: string }>;
-    gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
+    gradingCriteria: Array<{
+      number: number;
+      criterion: string | null;
+      options: string[];
+      optionFeedback?: string[];
+    }>;
     checkpoints?: Array<Partial<CheckpointDraft> & { number?: number; correctIndex?: number | null }>;
     lesson: {
       title: string;
@@ -149,6 +156,7 @@ export const DEFAULT_DRAFT: BadgeDraft = {
       id: 'criterion-1',
       prompt: '',
       options: ['', '', ''],
+      optionFeedback: ['', '', ''],
     },
   ],
 };
