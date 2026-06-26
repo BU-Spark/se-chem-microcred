@@ -2,20 +2,12 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useMemo } from 'react';
-import { useParams, usePathname, useRouter } from 'next/navigation';
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import styles from './page.module.css';
-
-const NAV_ITEMS = [
-  { label: 'Home', href: '/' },
-  { label: 'Profile', href: '/profile' },
-  { label: 'My Analytics', href: '/analytics' },
-  { label: 'Badge Wallet', href: '/badges' },
-  { label: 'Grades', href: '/grades' },
-  { label: 'Settings', href: '/settings' },
-];
 
 const REVIEW_CONTENT: Record<
   string,
@@ -145,21 +137,12 @@ const BADGE_STATUS_LABEL: Record<string, string> = {
   COMPLETED: 'Completed',
 };
 
-function initialsFromName(name?: string | null) {
-  if (!name) return 'ST';
-  const parts = name.split(/\s+/).filter(Boolean);
-  return parts
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
 export default function BadgeFeedbackPage() {
   const params = useParams<{ badgeSlug: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
+  const [isSigningOut, setIsSigningOut] = useState(false);
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
 
   const allBadges = useMemo<BadgeRecord[]>(() => {
@@ -210,42 +193,27 @@ export default function BadgeFeedbackPage() {
 
   const displayName = studentData?.student.name || user?.fullName || 'Student Demo';
 
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.replace('/sign-in');
+    } catch (error) {
+      console.error('Sign out failed', error);
+      setIsSigningOut(false);
+    }
+  };
+
   if (!content) {
     return (
       <div className="page">
-        <aside className="sidebar">
-          <div className={`${styles.sidebarProfile} profile`}>
-            <div className={`${styles.sidebarAvatar} avatar`}>{initialsFromName(displayName)}</div>
-            <div className={`${styles.sidebarName} name`}>{displayName}</div>
-          </div>
-
-          <nav className={`${styles.sidebarNavList} navList`} aria-label="Main">
-            {NAV_ITEMS.map((item) => {
-              const isActive = pathname === item.href || (item.href === '/badges' && pathname.startsWith('/badges'));
-              const cls = `navItem${isActive ? ' navItemActive' : ''} ${styles.sidebarNavItem} ${
-                isActive ? styles.sidebarNavItemActive : ''
-              }`.trim();
-              return (
-                <Link key={item.href} href={item.href} className={cls}>
-                  {item.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          <div className="sidebarFooter">
-            <button
-              type="button"
-              className="signOffButton"
-              onClick={() => {
-                void signOut();
-              }}
-            >
-              Sign off
-            </button>
-            <div className="brandFooter">checkd.</div>
-          </div>
-        </aside>
+        <Sidebar
+          navItems={SIDEBAR_NAV}
+          displayName={displayName}
+          onSignOut={handleSignOut}
+          isSigningOut={isSigningOut}
+        />
 
         <main className="main">
           <div className={styles.pageContent}>
@@ -271,39 +239,7 @@ export default function BadgeFeedbackPage() {
 
   return (
     <div className="page">
-      <aside className="sidebar">
-        <div className={`${styles.sidebarProfile} profile`}>
-          <div className={`${styles.sidebarAvatar} avatar`}>{initialsFromName(displayName)}</div>
-          <div className={`${styles.sidebarName} name`}>{displayName}</div>
-        </div>
-
-        <nav className={`${styles.sidebarNavList} navList`} aria-label="Main">
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname === item.href || (item.href === '/badges' && pathname.startsWith('/badges'));
-            const cls = `navItem${isActive ? ' navItemActive' : ''} ${styles.sidebarNavItem} ${
-              isActive ? styles.sidebarNavItemActive : ''
-            }`.trim();
-            return (
-              <Link key={item.href} href={item.href} className={cls}>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="sidebarFooter">
-          <button
-            type="button"
-            className="signOffButton"
-            onClick={() => {
-              void signOut();
-            }}
-          >
-            Sign off
-          </button>
-          <div className="brandFooter">checkd.</div>
-        </div>
-      </aside>
+      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className="main">
         <div className={styles.pageContent}>

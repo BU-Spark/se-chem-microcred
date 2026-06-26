@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type LessonRecord } from '../hooks/useStudentData';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import styles from './page.module.css';
 import veryUnhappy from '../../public/assets/survey_faces/very_unhappy.svg';
 import slightlyUnhappy from '../../public/assets/survey_faces/slightly_unhappy.svg';
@@ -30,15 +31,6 @@ interface LessonCard {
 }
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
-
-function initialsFromName(name?: string | null) {
-  if (!name) {
-    return 'ST';
-  }
-  const parts = name.trim().split(/\s+/);
-  const initials = parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase());
-  return initials.join('') || 'ST';
-}
 
 function formatDueDate(dueDate: string | null) {
   if (!dueDate) {
@@ -374,36 +366,7 @@ function HomePageContent() {
 
   return (
     <div className={`page ${styles.page}`}>
-      <aside className={`sidebar ${styles.sidebar}`}>
-        <div className={styles.profile}>
-          <div className={styles.avatar}>{initialsFromName(displayName)}</div>
-          <div className={styles.name}>{displayName}</div>
-        </div>
-        <nav className={styles.navList}>
-          {[
-            { label: 'Home', href: '/' },
-            { label: 'Profile', href: '/profile' },
-            { label: 'My Analytics', href: '/analytics' },
-            { label: 'Badges', href: '/badge_creation' },
-            { label: 'Badge Wallet', href: '/badges' },
-            { label: 'Grades', href: '/grades' },
-            { label: 'Settings', href: '/settings' },
-          ].map((item) => {
-            const isActive = pathname === item.href;
-            const navItemClass = `${styles.navItem} ${isActive ? styles.navItemActive : ''}`.trim();
-            return (
-              <Link key={item.href} href={item.href} className={navItemClass}>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className={styles.sidebarFooter}>
-          <button type="button" onClick={handleSignOut} className={styles.signOffButton} disabled={isSigningOut}>
-            {isSigningOut ? 'Signing off…' : 'Sign off'}
-          </button>
-        </div>
-      </aside>
+      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
         <div className={styles.topRow}>
