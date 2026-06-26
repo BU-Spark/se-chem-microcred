@@ -3,6 +3,7 @@
   flex-direction: column;
   gap: 2rem;
   padding: 1rem 0 3rem;
+  font-family: 'Open Sans', sans-serif;
 }
 
 .header {
@@ -16,11 +17,13 @@
 }
 
 .title {
+  font-family: 'Lato', sans-serif;
   font-size: 1.8rem;
   font-weight: 600;
 }
 
 .description {
+  font-family: 'Open Sans', sans-serif;
   color: rgba(15, 23, 42, 0.7);
   line-height: 1.6;
 }
@@ -43,6 +46,7 @@
 }
 
 .cardTitle {
+  font-family: 'Lato', sans-serif;
   font-size: 1.1rem;
   font-weight: 600;
 }
@@ -50,6 +54,7 @@
 .metricList {
   display: grid;
   gap: 0.5rem;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;
 }
 
@@ -67,6 +72,14 @@
 .table td {
   text-align: left;
   padding: 0.5rem 0.75rem;
+}
+
+.table thead th {
+  font-family: 'Lato', sans-serif;
+}
+
+.table tbody td {
+  font-family: 'Open Sans', sans-serif;
 }
 
 .table thead {
@@ -90,6 +103,7 @@
   color: #003f88;
   border: none;
   cursor: pointer;
+  font-family: 'Lato', sans-serif;
   font-size: 0.85rem;
 }
 
