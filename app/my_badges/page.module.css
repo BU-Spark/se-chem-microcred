@@ -20,18 +20,29 @@
 }
 
 .createButton {
-  margin-top: 1.25rem;
+  /* Pin to Figma (590:2267): compact left-aligned pill, not a full-width bar.
+     align-self stops the global .main flex column from stretching it. */
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 266px;
+  height: 59px;
   border: 0;
   border-radius: 19px;
   background: #2e6aa9;
   color: #ffffff;
   cursor: pointer;
   font-family: 'Lato', 'Open Sans', sans-serif;
-  font-size: 1.25rem;
-  font-weight: 500;
+  font-size: 24px;
+  font-weight: 400;
   line-height: 1;
-  padding: 1rem 1.6rem;
   text-decoration: none;
+  white-space: nowrap;
+}
+
+.createButton:hover {
+  background: #285d94;
 }
 
 .secondaryButton,
