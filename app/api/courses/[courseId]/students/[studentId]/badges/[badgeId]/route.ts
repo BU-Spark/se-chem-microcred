@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BadgeStatus } from '@prisma/client';
+import { currentUser } from '@clerk/nextjs/server';
 
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import prisma from '@/lib/prisma';
@@ -276,6 +277,9 @@ export async function GET(
                     status: true,
                     awardedAt: true,
                     score: true,
+                    reassessmentLimit: true,
+                    cooldownDays: true,
+                    reassessmentRequired: true,
                     badge: {
                       select: {
                         id: true,
@@ -485,6 +489,10 @@ export async function GET(
           status: badgeProgress.status,
           awardedAt: badgeProgress.awardedAt?.toISOString() ?? null,
           score: badgeProgress.score ?? null,
+          reassessmentLimit: badgeProgress.reassessmentLimit ?? null,
+          cooldownDays: badgeProgress.cooldownDays ?? null,
+          reassessmentRequired: badgeProgress.reassessmentRequired ?? null,
+          allowCooldownOverride: course.settings?.allowCooldownOverride ?? false,
         },
         progress: {
           percentComplete,
@@ -741,5 +749,175 @@ export async function POST(
     console.error('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId] failed:', error);
 
     return NextResponse.json({ error: 'Failed to record assessment' }, { status: 500 });
+  }
+}
+
+type StudentBadgeConfigPayload = {
+  reassessmentLimit?: unknown;
+  cooldownDays?: unknown;
+  reassessmentRequired?: unknown;
+};
+
+// Update per-student badge configuration (reassessment count, cooldown, and
+// whether reassessment is mandatory). Instructor/checker only.
+export async function PATCH(
+  req: NextRequest,
+  context: { params: Promise<{ courseId: string; studentId: string; badgeId: string }> }
+) {
+  try {
+    const email = normalizeEmail(req.nextUrl.searchParams.get('email'));
+    const { courseId: rawCourseId, studentId: rawStudentId, badgeId: rawBadgeId } = await context.params;
+    const courseId = normalizeId(rawCourseId);
+    const studentId = normalizeId(rawStudentId);
+    const badgeId = normalizeId(rawBadgeId);
+
+    if (!email) {
+      return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    }
+
+    if (!courseId || !studentId || !badgeId) {
+      return NextResponse.json({ error: 'Course id, student id, and badge id are required' }, { status: 400 });
+    }
+
+    // The email query param is client-supplied; require it to match the signed-in
+    // session so a caller can't act as another user.
+    const clerkUser = await currentUser();
+    const sessionEmail = normalizeEmail(clerkUser?.emailAddresses?.[0]?.emailAddress);
+    if (!sessionEmail || sessionEmail !== email) {
+      return NextResponse.json({ error: 'Session does not match the requested user.' }, { status: 403 });
+    }
+
+    const body = ((await req.json().catch(() => null)) ?? {}) as StudentBadgeConfigPayload;
+
+    const data: { reassessmentLimit?: number; cooldownDays?: number; reassessmentRequired?: boolean } = {};
+    if (typeof body.reassessmentLimit === 'number' && Number.isFinite(body.reassessmentLimit)) {
+      data.reassessmentLimit = Math.max(0, Math.round(body.reassessmentLimit));
+    }
+    if (typeof body.cooldownDays === 'number' && Number.isFinite(body.cooldownDays)) {
+      data.cooldownDays = Math.min(14, Math.max(0, Math.round(body.cooldownDays)));
+    }
+    if (typeof body.reassessmentRequired === 'boolean') {
+      data.reassessmentRequired = body.reassessmentRequired;
+    }
+
+    if (Object.keys(data).length === 0) {
+      return NextResponse.json({ error: 'No configuration fields provided.' }, { status: 400 });
+    }
+
+    const user = await fetchUserByEmail(email);
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const course = await prisma.course.findFirst({
+      where: {
+        id: courseId,
+        OR: [
+          { createdById: user.id },
+          {
+            enrollments: {
+              some: {
+                studentId: user.id,
+                role: { in: ['INSTRUCTOR', 'CHECKER'] },
+              },
+            },
+          },
+        ],
+        enrollments: {
+          some: {
+            studentId,
+          },
+        },
+      },
+      select: {
+        createdById: true,
+        settings: true,
+        enrollments: {
+          where: {
+            studentId: { in: Array.from(new Set([user.id, studentId])) },
+          },
+          select: {
+            role: true,
+            sections: {
+              orderBy: { section: 'asc' },
+              select: { section: true },
+            },
+            student: {
+              select: {
+                id: true,
+                badgeProgress: {
+                  where: { badgeId },
+                  take: 1,
+                  select: { id: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!course || course.enrollments.length === 0) {
+      return NextResponse.json(
+        { error: 'Badge not found in this course or you do not have permission to edit it.' },
+        { status: 404 }
+      );
+    }
+
+    const targetEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === studentId);
+    const viewerEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === user.id);
+    const isCourseCreator = course.createdById === user.id;
+    const viewerRole = isCourseCreator ? 'INSTRUCTOR' : viewerEnrollment?.role;
+
+    if (!targetEnrollment || !viewerRole || viewerRole === 'STUDENT') {
+      return NextResponse.json(
+        { error: 'Badge not found in this course or you do not have permission to edit it.' },
+        { status: 404 }
+      );
+    }
+
+    if (viewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
+      const viewerSections = new Set(viewerEnrollment?.sections.map((assignment) => assignment.section) ?? []);
+      const memberSections = targetEnrollment.sections.map((assignment) => assignment.section);
+      const canViewSection = memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
+
+      if (targetEnrollment.role !== 'STUDENT' || !canViewSection) {
+        return NextResponse.json(
+          { error: 'Badge not found in this course or you do not have permission to edit it.' },
+          { status: 404 }
+        );
+      }
+    }
+
+    // Cooldown overrides require the course to opt in.
+    if (data.cooldownDays !== undefined && !course.settings?.allowCooldownOverride) {
+      return NextResponse.json(
+        { error: 'Cooldown overrides are disabled for this course.' },
+        { status: 403 }
+      );
+    }
+
+    const badgeProgress = targetEnrollment.student.badgeProgress[0];
+
+    if (!badgeProgress) {
+      return NextResponse.json({ error: 'Badge progress was not found for this student.' }, { status: 404 });
+    }
+
+    const updated = await prisma.studentBadge.update({
+      where: { id: badgeProgress.id },
+      data,
+      select: {
+        reassessmentLimit: true,
+        cooldownDays: true,
+        reassessmentRequired: true,
+      },
+    });
+
+    return NextResponse.json({ config: updated }, { status: 200 });
+  } catch (error) {
+    console.error('PATCH /api/courses/[courseId]/students/[studentId]/badges/[badgeId] failed:', error);
+
+    return NextResponse.json({ error: 'Failed to update badge configuration' }, { status: 500 });
   }
 }
