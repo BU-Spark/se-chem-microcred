@@ -161,8 +161,10 @@ function RingIndicator({ percent, caption }: { percent: number; caption: string 
         aria-label={`${caption}: ${clamped}%`}
       >
         <div className={styles.ringInner}>
-          <span className={styles.ringValue}>{clamped}</span>
-          <span className={styles.ringPercent}>%</span>
+          <span className={styles.ringValueGroup}>
+            <span className={styles.ringValue}>{clamped}</span>
+            <span className={styles.ringPercent}>%</span>
+          </span>
         </div>
       </div>
       <p className={styles.ringCaption}>{caption}</p>

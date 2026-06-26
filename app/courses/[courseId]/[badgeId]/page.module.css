@@ -293,8 +293,16 @@
   border-radius: 999px;
   background: #ffffff;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: center;
+}
+
+/* Keep the number and % baseline-aligned as one group, then center the group
+   in both axes so the value sits dead-center in the ring. */
+.ringValueGroup {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
 }
 
 .ringValue {
@@ -302,6 +310,7 @@
   font-family: 'Lato', sans-serif;
   font-size: 36px;
   font-weight: 900;
+  line-height: 1;
 }
 
 .ringPercent {
@@ -309,6 +318,7 @@
   font-family: 'Lato', sans-serif;
   font-size: 20px;
   font-weight: 900;
+  line-height: 1;
 }
 
 .ringCaption {
