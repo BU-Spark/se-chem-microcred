@@ -1,0 +1,154 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.modal {
+  width: min(520px, 100%);
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
+  background: #ffffff;
+  border-radius: 28px;
+  padding: 1.75rem 1.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.title {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.label {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #232323;
+}
+
+.hint {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.select {
+  min-height: 3rem;
+  border: 3px solid #d7d7d7;
+  border-radius: 1.05rem;
+  padding: 0.6rem 0.9rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.96rem;
+  color: #222222;
+  background: #ffffff;
+  outline: none;
+}
+
+.select:focus {
+  border-color: #2e6aa9;
+}
+
+.sliderRow {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.slider {
+  flex: 1;
+  accent-color: #2e6aa9;
+}
+
+.slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.sliderValue {
+  min-width: 4.5rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  color: #232323;
+}
+
+.toggleGroup {
+  display: inline-flex;
+  border: 2px solid #d7d7d7;
+  border-radius: 999px;
+  overflow: hidden;
+  width: fit-content;
+}
+
+.toggleOption {
+  border: none;
+  background: #ffffff;
+  color: #3b3b3b;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.9rem;
+  padding: 0.5rem 1.1rem;
+  cursor: pointer;
+}
+
+.toggleOptionActive {
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
+.error {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.cancelButton,
+.saveButton {
+  min-height: 3rem;
+  padding: 0.65rem 1.3rem;
+  border-radius: 1.05rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.94rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancelButton {
+  border: 3px solid #d7d7d7;
+  background: #ffffff;
+  color: #303030;
+}
+
+.saveButton {
+  border: none;
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
+.saveButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

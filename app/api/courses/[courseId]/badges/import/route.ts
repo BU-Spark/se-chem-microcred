@@ -353,22 +353,29 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
         const sourceSegments = sourceLesson?.segments ?? [];
 
         if (sourceSegments.length > 0) {
-          for (const segment of sourceSegments) {
-            const copiedSegment = await tx.lessonSegment.create({
-              data: {
-                lessonId: lesson.id,
-                sortOrder: segment.sortOrder,
-                title: segment.title,
-                summary: segment.summary,
-                duration: segment.duration,
-                videoUrl: segment.videoUrl,
-                muxPlaybackId: segment.muxPlaybackId,
-                thumbnailUrl: segment.thumbnailUrl,
-              },
-              select: { id: true },
-            });
+          // Batch-create all segments, then read back generated ids via the
+          // (lessonId, sortOrder) unique key to remap source segment ids → new ids.
+          await tx.lessonSegment.createMany({
+            data: sourceSegments.map((segment) => ({
+              lessonId: lesson.id,
+              sortOrder: segment.sortOrder,
+              title: segment.title,
+              summary: segment.summary,
+              duration: segment.duration,
+              videoUrl: segment.videoUrl,
+              muxPlaybackId: segment.muxPlaybackId,
+              thumbnailUrl: segment.thumbnailUrl,
+            })),
+          });
 
-            segmentIdBySourceId.set(segment.id, copiedSegment.id);
+          const createdSegments = await tx.lessonSegment.findMany({
+            where: { lessonId: lesson.id },
+            select: { id: true, sortOrder: true },
+          });
+          const segmentIdByOrder = new Map(createdSegments.map((s) => [s.sortOrder, s.id]));
+          for (const segment of sourceSegments) {
+            const newId = segmentIdByOrder.get(segment.sortOrder);
+            if (newId) segmentIdBySourceId.set(segment.id, newId);
           }
         } else {
           const copiedSegment = await tx.lessonSegment.create({
@@ -385,44 +392,57 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
         }
 
         if (sourceLesson?.checkpoints?.length) {
-          for (const checkpoint of sourceLesson.checkpoints) {
-            const copiedCheckpoint = await tx.lessonCheckpoint.create({
-              data: {
-                lessonId: lesson.id,
-                segmentId: checkpoint.segmentId ? (segmentIdBySourceId.get(checkpoint.segmentId) ?? null) : null,
-                sortOrder: checkpoint.sortOrder,
-                title: checkpoint.title,
-                description: checkpoint.description,
-                label: checkpoint.label,
-                meta: checkpoint.meta,
-                questionCount: checkpoint.questionCount,
-                timeOffsetSeconds: checkpoint.timeOffsetSeconds,
-                snapshotUrl: checkpoint.snapshotUrl,
-              },
-              select: { id: true },
-            });
+          // Batch checkpoints, read back ids via (lessonId, sortOrder), then batch questions.
+          await tx.lessonCheckpoint.createMany({
+            data: sourceLesson.checkpoints.map((checkpoint) => ({
+              lessonId: lesson.id,
+              segmentId: checkpoint.segmentId ? (segmentIdBySourceId.get(checkpoint.segmentId) ?? null) : null,
+              sortOrder: checkpoint.sortOrder,
+              title: checkpoint.title,
+              description: checkpoint.description,
+              label: checkpoint.label,
+              meta: checkpoint.meta,
+              questionCount: checkpoint.questionCount,
+              timeOffsetSeconds: checkpoint.timeOffsetSeconds,
+              snapshotUrl: checkpoint.snapshotUrl,
+            })),
+          });
 
-            for (const question of checkpoint.questions) {
-              await tx.checkpointQuestion.create({
-                data: {
-                  checkpointId: copiedCheckpoint.id,
-                  sortOrder: question.sortOrder,
-                  prompt: question.prompt,
-                  options: question.options as Prisma.InputJsonValue,
-                  correctIndex: question.correctIndex,
-                },
-              });
-            }
+          const createdCheckpoints = await tx.lessonCheckpoint.findMany({
+            where: { lessonId: lesson.id },
+            select: { id: true, sortOrder: true },
+          });
+          const checkpointIdByOrder = new Map(createdCheckpoints.map((c) => [c.sortOrder, c.id]));
+
+          const questionData = sourceLesson.checkpoints.flatMap((checkpoint) => {
+            const checkpointId = checkpointIdByOrder.get(checkpoint.sortOrder);
+            if (!checkpointId) return [];
+            return checkpoint.questions.map((question) => ({
+              checkpointId,
+              sortOrder: question.sortOrder,
+              prompt: question.prompt,
+              options: question.options as Prisma.InputJsonValue,
+              correctIndex: question.correctIndex,
+            }));
+          });
+
+          if (questionData.length > 0) {
+            await tx.checkpointQuestion.createMany({ data: questionData });
           }
         } else {
           const fallbackSegmentId = segmentIdBySourceId.get('fallback') ?? Array.from(segmentIdBySourceId.values())[0];
-          for (const [checkpointIndex, checkpoint] of (summary.checkpoints ?? []).entries()) {
+          // Precompute each fallback checkpoint keyed by sortOrder (== index), batch-create,
+          // read back ids via (lessonId, sortOrder), then batch questions.
+          const checkpointPlans = (summary.checkpoints ?? []).map((checkpoint, checkpointIndex) => {
             const prompt = normalizeString(checkpoint.question);
             const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
             const points = Number(checkpoint.points) || 0;
             const questionOptions = buildQuestionOptions(checkpoint);
 
-            const copiedCheckpoint = await tx.lessonCheckpoint.create({
+            return {
+              sortOrder: checkpointIndex,
+              prompt,
+              questionOptions,
               data: {
                 lessonId: lesson.id,
                 segmentId: fallbackSegmentId,
@@ -436,19 +456,32 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
                 questionCount: prompt ? 1 : 0,
                 timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
               },
-              select: { id: true },
+            };
+          });
+
+          if (checkpointPlans.length > 0) {
+            await tx.lessonCheckpoint.createMany({
+              data: checkpointPlans.map((plan) => plan.data),
             });
 
-            if (prompt) {
-              await tx.checkpointQuestion.create({
-                data: {
-                  checkpointId: copiedCheckpoint.id,
-                  sortOrder: 0,
-                  prompt,
-                  options: questionOptions.options,
-                  correctIndex: questionOptions.correctIndex,
-                },
-              });
+            const createdCheckpoints = await tx.lessonCheckpoint.findMany({
+              where: { lessonId: lesson.id },
+              select: { id: true, sortOrder: true },
+            });
+            const checkpointIdByOrder = new Map(createdCheckpoints.map((c) => [c.sortOrder, c.id]));
+
+            const questionData = checkpointPlans
+              .filter((plan) => plan.prompt)
+              .map((plan) => ({
+                checkpointId: checkpointIdByOrder.get(plan.sortOrder)!,
+                sortOrder: 0,
+                prompt: plan.prompt!,
+                options: plan.questionOptions.options,
+                correctIndex: plan.questionOptions.correctIndex,
+              }));
+
+            if (questionData.length > 0) {
+              await tx.checkpointQuestion.createMany({ data: questionData });
             }
           }
         }

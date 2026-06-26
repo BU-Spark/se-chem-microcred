@@ -1,20 +1,14 @@
 import { NextResponse } from 'next/server';
-import { currentUser } from '@clerk/nextjs/server';
 
-import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 
 export async function GET() {
-  const clerkUser = await currentUser();
-  const email = clerkUser?.emailAddresses?.[0]?.emailAddress?.trim().toLowerCase();
-
-  if (!email) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const user = await fetchUserByEmail(email);
+  // Provision the signed-in user on demand so the sidebar name/avatar resolve
+  // even when they signed in without going through the onboarding flow.
+  const user = await ensureCurrentUser();
 
   if (!user) {
-    return NextResponse.json({ error: 'User not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   return NextResponse.json({
@@ -22,6 +16,7 @@ export async function GET() {
       id: user.id,
       email: user.email,
       name: user.name,
+      avatarBase: user.avatar?.base ?? null,
     },
   });
 }

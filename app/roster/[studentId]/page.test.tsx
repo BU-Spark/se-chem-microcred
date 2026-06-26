@@ -329,7 +329,8 @@ describe('Roster member profile page', () => {
     });
 
     expect(await screen.findByText('Answer History')).toBeInTheDocument();
-    expect(screen.getByText('70%')).toBeInTheDocument();
+    // The ring renders the number and "%" as separate spans inside .progressRingCenter.
+    expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('70%');
     expect(screen.getByText('Checkpoint 3')).toBeInTheDocument();
     expect(screen.getByText('Which container should be used?')).toBeInTheDocument();
     expect(screen.getByText('Answered: Beaker')).toBeInTheDocument();
@@ -358,7 +359,7 @@ describe('Roster member profile page', () => {
     expect(await screen.findByText('Assessment Info')).toBeInTheDocument();
     expect(screen.getByText('Assessor Grading')).toBeInTheDocument();
     expect(screen.getByText('Assessment History')).toBeInTheDocument();
-    expect(screen.getByText('100%')).toBeInTheDocument();
+    expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('100%');
 
     fireEvent.click(screen.getByRole('button', { name: 'Attempt 1' }));
 
@@ -428,6 +429,56 @@ describe('Roster member profile page', () => {
 
     expect(await screen.findByRole('heading', { name: 'Ready for finalization' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Waste Handling' })).toBeInTheDocument();
+  });
+
+  it('saves per-student badge configuration via the config modal', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    const detailPayload = createInProgressBadgeDetailPayload() as ReturnType<
+      typeof createInProgressBadgeDetailPayload
+    > & {
+      badge: Record<string, unknown>;
+    };
+    detailPayload.badge.reassessmentLimit = 1;
+    detailPayload.badge.cooldownDays = 2;
+    detailPayload.badge.reassessmentRequired = false;
+    detailPayload.badge.allowCooldownOverride = true;
+
+    mockFetch.mockImplementation(async (input: unknown, init?: { method?: string; body?: string }) => {
+      const url = String(input);
+
+      if (init?.method === 'PATCH') {
+        return {
+          ok: true,
+          json: async () => ({ config: { reassessmentLimit: 3, cooldownDays: 2, reassessmentRequired: true } }),
+        } as Response;
+      }
+
+      if (url.includes('/badges/badge-1')) {
+        return { ok: true, json: async () => detailPayload } as Response;
+      }
+
+      return { ok: true, json: async () => createStudentProfilePayload() } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByText('Answer History')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit configurations' }));
+    expect(screen.getByText('Editing badge configurations for: Ada Lovelace')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Number of reassessments allowed'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Mandatory' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(() => {
+      const patchCall = mockFetch.mock.calls.find((call) => call[1]?.method === 'PATCH');
+      expect(patchCall).toBeTruthy();
+      const body = JSON.parse(patchCall![1].body as string);
+      expect(body).toEqual(
+        expect.objectContaining({ reassessmentLimit: 3, reassessmentRequired: true, cooldownDays: 2 })
+      );
+    });
   });
 
   it('loads and displays the selected assessor profile', async () => {

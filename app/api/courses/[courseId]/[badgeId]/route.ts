@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { fetchAccessibleCourseDetail, fetchAccessibleBadgeDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import {
+  fetchAccessibleCourseDetail,
+  fetchAccessibleBadgeDetail,
+  fetchUserByEmail,
+} from '@/app/api/courses/lib/course-queries';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'COMPLETED';
 
@@ -29,8 +33,8 @@ function normalizeCourseId(courseId?: string | null) {
 }
 
 function normalizeBadgeId(badgeId?: string | null) {
-    const trimmed = badgeId?.trim();
-    return trimmed ? trimmed : null;
+  const trimmed = badgeId?.trim();
+  return trimmed ? trimmed : null;
 }
 
 function parseRequirementSummary(summary?: string | null): AssessmentSummary {
@@ -78,7 +82,7 @@ function calculatePercent(count: number, total: number) {
   return total > 0 ? Math.round((count / total) * 100) : 0;
 }
 
-export async function GET(req: NextRequest, context: { params: Promise<{ courseId: string, badgeId: string }> }) {
+export async function GET(req: NextRequest, context: { params: Promise<{ courseId: string; badgeId: string }> }) {
   try {
     const email = normalizeEmail(req.nextUrl.searchParams.get('email'));
     const { courseId: rawCourseId } = await context.params;
@@ -95,7 +99,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     }
 
     if (!badgeId) {
-        return NextResponse.json({ error: 'Badge id is required'}, { status: 400 })
+      return NextResponse.json({ error: 'Badge id is required' }, { status: 400 });
     }
 
     const user = await fetchUserByEmail(email);
@@ -104,8 +108,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const course = await fetchAccessibleCourseDetail(user.id, courseId);
-    const badge = await fetchAccessibleBadgeDetail(user.id, courseId, badgeId)
+    const [course, badge] = await Promise.all([
+      fetchAccessibleCourseDetail(user.id, courseId),
+      fetchAccessibleBadgeDetail(user.id, courseId, badgeId),
+    ]);
 
     if (!course) {
       return NextResponse.json(

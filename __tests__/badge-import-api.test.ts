@@ -11,9 +11,9 @@ const mockTx = {
   course: { findFirst: jest.fn() },
   badge: { findFirst: jest.fn(), create: jest.fn() },
   lesson: { create: jest.fn() },
-  lessonSegment: { create: jest.fn() },
-  lessonCheckpoint: { create: jest.fn() },
-  checkpointQuestion: { create: jest.fn() },
+  lessonSegment: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn() },
+  lessonCheckpoint: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn() },
+  checkpointQuestion: { createMany: jest.fn() },
   badgeRequirement: { create: jest.fn() },
   surveyPrompt: { create: jest.fn() },
   studentBadge: { createMany: jest.fn() },
@@ -144,7 +144,12 @@ describe('badge import API', () => {
       title: 'Bunsen Burner Lesson',
     });
     mockPrisma.__tx.lessonSegment.create.mockResolvedValue({ id: 'segment-copy-1' });
+    mockPrisma.__tx.lessonSegment.createMany.mockResolvedValue({ count: 1 });
+    mockPrisma.__tx.lessonSegment.findMany.mockResolvedValue([{ id: 'segment-copy-1', sortOrder: 0 }]);
     mockPrisma.__tx.lessonCheckpoint.create.mockResolvedValue({ id: 'checkpoint-copy-1' });
+    mockPrisma.__tx.lessonCheckpoint.createMany.mockResolvedValue({ count: 1 });
+    mockPrisma.__tx.lessonCheckpoint.findMany.mockResolvedValue([{ id: 'checkpoint-copy-1', sortOrder: 0 }]);
+    mockPrisma.__tx.checkpointQuestion.createMany.mockResolvedValue({ count: 1 });
     mockPrisma.__tx.badgeRequirement.create.mockResolvedValue({ id: 'requirement-copy-1' });
   });
 
@@ -187,21 +192,25 @@ describe('badge import API', () => {
         }),
       })
     );
-    expect(mockPrisma.__tx.lessonSegment.create).toHaveBeenCalledWith(
+    expect(mockPrisma.__tx.lessonSegment.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          lessonId: 'lesson-copy-1',
-          videoUrl: 'https://www.youtube.com/watch?v=abc123',
-        }),
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            lessonId: 'lesson-copy-1',
+            videoUrl: 'https://www.youtube.com/watch?v=abc123',
+          }),
+        ]),
       })
     );
-    expect(mockPrisma.__tx.checkpointQuestion.create).toHaveBeenCalledWith(
+    expect(mockPrisma.__tx.checkpointQuestion.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          checkpointId: 'checkpoint-copy-1',
-          prompt: 'What should be checked first?',
-          correctIndex: 0,
-        }),
+        data: expect.arrayContaining([
+          expect.objectContaining({
+            checkpointId: 'checkpoint-copy-1',
+            prompt: 'What should be checked first?',
+            correctIndex: 0,
+          }),
+        ]),
       })
     );
     expect(mockPrisma.__tx.studentBadge.createMany).toHaveBeenCalledWith({

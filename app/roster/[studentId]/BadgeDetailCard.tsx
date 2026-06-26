@@ -16,6 +16,10 @@ export type BadgeDetailResponse = {
     status: string;
     awardedAt: string | null;
     score: number | null;
+    reassessmentLimit?: number | null;
+    cooldownDays?: number | null;
+    reassessmentRequired?: boolean | null;
+    allowCooldownOverride?: boolean;
   };
   progress: {
     percentComplete: number;
@@ -134,7 +138,10 @@ function ProgressRing({ percent }: { percent: number }) {
           }}
         />
       </svg>
-      <div className={styles.progressRingCenter}>{boundedPercent}%</div>
+      <div className={styles.progressRingCenter}>
+        <span className={styles.progressRingNumber}>{boundedPercent}</span>
+        <span className={styles.progressRingPercent}>%</span>
+      </div>
     </div>
   );
 }

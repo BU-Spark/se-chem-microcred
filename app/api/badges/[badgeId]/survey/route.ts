@@ -29,23 +29,33 @@ export async function POST(request: Request, context: RouteContext) {
 
   const email = payload.email.trim().toLowerCase();
 
-  const user = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
+  // user.findUnique and studentBadge.findUnique are independent reads; the badge
+  // lookup keys off email->id, but Clerk emails are the same identity, so we can
+  // resolve the badge by email-derived studentId via a relation filter in
+  // parallel instead of serializing the two round-trips.
+  const [user, studentBadge, surveyPrompt] = await Promise.all([
+    prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    }),
+    prisma.studentBadge.findFirst({
+      where: {
+        badgeId,
+        student: { email },
+      },
+    }),
+    prisma.surveyPrompt.findFirst({
+      where: {
+        badgeId,
+        context: SurveyContext.BADGE,
+      },
+      select: { id: true },
+    }),
+  ]);
 
   if (!user) {
     return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   }
-
-  const studentBadge = await prisma.studentBadge.findUnique({
-    where: {
-      studentId_badgeId: {
-        studentId: user.id,
-        badgeId,
-      },
-    },
-  });
 
   if (!studentBadge) {
     return NextResponse.json({ error: 'Badge enrollment not found.' }, { status: 404 });
@@ -59,48 +69,47 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Badge is not ready for finalization.' }, { status: 409 });
   }
 
-  const surveyPrompt = await prisma.surveyPrompt.findFirst({
-    where: {
-      badgeId,
-      context: SurveyContext.BADGE,
-    },
-    select: { id: true },
-  });
-
-  if (surveyPrompt) {
-    const existingResponse = await prisma.surveyResponse.findFirst({
-      where: {
-        promptId: surveyPrompt.id,
-        studentId: user.id,
-      },
-    });
-
-    if (existingResponse) {
-      await prisma.surveyResponse.update({
-        where: { id: existingResponse.id },
-        data: {
-          rating: payload.rating ?? existingResponse.rating,
-          comment: payload.comment ?? existingResponse.comment,
-        },
-      });
-    } else {
-      await prisma.surveyResponse.create({
-        data: {
+  // Record the survey response (if any) and finalize the badge atomically so a
+  // double-submit can't apply one without the other. NOTE: SurveyResponse has
+  // no unique key on (promptId, studentId), so this tx guarantees atomicity of
+  // the two writes but not de-duplication of concurrent first-time creates —
+  // that requires a unique-constraint migration (tracked separately).
+  const updated = await prisma.$transaction(async (tx) => {
+    if (surveyPrompt) {
+      const existingResponse = await tx.surveyResponse.findFirst({
+        where: {
           promptId: surveyPrompt.id,
           studentId: user.id,
-          rating: payload.rating ?? 3,
-          comment: payload.comment ?? null,
         },
       });
-    }
-  }
 
-  const updated = await prisma.studentBadge.update({
-    where: { id: studentBadge.id },
-    data: {
-      status: BadgeStatus.COMPLETED,
-      awardedAt: studentBadge.awardedAt ?? new Date(),
-    },
+      if (existingResponse) {
+        await tx.surveyResponse.update({
+          where: { id: existingResponse.id },
+          data: {
+            rating: payload.rating ?? existingResponse.rating,
+            comment: payload.comment ?? existingResponse.comment,
+          },
+        });
+      } else {
+        await tx.surveyResponse.create({
+          data: {
+            promptId: surveyPrompt.id,
+            studentId: user.id,
+            rating: payload.rating ?? 3,
+            comment: payload.comment ?? null,
+          },
+        });
+      }
+    }
+
+    return tx.studentBadge.update({
+      where: { id: studentBadge.id },
+      data: {
+        status: BadgeStatus.COMPLETED,
+        awardedAt: studentBadge.awardedAt ?? new Date(),
+      },
+    });
   });
 
   return NextResponse.json({ status: updated.status }, { status: 200 });

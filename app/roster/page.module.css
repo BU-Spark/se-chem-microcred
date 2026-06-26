@@ -2,6 +2,9 @@
   display: flex;
   min-height: calc(100vh - 80px);
   background: #ffffff;
+  /* Base body font so text/table cells inherit Open Sans instead of the
+     global Outfit/Arial default. Headings/labels/buttons override to Lato. */
+  font-family: 'Open Sans', sans-serif;
 }
 
 .main {
@@ -25,7 +28,8 @@
 
 .pageTitle {
   margin: 0;
-  font-size: clamp(2.35rem, 3.3vw, 3.1rem);
+  font-family: 'Lato', 'Open Sans', sans-serif;
+  font-size: 48px;
   font-weight: 700;
   line-height: 1;
   color: #000000;
@@ -53,14 +57,14 @@
 
 .searchField {
   flex: 1 1 446px;
-  min-height: 3rem;
-  border: 3px solid #d7d7d7;
-  border-radius: 1.15rem;
+  min-height: 57px;
+  border: 4px solid #d9d9d9;
+  border-radius: 28.5px;
   display: flex;
   align-items: center;
   gap: 0.72rem;
-  padding: 0 0.7rem 0 0.78rem;
-  color: #2E6AA9;
+  padding: 0 1rem 0 1.1rem;
+  color: #2e6aa9;
   background: #ffffff;
 }
 
@@ -77,6 +81,7 @@
   border: none;
   outline: none;
   background: transparent;
+  font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
   color: #222222;
 }
@@ -108,6 +113,15 @@
   color: #2e2e2e;
 }
 
+.sectionFilters {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.95rem;
+  font-family: 'Open Sans', sans-serif;
+}
+
 .filterPill {
   min-height: 2.15rem;
   padding: 0.35rem 0.95rem;
@@ -115,8 +129,19 @@
   border: 2px solid #d7d7d7;
   background: #ffffff;
   color: #3b3b3b;
+  font-family: 'Lato', sans-serif;
   font-size: 0.9rem;
   cursor: pointer;
+}
+
+.filterPill:hover {
+  border-color: #2e6aa9;
+  color: #2e6aa9;
+}
+
+.filterPillActive,
+.filterPillActive:hover {
+  color: #ffffff;
 }
 
 .filterPillActive {
@@ -132,8 +157,8 @@
 
 .filterPanel {
   margin-bottom: 0.95rem;
-  border: 3px solid #d7d7d7;
-  border-radius: 1.85rem;
+  border: 4px solid #d9d9d9;
+  border-radius: 40px;
   background: #ffffff;
   padding: 1.25rem 1.35rem 1.2rem;
 }
@@ -148,6 +173,7 @@
 
 .filterPanelTitle {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: 1.28rem;
   font-weight: 700;
   line-height: 1.05;
@@ -167,6 +193,7 @@
 }
 
 .filterFieldLabel {
+  font-family: 'Lato', sans-serif;
   font-size: 0.94rem;
   font-weight: 600;
   color: #232323;
@@ -178,6 +205,7 @@
   border: 3px solid #d7d7d7;
   border-radius: 1.05rem;
   padding: 0.7rem 0.9rem;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.96rem;
   color: #222222;
   background: #ffffff;
@@ -203,6 +231,7 @@
   min-height: 3rem;
   padding: 0.7rem 1.2rem;
   border-radius: 1.05rem;
+  font-family: 'Lato', sans-serif;
   font-size: 0.94rem;
   font-weight: 600;
   cursor: pointer;
@@ -227,8 +256,8 @@
 }
 
 .tableCard {
-  border: 3px solid #d7d7d7;
-  border-radius: 1.85rem;
+  border: 4px solid #d9d9d9;
+  border-radius: 40px;
   background: #ffffff;
   overflow: hidden;
 }
@@ -267,6 +296,7 @@
   border-bottom: 3px solid #dedede;
   padding: 1rem 1rem 0.82rem;
   text-align: left;
+  font-family: 'Lato', sans-serif;
   font-size: 1rem;
   font-weight: 700;
   color: #202020;
@@ -274,6 +304,7 @@
 
 .table tbody td {
   padding: 0.72rem 1rem;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.98rem;
   color: #202020;
   white-space: nowrap;

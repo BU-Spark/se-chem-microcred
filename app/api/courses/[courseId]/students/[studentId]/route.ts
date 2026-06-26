@@ -76,7 +76,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     if (viewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
       const viewerSections = new Set(viewerEnrollment?.sections.map((assignment) => assignment.section) ?? []);
       const memberSections = enrollment.sections.map((assignment) => assignment.section);
-      const canViewSection = memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
+      const canViewSection =
+        memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
 
       if (enrollment.role !== 'STUDENT' || !canViewSection) {
         return NextResponse.json(

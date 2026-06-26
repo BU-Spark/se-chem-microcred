@@ -5,6 +5,7 @@
   display: flex;
   flex-direction: column;
   gap: 2.5rem;
+  font-family: 'Open Sans', sans-serif;
 }
 
 .header {
@@ -21,12 +22,14 @@
 }
 
 .pageTitle {
+  font-family: 'Lato', sans-serif;
   font-size: clamp(2rem, 2.8vw, 2.6rem);
   font-weight: 700;
   color: #0f172a;
 }
 
 .pageSubtitle {
+  font-family: 'Open Sans', sans-serif;
   color: #475569;
   font-size: 1rem;
 }
@@ -54,6 +57,7 @@
 }
 
 .field label {
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   color: #1f2937;
 }
@@ -89,6 +93,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   color: #0f172a;
 }
@@ -102,6 +107,7 @@
   border-radius: 999px;
   padding: 0.65rem 1.4rem;
   border: none;
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s ease;
@@ -137,6 +143,7 @@
 }
 
 .previewTitle {
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   color: #0f172a;
 }
@@ -144,6 +151,7 @@
 .previewList {
   display: grid;
   gap: 0.65rem;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;
   color: #1f2937;
 }

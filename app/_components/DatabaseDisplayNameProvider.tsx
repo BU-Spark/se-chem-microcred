@@ -5,14 +5,24 @@ import { useUser } from '@clerk/nextjs';
 
 import { useDatabaseDisplayName } from '../hooks/useDatabaseDisplayName';
 
-const DatabaseDisplayNameContext = createContext<string | null | undefined>(undefined);
+type ProfileContextValue = {
+  displayName: string | null | undefined;
+  avatarBase: string | null;
+};
+
+const DatabaseDisplayNameContext = createContext<ProfileContextValue>({
+  displayName: undefined,
+  avatarBase: null,
+});
 
 export function DatabaseDisplayNameProvider({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
-  const { displayName } = useDatabaseDisplayName(user?.primaryEmailAddress?.emailAddress);
+  const { displayName, avatarBase } = useDatabaseDisplayName(user?.primaryEmailAddress?.emailAddress);
 
   return (
-    <DatabaseDisplayNameContext.Provider value={displayName ?? null}>{children}</DatabaseDisplayNameContext.Provider>
+    <DatabaseDisplayNameContext.Provider value={{ displayName: displayName ?? null, avatarBase }}>
+      {children}
+    </DatabaseDisplayNameContext.Provider>
   );
 }
 

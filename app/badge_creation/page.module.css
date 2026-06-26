@@ -2,6 +2,7 @@
   display: flex;
   min-height: 100vh;
   background: #f3f3f3;
+  font-family: 'Open Sans', sans-serif;
 }
 
 .main {
@@ -23,6 +24,7 @@
 }
 
 .pageTitle {
+  font-family: 'Lato', sans-serif;
   font-size: 48px;
   font-weight: 700;
   color: #000000;
@@ -77,6 +79,7 @@
 }
 
 .progressLabel {
+  font-family: 'Lato', sans-serif;
   font-size: 0.95rem;
   color: #222222;
 }
@@ -113,6 +116,7 @@
 .videoInfoBlock h3,
 .reviewCard h4 {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: 24px;
   font-weight: 400;
   color: #000000;
@@ -126,6 +130,7 @@
 .noticeBanner,
 .errorText,
 .emptyState {
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   font-weight: 400;
   color: #000000;
@@ -141,6 +146,147 @@
 
 .errorText {
   color: #b91c1c;
+}
+
+.fieldError {
+  margin: 0.3rem 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+
+.fieldHelp {
+  margin: 0 0 0.6rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+/* Upload Lesson Video — single column matching Figma 571-2582 */
+.videoStepColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  max-width: 620px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.underlineFieldLabel {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #303030;
+}
+
+.videoTitleField {
+  display: flex;
+  flex-direction: column;
+}
+
+.videoTitleInput {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #111111;
+  padding: 0;
+}
+
+.videoLengthField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.videoLengthLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #303030;
+}
+
+.videoLengthInput {
+  width: 9rem;
+  border: none;
+  border-bottom: 2px solid #d7d7d7;
+  outline: none;
+  background: transparent;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.96rem;
+  color: #222222;
+  padding: 0.25rem 0.1rem;
+}
+
+.videoLengthInput:focus {
+  border-bottom-color: #2e6aa9;
+}
+
+.videoPosterLarge {
+  width: 100%;
+  max-width: 460px;
+  aspect-ratio: 16 / 11;
+  border-radius: 8px;
+  background: #1f2937 center / cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e5e7eb;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+}
+
+.rubricLineInput {
+  flex: 1;
+  resize: none;
+  border: none;
+  border-bottom: 2px solid #e2e2e2;
+  outline: none;
+  background: transparent;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: #202020;
+  padding: 0.3rem 0.1rem;
+}
+
+.rubricLineInput:focus {
+  border-bottom-color: #2e6aa9;
+}
+
+.rubricLineInput::placeholder {
+  font-style: italic;
+  color: #9aa1ab;
+}
+
+.feedbackBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.feedbackToggleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  color: #232323;
 }
 
 .badgeInfoLayout,
@@ -174,6 +320,7 @@
 .fieldLabel,
 .fieldStack,
 .dateField {
+  font-family: 'Lato', sans-serif;
   font-size: 16px;
   color: #000000;
 }
@@ -185,6 +332,7 @@
   border-bottom: 1px solid #000000;
   background: transparent;
   outline: none;
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   font-weight: 400;
   padding: 0 0 8px;
@@ -194,6 +342,7 @@
 .underlineInput::placeholder {
   color: #000000;
   opacity: 1;
+  font-family: 'Open Sans', sans-serif;
   font-style: italic;
 }
 
@@ -209,6 +358,7 @@
   background: #ffffff;
   color: #000000;
   font: inherit;
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   padding: 12px 14px;
 }
@@ -265,10 +415,12 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  font-family: 'Open Sans', sans-serif;
   font-size: 14px;
 }
 
 .availabilityPill strong {
+  font-family: 'Lato', sans-serif;
   font-size: 18px;
   font-weight: 600;
 }
@@ -278,6 +430,7 @@
   display: inline-flex;
   align-items: center;
   gap: 14px;
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   color: #333333;
 }
@@ -287,6 +440,7 @@
   height: 32px;
   border: none;
   border-radius: 999px;
+  font-family: 'Lato', sans-serif;
   background: #d9d9d9;
   position: relative;
   cursor: pointer;
@@ -355,6 +509,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  font-family: 'Open Sans', sans-serif;
   color: #222222;
 }
 
@@ -406,6 +561,7 @@
 
 .timelineHeader {
   justify-content: space-between;
+  font-family: 'Lato', sans-serif;
   font-size: 16px;
   color: #000000;
 }
@@ -431,6 +587,7 @@
   flex-direction: column;
   gap: 6px;
   color: #222222;
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
 }
 
@@ -458,6 +615,530 @@
   background: #2e6aa9;
 }
 
+/* Create Checkpoints — Figma 379-656 timeline rail (segment thumbnails +
+   checkpoint nodes joined by a vertical connector). */
+.cpRail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  padding: 6px 0;
+}
+
+.cpRailLine {
+  position: absolute;
+  top: 52px;
+  bottom: 52px;
+  right: 43px;
+  width: 2px;
+  background: #2e6aa9;
+  z-index: 0;
+}
+
+.cpRailGroup {
+  display: contents;
+}
+
+.cpSegmentRow,
+.cpCheckpointRow {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.cpSegmentLabel,
+.cpCheckpointLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #000000;
+}
+
+.cpSegmentThumb {
+  justify-self: center;
+  width: 84px;
+  height: 84px;
+  border: 2px solid #2e6aa9;
+  border-radius: 6px;
+  background-color: #1f2937;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.cpCheckpointNode {
+  justify-self: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid #2e6aa9;
+  border-radius: 999px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cpCheckpointNode:hover,
+.cpCheckpointNode:focus-visible {
+  background: #c7d63c;
+  outline: none;
+}
+
+.cpRailAdd {
+  margin-top: 14px;
+  align-self: center;
+  background: transparent;
+  border: 1px dashed #2e6aa9;
+  border-radius: 12px;
+  color: #2e6aa9;
+  font-family: 'Lato', sans-serif;
+  font-size: 14px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.cpRailAdd:hover {
+  background: rgba(46, 106, 169, 0.08);
+}
+
+.cpNodeStatic {
+  justify-self: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #2e6aa9;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+/* Review — Figma 529-1708: read-only mirror of every step. */
+.reviewEdit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reviewCardHeader .reviewEdit {
+  border: none;
+  color: #000000;
+  font-style: italic;
+  font-size: 18px;
+}
+
+.reviewCardHeader .reviewEdit span {
+  color: #2e6aa9;
+  font-style: normal;
+}
+
+.reviewField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reviewBadgeName {
+  margin: 0;
+  border-bottom: 1px solid #c9c9c9;
+  padding-bottom: 6px;
+  max-width: 360px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewFieldLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewMuted {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  font-style: italic;
+  color: #9aa1ab;
+}
+
+.reviewDescriptionBox {
+  border: 1px solid #000000;
+  border-radius: 15px;
+  padding: 16px 18px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.reviewSkillsRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.reviewChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.reviewChip {
+  background: #2e6aa9;
+  color: #ffffff;
+  border-radius: 23px;
+  padding: 10px 20px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+}
+
+.reviewSkillCount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.reviewSkillCount strong {
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.reviewSkillCount span {
+  font-family: 'Open Sans', sans-serif;
+  font-style: italic;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewDates {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.reviewDate {
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  color: #000000;
+}
+
+.reviewDatesTo {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewVideoTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.reviewMeta {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewMeta strong {
+  font-weight: 700;
+}
+
+.reviewVideoPreview {
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  border-radius: 18px;
+  background-color: #d9d9d9;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+}
+
+.reviewOrderedList {
+  margin: 0;
+  padding-left: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.reviewGrading {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.reviewSubheading {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.reviewGradingCriterion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reviewGradingPrompt {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewGradingGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 8px;
+}
+
+.reviewGradingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.reviewGradingOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewFeedbackText {
+  border-bottom: 1px solid #c9c9c9;
+  padding-bottom: 2px;
+  flex: 1;
+}
+
+.checkpointEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Create Rubric — Figma 425-2278: two stacked full-width cards. */
+.rubricStack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rubricOrderedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rubricOrderedItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.rubricOrderedNumber {
+  padding-top: 8px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.rubricGhostRemove {
+  align-self: center;
+  background: transparent;
+  border: none;
+  color: #9aa1ab;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.rubricGhostRemove:hover {
+  color: #b91c1c;
+  text-decoration: underline;
+}
+
+.gradingList {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.gradingCriterion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e2e2e2;
+}
+
+.gradingPromptRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gradingPromptInput {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  outline: none;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+  padding: 4px 2px;
+}
+
+.gradingPromptInput:focus {
+  border-bottom-color: #2e6aa9;
+}
+
+.gradingPencil {
+  flex-shrink: 0;
+  cursor: pointer;
+  color: #2e6aa9;
+  font-size: 18px;
+  line-height: 1;
+  user-select: none;
+}
+
+.gradingOptionsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 8px;
+}
+
+.gradingOptionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+}
+
+.gradingOptionLeft,
+.gradingFeedbackCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gradingCheckbox {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  border: 2px solid #d9d9d9;
+  border-radius: 3px;
+  background: transparent;
+}
+
+.gradingCheckboxFilled {
+  background: #2e6aa9;
+  border-color: #2e6aa9;
+}
+
+.gradingUnderlineInput {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid #c9c9c9;
+  background: transparent;
+  outline: none;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+  padding: 4px 2px;
+}
+
+.gradingUnderlineInput:focus {
+  border-bottom-color: #2e6aa9;
+}
+
+.gradingUnderlineInput::placeholder {
+  color: #9aa1ab;
+}
+
+.gradingFeedbackInput::placeholder {
+  font-style: italic;
+  color: #9aa1ab;
+}
+
+.gradingCriterionActions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 2px;
+}
+
+.gradingAddItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: 'Open Sans', sans-serif;
+  font-style: italic;
+  font-size: 16px;
+  color: #000000;
+  padding: 0;
+}
+
+.addCriterionButton {
+  align-self: flex-start;
+  width: 56px;
+  height: 44px;
+  border: none;
+  border-radius: 14px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.addCriterionButton:hover {
+  filter: brightness(1.08);
+}
+
 .removeTextButton,
 .reviewCardHeader button,
 .backButton {
@@ -465,6 +1146,7 @@
   border: none;
   border-bottom: 1px solid #000000;
   color: #000000;
+  font-family: 'Lato', sans-serif;
   font-size: 16px;
   padding: 0 0 2px;
   cursor: pointer;
@@ -485,6 +1167,7 @@
 
 .rubricNumber {
   padding-top: 12px;
+  font-family: 'Lato', sans-serif;
   font-size: 20px;
   color: #000000;
 }
@@ -498,6 +1181,7 @@
 
 .reviewCard p,
 .reviewListItem {
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   line-height: 1.55;
   color: #222222;
@@ -525,6 +1209,7 @@
   color: #ffffff;
   border: none;
   border-radius: 19px;
+  font-family: 'Lato', sans-serif;
   font-size: 20px;
   font-weight: 400;
   cursor: pointer;
@@ -571,11 +1256,14 @@
   position: relative;
   width: min(520px, 100%);
   border-radius: 30px;
-  background: #f7f7f7;
-  border: 3px solid #d0d0d0;
-  padding: 34px 36px 30px;
+  background: #ffffff;
+  padding: 40px 44px 36px;
   color: #000000;
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
 }
 
 .successCloseButton {
@@ -586,20 +1274,56 @@
   background: transparent;
   color: #000000;
   cursor: pointer;
+  font-family: 'Lato', sans-serif;
   font-size: 24px;
   line-height: 1;
 }
 
 .successTitle {
   margin: 0;
+  font-family: 'Lato', sans-serif;
   font-size: 28px;
   font-weight: 700;
 }
 
+.successBadgeCircle {
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  background: #d9d9d9;
+  margin: 26px 0 22px;
+}
+
+.successBadgeName {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
+  color: #111111;
+}
+
 .successText {
   margin: 14px 0 0;
+  font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   line-height: 1.55;
+  color: #333333;
+}
+
+.successButton {
+  display: inline-block;
+  margin-top: 26px;
+  padding: 12px 26px;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.successButton:hover {
+  filter: brightness(1.05);
 }
 
 @media (max-width: 1200px) {

@@ -12,12 +12,14 @@
 }
 
 .pageTitle {
+  font-family: 'Lato', sans-serif;
   font-size: 2rem;
   font-weight: 700;
   color: #111827;
 }
 
 .pageSubtitle {
+  font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
   color: #4b5563;
 }
@@ -25,9 +27,11 @@
 .page {
   min-height: 100vh;
   display: flex;
+  font-family: 'Open Sans', sans-serif;
 }
 
 .brandMark {
+  font-family: 'Lato', sans-serif;
   font-weight: 700;
   font-size: 1.35rem;
   color: #1f5fab;
@@ -61,6 +65,7 @@
 }
 
 .cardTitle {
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   font-size: 1.15rem;
   color: #1f3698;
@@ -129,12 +134,14 @@
 }
 
 .progressValue {
+  font-family: 'Lato', sans-serif;
   font-size: 1.6rem;
   font-weight: 700;
   color: #111827;
 }
 
 .progressLabel {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;
   color: #4b5563;
 }
@@ -200,6 +207,7 @@
 }
 
 .badgeLabel {
+  font-family: 'Lato', sans-serif;
   font-size: 0.95rem;
   color: #1f3698;
   font-weight: 600;
@@ -229,6 +237,7 @@
 }
 
 .badgePercentage {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.9rem;
   color: #4b5563;
   min-width: 2.5rem;
@@ -287,12 +296,14 @@
 
 .circularStatValue {
   position: relative;
+  font-family: 'Lato', sans-serif;
   font-size: 1.6rem;
   font-weight: 700;
   color: #1f5fab;
 }
 
 .scoreLabel {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.82rem;
   color: #4b5563;
   line-height: 1.2;
@@ -387,12 +398,14 @@
   background: rgba(255, 255, 255, 0.2);
   display: grid;
   place-items: center;
+  font-family: 'Lato', sans-serif;
   font-size: 1.75rem;
   font-weight: 600;
   text-transform: uppercase;
 }
 
 .name {
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   font-size: 1.1rem;
 }
@@ -400,6 +413,7 @@
 .navList {
   display: grid;
   gap: 0.8rem;
+  font-family: 'Lato', sans-serif;
   font-size: 0.95rem;
 }
 
@@ -427,6 +441,7 @@
   border: none;
   background: rgba(255, 255, 255, 0.18);
   color: var(--brand-on);
+  font-family: 'Lato', sans-serif;
   font-weight: 600;
   cursor: pointer;
   transition: filter 0.2s ease, background-color 0.2s ease;
@@ -444,6 +459,7 @@
 }
 
 .brandFooter {
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.85rem;
   opacity: 0.85;
 }

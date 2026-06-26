@@ -1,0 +1,102 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navButton {
+  border: 2px solid #d7d7d7;
+  background: #ffffff;
+  border-radius: 999px;
+  width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+  font-size: 1rem;
+  line-height: 1;
+  color: #2e6aa9;
+}
+
+.months {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.month {
+  flex: 1 1 240px;
+}
+
+.monthLabel {
+  text-align: center;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  color: #232323;
+  margin-bottom: 0.5rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.weekday {
+  text-align: center;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.72rem;
+  color: #6b7280;
+  padding: 0.25rem 0;
+}
+
+.day {
+  aspect-ratio: 1;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #232323;
+  cursor: pointer;
+}
+
+.day:hover:not(:disabled) {
+  background: #eef3f9;
+}
+
+.day:disabled {
+  color: #c4c4c4;
+  cursor: not-allowed;
+}
+
+.empty {
+  aspect-ratio: 1;
+}
+
+.inRange {
+  background: #d7e25a;
+  border-radius: 0;
+}
+
+.endpoint {
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
+.endpoint:hover {
+  background: #2e6aa9;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+  color: #232323;
+}
