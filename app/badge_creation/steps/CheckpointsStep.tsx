@@ -250,6 +250,9 @@ export default function CheckpointsStep({
               >
                 Remove checkpoint
               </button>
+              <button type="button" className={styles.secondaryButton} onClick={() => setSelectedId(null)}>
+                Done
+              </button>
             </div>
           </div>
         </QuestionModal>

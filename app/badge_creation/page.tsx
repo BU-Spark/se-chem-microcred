@@ -148,23 +148,28 @@ export default function BadgeCreationPage() {
     setSubmitError('');
   };
 
+  // Apply a transform to the checkpoints list using the LATEST committed draft
+  // (functional setState), not the render-time closure. Reading draft.checkpoints
+  // directly would drop edits made in rapid succession / the same React batch.
+  const mutateCheckpoints = (updater: (checkpoints: CheckpointDraft[]) => CheckpointDraft[]) => {
+    setDraft((current) => ({ ...current, checkpoints: updater(current.checkpoints) }));
+    setSubmissionState(null);
+    setSubmitError('');
+  };
+
   const updateCheckpoint = <K extends keyof CheckpointDraft>(
     checkpointId: string,
     field: K,
     value: CheckpointDraft[K]
   ) => {
-    updateDraft(
-      'checkpoints',
-      draft.checkpoints.map((checkpoint) =>
-        checkpoint.id === checkpointId ? { ...checkpoint, [field]: value } : checkpoint
-      )
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => (checkpoint.id === checkpointId ? { ...checkpoint, [field]: value } : checkpoint))
     );
   };
 
   const updateCheckpointOption = (checkpointId: string, optionIndex: number, value: string) => {
-    updateDraft(
-      'checkpoints',
-      draft.checkpoints.map((checkpoint) => {
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => {
         if (checkpoint.id !== checkpointId) return checkpoint;
         const nextOptions = checkpoint.options.map((option, index) => (index === optionIndex ? value : option));
         return { ...checkpoint, options: nextOptions };
@@ -173,9 +178,8 @@ export default function BadgeCreationPage() {
   };
 
   const toggleCheckpointCorrectOption = (checkpointId: string, optionIndex: number) => {
-    updateDraft(
-      'checkpoints',
-      draft.checkpoints.map((checkpoint) => {
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => {
         if (checkpoint.id !== checkpointId) return checkpoint;
 
         const correctSet = new Set(checkpoint.correctIndices);
@@ -230,10 +234,7 @@ export default function BadgeCreationPage() {
   };
 
   const removeCheckpoint = (checkpointId: string) => {
-    updateDraft(
-      'checkpoints',
-      draft.checkpoints.filter((checkpoint) => checkpoint.id !== checkpointId)
-    );
+    mutateCheckpoints((checkpoints) => checkpoints.filter((checkpoint) => checkpoint.id !== checkpointId));
   };
 
   const updateRubricCriterion = <K extends keyof RubricCriterion>(
