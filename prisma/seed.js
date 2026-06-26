@@ -53,7 +53,7 @@ async function seedDemo() {
   const users = await Promise.all([
     prisma.user.create({
       data: {
-        email: 'nithin.senthilvel@gmail.com',
+        email: 'jacksoncg730@gmail.com',
         name: 'John Doe',
         buid: 'U1234567',
         gender: 'Male',
