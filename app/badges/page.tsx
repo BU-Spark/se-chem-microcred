@@ -46,6 +46,7 @@ const BADGE_STATUS_LABEL: Record<BadgeRecord['status'], string> = {
   READY_FOR_ASSESSMENT: 'Ready for assessment',
   READY_FOR_FINALIZATION: 'Ready to be finalized',
   LEARNING: 'Still learning',
+  NOT_STARTED: 'Not yet started',
 };
 
 function ChevronIcon({ direction = 'down' }: { direction?: 'down' | 'up' }) {

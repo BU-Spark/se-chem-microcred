@@ -233,6 +233,7 @@ export async function GET() {
   // round-trip to Prisma Accelerate.
   const [
     courseStaff,
+    courseBadges,
     lessonProgresses,
     lessons,
     studentBadges,
@@ -250,6 +251,14 @@ export async function GET() {
             sections: true,
             student: { select: { id: true, name: true, email: true } },
           },
+        })
+      : Promise.resolve([]),
+    // Every badge attached to this course (via a lesson's badge requirement),
+    // used to derive the "not yet started" group below.
+    enrollment
+      ? prisma.badge.findMany({
+          where: { requirements: { some: { lesson: { courseId: enrollment.courseId } } } },
+          select: { id: true, slug: true, name: true, description: true, category: true },
         })
       : Promise.resolve([]),
     fetchLessonProgress(student.id),
@@ -504,6 +513,22 @@ export async function GET() {
 
   const badgeGroups = groupBadgesByStatus(normalizedStudentBadges.map(formatBadge));
 
+  // "Not yet started" = course badges the student has no StudentBadge row for yet.
+  const studentBadgeIds = new Set(studentBadges.map((sb) => sb.badgeId));
+  const notStartedBadges = courseBadges
+    .filter((badge) => !studentBadgeIds.has(badge.id))
+    .map((badge) => ({
+      id: badge.id,
+      slug: badge.slug,
+      name: badge.name,
+      description: badge.description,
+      category: badge.category,
+      status: 'NOT_STARTED' as const,
+      awardedAt: null,
+      score: null,
+      requirements: [] as Array<{ summary: string | null; lessonSlug: string | null; lessonTitle: string | null }>,
+    }));
+
   const lessonSurveyPrompts = surveyPrompts
     .filter((prompt) => prompt.context === SurveyContext.LESSON)
     .map((prompt) => ({
@@ -583,6 +608,7 @@ export async function GET() {
       readyForAssessment: badgeGroups[BadgeStatus.READY_FOR_ASSESSMENT],
       readyForFinalization: badgeGroups[BadgeStatus.READY_FOR_FINALIZATION],
       learning: badgeGroups[BadgeStatus.LEARNING],
+      notStarted: notStartedBadges,
     },
     surveys: {
       lesson: lessonSurveyPrompts,

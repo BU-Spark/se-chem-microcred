@@ -31,6 +31,8 @@ jest.mock('@clerk/nextjs', () => ({
   useUser: () => mockUseUser(),
   useAuth: () => mockUseAuth(),
   useClerk: () => mockUseClerk(),
+  // Passthrough: returns the wrapped action unchanged (no step-up UI in tests).
+  useReverification: (fn: (...args: unknown[]) => unknown) => fn,
 }));
 
 const mockUseStudentData = jest.fn();
@@ -276,6 +278,7 @@ function createStudentData(): StudentData {
           requirements: [{ summary: 'Req', lessonSlug: null, lessonTitle: null }],
         },
       ],
+      notStarted: [],
     },
     surveys: {
       lesson: [],

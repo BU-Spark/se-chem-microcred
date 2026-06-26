@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser, useClerk } from '@clerk/nextjs';
+import { useAuth, useUser, useClerk, useReverification } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import styles from './page.module.css';
 import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
@@ -100,7 +101,9 @@ export default function ProfilePage() {
 
   // ---------- 1. Sensitive-data visibility ----------
   const [sensitiveHidden, setSensitiveHidden] = useState(true);
-  const [sensitiveTimerId, setSensitiveTimerId] = useState<ReturnType<typeof setTimeout> | null>(null);
+  // Held in a ref (not state) so every spawned auto-hide timer is tracked and
+  // cleaned up on unmount — avoids leaking a timer that fires setState on a dead component.
+  const sensitiveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ---------- Demographic dropdown (expand/collapse) ----------
   const [demographicOpen, setDemographicOpen] = useState(false);
@@ -141,19 +144,21 @@ export default function ProfilePage() {
     }
   }, [isLoaded, isSignedIn, router]);
 
-  // start auto-hide timer on mount
+  const restartSensitiveTimer = useCallback(() => {
+    if (sensitiveTimerRef.current) clearTimeout(sensitiveTimerRef.current);
+    sensitiveTimerRef.current = setTimeout(() => setSensitiveHidden(true), SENSITIVE_TIMEOUT_MS);
+  }, []);
+
+  // start auto-hide timer on mount; clear any pending timer on unmount
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
 
-    const id = setTimeout(() => {
-      setSensitiveHidden(true);
-    }, SENSITIVE_TIMEOUT_MS);
-    setSensitiveTimerId(id);
+    restartSensitiveTimer();
 
     return () => {
-      if (id) clearTimeout(id);
+      if (sensitiveTimerRef.current) clearTimeout(sensitiveTimerRef.current);
     };
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, restartSensitiveTimer]);
 
   // Collapse the demographic dropdown whenever sensitive info gets re-hidden
   // (e.g. the 10-minute auto-hide timer fires) so masked values aren't shown.
@@ -163,42 +168,34 @@ export default function ProfilePage() {
     }
   }, [sensitiveHidden]);
 
-  const restartSensitiveTimer = () => {
-    if (sensitiveTimerId) clearTimeout(sensitiveTimerId);
-    const id = setTimeout(() => setSensitiveHidden(true), SENSITIVE_TIMEOUT_MS);
-    setSensitiveTimerId(id);
-  };
-
-  // helper: ask Clerk to re-authenticate (password / SSO).
-  // Here we use the built-in Sign-in modal; after it closes we treat it as success.
-  const requestReauthentication = async () => {
-    try {
-      // In single-session apps, Clerk won't show a SignIn modal on top
-      // of an existing session. Instead, open the user profile where the
-      // user can re-confirm their identity (password / 2FA / etc.).
-      clerk.openUserProfile();
-      // We don't actually know when the user "finished", so this helper
-      // just opens the profile and returns immediately.
-    } catch (err) {
-      console.error('Clerk re-authentication failed', err);
-      throw err;
+  // Real step-up auth: useReverification wraps a call to a reverification-protected
+  // route. Clerk catches the reverification error, prompts the user to re-verify
+  // their credentials, and retries — so the reveal can't be bypassed by a confirm box.
+  const reverifiedReveal = useReverification(async () => {
+    const response = await fetch('/api/profile/reverify', { method: 'POST' });
+    if (!response.ok) {
+      throw new Error('Re-verification required');
     }
-  };
+  });
 
-  // Returns true if sensitive info became (or already was) visible.
+  // Returns true if sensitive info became visible. Fails closed: if the user
+  // cancels re-verification or it errors, sensitive data stays masked.
   const handleShowSensitive = async (): Promise<boolean> => {
     try {
-      await requestReauthentication();
-      const confirmed = window.confirm('Did you finish re-authentication?');
-      if (!confirmed) return false;
+      await reverifiedReveal();
       setSensitiveHidden(false);
       restartSensitiveTimer();
       return true;
     } catch {
-      // keep hidden on failure
       return false;
     }
   };
+
+  // Modal a11y: trap focus, close on Escape, restore focus to the trigger on close.
+  const demographicModalRef = useFocusTrap<HTMLDivElement>(isDemographicModalOpen, () =>
+    setIsDemographicModalOpen(false)
+  );
+  const languageModalRef = useFocusTrap<HTMLDivElement>(isLanguageModalOpen, () => setIsLanguageModalOpen(false));
 
   // Toggle the Demographic Info dropdown. Opening it requires the sensitive
   // info to be unmasked (re-authentication), preserving the existing behavior.
@@ -333,6 +330,7 @@ export default function ProfilePage() {
 
   const learningBadges = studentData?.badges.learning ?? [];
   const completedBadges = studentData?.badges.completed ?? [];
+  const notStartedBadges = studentData?.badges.notStarted ?? [];
 
   return (
     <div className="page">
@@ -538,7 +536,16 @@ export default function ProfilePage() {
               </button>
               {notStartedOpen && (
                 <div className={styles.badgeRow}>
-                  <div className={styles.emptyState}>No badges to show.</div>
+                  {notStartedBadges.length === 0 ? (
+                    <div className={styles.emptyState}>No badges to show.</div>
+                  ) : (
+                    notStartedBadges.map((badge) => (
+                      <div key={badge.id} className={styles.badgeToken}>
+                        <div className={styles.badgeCircle} aria-hidden="true" />
+                        <div className={styles.badgeName}>{badge.name}</div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -577,9 +584,21 @@ export default function ProfilePage() {
 
       {/* Demographic edit modal */}
       {isDemographicModalOpen && (
-        <div className={styles.demographicModalOverlay}>
-          <div className={styles.demographicModal}>
-            <h2 className={styles.demographicModalTitle}>Edit demographic info</h2>
+        <div
+          className={styles.demographicModalOverlay}
+          onClick={() => !isSavingDemographics && setIsDemographicModalOpen(false)}
+        >
+          <div
+            ref={demographicModalRef}
+            className={styles.demographicModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="demographic-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="demographic-modal-title" className={styles.demographicModalTitle}>
+              Edit demographic info
+            </h2>
             <p className={styles.demographicModalHint}>Only demographic fields can be changed here.</p>
 
             <label className={styles.demographicModalField}>
@@ -636,9 +655,18 @@ export default function ProfilePage() {
       )}
 
       {isLanguageModalOpen && (
-        <div className={styles.languageModalOverlay}>
-          <div className={styles.languageModal}>
-            <h2 className={styles.languageModalTitle}>Change language</h2>
+        <div className={styles.languageModalOverlay} onClick={() => setIsLanguageModalOpen(false)}>
+          <div
+            ref={languageModalRef}
+            className={styles.languageModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="language-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="language-modal-title" className={styles.languageModalTitle}>
+              Change language
+            </h2>
             <p className={styles.languageModalHint}>
               Choose the language you’d like to use for this site. More options will be available in the future.
             </p>
