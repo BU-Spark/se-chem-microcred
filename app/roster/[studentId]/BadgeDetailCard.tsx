@@ -16,6 +16,10 @@ export type BadgeDetailResponse = {
     status: string;
     awardedAt: string | null;
     score: number | null;
+    reassessmentLimit?: number | null;
+    cooldownDays?: number | null;
+    reassessmentRequired?: boolean | null;
+    allowCooldownOverride?: boolean;
   };
   progress: {
     percentComplete: number;
