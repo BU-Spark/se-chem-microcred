@@ -113,6 +113,15 @@
   color: #2e2e2e;
 }
 
+.sectionFilters {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.95rem;
+  font-family: 'Open Sans', sans-serif;
+}
+
 .filterPill {
   min-height: 2.15rem;
   padding: 0.35rem 0.95rem;
@@ -123,6 +132,16 @@
   font-family: 'Lato', sans-serif;
   font-size: 0.9rem;
   cursor: pointer;
+}
+
+.filterPill:hover {
+  border-color: #2e6aa9;
+  color: #2e6aa9;
+}
+
+.filterPillActive,
+.filterPillActive:hover {
+  color: #ffffff;
 }
 
 .filterPillActive {
