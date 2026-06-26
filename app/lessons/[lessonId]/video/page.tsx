@@ -1,10 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
+import { useParams, useRouter } from 'next/navigation';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
 // Build a static avatar URL from AvatarSetting.
 // Only "base" matters for the header icon.
@@ -22,8 +24,11 @@ function buildAvatarUrlFromAvatar(
 
 export default function LessonVideoRoute() {
   const params = useParams<{ lessonId: string }>();
+  const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
+  const { signOut } = useAuth();
   const { data: studentData, isLoading, error } = useStudentData(user?.primaryEmailAddress?.emailAddress);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -59,14 +64,31 @@ export default function LessonVideoRoute() {
   const avatarUrl = buildAvatarUrlFromAvatar(studentAvatar);
   const lessonSurvey = studentData.surveys.lesson.find((survey) => survey.lessonSlug === lessonRecord.slug) ?? null;
 
+  const handleSignOut = async () => {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.replace('/sign-in');
+    } catch (error) {
+      console.error('Sign out failed', error);
+      setIsSigningOut(false);
+    }
+  };
+
   return (
-    <LessonVideoPage
-      lesson={lessonRecord}
-      studentName={studentName}
-      studentEmail={studentEmail}
-      lessonSurvey={lessonSurvey}
-      resumeRequested={false}
-      studentAvatarUrl={avatarUrl}
-    />
+    <div className="page">
+      <Sidebar navItems={SIDEBAR_NAV} displayName={studentName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <LessonVideoPage
+          lesson={lessonRecord}
+          studentName={studentName}
+          studentEmail={studentEmail}
+          lessonSurvey={lessonSurvey}
+          resumeRequested={false}
+          studentAvatarUrl={avatarUrl}
+        />
+      </div>
+    </div>
   );
 }
