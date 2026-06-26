@@ -620,6 +620,14 @@ export default function BadgeCreationPage() {
 
   const handleSuccessClose = () => {
     setIsSuccessModalOpen(false);
+    // Always return to the badge list, no matter how the modal is dismissed.
+    if (typeof window !== 'undefined') {
+      // Hard navigation: router.push() no-ops from an async handler after setState in Next 15,
+      // and a full load ensures /my_badges shows fresh data including the new badge.
+      window.location.assign('/my_badges');
+      return;
+    }
+    router.push('/my_badges');
   };
 
   const handleNext = async () => {
@@ -633,18 +641,15 @@ export default function BadgeCreationPage() {
 
     try {
       await saveBadge();
-      console.log('[badge_creation] save succeeded, redirecting to /my_badges');
       if (typeof window !== 'undefined') {
         window.localStorage.removeItem(DRAFT_STORAGE_KEY);
-        // Hard navigation: router.push() no-ops from an async handler after setState in Next 15,
-        // and a full load ensures /my_badges shows fresh data including the new badge.
-        window.location.assign('/my_badges');
-        return;
       }
-      router.push('/my_badges');
+      setSubmissionState(`Badge ${isEditMode ? 'updated' : 'created'} successfully.`);
+      setIsSuccessModalOpen(true);
     } catch (error) {
       console.error(error);
       setSubmitError(error instanceof Error ? error.message : `Failed to ${isEditMode ? 'update' : 'create'} badge.`);
+    } finally {
       setIsSubmitting(false);
     }
   };
@@ -1243,7 +1248,7 @@ export default function BadgeCreationPage() {
                   : 'This badge was created independently and can be assigned to a course later.'}
             </p>
             <button type="button" className={styles.nextButton} onClick={handleSuccessClose}>
-              View My Badges
+              Return to badge list
             </button>
           </div>
         </div>
