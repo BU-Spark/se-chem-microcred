@@ -74,14 +74,7 @@ function getContactAvatarSrc(contact: Contact) {
     return contact.avatarUrl;
   }
 
-  if (contact.type === 'INSTRUCTOR') {
-    return '/edit_avatar/emerald.svg';
-  }
-  if (contact.type === 'CHECKER') {
-    return '/edit_avatar/amethyst.svg';
-  }
-
-  return '/edit_avatar/default.svg';
+  return '/edit_avatar/sapphire.svg';
 }
 
 // 10 minutes

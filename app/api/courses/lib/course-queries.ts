@@ -390,6 +390,7 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
           name: true,
           email: true,
           buid: true,
+          avatar: { select: { base: true } },
         },
       },
       contacts: {

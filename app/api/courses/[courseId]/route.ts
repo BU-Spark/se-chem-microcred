@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import prisma from '@/lib/prisma';
 
 function normalizeEmail(email?: string | null) {
   const trimmed = email?.trim().toLowerCase();
@@ -53,11 +54,32 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       );
     }
 
+    // Resolve avatar bases for contacts by looking up each contact's user record by email.
+    const contactEmails = course.contacts.map((c) => c.email).filter(Boolean);
+    const contactUsers =
+      contactEmails.length > 0
+        ? await prisma.user.findMany({
+            where: { email: { in: contactEmails } },
+            select: { email: true, avatar: { select: { base: true } } },
+          })
+        : [];
+    const avatarBaseByEmail = new Map(contactUsers.map((u) => [u.email, u.avatar?.base ?? null]));
+
     return NextResponse.json(
       {
         viewerRole,
         course: {
           ...course,
+          createdBy: course.createdBy
+            ? {
+                ...course.createdBy,
+                avatarBase: course.createdBy.avatar?.base ?? null,
+              }
+            : null,
+          contacts: course.contacts.map((contact) => ({
+            ...contact,
+            avatarBase: avatarBaseByEmail.get(contact.email) ?? null,
+          })),
           enrollments: course.enrollments.map((enrollment) => ({
             ...enrollment,
             sections: enrollment.sections.map((assignment) => assignment.section),

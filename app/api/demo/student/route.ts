@@ -4,6 +4,20 @@ import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 
+function avatarPathForBase(base?: string | null): string {
+  switch (base) {
+    case 'RUBY':
+      return '/edit_avatar/ruby.svg';
+    case 'EMERALD':
+      return '/edit_avatar/emerald.svg';
+    case 'AMETHYST':
+      return '/edit_avatar/amethyst.svg';
+    case 'SAPPHIRE':
+    default:
+      return '/edit_avatar/sapphire.svg';
+  }
+}
+
 // Converts a stored "First Last" name into the "Last, First" display format the designs use.
 // Names already containing a comma are assumed to be in the desired format and left as-is.
 function formatLastFirst(fullName?: string | null) {
@@ -249,7 +263,7 @@ export async function GET() {
           },
           include: {
             sections: true,
-            student: { select: { id: true, name: true, email: true } },
+            student: { select: { id: true, name: true, email: true, avatar: { select: { base: true } } } },
           },
         })
       : Promise.resolve([]),
@@ -319,7 +333,7 @@ export async function GET() {
       type: staff.role === CourseRole.INSTRUCTOR ? CourseContactType.INSTRUCTOR : CourseContactType.CHECKER,
       name: formatLastFirst(staff.student.name) ?? staff.student.email ?? 'Unknown',
       email: staff.student.email ?? '',
-      avatarUrl: null as string | null,
+      avatarUrl: avatarPathForBase(staff.student.avatar?.base),
     }));
 
   const surveyPrompts = await prisma.surveyPrompt.findMany({

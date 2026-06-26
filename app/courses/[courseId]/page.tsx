@@ -8,6 +8,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 
 import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
 import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
+import rubyAvatar from '@/public/edit_avatar/ruby.svg';
 import sapphireAvatar from '@/public/edit_avatar/sapphire.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import styles from './page.module.css';
@@ -18,6 +19,7 @@ type CourseContact = {
   name: string;
   email: string;
   avatarUrl: string | null;
+  avatarBase: string | null;
 };
 
 type EnrollmentSummary = {
@@ -65,6 +67,7 @@ type CourseDetail = {
     name: string | null;
     email: string | null;
     buid: string | null;
+    avatarBase: string | null;
   } | null;
   settings: {
     allowCooldownOverride: boolean;
@@ -106,7 +109,19 @@ type BadgeLibraryResponse = {
   badges: BadgeLibraryItem[];
 };
 
-const CHECKER_AVATARS = [emeraldAvatar, sapphireAvatar, amethystAvatar];
+function avatarFor(base?: string | null): StaticImageData {
+  switch (base) {
+    case 'RUBY':
+      return rubyAvatar as StaticImageData;
+    case 'EMERALD':
+      return emeraldAvatar as StaticImageData;
+    case 'AMETHYST':
+      return amethystAvatar as StaticImageData;
+    case 'SAPPHIRE':
+    default:
+      return sapphireAvatar as StaticImageData;
+  }
+}
 
 function resolveCourseId(value: string | string[] | undefined) {
   if (Array.isArray(value)) {
@@ -449,7 +464,7 @@ export default function CreatedCourseDetailPage() {
                     label={isInstructor ? 'Instructor (You)' : 'Instructor'}
                     name={course.createdBy?.name}
                     email={course.createdBy?.email}
-                    avatarSrc={emeraldAvatar}
+                    avatarSrc={avatarFor(course.createdBy?.avatarBase)}
                   />
 
                   <div className={styles.statLines}>
@@ -476,12 +491,12 @@ export default function CreatedCourseDetailPage() {
 
                   {checkers.length > 0 ? (
                     <div className={styles.checkerList}>
-                      {checkers.map((checker, index) => (
+                      {checkers.map((checker) => (
                         <PersonCard
                           key={checker.id}
                           name={checker.name}
                           email={checker.email}
-                          avatarSrc={CHECKER_AVATARS[index % CHECKER_AVATARS.length]}
+                          avatarSrc={avatarFor(checker.avatarBase)}
                         />
                       ))}
                     </div>
