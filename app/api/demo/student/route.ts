@@ -3,6 +3,7 @@ import { BadgeStatus, CourseContactType, CourseRole, LessonStatus, SegmentStatus
 import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
+import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 
 // Converts a stored "First Last" name into the "Last, First" display format the designs use.
 // Names already containing a comma are assumed to be in the desired format and left as-is.
@@ -195,6 +196,9 @@ export async function GET() {
   }
 
   const email = user.emailAddresses[0].emailAddress.toLowerCase();
+
+  // Provision the row on first sign-in so the profile resolves instead of 404ing.
+  await ensureCurrentUser();
 
   const student = await prisma.user.findUnique({
     where: { email },

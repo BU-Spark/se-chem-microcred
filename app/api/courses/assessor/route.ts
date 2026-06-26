@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAssessorCourseEnrollments, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 
 function normalizeEmail(email?: string | null) {
   const trimmed = email?.trim().toLowerCase();
@@ -14,7 +15,8 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
 
-    const user = await fetchUserByEmail(email);
+    // Lazily provision the signed-in user so a fresh sign-in isn't "User not found".
+    const user = (await ensureCurrentUser()) ?? (await fetchUserByEmail(email));
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
