@@ -83,6 +83,11 @@ export function buildVideoThumbnail(url: string) {
 export function formatDateInput(value?: string | null) {
   if (!value) return '';
 
+  // Prefer the leading YYYY-MM-DD verbatim so a stored UTC-midnight ISO string
+  // round-trips without any timezone shift; fall back to a UTC slice otherwise.
+  const isoDateMatch = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+  if (isoDateMatch) return isoDateMatch[1];
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
 

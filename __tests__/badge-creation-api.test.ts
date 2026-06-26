@@ -9,12 +9,12 @@ jest.mock('@clerk/nextjs/server', () => ({
 
 const mockTx = {
   course: { findFirst: jest.fn() },
-  badge: { create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+  badge: { create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
   lesson: { create: jest.fn() },
   lessonSegment: { create: jest.fn() },
   lessonCheckpoint: { createMany: jest.fn(), findMany: jest.fn() },
   checkpointQuestion: { createMany: jest.fn() },
-  badgeRequirement: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
+  badgeRequirement: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
   surveyPrompt: { create: jest.fn() },
   studentBadge: { createMany: jest.fn() },
 };
@@ -109,6 +109,7 @@ describe('badge creation API', () => {
       id: 'requirement-1',
       lesson: { title: 'Existing lesson' },
     });
+    mockPrisma.__tx.badge.findMany.mockResolvedValue([]);
   });
 
   it('creates badge, lesson, checkpoint question, and student badge rows for the course', async () => {
@@ -361,7 +362,7 @@ describe('badge creation API', () => {
     expect(response.status).toBe(200);
     expect(mockPrisma.__tx.badge.update).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'badge-1' },
+        where: { id: 'badge-1', createdById: 'instructor-1' },
         data: expect.objectContaining({
           name: 'Updated Badge',
           description: 'Updated description',

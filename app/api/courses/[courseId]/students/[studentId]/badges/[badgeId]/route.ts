@@ -15,6 +15,14 @@ function normalizeId(value?: string | null) {
   return trimmed ? trimmed : null;
 }
 
+// The acting user's email arrives as a client-supplied query param; require it
+// to match the signed-in Clerk session so a caller can't act as someone else.
+async function sessionMatchesEmail(email: string) {
+  const clerkUser = await currentUser();
+  const sessionEmail = normalizeEmail(clerkUser?.emailAddresses?.[0]?.emailAddress);
+  return Boolean(sessionEmail) && sessionEmail === email;
+}
+
 function answerTextFromResponse(options: unknown, selectedIndex?: number | null) {
   if (selectedIndex == null) {
     return 'No answer recorded';
@@ -144,6 +152,10 @@ export async function GET(
 
     if (!courseId || !studentId || !badgeId) {
       return NextResponse.json({ error: 'Course id, student id, and badge id are required' }, { status: 400 });
+    }
+
+    if (!(await sessionMatchesEmail(email))) {
+      return NextResponse.json({ error: 'Session does not match the requested user.' }, { status: 403 });
     }
 
     const user = await fetchUserByEmail(email);
@@ -324,7 +336,8 @@ export async function GET(
     if (viewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
       const viewerSections = new Set(viewerEnrollment?.sections.map((assignment) => assignment.section) ?? []);
       const memberSections = targetEnrollment.sections.map((assignment) => assignment.section);
-      const canViewSection = memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
+      const canViewSection =
+        memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
 
       if (targetEnrollment.role !== 'STUDENT' || !canViewSection) {
         return NextResponse.json(
@@ -548,6 +561,10 @@ export async function POST(
       return NextResponse.json({ error: 'Course id, student id, and badge id are required' }, { status: 400 });
     }
 
+    if (!(await sessionMatchesEmail(email))) {
+      return NextResponse.json({ error: 'Session does not match the requested user.' }, { status: 403 });
+    }
+
     const body = normalizeAssessmentPayload(await req.json().catch(() => null));
 
     if (!body) {
@@ -667,7 +684,8 @@ export async function POST(
     if (viewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
       const viewerSections = new Set(viewerEnrollment?.sections.map((assignment) => assignment.section) ?? []);
       const memberSections = targetEnrollment.sections.map((assignment) => assignment.section);
-      const canViewSection = memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
+      const canViewSection =
+        memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
 
       if (targetEnrollment.role !== 'STUDENT' || !canViewSection) {
         return NextResponse.json(
@@ -779,11 +797,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Course id, student id, and badge id are required' }, { status: 400 });
     }
 
-    // The email query param is client-supplied; require it to match the signed-in
-    // session so a caller can't act as another user.
-    const clerkUser = await currentUser();
-    const sessionEmail = normalizeEmail(clerkUser?.emailAddresses?.[0]?.emailAddress);
-    if (!sessionEmail || sessionEmail !== email) {
+    if (!(await sessionMatchesEmail(email))) {
       return NextResponse.json({ error: 'Session does not match the requested user.' }, { status: 403 });
     }
 
@@ -880,7 +894,8 @@ export async function PATCH(
     if (viewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
       const viewerSections = new Set(viewerEnrollment?.sections.map((assignment) => assignment.section) ?? []);
       const memberSections = targetEnrollment.sections.map((assignment) => assignment.section);
-      const canViewSection = memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
+      const canViewSection =
+        memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
 
       if (targetEnrollment.role !== 'STUDENT' || !canViewSection) {
         return NextResponse.json(
@@ -892,10 +907,7 @@ export async function PATCH(
 
     // Cooldown overrides require the course to opt in.
     if (data.cooldownDays !== undefined && !course.settings?.allowCooldownOverride) {
-      return NextResponse.json(
-        { error: 'Cooldown overrides are disabled for this course.' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Cooldown overrides are disabled for this course.' }, { status: 403 });
     }
 
     const badgeProgress = targetEnrollment.student.badgeProgress[0];

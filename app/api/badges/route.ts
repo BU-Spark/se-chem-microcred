@@ -508,6 +508,13 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const editorEmail = clerkUser.emailAddresses[0].emailAddress.trim().toLowerCase();
+    const editor = await prisma.user.findUnique({ where: { email: editorEmail }, select: { id: true } });
+
+    if (!editor) {
+      return NextResponse.json({ error: 'Creator user record was not found in the database.' }, { status: 404 });
+    }
+
     const body = (await req.json()) as UpdateBadgePayload;
     const badgeId = normalizeString(body.id);
     const badgeName = normalizeString(body.badgeName);
@@ -531,8 +538,10 @@ export async function PATCH(req: NextRequest) {
     }
 
     const updated = await prisma.$transaction(async (tx) => {
+      // Ownership filter: only the badge's creator may edit it. A non-owner (or
+      // unknown id) matches no row and Prisma throws P2025 -> 404 below.
       const badge = await tx.badge.update({
-        where: { id: badgeId },
+        where: { id: badgeId, createdById: editor.id },
         data: {
           name: badgeName,
           description: badgeDescription,
@@ -558,6 +567,7 @@ export async function PATCH(req: NextRequest) {
         where: {
           OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
           NOT: { id: badge.id },
+          createdById: editor.id,
         },
         data: { availableOn, closesOn, neverCloses },
       });
@@ -575,33 +585,44 @@ export async function PATCH(req: NextRequest) {
         },
       });
 
+      const requirementSummary = buildRequirementSummary({
+        badgeName,
+        lessonTitle: firstRequirement?.lesson?.title ?? badgeName,
+        skills,
+        rubricItems,
+        gradingCriteria,
+        checkpoints,
+      });
+
       if (firstRequirement) {
         await tx.badgeRequirement.update({
           where: { id: firstRequirement.id },
-          data: {
-            summary: buildRequirementSummary({
-              badgeName,
-              lessonTitle: firstRequirement.lesson?.title ?? badgeName,
-              skills,
-              rubricItems,
-              gradingCriteria,
-              checkpoints,
-            }),
-          },
+          data: { summary: requirementSummary },
         });
       } else {
         await tx.badgeRequirement.create({
           data: {
             badgeId,
-            summary: buildRequirementSummary({
-              badgeName,
-              lessonTitle: badgeName,
-              skills,
-              rubricItems,
-              gradingCriteria,
-              checkpoints,
-            }),
+            summary: requirementSummary,
           },
+        });
+      }
+
+      // Sync the rest of the badge family's requirement summaries so course
+      // copies don't keep a stale rubric/skills after a source-badge edit.
+      const otherFamilyBadges = await tx.badge.findMany({
+        where: {
+          OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
+          NOT: { id: badge.id },
+          createdById: editor.id,
+        },
+        select: { id: true },
+      });
+
+      if (otherFamilyBadges.length > 0) {
+        await tx.badgeRequirement.updateMany({
+          where: { badgeId: { in: otherFamilyBadges.map((familyBadge) => familyBadge.id) } },
+          data: { summary: requirementSummary },
         });
       }
 

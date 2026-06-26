@@ -67,7 +67,8 @@ export default function LessonVideoStep({
             className={styles.textField}
             value={draft.videoTitle}
             onChange={(event) => {
-              setTitleDirty(true);
+              // Clearing the field re-enables auto-fill; any other edit suppresses it.
+              setTitleDirty(event.target.value.length > 0);
               updateDraft('videoTitle', event.target.value);
             }}
           />
