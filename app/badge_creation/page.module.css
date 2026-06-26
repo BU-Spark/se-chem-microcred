@@ -708,6 +708,239 @@
   background: rgba(46, 106, 169, 0.08);
 }
 
+.cpNodeStatic {
+  justify-self: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #2e6aa9;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+/* Review — Figma 529-1708: read-only mirror of every step. */
+.reviewEdit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reviewCardHeader .reviewEdit {
+  border: none;
+  color: #000000;
+  font-style: italic;
+  font-size: 18px;
+}
+
+.reviewCardHeader .reviewEdit span {
+  color: #2e6aa9;
+  font-style: normal;
+}
+
+.reviewField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reviewBadgeName {
+  margin: 0;
+  border-bottom: 1px solid #c9c9c9;
+  padding-bottom: 6px;
+  max-width: 360px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewFieldLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewMuted {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  font-style: italic;
+  color: #9aa1ab;
+}
+
+.reviewDescriptionBox {
+  border: 1px solid #000000;
+  border-radius: 15px;
+  padding: 16px 18px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.reviewSkillsRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.reviewChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.reviewChip {
+  background: #2e6aa9;
+  color: #ffffff;
+  border-radius: 23px;
+  padding: 10px 20px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+}
+
+.reviewSkillCount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.reviewSkillCount strong {
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.reviewSkillCount span {
+  font-family: 'Open Sans', sans-serif;
+  font-style: italic;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewDates {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.reviewDate {
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  color: #000000;
+}
+
+.reviewDatesTo {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewVideoTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.reviewMeta {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewMeta strong {
+  font-weight: 700;
+}
+
+.reviewVideoPreview {
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  border-radius: 18px;
+  background-color: #d9d9d9;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+}
+
+.reviewOrderedList {
+  margin: 0;
+  padding-left: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.reviewGrading {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.reviewSubheading {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.reviewGradingCriterion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reviewGradingPrompt {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewGradingGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 8px;
+}
+
+.reviewGradingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.reviewGradingOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewFeedbackText {
+  border-bottom: 1px solid #c9c9c9;
+  padding-bottom: 2px;
+  flex: 1;
+}
+
 .checkpointEditor {
   display: flex;
   flex-direction: column;

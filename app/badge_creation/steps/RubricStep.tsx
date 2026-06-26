@@ -1,3 +1,7 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+
 import styles from '../page.module.css';
 import type { BadgeDraft, RubricCriterion } from '../types';
 
@@ -30,11 +34,23 @@ export default function RubricStep({
   addRubricCriterionOption: (criterionId: string) => void;
   removeRubricCriterionOption: (criterionId: string, optionIndex: number) => void;
 }) {
+  const listRef = useRef<HTMLOListElement>(null);
+  // Set when Enter spawns a new row so focus follows into the new textarea
+  // once it renders (the parent owns the items, so we move focus post-commit).
+  const focusNewItemRef = useRef(false);
+
+  useEffect(() => {
+    if (!focusNewItemRef.current) return;
+    focusNewItemRef.current = false;
+    const fields = listRef.current?.querySelectorAll('textarea');
+    fields?.[fields.length - 1]?.focus();
+  }, [draft.rubricItems.length]);
+
   return (
     <div className={styles.rubricStack}>
       <div className={styles.editorCard}>
         <h3 className={styles.panelTitle}>Create Rubric</h3>
-        <ol className={styles.rubricOrderedList}>
+        <ol ref={listRef} className={styles.rubricOrderedList}>
           {draft.rubricItems.map((item, index) => (
             <li key={item.id} className={styles.rubricOrderedItem}>
               <span className={styles.rubricOrderedNumber}>{index + 1}.</span>
