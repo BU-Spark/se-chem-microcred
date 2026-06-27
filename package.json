@@ -13,7 +13,8 @@
     "test:coverage": "jest --coverage",
     "prepare": "husky",
     "db:seed": "prisma db seed",
-    "db:seed-user": "node prisma/seed-user.js"
+    "db:seed-user": "node prisma/seed-user.js",
+    "db:seed-playtest": "node prisma/seed-playtest.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.35.5",
