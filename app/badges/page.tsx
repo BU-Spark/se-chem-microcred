@@ -8,7 +8,7 @@ import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
-type BadgeStatus = 'completed' | 'assessment' | 'finalization' | 'learning';
+type BadgeStatus = 'completed' | 'assessment' | 'finalization' | 'learning' | 'notStarted';
 
 type SectionConfig = {
   status: BadgeStatus;
@@ -24,20 +24,25 @@ const SECTION_CONFIG: SectionConfig[] = [
     subtitle: "You've completed these skills!",
   },
   {
+    status: 'finalization',
+    title: 'Ready to be Finalized',
+    subtitle: 'Complete the feedback survey to finalize your badge.',
+  },
+  {
     status: 'assessment',
     title: 'Ready to be Assessed',
     subtitle: "You'll earn these badges after an in-person assessment.",
     collapsedByDefault: true,
   },
   {
-    status: 'finalization',
-    title: 'Ready to be Finalized',
-    subtitle: 'Complete the feedback survey to finalize your badge.',
-  },
-  {
     status: 'learning',
     title: 'Still Learning',
     subtitle: "You'll earn these badges after you review feedback and complete in-person reassessment.",
+  },
+  {
+    status: 'notStarted',
+    title: 'Not Yet Started',
+    subtitle: 'Start the related lessons to begin earning these badges.',
   },
 ];
 
@@ -69,6 +74,22 @@ function formatBadgeStatus(status: BadgeRecord['status']) {
   return BADGE_STATUS_LABEL[status];
 }
 
+function buildAssessmentQrUrl(
+  courseId: string | null | undefined,
+  studentId: string | null | undefined,
+  badgeId: string
+) {
+  if (typeof window === 'undefined' || !courseId || !studentId) {
+    return null;
+  }
+
+  const url = new URL('/qr/assessment', window.location.origin);
+  url.searchParams.set('courseId', courseId);
+  url.searchParams.set('studentId', studentId);
+  url.searchParams.set('badgeId', badgeId);
+  return url.toString();
+}
+
 export default function BadgeWalletPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
@@ -81,13 +102,10 @@ export default function BadgeWalletPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
 
-  const initialOpenSection = useMemo<BadgeStatus | null>(
-    () => SECTION_CONFIG.find((section) => !section.collapsedByDefault)?.status ?? null,
-    []
-  );
-  const [openSection, setOpenSection] = useState<BadgeStatus | null>(initialOpenSection);
+  const [openSection, setOpenSection] = useState<BadgeStatus | null>(null);
 
   const modalRef = useRef<HTMLDivElement | null>(null);
+  const hasAutoOpenedSection = useRef(false);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) router.replace('/sign-in');
@@ -124,9 +142,20 @@ export default function BadgeWalletPage() {
         assessment: studentData?.badges?.readyForAssessment ?? [],
         finalization: studentData?.badges?.readyForFinalization ?? [],
         learning: studentData?.badges?.learning ?? [],
+        notStarted: studentData?.badges?.notStarted ?? [],
       }) satisfies Record<BadgeStatus, BadgeRecord[]>,
     [studentData]
   );
+
+  useEffect(() => {
+    if (!studentData || hasAutoOpenedSection.current) return;
+
+    const firstSectionWithBadges = SECTION_CONFIG.find((section) => badgesByStatus[section.status].length > 0);
+    const defaultSection = SECTION_CONFIG.find((section) => !section.collapsedByDefault);
+
+    setOpenSection(firstSectionWithBadges?.status ?? defaultSection?.status ?? null);
+    hasAutoOpenedSection.current = true;
+  }, [badgesByStatus, studentData]);
 
   const allBadges: BadgeRecord[] = useMemo(
     () => [
@@ -134,6 +163,7 @@ export default function BadgeWalletPage() {
       ...badgesByStatus.assessment,
       ...badgesByStatus.finalization,
       ...badgesByStatus.learning,
+      ...badgesByStatus.notStarted,
     ],
     [badgesByStatus]
   );
@@ -160,6 +190,9 @@ export default function BadgeWalletPage() {
   };
 
   const studentEmail = studentData?.student?.email || user?.primaryEmailAddress?.emailAddress || null;
+  const qrAssessmentUrl = qrBadge
+    ? buildAssessmentQrUrl(studentData?.course?.id, studentData?.student.id, qrBadge.id)
+    : null;
 
   const startSurvey = (badge: BadgeRecord) => {
     setActiveBadgeId(null);
@@ -337,6 +370,11 @@ export default function BadgeWalletPage() {
                     Keep working through lesson checkpoints to unlock your assessment.
                   </p>
                 )}
+                {activeBadge.status === 'NOT_STARTED' && (
+                  <p className={styles.modalHelperText}>
+                    Start the related lessons to begin working toward this badge.
+                  </p>
+                )}
                 {activeBadge.status === 'COMPLETED' && (
                   <p className={styles.modalHelperText}>Badge finalized. Great work!</p>
                 )}
@@ -407,32 +445,35 @@ export default function BadgeWalletPage() {
                   ×
                 </button>
                 <div className={styles.qrCodeBox}>
-                  <div className={styles.qrCodeWrapper}>
-                    <div className={styles.qrCodeCanvas}>
-                      <Image
-                        src={`/api/qr?size=360&data=${encodeURIComponent(
-                          `student:${studentData?.student.id ?? 'unknown'}|badge:${qrBadge.id}`
-                        )}`}
-                        alt={`${qrBadge.name} QR code`}
-                        width={360}
-                        height={360}
-                        className={styles.qrCodeImage}
-                      />
-                      <div className={styles.qrCodeLogo}>
-                        <Image
-                          src="/assets/badge_wallet/QR/qr_logo.svg"
-                          alt="Checkd logo"
-                          width={74}
-                          height={74}
-                          className={styles.qrCodeLogoImage}
+                  {qrAssessmentUrl ? (
+                    <div className={styles.qrCodeWrapper}>
+                      <div className={styles.qrCodeCanvas}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`/api/qr?size=360&data=${encodeURIComponent(qrAssessmentUrl)}`}
+                          alt={`${qrBadge.name} QR code`}
+                          width={360}
+                          height={360}
+                          className={styles.qrCodeImage}
                         />
+                        <div className={styles.qrCodeLogo}>
+                          <Image
+                            src="/assets/badge_wallet/QR/qr_logo.svg"
+                            alt="Checkd logo"
+                            width={74}
+                            height={74}
+                            className={styles.qrCodeLogoImage}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <p className={styles.modalHelperText}>We could not build the assessment QR code for this badge.</p>
+                  )}
                   <div className={styles.qrCaption}>{qrBadge.name} Skill Check</div>
                   <p>
-                    Show your assessor this QR code to complete the in-person assessment. Don&apos;t forget to bring
-                    your student ID for verification.
+                    Have your assessor scan this code to open your badge assessment. Don&apos;t forget to bring your
+                    student ID for verification.
                   </p>
                 </div>
               </div>

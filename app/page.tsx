@@ -270,6 +270,8 @@ function HomeContent() {
 
   const navItems = SIDEBAR_NAV;
   const displayName = myCourses?.user.name || studentData?.student?.name || '';
+  const assessmentAccessMessage = searchParams.get('assessmentMessage');
+  const showAssessmentAccessModal = Boolean(searchParams.get('assessmentAccess'));
 
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
 
@@ -356,6 +358,15 @@ function HomeContent() {
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete('surveyBadge');
+    const nextPath = params.size ? `${pathname}?${params.toString()}` : pathname;
+
+    router.replace(nextPath, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const closeAssessmentAccessModal = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('assessmentAccess');
+    params.delete('assessmentMessage');
     const nextPath = params.size ? `${pathname}?${params.toString()}` : pathname;
 
     router.replace(nextPath, { scroll: false });
@@ -636,6 +647,21 @@ function HomeContent() {
               disabled={duplicatingId !== null}
             >
               Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showAssessmentAccessModal ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Assessment access">
+          <div className={styles.accessModal}>
+            <h2 className={styles.accessTitle}>Assessment unavailable</h2>
+            <p className={styles.accessText}>
+              {assessmentAccessMessage ||
+                'You are not authorized to assess this badge, or the badge is not ready for assessment yet.'}
+            </p>
+            <button type="button" className={styles.accessButton} onClick={closeAssessmentAccessModal}>
+              Back to home
             </button>
           </div>
         </div>

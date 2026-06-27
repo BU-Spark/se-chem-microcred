@@ -130,6 +130,11 @@ export interface LessonRecord {
       acceptedRange: { min: number; max: number } | null;
     }>;
   }>;
+  badgeRequirements: Array<{
+    badgeId: string;
+    badgeName: string;
+    badgeSlug: string;
+  }>;
   skills: string[];
   lastGradePercent: number | null;
   lastGradePassed: boolean | null;

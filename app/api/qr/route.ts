@@ -1,5 +1,6 @@
 export const runtime = 'nodejs';
 
+import { BadgeStatus } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import QRCode from 'qrcode';
@@ -16,6 +17,7 @@ const rateLimitStore: Map<string, RateLimitEntry> =
 type StudentBadgePayload = {
   studentId: string;
   badgeId: string;
+  courseId?: string;
 };
 
 function clampSize(size: number | null) {
@@ -73,6 +75,29 @@ function parseStudentBadgePayload(raw: string | null): StudentBadgePayload | nul
   return { studentId: map.student, badgeId: map.badge };
 }
 
+function parseAssessmentQrUrl(raw: string | null, request: Request): StudentBadgePayload | null {
+  if (!raw) return null;
+
+  try {
+    const url = new URL(raw, request.url);
+    if (url.origin !== new URL(request.url).origin || url.pathname !== '/qr/assessment') {
+      return null;
+    }
+
+    const courseId = url.searchParams.get('courseId')?.trim();
+    const studentId = url.searchParams.get('studentId')?.trim();
+    const badgeId = url.searchParams.get('badgeId')?.trim();
+
+    if (!courseId || !studentId || !badgeId) {
+      return null;
+    }
+
+    return { courseId, studentId, badgeId };
+  } catch {
+    return null;
+  }
+}
+
 async function authorizeStudentBadge(payload: StudentBadgePayload) {
   const clerkUser = await currentUser();
   if (!clerkUser || !clerkUser.emailAddresses?.[0]) {
@@ -100,11 +125,39 @@ async function authorizeStudentBadge(payload: StudentBadgePayload) {
         badgeId: payload.badgeId,
       },
     },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
   if (!ownsBadge) {
     return NextResponse.json({ error: 'Badge is not assigned to this student.' }, { status: 403 });
+  }
+
+  if (payload.courseId) {
+    if (ownsBadge.status !== BadgeStatus.READY_FOR_ASSESSMENT) {
+      return NextResponse.json({ error: 'Badge is not ready for assessment.' }, { status: 409 });
+    }
+
+    const courseBadge = await prisma.course.findFirst({
+      where: {
+        id: payload.courseId,
+        enrollments: { some: { studentId: payload.studentId } },
+        lessons: {
+          some: {
+            badgeRequirements: {
+              some: { badgeId: payload.badgeId },
+            },
+          },
+        },
+      },
+      select: { id: true },
+    });
+
+    if (!courseBadge) {
+      return NextResponse.json(
+        { error: 'Badge is not available for this student in the requested course.' },
+        { status: 403 }
+      );
+    }
   }
 
   return null;
@@ -126,7 +179,7 @@ async function resolveRequestContext(request: Request) {
   const sizeParam = Number.parseInt(url.searchParams.get('size') ?? '', 10);
   const size = clampSize(Number.isFinite(sizeParam) ? sizeParam : null);
 
-  const payload = parseStudentBadgePayload(data);
+  const payload = parseAssessmentQrUrl(data, request) ?? parseStudentBadgePayload(data);
   if (!payload) {
     return {
       response: NextResponse.json(

@@ -111,6 +111,8 @@ interface LessonVideoPageProps {
   lesson: LessonRecord;
   studentName?: string | null;
   studentEmail: string;
+  studentId: string;
+  courseId?: string | null;
   lessonSurvey: LessonSurveyPrompt | null;
   resumeRequested: boolean;
   studentAvatarUrl?: string | null;
@@ -236,6 +238,8 @@ export function LessonVideoPage({
   lesson,
   studentName,
   studentEmail,
+  studentId,
+  courseId,
   lessonSurvey,
   resumeRequested,
   studentAvatarUrl,
@@ -291,6 +295,7 @@ export function LessonVideoPage({
   const [lessonSurveySubmitting, setLessonSurveySubmitting] = useState(false);
   const [lessonSurveyError, setLessonSurveyError] = useState<string | null>(null);
   const [lessonSurveyCompleted, setLessonSurveyCompleted] = useState(effectiveLessonSurvey?.completed ?? false);
+  const [showLessonQr, setShowLessonQr] = useState(false);
 
   const suppressCheckpointIdRef = useRef<string | null>(null);
   const scheduleCheckpointSuppression = useCallback((checkpointId: string, ms = 8000) => {
@@ -317,6 +322,7 @@ export function LessonVideoPage({
   const visibilityTimerRef = useRef<number | null>(null);
   const lessonSurveyTriggeredRef = useRef<boolean>(effectiveLessonSurvey?.completed ?? false);
   const gradingTriggeredRef = useRef<boolean>(false);
+  const lessonStartRecordedRef = useRef(false);
 
   const updateFurthestTime = useCallback((time: number, force = false) => {
     if (!Number.isFinite(time)) {
@@ -345,6 +351,20 @@ export function LessonVideoPage({
       header.style.display = previousDisplay;
     };
   }, []);
+
+  useEffect(() => {
+    if (lessonStartRecordedRef.current || !studentEmail) return;
+
+    lessonStartRecordedRef.current = true;
+    void fetch(`/api/lessons/${lesson.id}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: studentEmail }),
+    }).catch((error) => {
+      console.error('Failed to record lesson start', error);
+    });
+  }, [lesson.id, studentEmail]);
+
   useEffect(() => {
     setCompletedCheckpointIds(initialCompletedIds);
   }, [initialCompletedIds]);
@@ -365,7 +385,25 @@ export function LessonVideoPage({
     gradingTriggeredRef.current = false;
     setLessonAssessment(null);
     setAssessmentError(null);
+    setShowLessonQr(false);
   }, [lesson.id]);
+
+  const assessmentBadge = useMemo(() => lesson.badgeRequirements[0] ?? null, [lesson.badgeRequirements]);
+  const lessonAssessmentQrUrl = useMemo(() => {
+    if (typeof window === 'undefined' || !courseId || !studentId || !assessmentBadge?.badgeId) {
+      return null;
+    }
+
+    const url = new URL('/qr/assessment', window.location.origin);
+    url.searchParams.set('courseId', courseId);
+    url.searchParams.set('studentId', studentId);
+    url.searchParams.set('badgeId', assessmentBadge.badgeId);
+    return url.toString();
+  }, [assessmentBadge?.badgeId, courseId, studentId]);
+
+  const lessonQrImageSrc = lessonAssessmentQrUrl
+    ? `/api/qr?size=360&data=${encodeURIComponent(lessonAssessmentQrUrl)}`
+    : null;
 
   const resolveMaxSeekableTime = useCallback(() => {
     const limit = furthestTimeRef.current;
@@ -1156,8 +1194,8 @@ export function LessonVideoPage({
   ]);
 
   const handleShowQrCode = useCallback(() => {
-    router.push('/badges');
-  }, [router]);
+    setShowLessonQr(true);
+  }, []);
 
   const handleRestartAfterFailure = useCallback(() => {
     setModalState('none');
@@ -1664,6 +1702,33 @@ export function LessonVideoPage({
           </div>
         </div>
       )}
+      {showLessonQr ? (
+        <div className={styles.overlay}>
+          <div className={styles.qrModal} role="dialog" aria-modal="true">
+            <button type="button" className={styles.qrCloseButton} onClick={() => setShowLessonQr(false)}>
+              &times;
+            </button>
+            <h2 className={styles.modalTitle}>{assessmentBadge?.badgeName ?? 'Badge'} Skill Check</h2>
+            {lessonQrImageSrc ? (
+              <div className={styles.qrCodeFrame}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={lessonQrImageSrc}
+                  alt={`${assessmentBadge?.badgeName ?? 'Badge'} QR code`}
+                  className={styles.qrCodeImage}
+                  width={360}
+                  height={360}
+                />
+              </div>
+            ) : (
+              <p className={styles.modalError}>We could not build the assessment QR code for this lesson.</p>
+            )}
+            <p className={styles.modalDescription}>
+              Have your assessor scan this code to open the assessment for this student and badge.
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

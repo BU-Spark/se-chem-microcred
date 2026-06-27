@@ -109,9 +109,9 @@ describe('Badge Wallet QR modal', () => {
     render(<BadgeWalletPage />);
 
     // Expand the "Ready to be Assessed" section
-    const expandButtons = screen.getAllByLabelText(/Expand section/i);
-    if (expandButtons.length) {
-      fireEvent.click(expandButtons[0]);
+    const assessmentToggle = document.querySelector('button[aria-controls="assessment-badges"]') as HTMLButtonElement;
+    if (assessmentToggle.getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(assessmentToggle);
     }
 
     // Open the badge modal
@@ -122,6 +122,9 @@ describe('Badge Wallet QR modal', () => {
 
     const qrImage = screen.getByAltText(/Assessment Badge QR code/i) as HTMLImageElement;
     expect(qrImage.src).toContain('/api/qr?size=360');
-    expect(qrImage.src).toContain('badge%3Abadge-assess-1');
+    expect(qrImage.src).toContain(encodeURIComponent('/qr/assessment'));
+    expect(qrImage.src).toContain('courseId%3Dcourse-1');
+    expect(qrImage.src).toContain('studentId%3Dstudent-1');
+    expect(qrImage.src).toContain('badgeId%3Dbadge-assess-1');
   });
 });

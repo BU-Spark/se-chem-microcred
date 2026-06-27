@@ -3,6 +3,7 @@ import { BadgeStatus, CourseContactType, CourseRole, LessonStatus, SegmentStatus
 import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
+import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
 
 function avatarPathForBase(base?: string | null): string {
   switch (base) {
@@ -162,6 +163,11 @@ function formatLesson({
       snapshotUrl: checkpoint.snapshotUrl,
       questions: checkpoint.questions.map((question) => normalizeCheckpointQuestion(question)),
     })),
+    badgeRequirements: lesson.badgeRequirements.map((requirement) => ({
+      badgeId: requirement.badge.id,
+      badgeName: requirement.badge.name,
+      badgeSlug: requirement.badge.slug,
+    })),
     skills: lesson.skills.map((skill) => skill.text),
     lastGradePercent: lastGradePercent ?? null,
     lastGradePassed: lastGradePassed ?? null,
@@ -195,6 +201,13 @@ async function fetchLessons(courseId: string) {
       },
       skills: {
         orderBy: { sortOrder: 'asc' },
+      },
+      badgeRequirements: {
+        include: {
+          badge: {
+            select: { id: true, name: true, slug: true },
+          },
+        },
       },
     },
     orderBy: { sortOrder: 'asc' },
@@ -254,7 +267,7 @@ export async function GET() {
     courseBadges,
     lessonProgresses,
     lessons,
-    studentBadges,
+    initialStudentBadges,
     passingCheckpointAttempts,
     surveyResponses,
     checkpointResponses,
@@ -323,6 +336,52 @@ export async function GET() {
     }),
   ]);
 
+  const checkpointLessonIdsByCheckpointId = new Map(
+    lessons.flatMap((lesson) => lesson.checkpoints.map((checkpoint) => [checkpoint.id, lesson.id] as const))
+  );
+  const touchedLessonIds = new Set<string>(lessonProgresses.map((progress) => progress.lessonId));
+
+  for (const attempt of passingCheckpointAttempts) {
+    const lessonId = checkpointLessonIdsByCheckpointId.get(attempt.checkpointId);
+    if (lessonId) {
+      touchedLessonIds.add(lessonId);
+    }
+  }
+
+  for (const response of checkpointResponses) {
+    const lessonId = checkpointLessonIdsByCheckpointId.get(response.checkpointId);
+    if (lessonId) {
+      touchedLessonIds.add(lessonId);
+    }
+  }
+
+  let studentBadges = initialStudentBadges;
+
+  if (touchedLessonIds.size > 0) {
+    await prisma.$transaction(async (tx) => {
+      for (const lessonId of touchedLessonIds) {
+        await syncLessonBadgesForStudent(tx, { studentId: student.id, lessonId });
+      }
+    });
+
+    studentBadges = await prisma.studentBadge.findMany({
+      where: { studentId: student.id },
+      include: {
+        badge: {
+          include: {
+            requirements: {
+              include: {
+                lesson: {
+                  select: { slug: true, title: true },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   const derivedContacts = courseStaff
     .filter((staff) => {
       if (staff.role === CourseRole.INSTRUCTOR) return true;
@@ -373,9 +432,6 @@ export async function GET() {
   const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
   const surveyPromptIdsCompleted = new Set(surveyResponses.map((response) => response.promptId));
   const passingCheckpointIds = new Set(passingCheckpointAttempts.map((attempt) => attempt.checkpointId));
-  const checkpointsByLessonId = new Map<string, string[]>(
-    lessons.map((lesson) => [lesson.id, lesson.checkpoints.map((checkpoint) => checkpoint.id)])
-  );
   const answeredQuestionsByCheckpoint = checkpointResponses.reduce<Map<string, Set<string>>>((acc, response) => {
     if (!response.questionId) {
       return acc;
@@ -490,13 +546,7 @@ export async function GET() {
       if (!progress || progress.status !== LessonStatus.COMPLETED) {
         return false;
       }
-
-      const checkpointIds = checkpointsByLessonId.get(lessonId) ?? [];
-      if (checkpointIds.length === 0) {
-        return true;
-      }
-
-      return checkpointIds.every((checkpointId) => passingCheckpointIds.has(checkpointId));
+      return true;
     });
 
     let status = entry.status;

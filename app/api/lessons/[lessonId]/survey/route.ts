@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { BadgeStatus, LessonStatus, SurveyContext } from '@prisma/client';
+import { LessonStatus, SurveyContext } from '@prisma/client';
 import prisma from '../../../../../lib/prisma';
+import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
 
 type RouteContext = {
   params: Promise<{
@@ -153,60 +154,7 @@ export async function POST(request: Request, context: RouteContext) {
       });
     }
 
-    const [lessonCheckpoints, passedAttempts] = await Promise.all([
-      tx.lessonCheckpoint.findMany({
-        where: { lessonId },
-        select: { id: true },
-      }),
-      tx.checkpointAttempt.findMany({
-        where: {
-          userId: user.id,
-          isPassing: true,
-          checkpoint: {
-            lessonId,
-          },
-        },
-        select: { checkpointId: true },
-      }),
-    ]);
-
-    const passedCheckpointIds = new Set(passedAttempts.map((entry) => entry.checkpointId));
-    const allCheckpointsPassed =
-      lessonCheckpoints.length === 0 || lessonCheckpoints.every((checkpoint) => passedCheckpointIds.has(checkpoint.id));
-    const videoCompleted =
-      lessonProgressRecord.status === LessonStatus.COMPLETED ||
-      lessonProgressRecord.percentComplete === 100 ||
-      payload.videoCompleted;
-
-    let readyForAssessment = false;
-
-    if (allCheckpointsPassed && videoCompleted) {
-      const badgeRequirement = await tx.badgeRequirement.findFirst({
-        where: { lessonId },
-        select: { badgeId: true },
-      });
-
-      if (badgeRequirement) {
-        const studentBadge = await tx.studentBadge.findUnique({
-          where: {
-            studentId_badgeId: {
-              studentId: user.id,
-              badgeId: badgeRequirement.badgeId,
-            },
-          },
-        });
-
-        if (studentBadge && studentBadge.status === BadgeStatus.LEARNING) {
-          await tx.studentBadge.update({
-            where: { id: studentBadge.id },
-            data: {
-              status: BadgeStatus.READY_FOR_ASSESSMENT,
-            },
-          });
-          readyForAssessment = true;
-        }
-      }
-    }
+    const { readyForAssessment } = await syncLessonBadgesForStudent(tx, { studentId: user.id, lessonId });
 
     return { surveyPrompt: surveyPromptRecord, lessonProgress: lessonProgressRecord, readyForAssessment };
   });

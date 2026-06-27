@@ -54,10 +54,19 @@ export default function LessonVideoRoute() {
   }
 
   const studentName = studentData.student.name || user?.fullName || 'Student Demo';
-  const studentEmail = studentData.student.email || user?.primaryEmailAddress?.emailAddress || 'student@example.edu';
+  const studentEmail = studentData.student.email || user?.primaryEmailAddress?.emailAddress;
   const studentAvatar = studentData.student.avatar || null;
   const avatarUrl = buildAvatarUrlFromAvatar(studentAvatar);
   const lessonSurvey = studentData.surveys.lesson.find((survey) => survey.lessonSlug === lessonRecord.slug) ?? null;
+
+  if (!studentEmail) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <p>We could not determine your student email for this lesson.</p>
+        <Link href="/">Back to lessons</Link>
+      </div>
+    );
+  }
 
   return (
     <LessonVideoPage
@@ -67,6 +76,8 @@ export default function LessonVideoRoute() {
       lessonSurvey={lessonSurvey}
       resumeRequested={false}
       studentAvatarUrl={avatarUrl}
+      studentId={studentData.student.id}
+      courseId={studentData.course?.id ?? null}
     />
   );
 }

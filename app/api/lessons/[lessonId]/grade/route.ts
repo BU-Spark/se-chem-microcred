@@ -3,6 +3,7 @@ import { LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../../lib/prisma';
 import { computeLessonGrade } from '../../../../../lib/lessonGrading';
+import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
 
 type RouteContext = {
   params: Promise<{
@@ -115,6 +116,8 @@ export async function POST(_request: Request, context: RouteContext) {
         },
       });
     }
+
+    await syncLessonBadgesForStudent(tx, { studentId: user.id, lessonId });
   });
 
   return NextResponse.json({
