@@ -224,6 +224,7 @@ describe('Home Page', () => {
     expect(screen.getByRole('heading', { name: 'Assessor Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Enrolled Courses' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Courses' })).not.toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/mine', {
@@ -281,6 +282,19 @@ describe('Home Page', () => {
 
     expect(profileLink.className).toContain('navItemActive');
     expect(homeLink.className).not.toContain('navItemActive');
+  });
+
+  it('keeps Home active for course workspace routes', async () => {
+    mockUsePathname.mockReturnValue('/courses/created-course-1');
+
+    renderHome();
+
+    await screen.findByText('Created Course 1');
+
+    const homeLink = screen.getByRole('link', { name: 'Home' });
+
+    expect(homeLink.className).toContain('navItemActive');
+    expect(screen.queryByRole('link', { name: 'Courses' })).not.toBeInTheDocument();
   });
 
   it('redirects to sign-in when the user is not authenticated after loading', async () => {

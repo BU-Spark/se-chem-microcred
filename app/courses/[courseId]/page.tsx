@@ -316,7 +316,7 @@ export default function CreatedCourseDetailPage() {
       const response = await fetch(`/api/courses/${encodeURIComponent(data.course.id)}`, { method: 'DELETE' });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? 'Failed to delete course.');
-      router.replace('/courses');
+      router.replace('/');
     } catch (err) {
       setIsDeleting(false);
       window.alert(err instanceof Error ? err.message : 'Failed to delete course.');
@@ -488,8 +488,8 @@ export default function CreatedCourseDetailPage() {
           {!isLoading && error ? (
             <div className={styles.statusBlock}>
               <p className={styles.statusMessage}>{error}</p>
-              <Link href="/courses" className={styles.inlineLink}>
-                Back to courses
+              <Link href="/" className={styles.inlineLink}>
+                Back to home
               </Link>
             </div>
           ) : null}
