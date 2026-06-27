@@ -481,7 +481,7 @@ describe('Created course detail page', () => {
     fireEvent.change(screen.getByLabelText('Badge library'), {
       target: { value: 'badge-template-1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Import Badge' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to Course' }));
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/course-1/badges/import', {

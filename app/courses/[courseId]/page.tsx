@@ -681,25 +681,29 @@ export default function CreatedCourseDetailPage() {
                             ))}
                           </select>
                         </label>
-                        <div className={styles.importField}>
-                          <span>Content Availability</span>
-                          <RangeCalendar
-                            availableOn={importAvailableOn}
-                            closesOn={importClosesOn}
-                            neverCloses={importNeverCloses}
-                            onAvailableOnChange={setImportAvailableOn}
-                            onClosesOnChange={setImportClosesOn}
-                            onNeverClosesChange={setImportNeverCloses}
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          className={styles.primaryButton}
-                          onClick={importSelectedBadge}
-                          disabled={!selectedImportBadgeId || isImportingBadge}
-                        >
-                          {isImportingBadge ? 'Importing...' : 'Import Badge'}
-                        </button>
+                        {selectedImportBadgeId ? (
+                          <>
+                            <div className={styles.importField}>
+                              <span>Content Availability</span>
+                              <RangeCalendar
+                                availableOn={importAvailableOn}
+                                closesOn={importClosesOn}
+                                neverCloses={importNeverCloses}
+                                onAvailableOnChange={setImportAvailableOn}
+                                onClosesOnChange={setImportClosesOn}
+                                onNeverClosesChange={setImportNeverCloses}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              className={styles.primaryButton}
+                              onClick={importSelectedBadge}
+                              disabled={isImportingBadge}
+                            >
+                              {isImportingBadge ? 'Importing...' : 'Add to Course'}
+                            </button>
+                          </>
+                        ) : null}
                       </div>
                     ) : null}
 
