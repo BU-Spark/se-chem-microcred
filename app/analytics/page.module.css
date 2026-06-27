@@ -161,6 +161,7 @@
 .badgeSummaryTitle {
   text-align: right;
   font-weight: 400;
+  font-family: 'Lato', sans-serif;
 }
 
 .badgeTop {
@@ -410,6 +411,7 @@
   border-radius: 1.5rem;
   padding: 2.5rem 2.75rem;
   box-shadow: 0 25px 45px rgba(15, 23, 42, 0.12);
+  font-family: 'Open Sans', system-ui, sans-serif;
 }
 
 .profile {

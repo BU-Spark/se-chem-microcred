@@ -25,6 +25,13 @@
   position: sticky;
   top: 0;
 
+  /* Scroll internally when the nav is taller than the viewport (short screens /
+     zoomed in) so every item stays reachable instead of being clipped. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+
   background: #2e6aa9;
   border-radius: 0;
   /* Square corners */
@@ -38,6 +45,19 @@
   border-right: 1px solid rgba(15, 23, 42, 0.12);
   box-shadow: none;
   /* Remove card-style shadow */
+}
+
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .profile {
