@@ -255,6 +255,91 @@
   color: #4b5563;
 }
 
+.joinControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.joinInput {
+  width: 100%;
+  min-height: 3.25rem;
+  border: 2px solid #cfd8e3;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  color: #111827;
+  background: #ffffff;
+}
+
+.joinInput:disabled {
+  opacity: 0.65;
+}
+
+.joinButton {
+  min-height: 3.25rem;
+  padding: 0.75rem 1.35rem;
+  border: none;
+  border-radius: 12px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.joinButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.joinError,
+.joinStatus {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.joinError {
+  color: #b42318;
+}
+
+.joinStatus {
+  color: #1b6b3a;
+}
+
+.joinModal {
+  width: min(520px, 92%);
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 2.25rem;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.joinModalTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.joinCancel {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.joinCancel:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .card {
   background: transparent;
   border: none;
@@ -446,7 +531,7 @@
   gap: 1.75rem;
   align-items: start;
   justify-content: start;
-  max-width: 1120px;
+  max-width: none;
 }
 
 .addTile {
@@ -456,6 +541,20 @@
   text-decoration: none;
   color: inherit;
   width: 100%;
+}
+
+.addTileButton {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
 }
 
 .addTileMedia {
@@ -470,6 +569,10 @@
 }
 
 .addTile:hover .addTileMedia {
+  filter: brightness(0.97);
+}
+
+.addTileButton:hover .addTileMedia {
   filter: brightness(0.97);
 }
 
@@ -870,5 +973,9 @@
 
   .brandMark {
     align-self: flex-start;
+  }
+
+  .joinControls {
+    grid-template-columns: 1fr;
   }
 }

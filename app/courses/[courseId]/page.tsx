@@ -59,6 +59,7 @@ type CourseLesson = {
 
 type CourseDetail = {
   id: string;
+  code: string | null;
   title: string;
   description: string | null;
   sectionCount: number;
@@ -511,6 +512,11 @@ export default function CreatedCourseDetailPage() {
                   <div className={styles.statLines}>
                     <p className={styles.statLine}>Number of Sections: {course.sectionCount}</p>
                     <p className={styles.statLine}>Number of Students Enrolled: {studentCount}</p>
+                    {isInstructor && course.code ? (
+                      <p className={styles.statLine}>
+                        Course Code: <span className={styles.courseCode}>{course.code}</span>
+                      </p>
+                    ) : null}
                     {viewerRole ? (
                       <p className={styles.statLine}>Your Role: {isAssessorView ? 'ASSESSOR' : viewerRole}</p>
                     ) : null}

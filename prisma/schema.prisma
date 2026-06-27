@@ -90,7 +90,7 @@ enum AvatarAccessory {
 
 model Course {
   id           String   @id @default(cuid())
-  code         String?
+  code         String?  @unique
   title        String
   section      String?
   sectionCount Int

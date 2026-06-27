@@ -166,7 +166,7 @@ interface StudentApiResponse {
   surveys: StudentData['surveys'];
 }
 
-export function useStudentData(email?: string | null) {
+export function useStudentData(email?: string | null, courseId?: string | null) {
   const [data, setData] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -186,7 +186,12 @@ export function useStudentData(email?: string | null) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(`/api/demo/student?email=${encodeURIComponent(email)}`, {
+      const params = new URLSearchParams({ email });
+      if (courseId) {
+        params.set('courseId', courseId);
+      }
+
+      const response = await fetch(`/api/demo/student?${params.toString()}`, {
         method: 'GET',
         signal: controller.signal,
         headers: {
@@ -209,7 +214,7 @@ export function useStudentData(email?: string | null) {
     } finally {
       setIsLoading(false);
     }
-  }, [email]);
+  }, [email, courseId]);
 
   useEffect(() => {
     void fetchData();

@@ -163,7 +163,8 @@ function HomePageContent() {
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
-  const { data: studentData, isLoading, refresh } = useStudentData(user?.primaryEmailAddress?.emailAddress);
+  const courseId = searchParams.get('courseId');
+  const { data: studentData, isLoading, refresh } = useStudentData(user?.primaryEmailAddress?.emailAddress, courseId);
   const pathname = usePathname();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{

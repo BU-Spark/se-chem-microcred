@@ -5,6 +5,9 @@ import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
 
+const SEEDED_DEMO_EMAIL = 'nithin.senthilvel@gmail.com';
+const SEEDED_DEMO_COURSE_CODE = 'CHEM101';
+
 function avatarPathForBase(base?: string | null): string {
   switch (base) {
     case 'RUBY':
@@ -214,7 +217,7 @@ async function fetchLessons(courseId: string) {
   });
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   // Resolve (and lazily provision on first sign-in) the signed-in user, then load
   // the full record by id — avoids a second currentUser() call and an email re-query.
   const provisioned = await ensureCurrentUser();
@@ -226,6 +229,8 @@ export async function GET() {
   // The signed-in user record and their first enrollment both depend only on
   // provisioned.id (not on each other), so fetch them concurrently rather than
   // adding two serial round-trips to Prisma Accelerate.
+  const requestedCourseId = new URL(req.url).searchParams.get('courseId')?.trim() || null;
+
   const [student, enrollment] = await Promise.all([
     prisma.user.findUnique({
       where: { id: provisioned.id },
@@ -235,7 +240,16 @@ export async function GET() {
       },
     }),
     prisma.enrollment.findFirst({
-      where: { studentId: provisioned.id },
+      where: {
+        studentId: provisioned.id,
+        ...(requestedCourseId ? { courseId: requestedCourseId } : {}),
+        OR: [
+          { role: CourseRole.STUDENT },
+          ...(provisioned.email?.toLowerCase() === SEEDED_DEMO_EMAIL
+            ? [{ course: { code: SEEDED_DEMO_COURSE_CODE } }]
+            : []),
+        ],
+      },
       include: {
         sections: true,
         course: {

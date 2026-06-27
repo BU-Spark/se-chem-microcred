@@ -15,6 +15,7 @@ function renderHome() {
 }
 
 const mockReplace = jest.fn();
+const mockPush = jest.fn();
 const mockUsePathname = jest.fn();
 const mockUseUser = jest.fn();
 const mockUseAuth = jest.fn();
@@ -23,7 +24,7 @@ const mockUseSearchParams = jest.fn();
 const mockFetch = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: mockReplace }),
+  useRouter: () => ({ replace: mockReplace, push: mockPush }),
   usePathname: () => mockUsePathname(),
   useSearchParams: () => mockUseSearchParams(),
 }));
@@ -74,6 +75,7 @@ describe('Home Page', () => {
     mockReplace.mockClear();
     mockUsePathname.mockReset();
     mockUsePathname.mockReturnValue('/');
+    mockPush.mockClear();
     mockUseSearchParams.mockReset();
     mockUseSearchParams.mockReturnValue(new URLSearchParams());
 
@@ -210,6 +212,18 @@ describe('Home Page', () => {
         };
       }
 
+      if (url === '/api/courses/join') {
+        return {
+          ok: true,
+          json: async () => ({
+            message: 'You joined Analytical Chemistry.',
+            course: { id: 'course-joined', title: 'Analytical Chemistry', code: 'CHEM202' },
+            enrollment: { id: 'enrollment-joined', role: 'STUDENT' },
+            alreadyEnrolled: false,
+          }),
+        };
+      }
+
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
@@ -342,6 +356,37 @@ describe('Home Page', () => {
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/sign-in');
+    });
+  });
+
+  it('joins a course by course code and refreshes the course list', async () => {
+    renderHome();
+
+    await screen.findByText('Created Course 1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Join a course' }));
+    expect(await screen.findByRole('heading', { name: 'Join a course' })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Course code'), {
+      target: { value: 'chem-202' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/courses/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ code: 'chem-202' }),
+      });
+    });
+
+    expect(await screen.findByText('You joined Analytical Chemistry.')).toBeInTheDocument();
+    expect(mockFetch).toHaveBeenCalledWith('/api/courses/mine', {
+      headers: { Accept: 'application/json' },
+      credentials: 'include',
     });
   });
 });

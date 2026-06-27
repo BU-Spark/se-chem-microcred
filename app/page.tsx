@@ -240,6 +240,7 @@ function HomeContent() {
     assessor,
     isLoading,
     error: fetchError,
+    mutate: refreshCourses,
   } = useMyCourses(isLoaded && isSignedIn);
   const coursesError = fetchError
     ? fetchError instanceof Error
@@ -267,6 +268,11 @@ function HomeContent() {
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinStatus, setJoinStatus] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [isJoiningCourse, setIsJoiningCourse] = useState(false);
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
 
   const navItems = SIDEBAR_NAV;
   const displayName = myCourses?.user.name || studentData?.student?.name || '';
@@ -435,6 +441,47 @@ function HomeContent() {
     [router]
   );
 
+  const handleJoinCourse = useCallback(async () => {
+    if (isJoiningCourse) return;
+
+    setJoinError(null);
+    setJoinStatus(null);
+
+    const code = joinCode.trim();
+    if (!code) {
+      setJoinError('Enter a course code to join.');
+      return;
+    }
+
+    setIsJoiningCourse(true);
+    try {
+      const response = await fetch('/api/courses/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+      const payload = await response.json().catch(() => ({
+        error: `Request failed: ${response.status}`,
+      }));
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to join course.');
+      }
+
+      setJoinCode('');
+      setJoinStatus(payload.message ?? `You joined ${payload.course?.title ?? 'the course'}.`);
+      setIsJoinModalOpen(false);
+      await refreshCourses();
+    } catch (error) {
+      setJoinError(error instanceof Error ? error.message : 'Unable to join course.');
+    } finally {
+      setIsJoiningCourse(false);
+    }
+  }, [isJoiningCourse, joinCode, refreshCourses]);
+
   if (!isLoaded || !isSignedIn) return null;
 
   const renderEnrolledCourseCard = (course: EnrolledCourseCardData) => {
@@ -561,10 +608,29 @@ function HomeContent() {
             <div className={styles.emptyState}>Loading enrolled courses…</div>
           ) : enrolledError ? (
             <div className={styles.emptyState}>{enrolledError}</div>
-          ) : enrolledCourseCards.length === 0 ? (
-            <div className={styles.emptyState}>You are not enrolled in any courses yet.</div>
           ) : (
-            <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
+            <>
+              <div className={styles.myCoursesGrid}>
+                <button
+                  type="button"
+                  className={styles.addTileButton}
+                  data-testid="join-course-card"
+                  aria-label="Join a course"
+                  onClick={() => {
+                    setJoinError(null);
+                    setJoinStatus(null);
+                    setIsJoinModalOpen(true);
+                  }}
+                >
+                  <div className={styles.addTileMedia}>
+                    <span className={styles.addTilePlus}>+</span>
+                  </div>
+                  <p className={styles.addTileLabel}>Join a Course</p>
+                </button>
+                {enrolledCourseCards.map(renderEnrolledCourseCard)}
+              </div>
+              {joinStatus ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
+            </>
           )}
         </section>
 
@@ -645,6 +711,43 @@ function HomeContent() {
               className={styles.dupClose}
               onClick={() => setIsDuplicateOpen(false)}
               disabled={duplicatingId !== null}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {isJoinModalOpen ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
+          <div className={styles.joinModal}>
+            <h2 id="join-modal-title" className={styles.joinModalTitle}>
+              Join a course
+            </h2>
+            <div className={styles.joinControls}>
+              <input
+                type="text"
+                className={styles.joinInput}
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value)}
+                placeholder="Enter course code"
+                aria-label="Course code"
+                disabled={isJoiningCourse}
+                autoFocus
+              />
+              <button type="button" className={styles.joinButton} onClick={handleJoinCourse} disabled={isJoiningCourse}>
+                {isJoiningCourse ? 'Joining...' : 'Join'}
+              </button>
+            </div>
+            {joinError ? <p className={styles.joinError}>{joinError}</p> : null}
+            <button
+              type="button"
+              className={styles.joinCancel}
+              disabled={isJoiningCourse}
+              onClick={() => {
+                setIsJoinModalOpen(false);
+                setJoinError(null);
+              }}
             >
               Cancel
             </button>

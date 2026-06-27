@@ -1,5 +1,8 @@
 import prisma from '@/lib/prisma';
 
+const SEEDED_DEMO_EMAIL = 'nithin.senthilvel@gmail.com';
+const SEEDED_DEMO_COURSE_CODE = 'CHEM101';
+
 export async function fetchUserByEmail(email: string) {
   return prisma.user.findUnique({
     where: { email },
@@ -132,10 +135,20 @@ export async function fetchCreatedCourses(userId: string) {
 }
 
 export async function fetchAssessorCourseEnrollments(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  const includeSeededDemoCourse = user?.email?.toLowerCase() === SEEDED_DEMO_EMAIL;
+
   return prisma.enrollment.findMany({
     where: {
       studentId: userId,
       role: { in: ['INSTRUCTOR', 'CHECKER'] },
+      OR: [
+        { course: { createdById: { not: userId } } },
+        ...(includeSeededDemoCourse ? [{ course: { code: SEEDED_DEMO_COURSE_CODE } }] : []),
+      ],
     },
     include: {
       sections: {
@@ -651,9 +664,16 @@ export async function fetchCreatedCourseMemberDetail(userId: string, courseId: s
 }
 
 export async function fetchEnrolledCourses(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  const includeSeededDemoCourse = user?.email?.toLowerCase() === SEEDED_DEMO_EMAIL;
+
   return prisma.enrollment.findMany({
     where: {
       studentId: userId,
+      OR: [{ role: 'STUDENT' }, ...(includeSeededDemoCourse ? [{ course: { code: SEEDED_DEMO_COURSE_CODE } }] : [])],
     },
     include: {
       course: {

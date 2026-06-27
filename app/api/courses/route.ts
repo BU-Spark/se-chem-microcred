@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 
 type CreateOrUpdateCoursePayload = {
   id?: string;
+  code?: string | null;
   title: string;
   sectionCount: number;
   description?: string | null;
@@ -41,6 +42,15 @@ function normalizeEmail(email?: string | null) {
   return trimmed ? trimmed : null;
 }
 
+function normalizeCourseCode(value?: string | null) {
+  const normalized =
+    value
+      ?.trim()
+      .toUpperCase()
+      .replace(/[^A-Z0-9]/g, '') ?? '';
+  return normalized || null;
+}
+
 function parseSections(sectionValue?: string[] | string | null) {
   if (Array.isArray(sectionValue)) {
     return Array.from(new Set(sectionValue.map((section) => section.trim()).filter(Boolean)));
@@ -59,6 +69,23 @@ function parseSections(sectionValue?: string[] | string | null) {
 function badRequest(message: string, details?: unknown) {
   return NextResponse.json({ error: message, details: details ?? null }, { status: 400 });
 }
+
+async function generateCourseCode(tx: Prisma.TransactionClient) {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const code = Math.random().toString(36).slice(2, 8).toUpperCase();
+    const existing = await tx.course.findFirst({
+      where: { code },
+      select: { id: true },
+    });
+
+    if (!existing) {
+      return code;
+    }
+  }
+
+  throw new Error('Unable to generate a unique course code.');
+}
+
 export async function POST(req: NextRequest) {
   try {
     const clerkUser = await currentUser();
@@ -76,6 +103,7 @@ export async function POST(req: NextRequest) {
     const body = (await req.json()) as CreateOrUpdateCoursePayload;
 
     const courseId = normalizeString(body.id);
+    const requestedCode = normalizeCourseCode(body.code);
     const title = normalizeString(body.title);
     const description = normalizeString(body.description);
     const sectionCount = Number(body.sectionCount);
@@ -157,11 +185,37 @@ export async function POST(req: NextRequest) {
 
         const isUpdate = Boolean(existingCourse);
         let savedCourseId: string;
+        let savedCourseCode = requestedCode;
+
+        if (requestedCode) {
+          const courseWithCode = await tx.course.findFirst({
+            where: {
+              code: requestedCode,
+              ...(courseId ? { NOT: { id: courseId } } : {}),
+            },
+            select: { id: true },
+          });
+
+          if (courseWithCode) {
+            return {
+              error: badRequest('That course code is already in use. Choose a different code.'),
+            };
+          }
+        }
 
         if (isUpdate && existingCourse) {
+          if (!savedCourseCode) {
+            const currentCode = await tx.course.findUnique({
+              where: { id: existingCourse.id },
+              select: { code: true },
+            });
+            savedCourseCode = currentCode?.code ?? (await generateCourseCode(tx));
+          }
+
           const updated = await tx.course.update({
             where: { id: existingCourse.id },
             data: {
+              code: savedCourseCode,
               title,
               sectionCount,
               description,
@@ -211,8 +265,11 @@ export async function POST(req: NextRequest) {
             },
           });
         } else {
+          savedCourseCode = savedCourseCode ?? (await generateCourseCode(tx));
+
           const created = await tx.course.create({
             data: {
+              code: savedCourseCode,
               title,
               sectionCount,
               description,
