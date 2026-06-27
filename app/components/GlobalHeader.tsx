@@ -7,18 +7,12 @@ import checkedLogo from '../../public/assets/checked_logo.png';
 export function GlobalHeader() {
   const pathname = usePathname() || '';
 
-  // Optional: one-time debug – open DevTools console and reload the video page
-  if (typeof window !== 'undefined') {
-    // Comment this out after you verify it once.
-    console.log('[GlobalHeader] pathname =', pathname);
-  }
-
   // Strip query + hash just in case
   const cleanPath = pathname.split(/[?#]/)[0];
   const segments = cleanPath.split('/').filter(Boolean);
-  // segments example for /lesson/abc123/video -> ['lesson', 'abc123', 'video']
+  // segments example for /lessons/abc123/video -> ['lessons', 'abc123', 'video']
 
-  const isLessonVideoPage = segments[0] === 'lesson' && segments.includes('video');
+  const isLessonVideoPage = segments[0] === 'lessons' && segments.includes('video');
 
   // ❌ Do NOT render the global header on the lesson video page
   if (isLessonVideoPage) {

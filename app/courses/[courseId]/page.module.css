@@ -384,6 +384,23 @@
   cursor: not-allowed;
 }
 
+.badgeUnassignButton {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: #475467;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.badgeUnassignButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .badgeIcon {
   color: #c9db50;
 }

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
@@ -19,7 +18,9 @@ import veryHappyFaceSelected from '../../../public/assets/survey_faces/very_happ
 import playIcon from '../../../public/assets/lesson/qev/Play.svg';
 import pauseIcon from '../../../public/assets/lesson/qev/Pause.svg';
 
-const ENABLE_QEV_SKIP = (process.env.NEXT_PUBLIC_ENABLE_QEV_SKIP || 'true').toLowerCase() === 'true';
+// Dev-only testing controls (skip checkpoint / unlock progress bar): shown only
+// when the dev environment flag is set. Same flag the sidebar uses (CUR_ENV).
+const ENABLE_QEV_SKIP = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
 type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonSurvey' | 'lessonComplete' | 'lessonFailed';
 type RangeStyleVars = CSSProperties & {
@@ -152,15 +153,6 @@ const LESSON_SURVEY_FACES = [
     selectedIcon: veryHappyFaceSelected,
   },
 ] as const;
-
-function initialsFromName(name?: string | null) {
-  if (!name) return 'ST';
-  const tokens = name.trim().split(/\s+/);
-  return tokens
-    .slice(0, 2)
-    .map((token) => token.charAt(0).toUpperCase())
-    .join('');
-}
 
 function extractYouTubeId(url?: string | null) {
   if (!url) {
@@ -1243,51 +1235,6 @@ export function LessonVideoPage({
 
   return (
     <div className={styles.page}>
-      <header className={styles.headerBar}>
-        <div className={styles.headerInner}>
-          {/* Left: logo, links back to home */}
-          <Link href="/" className={styles.logoLink}>
-            <Image
-              src="/assets/checked_logo.png"
-              alt="checkd home"
-              className={styles.logoImage}
-              width={219.85} // tweak to match Figma
-              height={61} // tweak to match Figma
-              priority
-            />
-          </Link>
-
-          {/* Center: navigation */}
-          <nav className={styles.headerNav} aria-label="Primary">
-            <Link href="/analytics">My Analytics</Link>
-            <Link href="/badges">Badge Wallet</Link>
-            <Link href="/grades">Grades</Link>
-            <Link href="/settings">Settings</Link>
-          </nav>
-
-          {/* Right: student avatar + name from DB */}
-          <div className={styles.userArea}>
-            <div className={styles.userNameBlock}>
-              <div className={styles.userNameLine1}>{firstName},</div>
-              <div className={styles.userNameLine2}>{lastName}</div>
-            </div>
-            <div className={styles.userAvatar}>
-              {studentAvatarUrl ? (
-                <Image
-                  src={studentAvatarUrl}
-                  alt={`${resolvedStudentName} avatar`}
-                  width={44}
-                  height={44}
-                  className={styles.userAvatarImage}
-                />
-              ) : (
-                <span className={styles.userAvatarInitials}>{initialsFromName(resolvedStudentName)}</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
       <div className={styles.content}>
         <aside className={styles.timeline}>
           {timelineItems.map((item) => {
@@ -1443,17 +1390,6 @@ export function LessonVideoPage({
                 </button>
               </div>
             </div>
-
-            {ENABLE_QEV_SKIP && (firstIncompleteCheckpoint || !lessonSurveyCompleted) ? (
-              <div className={styles.qevDemoSkip}>
-                <button type="button" onClick={handleSkipToNextCheckpoint}>
-                  Skip to next checkpoint (demo)
-                </button>
-                <button type="button" onClick={handleUnlockProgressForTesting} disabled={duration <= 0}>
-                  Unlock progress bar (testing)
-                </button>
-              </div>
-            ) : null}
 
             {modalState !== 'none' && modalState !== 'lessonSurvey' ? (
               <div className={styles.overlay}>
@@ -1664,17 +1600,18 @@ export function LessonVideoPage({
               </div>
             ) : null}
           </div>
+
+          {ENABLE_QEV_SKIP ? (
+            <div className={styles.debugControls}>
+              <button type="button" onClick={handleSkipToNextCheckpoint}>
+                Skip to next checkpoint (demo)
+              </button>
+              <button type="button" onClick={handleUnlockProgressForTesting} disabled={duration <= 0}>
+                Unlock progress bar (testing)
+              </button>
+            </div>
+          ) : null}
         </div>
-        {ENABLE_QEV_SKIP ? (
-          <div className={styles.debugControls}>
-            <button type="button" onClick={handleSkipToNextCheckpoint}>
-              Skip to next checkpoint (demo)
-            </button>
-            <button type="button" onClick={handleUnlockProgressForTesting} disabled={duration <= 0}>
-              Unlock progress bar (testing)
-            </button>
-          </div>
-        ) : null}
       </div>
       {effectiveLessonSurvey && modalState === 'lessonSurvey' && (
         <div className={styles.lessonSurveyOverlay}>

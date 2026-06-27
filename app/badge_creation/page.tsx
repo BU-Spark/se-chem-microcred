@@ -382,6 +382,18 @@ export default function BadgeCreationPage() {
     return payload;
   };
 
+  const handleSuccessClose = () => {
+    setIsSuccessModalOpen(false);
+    // Always return to the badge list so the form can't be re-submitted (prevents
+    // duplicate badges). Hard navigation: router.push() no-ops from an async handler
+    // after setState in Next 15, and a full load shows the new badge with fresh data.
+    if (typeof window !== 'undefined') {
+      window.location.assign('/my_badges');
+      return;
+    }
+    router.push('/my_badges');
+  };
+
   const handleNext = async () => {
     // Block leaving the Upload Lesson Video step with an invalid link/length so
     // a value like "a" can't be saved.
@@ -452,9 +464,7 @@ export default function BadgeCreationPage() {
             {submissionState ? <div className={styles.noticeBanner}>{submissionState}</div> : null}
             {isLoadingEditBadge ? <div className={styles.noticeBanner}>Loading badge details...</div> : null}
             {submitError ? <p className={styles.errorText}>{submitError}</p> : null}
-
             {currentStep === 0 && <BadgeInfoStep draft={draft} updateDraft={updateDraft} />}
-
             {currentStep === 1 && (
               <LessonVideoStep draft={draft} updateDraft={updateDraft} videoThumbnail={videoThumbnail} />
             )}
@@ -525,7 +535,7 @@ export default function BadgeCreationPage() {
           isEditMode={isEditMode}
           courseId={courseId}
           badgeName={draft.badgeName}
-          onClose={() => setIsSuccessModalOpen(false)}
+          onClose={handleSuccessClose}
         />
       ) : null}
     </div>
