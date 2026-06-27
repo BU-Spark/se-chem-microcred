@@ -200,20 +200,31 @@ function HomePageContent() {
   };
 
   const displayName = studentData?.student?.name || user?.fullName || 'Student';
+  const courseTitle = studentData?.course?.title ?? '';
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
   const readyForFinalization = useMemo(() => studentData?.badges?.readyForFinalization ?? [], [studentData]);
 
+  // Merge both "ready" sources so neither hides the other, deduping by badgeId.
+  // Pending survey entries win — they carry the real promptId/question.
   const readyBadgeAlerts = useMemo(() => {
-    if (pendingSurveyBadges.length > 0) {
-      return pendingSurveyBadges;
+    const merged = [...pendingSurveyBadges];
+    const seen = new Set(pendingSurveyBadges.map((entry) => entry.badgeId));
+
+    for (const badge of readyForFinalization) {
+      if (seen.has(badge.id)) {
+        continue;
+      }
+      seen.add(badge.id);
+      merged.push({
+        promptId: `auto-${badge.id}`,
+        badgeId: badge.id,
+        badgeSlug: badge.slug,
+        badgeName: badge.name,
+        question: `Complete the final survey for ${badge.name}`,
+      });
     }
-    return readyForFinalization.map((badge) => ({
-      promptId: `auto-${badge.id}`,
-      badgeId: badge.id,
-      badgeSlug: badge.slug,
-      badgeName: badge.name,
-      question: `Complete the final survey for ${badge.name}`,
-    }));
+
+    return merged;
   }, [pendingSurveyBadges, readyForFinalization]);
 
   useEffect(() => {
@@ -365,39 +376,59 @@ function HomePageContent() {
     );
   };
 
+  const renderBadgeCard = (alert: (typeof readyBadgeAlerts)[number]) => (
+    <div key={alert.badgeId} className={styles.card}>
+      <div className={styles.cardMedia}>
+        <Image
+          src="/assets/survey_alarm/survey_alarm_x_icon.png"
+          alt="Badge ready to finalize"
+          width={96}
+          height={96}
+          className={styles.badgeCardIcon}
+        />
+      </div>
+
+      <div className={styles.cardTextBlock}>
+        <div className={styles.cardTitle}>{alert.badgeName ?? 'Your badge'}</div>
+        <div className={styles.cardStatus}>Ready to finalize</div>
+      </div>
+
+      <button type="button" className={styles.cardButton} onClick={() => handleStartSurvey(alert)}>
+        Finalize
+      </button>
+    </div>
+  );
+
   return (
     <div className={`page ${styles.page}`}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
-        <div className={styles.topRow}>
-          <div className={styles.alertWrapper}>
-            <div
-              className={styles.alert}
-              data-active={readyBadgeAlerts.length > 0}
-              onClick={readyBadgeAlerts.length > 0 ? () => handleStartSurvey() : undefined}
-            >
-              {readyBadgeAlerts.length > 0 ? (
-                <>
-                  <Image
-                    src="/assets/survey_alarm/survey_alarm_x_icon.png"
-                    alt="Survey reminder"
-                    className={styles.alertIcon}
-                    width={24}
-                    height={24}
-                  />
-                  <span className={styles.alertText}>
-                    {readyBadgeAlerts.length === 1
-                      ? `Complete feedback for ${readyBadgeAlerts[0]?.badgeName ?? 'your badge'} to finalize it.`
-                      : `You have ${readyBadgeAlerts.length} badges ready to finalize. Start the surveys to finish.`}
-                  </span>
-                </>
-              ) : (
-                <span className={styles.alertText}>Welcome, Student</span>
-              )}
+        <header className={styles.welcomeHeader}>
+          <h1 className={styles.welcomeTitle}>Welcome, {displayName}</h1>
+          {courseTitle ? <p className={styles.welcomeSubtitle}>{courseTitle}</p> : null}
+        </header>
+
+        {readyBadgeAlerts.length > 0 ? (
+          <div className={styles.topRow}>
+            <div className={styles.alertWrapper}>
+              <div className={styles.alert} data-active="true" onClick={() => handleStartSurvey()}>
+                <Image
+                  src="/assets/survey_alarm/survey_alarm_x_icon.png"
+                  alt="Survey reminder"
+                  className={styles.alertIcon}
+                  width={24}
+                  height={24}
+                />
+                <span className={styles.alertText}>
+                  {readyBadgeAlerts.length === 1
+                    ? `Complete feedback for ${readyBadgeAlerts[0]?.badgeName ?? 'your badge'} to finalize it.`
+                    : `You have ${readyBadgeAlerts.length} badges ready to finalize. Start the surveys to finish.`}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Up next</h2>
@@ -418,6 +449,17 @@ function HomePageContent() {
             <div className={styles.emptyState}>There are no in-progress lessons right now.</div>
           ) : (
             <div className={styles.cardRow}>{continueLessons.map(renderCard)}</div>
+          )}
+        </section>
+
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Ready to finalize</h2>
+          {isLoading ? (
+            <div className={styles.emptyState}>Loading your badges…</div>
+          ) : readyBadgeAlerts.length === 0 ? (
+            <div className={styles.emptyState}>No badges ready to finalize right now.</div>
+          ) : (
+            <div className={styles.cardRow}>{readyBadgeAlerts.map(renderBadgeCard)}</div>
           )}
         </section>
       </main>
