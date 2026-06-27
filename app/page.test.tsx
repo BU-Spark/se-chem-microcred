@@ -284,18 +284,21 @@ describe('Home Page', () => {
     expect(homeLink.className).not.toContain('navItemActive');
   });
 
-  it('keeps Home active for course workspace routes', async () => {
-    mockUsePathname.mockReturnValue('/courses/created-course-1');
+  it.each(['/courses/created-course-1', '/course_dashboard'])(
+    'keeps Home active for course workspace route %s',
+    async (pathname) => {
+      mockUsePathname.mockReturnValue(pathname);
 
-    renderHome();
+      renderHome();
 
-    await screen.findByText('Created Course 1');
+      await screen.findByText('Created Course 1');
 
-    const homeLink = screen.getByRole('link', { name: 'Home' });
+      const homeLink = screen.getByRole('link', { name: 'Home' });
 
-    expect(homeLink.className).toContain('navItemActive');
-    expect(screen.queryByRole('link', { name: 'Courses' })).not.toBeInTheDocument();
-  });
+      expect(homeLink.className).toContain('navItemActive');
+      expect(screen.queryByRole('link', { name: 'Courses' })).not.toBeInTheDocument();
+    }
+  );
 
   it('redirects to sign-in when the user is not authenticated after loading', async () => {
     mockUseUser.mockImplementation(() =>

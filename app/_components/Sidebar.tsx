@@ -73,7 +73,10 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
       <nav className={styles.navList}>
         {navItems.map((item) => {
           const isCourseWorkspace =
-            pathname === '/courses' || pathname === '/courses/new' || pathname.startsWith('/courses/');
+            pathname === '/course_dashboard' ||
+            pathname === '/courses' ||
+            pathname === '/courses/new' ||
+            pathname.startsWith('/courses/');
           const isActive =
             item.href === '/'
               ? pathname === item.href || isCourseWorkspace
