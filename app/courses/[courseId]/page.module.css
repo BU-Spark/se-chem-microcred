@@ -300,10 +300,14 @@
 }
 
 .badgeToken {
-  width: min(9.8rem, 100%);
-  aspect-ratio: 1 / 1;
+  width: 9.8rem;
+  height: 9.8rem;
+  flex: none;
   border-radius: 999px;
-  background: #2e6aa9;
+  background-color: #2e6aa9;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .badgeName {
@@ -400,6 +404,7 @@
 
 .importTitle {
   margin: 0;
+  font-family: 'Lato', system-ui, sans-serif;
   color: #111111;
   font-size: 1.15rem;
   font-weight: 700;
@@ -407,6 +412,7 @@
 
 .importSubtitle {
   margin: 0.25rem 0 0;
+  font-family: 'Open Sans', system-ui, sans-serif;
   color: #556070;
   font-size: 0.95rem;
 }
@@ -422,6 +428,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+  font-family: 'Lato', system-ui, sans-serif;
   color: #273341;
   font-size: 0.9rem;
   font-weight: 700;
@@ -434,7 +441,8 @@
   border-radius: 0.8rem;
   background: #ffffff;
   color: #111111;
-  font: inherit;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 1rem;
   font-weight: 500;
   padding: 0.65rem 0.8rem;
 }
@@ -442,6 +450,7 @@
 .errorText,
 .successText {
   margin: 0 0 0.85rem;
+  font-family: 'Open Sans', system-ui, sans-serif;
   font-size: 0.95rem;
 }
 

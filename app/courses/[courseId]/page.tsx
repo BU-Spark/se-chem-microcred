@@ -87,6 +87,7 @@ type CourseDetailResponse = {
 
 type AssignedBadge = CourseBadge & {
   lessonCount: number;
+  thumbnailUrl: string | null;
 };
 
 type BadgeLibraryItem = {
@@ -372,7 +373,10 @@ export default function CreatedCourseDetailPage() {
           badgeMap.set(badge.id, {
             ...badge,
             lessonCount: 0,
+            thumbnailUrl: lesson.thumbnailUrl ?? null,
           });
+        } else if (!existing.thumbnailUrl && lesson.thumbnailUrl) {
+          existing.thumbnailUrl = lesson.thumbnailUrl;
         }
 
         if (!lessonBadgeIds.has(badge.id)) {
@@ -572,37 +576,45 @@ export default function CreatedCourseDetailPage() {
 
                 {assignedBadges.length > 0 ? (
                   <div className={styles.badgeGrid}>
-                    {assignedBadges.map((badge) => (
-                      <div key={badge.id} className={styles.badgeItem}>
-                        <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
-                          <div className={styles.badgeToken} aria-hidden="true" />
-                          <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
-                        </Link>
-                        {isInstructor ? (
-                          <>
-                            <button
-                              type="button"
-                              className={styles.badgeReminderButton}
-                              onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
-                              aria-label={`Send a lesson reminder for ${badge.name.replace(/ Badge$/i, '')}`}
-                            >
-                              <MessageIcon />
-                            </button>
-                            {/* MVP test-cleanup button — remove before handoff. */}
-                            <button
-                              type="button"
-                              className={styles.badgeDeleteButton}
-                              onClick={() => handleDeleteBadge({ id: badge.id, name: badge.name })}
-                              disabled={isDeleting}
-                            >
-                              Delete badge
-                            </button>
-                          </>
-                        ) : (
-                          <MessageIcon />
-                        )}
-                      </div>
-                    ))}
+                    {assignedBadges.map((badge) => {
+                      // Use the bar-free 16:9 thumbnail so the round center-crop has no black letterboxing.
+                      const badgeImage = badge.thumbnailUrl?.replace('/hqdefault.jpg', '/mqdefault.jpg') ?? null;
+                      return (
+                        <div key={badge.id} className={styles.badgeItem}>
+                          <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
+                            <div
+                              className={styles.badgeToken}
+                              style={badgeImage ? { backgroundImage: `url(${badgeImage})` } : undefined}
+                              aria-hidden="true"
+                            />
+                            <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
+                          </Link>
+                          {isInstructor ? (
+                            <>
+                              <button
+                                type="button"
+                                className={styles.badgeReminderButton}
+                                onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
+                                aria-label={`Send a lesson reminder for ${badge.name.replace(/ Badge$/i, '')}`}
+                              >
+                                <MessageIcon />
+                              </button>
+                              {/* MVP test-cleanup button — remove before handoff. */}
+                              <button
+                                type="button"
+                                className={styles.badgeDeleteButton}
+                                onClick={() => handleDeleteBadge({ id: badge.id, name: badge.name })}
+                                disabled={isDeleting}
+                              >
+                                Delete badge
+                              </button>
+                            </>
+                          ) : (
+                            <MessageIcon />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className={styles.emptyMessage}>No badges assigned yet.</p>
