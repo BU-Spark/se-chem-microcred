@@ -336,20 +336,27 @@
   line-height: 0;
 }
 
-/* MVP test-cleanup affordances — remove before handoff. */
+/* MVP test-cleanup affordances — remove before handoff. Styled as a danger pill
+   to match the primary button's shape/size (radius 19px, height 3.4rem). */
 .dangerButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.7rem;
-  border: 1px solid #d9b1b1;
-  border-radius: 0.8rem;
+  min-height: 3.4rem;
+  border: 1.5px solid #c98a86;
+  border-radius: 19px;
   background: #ffffff;
   color: #b42318;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 0.65rem 1rem;
+  font-family: 'Lato', system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 400;
+  padding: 0.8rem 1.6rem;
+  transition: filter 0.16s ease, background 0.16s ease;
+}
+
+.dangerButton:hover {
+  background: #fbf2f1;
 }
 
 .dangerButton:disabled {
