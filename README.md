@@ -44,8 +44,10 @@ Use the provided Prisma/PostgreSQL connection string; you do **not** need to cre
      DATABASE_URL="<provided Prisma PostgreSQL URL>"
      CLERK_SECRET_KEY="sk_test_or_live_from_clerk"
      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_or_live_from_clerk"
+     SEEDED_DEMO_EMAIL="your-clerk-email@example.com"
      ```
    - To get Clerk keys, create a free Clerk project at https://clerk.com/ and copy the Secret and Publishable keys. The DATABASE_URL should be the shared Prisma connection string supplied for the course.
+   - `SEEDED_DEMO_EMAIL` should match the Clerk email you want to use for the CHEM101 demo instructor/test account. Each developer can set this to their own email locally.
 
 4) Apply the database schema and seed demo data (runs against the provided DATABASE_URL)  
    ```bash
@@ -58,25 +60,7 @@ Use the provided Prisma/PostgreSQL connection string; you do **not** need to cre
    ```bash
    npm run dev
    ```
-   Visit http://localhost:3000 and sign in with a Clerk user whose email matches the seeded student. 🚨 **Use your own email** 🚨 Update the seed to your address and create a Clerk user by signing up with your own email/password (set in Clerk; there is no repo-defined password).
-
-   Specifically, in the block between line 58 - 70 of the file /prisma/seed.js:
-
-   const students = await Promise.all([
-    prisma.user.create({
-      data: {
-        email: 'nx2004@bu.edu',
-        name: 'John Doe',
-        buid: 'U1234567',
-        gender: 'Male',
-        raceEthnicity: 'White',
-        parentalEducation: 'Bachelors degree',
-        pellGrantQualified: false,
-      },
-    }),
-  ]);
-
-  change the line: `email: 'nx2004@bu.edu'` to use your own email.
+   Visit http://localhost:3000 and sign in with a Clerk user whose email matches `SEEDED_DEMO_EMAIL` if you want the seeded CHEM101 demo test access.
 
 6) (Optional) Validate tooling  
    - Lint: `npm run lint`  

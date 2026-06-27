@@ -5,8 +5,12 @@ import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
 
-const SEEDED_DEMO_EMAIL = 'nithin.senthilvel@gmail.com';
+const SEEDED_DEMO_EMAIL = process.env.SEEDED_DEMO_EMAIL?.trim().toLowerCase() || null;
 const SEEDED_DEMO_COURSE_CODE = 'CHEM101';
+
+function isSeededDemoUser(email?: string | null) {
+  return Boolean(SEEDED_DEMO_EMAIL) && email?.toLowerCase() === SEEDED_DEMO_EMAIL;
+}
 
 function avatarPathForBase(base?: string | null): string {
   switch (base) {
@@ -245,9 +249,7 @@ export async function GET(req: Request) {
         ...(requestedCourseId ? { courseId: requestedCourseId } : {}),
         OR: [
           { role: CourseRole.STUDENT },
-          ...(provisioned.email?.toLowerCase() === SEEDED_DEMO_EMAIL
-            ? [{ course: { code: SEEDED_DEMO_COURSE_CODE } }]
-            : []),
+          ...(isSeededDemoUser(provisioned.email) ? [{ course: { code: SEEDED_DEMO_COURSE_CODE } }] : []),
         ],
       },
       include: {

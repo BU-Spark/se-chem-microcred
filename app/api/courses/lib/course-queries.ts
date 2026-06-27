@@ -1,7 +1,11 @@
 import prisma from '@/lib/prisma';
 
-const SEEDED_DEMO_EMAIL = 'nithin.senthilvel@gmail.com';
+const SEEDED_DEMO_EMAIL = process.env.SEEDED_DEMO_EMAIL?.trim().toLowerCase() || null;
 const SEEDED_DEMO_COURSE_CODE = 'CHEM101';
+
+function isSeededDemoUser(email?: string | null) {
+  return Boolean(SEEDED_DEMO_EMAIL) && email?.toLowerCase() === SEEDED_DEMO_EMAIL;
+}
 
 export async function fetchUserByEmail(email: string) {
   return prisma.user.findUnique({
@@ -139,7 +143,7 @@ export async function fetchAssessorCourseEnrollments(userId: string) {
     where: { id: userId },
     select: { email: true },
   });
-  const includeSeededDemoCourse = user?.email?.toLowerCase() === SEEDED_DEMO_EMAIL;
+  const includeSeededDemoCourse = isSeededDemoUser(user?.email);
 
   return prisma.enrollment.findMany({
     where: {
@@ -668,7 +672,7 @@ export async function fetchEnrolledCourses(userId: string) {
     where: { id: userId },
     select: { email: true },
   });
-  const includeSeededDemoCourse = user?.email?.toLowerCase() === SEEDED_DEMO_EMAIL;
+  const includeSeededDemoCourse = isSeededDemoUser(user?.email);
 
   return prisma.enrollment.findMany({
     where: {

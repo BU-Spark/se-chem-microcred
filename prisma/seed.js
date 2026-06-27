@@ -1,4 +1,9 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
+const path = require('path');
+
+require('dotenv').config({ path: path.resolve(process.cwd(), '.env') });
+require('dotenv').config({ path: path.resolve(process.cwd(), '.env.local'), override: true });
+
 const {
   PrismaClient,
   AvatarAccessory,
@@ -15,6 +20,8 @@ const {
 const { CourseRole } = require('@prisma/client');
 
 const prisma = new PrismaClient();
+const SEEDED_DEMO_EMAIL = process.env.SEEDED_DEMO_EMAIL?.trim().toLowerCase() || 'demo.instructor@example.edu';
+const SEEDED_DEMO_COURSE_CODE = 'CHEM101';
 
 const placeholderLessonImage =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAABit0H5AAAACXBIWXMAAAsTAAALEwEAmpwYAAAF5ElEQVR4nO3cQW6bMBRAUT5t//9nnuJlsqS2HApRtf7CfJbFg4lQz+xX86IRERERERERERERGRP4gGrA7jw2cfZsv3xQNAOV6A3SxPg+wJprbV8MgRwBr4FUwPobnYz1UBBqefgdgPgC66P4U9AFbA+jJ0BjWZ/AVeAEObwfsBx8C3sB9gBnQ9V9gCtwPuwFjYOfgNrHg78Be0PhPwHp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYDtwK3wHzYGfgPLA6N8A6sNzM0aW90U/K6EFe87Qp9e3t54J/3ORERERERERERERkd/5ALAeGdKyv4AAAAASUVORK5CYII=';
@@ -53,7 +60,7 @@ async function seedDemo() {
   const users = await Promise.all([
     prisma.user.create({
       data: {
-        email: 'jacksoncg730@gmail.com',
+        email: SEEDED_DEMO_EMAIL,
         name: 'John Doe',
         buid: 'U1234567',
         gender: 'Male',
@@ -92,7 +99,7 @@ async function seedDemo() {
 
   const course = await prisma.course.create({
     data: {
-      code: 'CHEM101',
+      code: SEEDED_DEMO_COURSE_CODE,
       section: 'K1',
       title: 'Chem 101: Safety Foundations',
       sectionCount: 2,
