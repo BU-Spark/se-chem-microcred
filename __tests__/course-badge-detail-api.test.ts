@@ -8,13 +8,17 @@ const mockFetchCreatedBadgeDetail = jest.fn();
 const mockFetchAccessibleCourseDetail = jest.fn();
 const mockFetchAccessibleBadgeDetail = jest.fn();
 
-jest.mock('@/app/api/courses/lib/course-queries', () => ({
-  fetchUserByEmail: (...args: unknown[]) => mockFetchUserByEmail(...args),
-  fetchCreatedCourseDetail: (...args: unknown[]) => mockFetchCreatedCourseDetail(...args),
-  fetchCreatedBadgeDetail: (...args: unknown[]) => mockFetchCreatedBadgeDetail(...args),
-  fetchAccessibleCourseDetail: (...args: unknown[]) => mockFetchAccessibleCourseDetail(...args),
-  fetchAccessibleBadgeDetail: (...args: unknown[]) => mockFetchAccessibleBadgeDetail(...args),
-}), { virtual: true });
+jest.mock(
+  '@/app/api/courses/lib/course-queries',
+  () => ({
+    fetchUserByEmail: (...args: unknown[]) => mockFetchUserByEmail(...args),
+    fetchCreatedCourseDetail: (...args: unknown[]) => mockFetchCreatedCourseDetail(...args),
+    fetchCreatedBadgeDetail: (...args: unknown[]) => mockFetchCreatedBadgeDetail(...args),
+    fetchAccessibleCourseDetail: (...args: unknown[]) => mockFetchAccessibleCourseDetail(...args),
+    fetchAccessibleBadgeDetail: (...args: unknown[]) => mockFetchAccessibleBadgeDetail(...args),
+  }),
+  { virtual: true }
+);
 
 jest.mock('../app/api/courses/lib/course-queries', () => ({
   fetchUserByEmail: (...args: unknown[]) => mockFetchUserByEmail(...args),
