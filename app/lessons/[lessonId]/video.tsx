@@ -184,6 +184,10 @@ function formatTime(seconds: number | null | undefined) {
   return `${Math.floor(total / 60)}:${pad(total % 60)}`;
 }
 
+function mergeUniqueIds(...groups: string[][]) {
+  return Array.from(new Set(groups.flat()));
+}
+
 let youtubeApiPromise: Promise<YouTubeApi | null> | null = null;
 function loadYouTubeIframeApi() {
   if (typeof window === 'undefined') {
@@ -268,6 +272,10 @@ export function LessonVideoPage({
     [lesson.checkpoints]
   );
   const initialCompletedIds = useMemo(() => lesson.completedCheckpointIds ?? [], [lesson.completedCheckpointIds]);
+  const initialEncounteredIds = useMemo(
+    () => mergeUniqueIds(lesson.completedCheckpointIds ?? [], lesson.answeredCheckpointIds ?? []),
+    [lesson.answeredCheckpointIds, lesson.completedCheckpointIds]
+  );
 
   const resumeBaseTime = useMemo(() => {
     const recorded = Math.max(0, lesson.resumeTimeSeconds ?? 0);
@@ -278,6 +286,7 @@ export function LessonVideoPage({
   const [modalState, setModalState] = useState<ModalState>('none');
   const [activeCheckpointId, setActiveCheckpointId] = useState<string | null>(null);
   const [completedCheckpointIds, setCompletedCheckpointIds] = useState<string[]>(initialCompletedIds);
+  const [encounteredCheckpointIds, setEncounteredCheckpointIds] = useState<string[]>(initialEncounteredIds);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, SelectedAnswerState>>({});
   const [attemptSummary, setAttemptSummary] = useState<AttemptSummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -370,6 +379,10 @@ export function LessonVideoPage({
   }, [initialCompletedIds]);
 
   useEffect(() => {
+    setEncounteredCheckpointIds(initialEncounteredIds);
+  }, [initialEncounteredIds]);
+
+  useEffect(() => {
     setFurthestTime(resumeBaseTime);
     furthestTimeRef.current = resumeBaseTime;
     setCurrentTime(resumeBaseTime);
@@ -442,20 +455,20 @@ export function LessonVideoPage({
   }, [playerStatus]);
 
   const firstIncompleteCheckpoint = useMemo(
-    () => orderedCheckpoints.find((checkpoint) => !completedCheckpointIds.includes(checkpoint.id)) ?? null,
-    [orderedCheckpoints, completedCheckpointIds]
+    () => orderedCheckpoints.find((checkpoint) => !encounteredCheckpointIds.includes(checkpoint.id)) ?? null,
+    [orderedCheckpoints, encounteredCheckpointIds]
   );
 
-  const allCheckpointsCompleted = useMemo(
+  const allCheckpointsEncountered = useMemo(
     () =>
       orderedCheckpoints.length > 0 &&
-      orderedCheckpoints.every((checkpoint) => completedCheckpointIds.includes(checkpoint.id)),
-    [orderedCheckpoints, completedCheckpointIds]
+      orderedCheckpoints.every((checkpoint) => encounteredCheckpointIds.includes(checkpoint.id)),
+    [orderedCheckpoints, encounteredCheckpointIds]
   );
 
   const lessonReadyForSurvey = useMemo(
-    () => (orderedCheckpoints.length === 0 || allCheckpointsCompleted) && videoEnded,
-    [allCheckpointsCompleted, orderedCheckpoints.length, videoEnded]
+    () => (orderedCheckpoints.length === 0 || allCheckpointsEncountered) && videoEnded,
+    [allCheckpointsEncountered, orderedCheckpoints.length, videoEnded]
   );
 
   const currentCheckpoint = useMemo(() => {
@@ -850,6 +863,7 @@ export function LessonVideoPage({
       }
       gradingTriggeredRef.current = false;
       setCompletedCheckpointIds([]);
+      setEncounteredCheckpointIds([]);
       setSelectedAnswers({});
       setAttemptSummary(null);
       setActiveQuestionIndex(0);
@@ -975,6 +989,9 @@ export function LessonVideoPage({
       const baseTime = currentCheckpoint.timeOffsetSeconds;
       lastCheckpointResumeRef.current = baseTime;
       setCompletedCheckpointIds((prev) =>
+        prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
+      );
+      setEncounteredCheckpointIds((prev) =>
         prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
       );
       setModalState('result');
@@ -1215,6 +1232,7 @@ export function LessonVideoPage({
     setFurthestTime(duration);
     furthestTimeRef.current = duration;
     setCompletedCheckpointIds(orderedCheckpoints.map((cp) => cp.id));
+    setEncounteredCheckpointIds(orderedCheckpoints.map((cp) => cp.id));
     setActiveCheckpointId(null);
     setSelectedAnswers({});
     setAttemptSummary(null);
