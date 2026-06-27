@@ -490,7 +490,7 @@ describe('Created course detail page', () => {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify({ badgeId: 'badge-template-1' }),
+        body: JSON.stringify({ badgeId: 'badge-template-1', availableOn: null, closesOn: null, neverCloses: true }),
       });
     });
     expect(await screen.findByText('Badge imported successfully.')).toBeInTheDocument();

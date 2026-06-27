@@ -7,6 +7,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import { LessonReminderModal } from './LessonReminderModal';
+import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
 import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
 import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
 import rubyAvatar from '@/public/edit_avatar/ruby.svg';
@@ -281,6 +282,9 @@ export default function CreatedCourseDetailPage() {
   const [isImportingBadge, setIsImportingBadge] = useState(false);
   const [badgeImportError, setBadgeImportError] = useState('');
   const [badgeImportStatus, setBadgeImportStatus] = useState('');
+  const [importAvailableOn, setImportAvailableOn] = useState('');
+  const [importClosesOn, setImportClosesOn] = useState('');
+  const [importNeverCloses, setImportNeverCloses] = useState(true);
 
   const courseId = resolveCourseId(params?.courseId);
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -433,6 +437,9 @@ export default function CreatedCourseDetailPage() {
     setIsImportPanelOpen(true);
     setBadgeImportStatus('');
     setBadgeImportError('');
+    setImportAvailableOn('');
+    setImportClosesOn('');
+    setImportNeverCloses(true);
     void loadBadgeLibrary();
   };
 
@@ -452,6 +459,9 @@ export default function CreatedCourseDetailPage() {
         },
         body: JSON.stringify({
           badgeId: selectedImportBadgeId,
+          availableOn: importAvailableOn || null,
+          closesOn: importNeverCloses ? null : importClosesOn || null,
+          neverCloses: importNeverCloses,
         }),
       });
       const payload = await response.json().catch(() => ({
@@ -671,6 +681,17 @@ export default function CreatedCourseDetailPage() {
                             ))}
                           </select>
                         </label>
+                        <div className={styles.importField}>
+                          <span>Content Availability</span>
+                          <RangeCalendar
+                            availableOn={importAvailableOn}
+                            closesOn={importClosesOn}
+                            neverCloses={importNeverCloses}
+                            onAvailableOnChange={setImportAvailableOn}
+                            onClosesOnChange={setImportClosesOn}
+                            onNeverClosesChange={setImportNeverCloses}
+                          />
+                        </div>
                         <button
                           type="button"
                           className={styles.primaryButton}
