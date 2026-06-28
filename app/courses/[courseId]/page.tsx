@@ -60,6 +60,7 @@ type CourseLesson = {
 type CourseDetail = {
   id: string;
   code: string | null;
+  assessorCode: string | null;
   title: string;
   description: string | null;
   sectionCount: number;
@@ -540,6 +541,11 @@ export default function CreatedCourseDetailPage() {
                     {isInstructor && course.code ? (
                       <p className={styles.statLine}>
                         Course Code: <span className={styles.courseCode}>{course.code}</span>
+                      </p>
+                    ) : null}
+                    {isInstructor && course.assessorCode ? (
+                      <p className={styles.statLine}>
+                        Assessor Code: <span className={styles.courseCode}>{course.assessorCode}</span>
                       </p>
                     ) : null}
                     {viewerRole ? (

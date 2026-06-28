@@ -367,7 +367,7 @@ describe('Home Page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Join a course' }));
     expect(await screen.findByRole('heading', { name: 'Join a course' })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Course code'), {
+    fireEvent.change(screen.getByLabelText('Course or assessor code'), {
       target: { value: 'chem-202' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Join' }));

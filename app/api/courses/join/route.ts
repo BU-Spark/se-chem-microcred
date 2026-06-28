@@ -32,12 +32,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Course code is required.' }, { status: 400 });
     }
 
+    // A course has two separate join codes: `code` (students) and `assessorCode`
+    // (assessors / CHECKER role). Codes are unique across both columns, so the
+    // matched column tells us which role this code grants.
     const course = await prisma.course.findFirst({
-      where: { code },
+      where: { OR: [{ code }, { assessorCode: code }] },
       select: {
         id: true,
         title: true,
         code: true,
+        assessorCode: true,
         createdById: true,
         enrollments: {
           where: { studentId: user.id },
@@ -55,17 +59,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'You already own this course.' }, { status: 409 });
     }
 
+    const joinRole = course.assessorCode === code ? CourseRole.CHECKER : CourseRole.STUDENT;
+    const roleLabel = joinRole === CourseRole.CHECKER ? 'an assessor' : 'a student';
+
     const existingEnrollment = course.enrollments[0] ?? null;
 
-    if (existingEnrollment?.role === CourseRole.STUDENT) {
+    if (existingEnrollment?.role === joinRole) {
       return NextResponse.json(
         {
-          message: 'You are already enrolled in this course.',
-          course: {
-            id: course.id,
-            title: course.title,
-            code: course.code,
-          },
+          message:
+            joinRole === CourseRole.CHECKER
+              ? 'You are already an assessor for this course.'
+              : 'You are already enrolled in this course.',
+          course: { id: course.id, title: course.title, code: course.code },
           enrollment: existingEnrollment,
           alreadyEnrolled: true,
         },
@@ -75,7 +81,7 @@ export async function POST(req: NextRequest) {
 
     if (existingEnrollment) {
       return NextResponse.json(
-        { error: 'You already have a staff role in this course and cannot join it as a student.' },
+        { error: `You already have a different role in this course and cannot join it as ${roleLabel}.` },
         { status: 409 }
       );
     }
@@ -84,7 +90,7 @@ export async function POST(req: NextRequest) {
       data: {
         studentId: user.id,
         courseId: course.id,
-        role: CourseRole.STUDENT,
+        role: joinRole,
       },
       select: {
         id: true,
@@ -94,7 +100,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(
       {
-        message: `You joined ${course.title}.`,
+        message: `You joined ${course.title} as ${roleLabel}.`,
         course: {
           id: course.id,
           title: course.title,

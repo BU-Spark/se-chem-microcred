@@ -724,14 +724,17 @@ function HomeContent() {
             <h2 id="join-modal-title" className={styles.joinModalTitle}>
               Join a course
             </h2>
+            <p className={styles.joinModalHint}>
+              Enter a course code to join as a student, or an assessor code to join as an assessor.
+            </p>
             <div className={styles.joinControls}>
               <input
                 type="text"
                 className={styles.joinInput}
                 value={joinCode}
                 onChange={(event) => setJoinCode(event.target.value)}
-                placeholder="Enter course code"
-                aria-label="Course code"
+                placeholder="Enter course or assessor code"
+                aria-label="Course or assessor code"
                 disabled={isJoiningCourse}
                 autoFocus
               />

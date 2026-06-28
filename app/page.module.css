@@ -326,6 +326,14 @@
   color: #111111;
 }
 
+.joinModalHint {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #4b5563;
+}
+
 .joinCancel {
   align-self: flex-end;
   background: none;

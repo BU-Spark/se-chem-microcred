@@ -49,6 +49,7 @@ describe('course join API', () => {
       id: 'course-1',
       title: 'Chemistry 101',
       code: 'CHEM101',
+      assessorCode: 'CHECK101',
       createdById: 'instructor-1',
       enrollments: [],
     });
@@ -64,7 +65,7 @@ describe('course join API', () => {
     expect(response.status).toBe(201);
     expect(mockCourseFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { code: 'CHEM101' },
+        where: { OR: [{ code: 'CHEM101' }, { assessorCode: 'CHEM101' }] },
       })
     );
     expect(mockEnrollmentCreate).toHaveBeenCalledWith(
@@ -119,11 +120,12 @@ describe('course join API', () => {
     expect(body.error).toMatch(/already own/i);
   });
 
-  it('rejects existing course staff instead of adding a student enrollment', async () => {
+  it('rejects joining as a student when already enrolled in a different role', async () => {
     mockCourseFindFirst.mockResolvedValue({
       id: 'course-1',
       title: 'Chemistry 101',
       code: 'CHEM101',
+      assessorCode: 'CHECK101',
       createdById: 'instructor-1',
       enrollments: [{ id: 'checker-enrollment', role: 'CHECKER' }],
     });
@@ -134,7 +136,36 @@ describe('course join API', () => {
     expect(mockEnrollmentCreate).not.toHaveBeenCalled();
 
     const body = await response.json();
-    expect(body.error).toMatch(/staff role/i);
+    expect(body.error).toMatch(/different role/i);
+  });
+
+  it('enrolls the user as an assessor (CHECKER) when the assessor code is used', async () => {
+    mockCourseFindFirst.mockResolvedValue({
+      id: 'course-1',
+      title: 'Chemistry 101',
+      code: 'CHEM101',
+      assessorCode: 'CHECK101',
+      createdById: 'instructor-1',
+      enrollments: [],
+    });
+    mockEnrollmentCreate.mockResolvedValue({ id: 'enrollment-2', role: 'CHECKER' });
+
+    const response = await postJoin({ code: 'check-101' });
+
+    expect(response.status).toBe(201);
+    expect(mockEnrollmentCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          studentId: 'student-1',
+          courseId: 'course-1',
+          role: 'CHECKER',
+        },
+      })
+    );
+
+    const body = await response.json();
+    expect(body.message).toMatch(/assessor/i);
+    expect(body.alreadyEnrolled).toBe(false);
   });
 
   it('returns 404 for an unknown code', async () => {
