@@ -68,6 +68,9 @@ type UpdateBadgePayload = {
   rubricCriteria?: RubricCriterionPayload[] | null;
   gradingCriteria?: RubricCriterionPayload[] | null;
   checkpoints?: CheckpointPayload[] | null;
+  youtubeUrl?: string | null;
+  videoTitle?: string | null;
+  videoLength?: string | null;
 };
 
 function normalizeString(value?: string | null) {
@@ -292,6 +295,9 @@ function buildRequirementSummary({
   rubricItems,
   gradingCriteria,
   checkpoints,
+  youtubeUrl,
+  videoTitle,
+  videoLength,
 }: {
   badgeName: string;
   lessonTitle?: string | null;
@@ -299,6 +305,9 @@ function buildRequirementSummary({
   rubricItems: Array<{ number: number; text: string }>;
   gradingCriteria: Array<{ number: number; criterion: string | null; options: string[]; optionFeedback: string[] }>;
   checkpoints: CheckpointPayload[];
+  youtubeUrl?: string | null;
+  videoTitle?: string | null;
+  videoLength?: string | null;
 }) {
   return JSON.stringify({
     version: 2,
@@ -307,6 +316,12 @@ function buildRequirementSummary({
     skills,
     rubricItems,
     gradingCriteria,
+    // The lesson video round-trips through the summary JSON so the editor (which
+    // only ever loads the source badge — whose requirement has no lesson row)
+    // can rehydrate it. See badgeToDraft + the PATCH segment propagation.
+    youtubeUrl: youtubeUrl ?? null,
+    videoTitle: videoTitle ?? null,
+    videoLength: videoLength ?? null,
     checkpoints: checkpoints
       .map((checkpoint, index) => ({
         number: index + 1,
@@ -341,6 +356,9 @@ function parseRequirementSummary(summary?: string | null) {
       rubricItems: [] as Array<{ number: number; text: string }>,
       gradingCriteria: [] as Array<{ number: number; criterion: string | null; options: string[] }>,
       checkpoints: [] as CheckpointPayload[],
+      youtubeUrl: null as string | null,
+      videoTitle: null as string | null,
+      videoLength: null as string | null,
     };
   }
 
@@ -355,6 +373,9 @@ function parseRequirementSummary(summary?: string | null) {
         optionFeedback?: string[];
       }>;
       checkpoints?: CheckpointPayload[];
+      youtubeUrl?: string | null;
+      videoTitle?: string | null;
+      videoLength?: string | null;
     };
     const rubricItems = (parsed.rubricItems ?? [])
       .map((item, index) => ({
@@ -374,6 +395,9 @@ function parseRequirementSummary(summary?: string | null) {
       rubricItems,
       gradingCriteria,
       checkpoints: parsed.checkpoints ?? [],
+      youtubeUrl: normalizeString(parsed.youtubeUrl),
+      videoTitle: normalizeString(parsed.videoTitle),
+      videoLength: normalizeString(parsed.videoLength),
     };
   } catch {
     return {
@@ -382,6 +406,9 @@ function parseRequirementSummary(summary?: string | null) {
       rubricItems: [] as Array<{ number: number; text: string }>,
       gradingCriteria: [] as Array<{ number: number; criterion: string | null; options: string[] }>,
       checkpoints: [] as CheckpointPayload[],
+      youtubeUrl: null as string | null,
+      videoTitle: null as string | null,
+      videoLength: null as string | null,
     };
   }
 }
@@ -484,6 +511,11 @@ export async function GET() {
               rubricItems: parsedSummary.rubricItems,
               gradingCriteria: parsedSummary.gradingCriteria,
               checkpoints: parsedSummary.checkpoints,
+              // Video lives in the summary JSON (the source badge has no lesson row);
+              // expose it so badgeToDraft can rehydrate the editor's video field.
+              youtubeUrl: parsedSummary.youtubeUrl,
+              videoTitle: parsedSummary.videoTitle,
+              videoLength: parsedSummary.videoLength,
               lesson: requirement.lesson
                 ? {
                     id: requirement.lesson.id,
@@ -547,6 +579,12 @@ export async function PATCH(req: NextRequest) {
     const neverCloses = body.neverCloses ?? null;
     const availableOn = parseDate(body.availableOn);
     const closesOn = body.neverCloses ? null : parseDate(body.closesOn);
+    const youtubeUrl = normalizeString(body.youtubeUrl);
+    const videoTitle = normalizeString(body.videoTitle);
+    const videoLength = normalizeString(body.videoLength);
+    const videoDurationSeconds = parseTimeToSeconds(videoLength);
+    const videoId = extractYouTubeId(youtubeUrl);
+    const thumbnailUrl = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
 
     if (!badgeId) {
       return badRequest('Badge id is required.');
@@ -606,11 +644,14 @@ export async function PATCH(req: NextRequest) {
 
       const requirementSummary = buildRequirementSummary({
         badgeName,
-        lessonTitle: firstRequirement?.lesson?.title ?? badgeName,
+        lessonTitle: videoTitle ?? firstRequirement?.lesson?.title ?? badgeName,
         skills,
         rubricItems,
         gradingCriteria,
         checkpoints,
+        youtubeUrl,
+        videoTitle,
+        videoLength,
       });
 
       if (firstRequirement) {
@@ -643,6 +684,62 @@ export async function PATCH(req: NextRequest) {
           where: { badgeId: { in: otherFamilyBadges.map((familyBadge) => familyBadge.id) } },
           data: { summary: requirementSummary },
         });
+      }
+
+      // Push the edited video onto the course-copy lessons so students see it.
+      // The editor only ever loads the source badge (no lesson row), so the
+      // video must be propagated to the copies' lesson segments here. Guard on a
+      // non-null URL: a blank field (e.g. a legacy badge whose summary predates
+      // video storage) must NOT wipe an existing student-facing video.
+      if (youtubeUrl) {
+        const familyBadgeIds = [badge.id, ...otherFamilyBadges.map((familyBadge) => familyBadge.id)];
+        const requirementsWithLessons = await tx.badgeRequirement.findMany({
+          where: { badgeId: { in: familyBadgeIds }, lessonId: { not: null } },
+          select: { lessonId: true },
+        });
+        const lessonIds = Array.from(
+          new Set(
+            requirementsWithLessons.map((requirement) => requirement.lessonId).filter((id): id is string => Boolean(id))
+          )
+        );
+
+        if (lessonIds.length > 0) {
+          await tx.lesson.updateMany({
+            where: { id: { in: lessonIds } },
+            data: {
+              title: videoTitle ?? undefined,
+              estimatedMinutes: videoDurationSeconds ? Math.max(1, Math.round(videoDurationSeconds / 60)) : undefined,
+            },
+          });
+
+          // Update only the first segment (lowest sortOrder) of each lesson — the
+          // one POST/import seeds with the video. Prisma can't do distinct-on, so
+          // fetch ordered and keep the first id seen per lesson.
+          const segments = await tx.lessonSegment.findMany({
+            where: { lessonId: { in: lessonIds } },
+            orderBy: [{ lessonId: 'asc' }, { sortOrder: 'asc' }],
+            select: { id: true, lessonId: true },
+          });
+          const firstSegmentIdByLesson = new Map<string, string>();
+          for (const segment of segments) {
+            if (!firstSegmentIdByLesson.has(segment.lessonId)) {
+              firstSegmentIdByLesson.set(segment.lessonId, segment.id);
+            }
+          }
+          const firstSegmentIds = Array.from(firstSegmentIdByLesson.values());
+
+          if (firstSegmentIds.length > 0) {
+            await tx.lessonSegment.updateMany({
+              where: { id: { in: firstSegmentIds } },
+              data: {
+                videoUrl: youtubeUrl,
+                title: videoTitle ?? undefined,
+                duration: videoDurationSeconds || null,
+                thumbnailUrl,
+              },
+            });
+          }
+        }
       }
 
       return badge;
@@ -759,6 +856,9 @@ export async function POST(req: NextRequest) {
           rubricItems,
           gradingCriteria,
           checkpoints,
+          youtubeUrl,
+          videoTitle,
+          videoLength: normalizeString(body.videoLength),
         });
 
         const sourceBadge = await tx.badge.create({
