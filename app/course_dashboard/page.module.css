@@ -102,7 +102,9 @@
   color: #ffffff;
   font-weight: 600;
   cursor: pointer;
-  transition: filter 0.2s ease, background-color 0.2s ease;
+  transition:
+    filter 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .signOffButton:hover {
@@ -178,7 +180,6 @@
   align-items: center;
 }
 
-
 .alert[data-active='false'] {
   background: transparent;
   border: none;
@@ -193,7 +194,6 @@
   display: block;
 }
 
-
 .brandMark {
   font-weight: 700;
   color: #1f5fab;
@@ -203,30 +203,258 @@
   gap: 0.6rem;
 }
 
-.welcomeHeader {
+/* =========================
+   Redesigned dashboard: hero band
+   ========================= */
+.hero {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.4rem;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1.5rem;
+
+  background: #1f5fab;
+  border-radius: 18px;
+  /* Clear the global check'd logo pinned at top:32 / right:48 (115x32) so it
+     stays on the white page background instead of disappearing into the band. */
+  margin-top: 2.75rem;
+  padding: 2.25rem 2.5rem;
+  padding-right: 180px;
+  color: #f8fbff;
 }
 
-.welcomeTitle {
+.heroText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.heroEyebrow {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(248, 251, 255, 0.82);
+}
+
+.heroTitle {
   margin: 0;
   font-family: 'Lato', sans-serif;
   font-size: 3rem;
   font-weight: 700;
   font-style: italic;
   line-height: 1.05;
+  color: #ffffff;
+}
+
+.heroMeta {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  color: rgba(248, 251, 255, 0.92);
+}
+
+/* =========================
+   Stat tiles
+   ========================= */
+.statRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.25rem;
+}
+
+.statCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  background: #ffffff;
+  border: 3px solid #dedede;
+  border-radius: 18px;
+  padding: 1.25rem 1.5rem;
+}
+
+.statNumber {
+  font-family: 'Lato', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #1f5fab;
+}
+
+.statLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #4b5563;
+}
+
+/* =========================
+   Two-column body
+   ========================= */
+.dashboardGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.mainColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+  min-width: 0;
+}
+
+.sideColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  position: sticky;
+  top: 2rem;
+}
+
+.cardGrid {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  justify-content: flex-start;
+}
+
+/* =========================
+   Side panels
+   ========================= */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+
+  background: #ffffff;
+  border: 3px solid #dedede;
+  border-radius: 18px;
+  padding: 1.5rem;
+}
+
+.panelTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
   color: #000000;
 }
 
-.welcomeSubtitle {
+.panelText {
   margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #4b5563;
+}
+
+/* Ready-to-finalize list */
+.badgeList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.badgeListItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+
+  border: 2px solid #dedede;
+  border-radius: 14px;
+  padding: 0.75rem 0.9rem;
+}
+
+.badgeListInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.badgeListIcon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex: 0 0 auto;
+}
+
+.badgeListText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.badgeListName {
   font-family: 'Lato', sans-serif;
-  font-size: 28px;
+  font-size: 1rem;
   font-weight: 700;
-  line-height: 100%;
   color: #000000;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badgeListMeta {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.8rem;
+  color: #4b5563;
+}
+
+.badgeListAction {
+  flex: 0 0 auto;
+  border: none;
+  cursor: pointer;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 12px;
+  padding: 0.5rem 1rem;
+  transition: filter 0.15s ease;
+}
+
+.badgeListAction:hover {
+  filter: brightness(0.95);
+}
+
+/* Instructor contacts */
+.contactList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.contactItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.contactName {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #000000;
+}
+
+.contactMeta {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.8rem;
+  color: #4b5563;
+  text-transform: capitalize;
 }
 
 .section {
@@ -278,19 +506,18 @@
   /* text aligned with image left edge */
 }
 
-
 .cardMedia {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 16 / 9;
   background: #dedede;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  border-radius: 0;
+  border-radius: 14px;
 
-  margin-bottom: 24px;
-  /* ⭐ space between image and title block */
+  margin-bottom: 14px;
+  /* space between image and title block */
 }
 
 .cardTextBlock {
@@ -298,9 +525,9 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  /* ⭐ tight vertical gap like in Figma */
-  margin-bottom: 24px;
-  /* ⭐ space between meta and button */
+  /* tight vertical gap like in Figma */
+  margin-bottom: 14px;
+  /* space between meta and button */
 }
 
 .cardMediaImage {
@@ -310,59 +537,31 @@
   object-position: 0% center;
 }
 
-/* Badge "ready to finalize" cards reuse .cardMedia but show a centered icon
-   instead of a full-bleed lesson thumbnail. */
-.badgeCardIcon {
-  width: 96px;
-  height: 96px;
-  object-fit: contain;
-}
-
-
 .cardTitle {
   font-family: 'Lato', sans-serif;
-  /* match figma */
-  font-size: 32px;
-  /* 36px from figma */
-  font-weight: 400;
-  /* bold (figma) */
-  line-height: 100%;
-  /* figma */
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.2;
   letter-spacing: 0;
-  /* figma */
   color: #000000;
-  /* figma */
 }
 
 .cardStatus,
 .cardMeta {
   font-family: 'Open Sans', sans-serif;
-  /* match figma */
-  font-size: 16px;
-  /* 36px from figma */
+  font-size: 0.9rem;
   font-weight: 400;
-  /* bold (figma) */
-  line-height: 100%;
-  /* figma */
+  line-height: 1.3;
   letter-spacing: 0;
-  /* figma */
-  color: #000000;
-  /* figma */
-  margin-left: 5px;
+  color: #4b5563;
 }
 
 .cardButton {
-  width: 152px;
-  /* Figma width */
-  height: 59px;
-  /* Figma height */
+  padding: 0.55rem 1.4rem;
+  background: #2e6aa9;
+  border-radius: 12px;
 
-  background: #2E6AA9;
-  /* Figma button color */
-  border-radius: 19px;
-  /* Figma border radius */
-
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
 
@@ -371,11 +570,8 @@
   text-decoration: none;
 
   font-family: 'Lato', sans-serif;
-  /* match design system */
-  font-size: 24px;
-  /* common Figma button size */
-  font-weight: 400;
-  /* bold */
+  font-size: 1rem;
+  font-weight: 600;
   color: white;
 
   transition: filter 0.15s ease;
@@ -466,7 +662,6 @@
   display: block;
 }
 
-
 /* For the slightly_happy icon: source is yellow -> force it to blue in default state */
 .surveyFaceImageForceBlue {
   filter: none;
@@ -476,7 +671,6 @@
 .surveyFaceImageSelected {
   filter: none;
 }
-
 
 .surveySubmit {
   align-self: flex-end;
@@ -497,6 +691,17 @@
 /* =========================
    Responsive
    ========================= */
+@media (max-width: 1100px) {
+  .dashboardGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .sideColumn {
+    position: static;
+    top: auto;
+  }
+}
+
 @media (max-width: 960px) {
   .page {
     flex-direction: column;
