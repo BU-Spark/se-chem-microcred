@@ -349,6 +349,12 @@ function HomePageContent() {
     const imageSrc = lesson.image ?? DEFAULT_LESSON_IMAGE;
     const isYouTubeThumb = imageSrc.includes('ytimg.com') || imageSrc.includes('youtube.com');
 
+    // Carry the dashboard's courseId into the lesson link so the lesson page
+    // resolves data for THIS course; without it the student API falls back to
+    // the student's first enrollment and can't find the lesson.
+    const lessonHref =
+      lesson.href && courseId ? `${lesson.href}?courseId=${encodeURIComponent(courseId)}` : lesson.href;
+
     return (
       <div key={lesson.id} className={styles.card}>
         <div className={styles.cardMedia}>
@@ -367,8 +373,8 @@ function HomePageContent() {
           <div className={styles.cardMeta}>{lesson.meta}</div>
         </div>
 
-        {lesson.href ? (
-          <Link href={lesson.href} className={buttonClass}>
+        {lessonHref ? (
+          <Link href={lessonHref} className={buttonClass}>
             {lesson.actionLabel}
           </Link>
         ) : (
