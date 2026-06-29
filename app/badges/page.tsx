@@ -391,7 +391,7 @@ export default function BadgeWalletPage() {
                       </button>
                       <button
                         type="button"
-                        className={styles.modalActionLink}
+                        className={styles.modalActionSecondary}
                         onClick={() => reviewFeedback(activeBadge)}
                       >
                         View skill

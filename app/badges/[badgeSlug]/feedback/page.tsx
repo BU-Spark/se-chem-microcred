@@ -219,13 +219,12 @@ export default function BadgeFeedbackPage() {
           <div className={styles.pageContent}>
             <div className={styles.headerRow}>
               <h1 className={styles.title}>{badge.name}</h1>
-              <div className={styles.brandMark}>checkd.</div>
             </div>
 
             <div className={styles.badgeCard}>
               <h2>Feedback content not yet available</h2>
               <p>We&apos;re still preparing feedback for this badge. Please check back later.</p>
-              <Link href="/badges" className={styles.modalActionPrimary}>
+              <Link href="/badges" className={styles.primaryButton}>
                 Back to badges
               </Link>
             </div>
@@ -243,9 +242,11 @@ export default function BadgeFeedbackPage() {
 
       <main className="main">
         <div className={styles.pageContent}>
+          <Link href="/badges" className={styles.backLink}>
+            ← Back to badges
+          </Link>
           <div className={styles.headerRow}>
             <h1 className={styles.title}>{content.title}</h1>
-            <div className={styles.brandMark}>checkd.</div>
           </div>
 
           <div className={styles.badgeCard}>

@@ -312,7 +312,7 @@
 .modalActions {
   display: flex;
   gap: 1rem;
-  justify-content: space-between;
+  justify-content: flex-start;
   flex-wrap: wrap;
   align-items: center;
 }
@@ -344,20 +344,13 @@
   cursor: pointer;
 }
 
+.modalActionSecondary:hover {
+  background: #eef4fb;
+}
+
 .modalActionSecondary:focus-visible {
   outline: 2px solid #1f5fab;
   outline-offset: 2px;
-}
-
-.modalActionLink {
-  border: none;
-  background: transparent;
-  color: #6b7280;
-  text-decoration: underline;
-  font-family: 'Lato', sans-serif;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 0;
 }
 
 .modalHelperText {
