@@ -9,6 +9,7 @@
   min-height: 100vh;
   padding: 1.5rem 1.75rem 3rem;
   background: #ffffff;
+  font-family: 'Open Sans', system-ui, sans-serif;
 }
 
 .content {
@@ -207,6 +208,7 @@
 .emptyMessage {
   margin: 0;
   color: #5f5f5f;
+  font-family: 'Open Sans', system-ui, sans-serif;
 }
 
 .primaryButton {
@@ -300,10 +302,14 @@
 }
 
 .badgeToken {
-  width: min(9.8rem, 100%);
-  aspect-ratio: 1 / 1;
+  width: 9.8rem;
+  height: 9.8rem;
+  flex: none;
   border-radius: 999px;
-  background: #2e6aa9;
+  background-color: #2e6aa9;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .badgeName {
@@ -332,20 +338,27 @@
   line-height: 0;
 }
 
-/* MVP test-cleanup affordances — remove before handoff. */
+/* MVP test-cleanup affordances — remove before handoff. Styled as a danger pill
+   to match the primary button's shape/size (radius 19px, height 3.4rem). */
 .dangerButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 2.7rem;
-  border: 1px solid #d9b1b1;
-  border-radius: 0.8rem;
+  min-height: 3.4rem;
+  border: 1.5px solid #c98a86;
+  border-radius: 19px;
   background: #ffffff;
   color: #b42318;
   cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 600;
-  padding: 0.65rem 1rem;
+  font-family: 'Lato', system-ui, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 400;
+  padding: 0.8rem 1.6rem;
+  transition: filter 0.16s ease, background 0.16s ease;
+}
+
+.dangerButton:hover {
+  background: #fbf2f1;
 }
 
 .dangerButton:disabled {
@@ -400,6 +413,7 @@
 
 .importTitle {
   margin: 0;
+  font-family: 'Lato', system-ui, sans-serif;
   color: #111111;
   font-size: 1.15rem;
   font-weight: 700;
@@ -407,6 +421,7 @@
 
 .importSubtitle {
   margin: 0.25rem 0 0;
+  font-family: 'Open Sans', system-ui, sans-serif;
   color: #556070;
   font-size: 0.95rem;
 }
@@ -422,6 +437,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+  font-family: 'Lato', system-ui, sans-serif;
   color: #273341;
   font-size: 0.9rem;
   font-weight: 700;
@@ -434,7 +450,8 @@
   border-radius: 0.8rem;
   background: #ffffff;
   color: #111111;
-  font: inherit;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 1rem;
   font-weight: 500;
   padding: 0.65rem 0.8rem;
 }
@@ -442,6 +459,7 @@
 .errorText,
 .successText {
   margin: 0 0 0.85rem;
+  font-family: 'Open Sans', system-ui, sans-serif;
   font-size: 0.95rem;
 }
 

@@ -7,6 +7,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import { LessonReminderModal } from './LessonReminderModal';
+import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
 import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
 import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
 import rubyAvatar from '@/public/edit_avatar/ruby.svg';
@@ -87,6 +88,7 @@ type CourseDetailResponse = {
 
 type AssignedBadge = CourseBadge & {
   lessonCount: number;
+  thumbnailUrl: string | null;
 };
 
 type BadgeLibraryItem = {
@@ -280,6 +282,9 @@ export default function CreatedCourseDetailPage() {
   const [isImportingBadge, setIsImportingBadge] = useState(false);
   const [badgeImportError, setBadgeImportError] = useState('');
   const [badgeImportStatus, setBadgeImportStatus] = useState('');
+  const [importAvailableOn, setImportAvailableOn] = useState('');
+  const [importClosesOn, setImportClosesOn] = useState('');
+  const [importNeverCloses, setImportNeverCloses] = useState(true);
 
   const courseId = resolveCourseId(params?.courseId);
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -372,7 +377,10 @@ export default function CreatedCourseDetailPage() {
           badgeMap.set(badge.id, {
             ...badge,
             lessonCount: 0,
+            thumbnailUrl: lesson.thumbnailUrl ?? null,
           });
+        } else if (!existing.thumbnailUrl && lesson.thumbnailUrl) {
+          existing.thumbnailUrl = lesson.thumbnailUrl;
         }
 
         if (!lessonBadgeIds.has(badge.id)) {
@@ -429,6 +437,9 @@ export default function CreatedCourseDetailPage() {
     setIsImportPanelOpen(true);
     setBadgeImportStatus('');
     setBadgeImportError('');
+    setImportAvailableOn('');
+    setImportClosesOn('');
+    setImportNeverCloses(true);
     void loadBadgeLibrary();
   };
 
@@ -448,6 +459,9 @@ export default function CreatedCourseDetailPage() {
         },
         body: JSON.stringify({
           badgeId: selectedImportBadgeId,
+          availableOn: importAvailableOn || null,
+          closesOn: importNeverCloses ? null : importClosesOn || null,
+          neverCloses: importNeverCloses,
         }),
       });
       const payload = await response.json().catch(() => ({
@@ -572,37 +586,45 @@ export default function CreatedCourseDetailPage() {
 
                 {assignedBadges.length > 0 ? (
                   <div className={styles.badgeGrid}>
-                    {assignedBadges.map((badge) => (
-                      <div key={badge.id} className={styles.badgeItem}>
-                        <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
-                          <div className={styles.badgeToken} aria-hidden="true" />
-                          <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
-                        </Link>
-                        {isInstructor ? (
-                          <>
-                            <button
-                              type="button"
-                              className={styles.badgeReminderButton}
-                              onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
-                              aria-label={`Send a lesson reminder for ${badge.name.replace(/ Badge$/i, '')}`}
-                            >
-                              <MessageIcon />
-                            </button>
-                            {/* MVP test-cleanup button — remove before handoff. */}
-                            <button
-                              type="button"
-                              className={styles.badgeDeleteButton}
-                              onClick={() => handleDeleteBadge({ id: badge.id, name: badge.name })}
-                              disabled={isDeleting}
-                            >
-                              Delete badge
-                            </button>
-                          </>
-                        ) : (
-                          <MessageIcon />
-                        )}
-                      </div>
-                    ))}
+                    {assignedBadges.map((badge) => {
+                      // Use the bar-free 16:9 thumbnail so the round center-crop has no black letterboxing.
+                      const badgeImage = badge.thumbnailUrl?.replace('/hqdefault.jpg', '/mqdefault.jpg') ?? null;
+                      return (
+                        <div key={badge.id} className={styles.badgeItem}>
+                          <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
+                            <div
+                              className={styles.badgeToken}
+                              style={badgeImage ? { backgroundImage: `url(${badgeImage})` } : undefined}
+                              aria-hidden="true"
+                            />
+                            <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
+                          </Link>
+                          {isInstructor ? (
+                            <>
+                              <button
+                                type="button"
+                                className={styles.badgeReminderButton}
+                                onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
+                                aria-label={`Send a lesson reminder for ${badge.name.replace(/ Badge$/i, '')}`}
+                              >
+                                <MessageIcon />
+                              </button>
+                              {/* MVP test-cleanup button — remove before handoff. */}
+                              <button
+                                type="button"
+                                className={styles.badgeDeleteButton}
+                                onClick={() => handleDeleteBadge({ id: badge.id, name: badge.name })}
+                                disabled={isDeleting}
+                              >
+                                Delete badge
+                              </button>
+                            </>
+                          ) : (
+                            <MessageIcon />
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 ) : (
                   <p className={styles.emptyMessage}>No badges assigned yet.</p>
@@ -659,14 +681,29 @@ export default function CreatedCourseDetailPage() {
                             ))}
                           </select>
                         </label>
-                        <button
-                          type="button"
-                          className={styles.primaryButton}
-                          onClick={importSelectedBadge}
-                          disabled={!selectedImportBadgeId || isImportingBadge}
-                        >
-                          {isImportingBadge ? 'Importing...' : 'Import Badge'}
-                        </button>
+                        {selectedImportBadgeId ? (
+                          <>
+                            <div className={styles.importField}>
+                              <span>Content Availability</span>
+                              <RangeCalendar
+                                availableOn={importAvailableOn}
+                                closesOn={importClosesOn}
+                                neverCloses={importNeverCloses}
+                                onAvailableOnChange={setImportAvailableOn}
+                                onClosesOnChange={setImportClosesOn}
+                                onNeverClosesChange={setImportNeverCloses}
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              className={styles.primaryButton}
+                              onClick={importSelectedBadge}
+                              disabled={isImportingBadge}
+                            >
+                              {isImportingBadge ? 'Importing...' : 'Add to Course'}
+                            </button>
+                          </>
+                        ) : null}
                       </div>
                     ) : null}
 

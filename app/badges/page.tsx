@@ -49,15 +49,15 @@ const BADGE_STATUS_LABEL: Record<BadgeRecord['status'], string> = {
   NOT_STARTED: 'Not yet started',
 };
 
-function ChevronIcon({ direction = 'down' }: { direction?: 'down' | 'up' }) {
-  const rotate = direction === 'down' ? '0' : '180';
+// Material-style keyboard_arrow_down chevron (rotates 180deg when open via CSS)
+function ChevronIcon() {
   return (
-    <svg viewBox="0 0 24 24" width="20" height="20" style={{ transform: `rotate(${rotate}deg)` }}>
+    <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true" focusable="false">
       <path
-        d="M6.5 9l5.5 6 5.5-6"
+        d="M7 10l5 5 5-5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2"
+        strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -69,6 +69,13 @@ function formatBadgeStatus(status: BadgeRecord['status']) {
   return BADGE_STATUS_LABEL[status];
 }
 
+type PopoverAnchor = {
+  // position relative to the card the badge lives in
+  top: number;
+  left: number;
+  below: boolean; // true => bubble sits below the circle (tail points up)
+};
+
 export default function BadgeWalletPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
@@ -77,6 +84,7 @@ export default function BadgeWalletPage() {
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
+  const [popoverAnchor, setPopoverAnchor] = useState<PopoverAnchor | null>(null);
   const [qrBadge, setQrBadge] = useState<BadgeRecord | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
@@ -85,9 +93,12 @@ export default function BadgeWalletPage() {
     () => SECTION_CONFIG.find((section) => !section.collapsedByDefault)?.status ?? null,
     []
   );
+  // openSection drives expand/collapse (badge grid + chevron + aria-expanded)
   const [openSection, setOpenSection] = useState<BadgeStatus | null>(initialOpenSection);
+  // frontSection drives which card sits at the front of the z-stack
+  const [frontSection, setFrontSection] = useState<BadgeStatus | null>(initialOpenSection);
 
-  const modalRef = useRef<HTMLDivElement | null>(null);
+  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) router.replace('/sign-in');
@@ -97,18 +108,26 @@ export default function BadgeWalletPage() {
     if (!activeBadgeId) return;
 
     const handleClickAway = (event: MouseEvent) => {
-      if (!modalRef.current) {
+      if (!popoverRef.current) {
         setActiveBadgeId(null);
         return;
       }
-      if (event.target instanceof Node && modalRef.current.contains(event.target)) {
+      if (event.target instanceof Node && popoverRef.current.contains(event.target)) {
         return;
       }
       setActiveBadgeId(null);
     };
 
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setActiveBadgeId(null);
+    };
+
     window.addEventListener('mousedown', handleClickAway);
-    return () => window.removeEventListener('mousedown', handleClickAway);
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      window.removeEventListener('mousedown', handleClickAway);
+      window.removeEventListener('keydown', handleKey);
+    };
   }, [activeBadgeId]);
 
   useEffect(() => {
@@ -154,7 +173,15 @@ export default function BadgeWalletPage() {
     }
   };
 
-  const toggleSection = (status: BadgeStatus) => {
+  // Bring a card to the front of the stack (no expand toggle).
+  const handleCardActivate = (status: BadgeStatus) => {
+    setFrontSection(status);
+    setActiveBadgeId(null);
+  };
+
+  // Toggle expand/collapse AND bring the card to the front.
+  const handleToggleExpand = (status: BadgeStatus) => {
+    setFrontSection(status);
     setOpenSection((prev) => (prev === status ? null : status));
     setActiveBadgeId(null);
   };
@@ -206,35 +233,60 @@ export default function BadgeWalletPage() {
     }
   };
 
-  const renderBadgeTokens = (badges: BadgeRecord[]) => {
+  // Compute popover anchor relative to the badge's card container.
+  const openBadgePopover = (badge: BadgeRecord, buttonEl: HTMLButtonElement) => {
+    const card = buttonEl.closest(`.${styles.walletSection}`) as HTMLElement | null;
+    const cardRect = card?.getBoundingClientRect();
+    const btnRect = buttonEl.getBoundingClientRect();
+    const cardLeft = cardRect?.left ?? 0;
+    const cardTop = cardRect?.top ?? 0;
+    const circleCenterX = btnRect.left - cardLeft + btnRect.width / 2;
+    const circleTop = btnRect.top - cardTop;
+    const circleBottom = circleTop + btnRect.height;
+    // Flip below the circle if there isn't enough room above for the bubble.
+    const estimatedBubbleHeight = 320;
+    const below = circleTop < estimatedBubbleHeight;
+    setPopoverAnchor({
+      top: below ? circleBottom : circleTop,
+      left: circleCenterX,
+      below,
+    });
+    setActiveBadgeId(badge.id);
+  };
+
+  const renderBadgeTokens = (badges: BadgeRecord[], status: BadgeStatus) => {
     if (!badges.length) {
-      return (
-        <div
-          style={{
-            color: 'rgba(248, 251, 255, 0.75)',
-            fontSize: '0.95rem',
-          }}
-        >
-          No badges in this section yet.
-        </div>
-      );
+      return <div className={styles.emptyState}>No badges in this section yet.</div>;
     }
-    return badges.map((badge) => {
+    const tokenVariant = status === 'completed' ? styles.badgeTokenWhite : styles.badgeTokenBlue;
+    const realBadges = badges.map((badge) => {
       const isActive = activeBadgeId === badge.id;
-      const tokenClassName = [styles.badgeToken, isActive ? styles.badgeTokenActive : ''].filter(Boolean).join(' ');
+      const tokenClassName = [styles.badgeToken, tokenVariant, isActive ? styles.badgeTokenActive : '']
+        .filter(Boolean)
+        .join(' ');
 
       return (
         <button
           type="button"
           key={badge.id}
           className={tokenClassName}
-          onClick={() => setActiveBadgeId(badge.id)}
+          onClick={(e) => openBadgePopover(badge, e.currentTarget)}
           aria-pressed={isActive}
         >
-          <span className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</span>
+          <span className={styles.srOnly}>{badge.name.replace(/ Badge$/i, '')}</span>
         </button>
       );
     });
+
+    // Pure-CSS empty-slot placeholders to fill out the last row (never buttons).
+    const perRow = 3;
+    const remainder = badges.length % perRow;
+    const emptyCount = remainder === 0 ? 0 : perRow - remainder;
+    const emptySlots = Array.from({ length: emptyCount }, (_, i) => (
+      <span key={`empty-${i}`} aria-hidden="true" className={styles.emptySlot} />
+    ));
+
+    return [...realBadges, ...emptySlots];
   };
 
   return (
@@ -247,20 +299,32 @@ export default function BadgeWalletPage() {
         <div className={styles.walletRoot}>
           <header className={styles.headerRow}>
             <h1 className={styles.pageTitle}>Badge Wallet</h1>
+            <Image
+              src="/assets/checked_logo.png"
+              alt="checkd"
+              width={173}
+              height={48}
+              className={styles.brandLogo}
+              priority
+            />
           </header>
 
           <div className={styles.walletSections}>
             {SECTION_CONFIG.map((section, index) => {
               const badges = badgesByStatus[section.status];
               const isExpanded = openSection === section.status;
+              const isFront = frontSection === section.status;
 
-              // Simplify stacking to prevent drift when toggling sections
-              const zIndexBoost = SECTION_CONFIG.length - index;
+              // Selected card sits on top; z decreases with distance on BOTH sides
+              // so the stack cascades outward from the selected card (… n-1, n, n+1 …).
+              const frontIndex = SECTION_CONFIG.findIndex((s) => s.status === frontSection);
+              const zIndex = SECTION_CONFIG.length - Math.abs(index - (frontIndex < 0 ? index : frontIndex));
 
               const sectionClassName = [
                 styles.walletSection,
                 !isExpanded ? styles.walletSectionCollapsed : '',
-                isExpanded ? styles.walletSectionElevated : styles.walletSectionResting,
+                isFront ? styles.walletSectionFront : styles.walletSectionResting,
+                index === 0 ? styles.walletSectionFirst : '',
               ]
                 .filter(Boolean)
                 .join(' ');
@@ -269,11 +333,22 @@ export default function BadgeWalletPage() {
                 <section
                   key={section.status}
                   className={sectionClassName}
-                  style={{
-                    zIndex: zIndexBoost,
-                    transform: 'translateY(0) scale(1)',
-                  }}
+                  style={{ zIndex }}
                   data-open={isExpanded ? 'true' : 'false'}
+                  data-front={isFront ? 'true' : 'false'}
+                  onClick={(event) => {
+                    // Bring the card to front when clicking the card chrome
+                    // (not a badge circle, the chevron, or the popover itself).
+                    const target = event.target as HTMLElement;
+                    if (
+                      target.closest(`.${styles.badgeToken}`) ||
+                      target.closest(`.${styles.toggleButton}`) ||
+                      target.closest(`.${styles.badgePopover}`)
+                    ) {
+                      return;
+                    }
+                    if (!isFront) handleCardActivate(section.status);
+                  }}
                 >
                   <div className={styles.sectionHeader}>
                     <div className={styles.sectionTitle}>
@@ -285,12 +360,12 @@ export default function BadgeWalletPage() {
                       className={[styles.toggleButton, isExpanded ? styles.toggleButtonOpen : '']
                         .filter(Boolean)
                         .join(' ')}
-                      onClick={() => toggleSection(section.status)}
+                      onClick={() => handleToggleExpand(section.status)}
                       aria-expanded={isExpanded}
                       aria-controls={`${section.status}-badges`}
                       aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
                     >
-                      <ChevronIcon direction={isExpanded ? 'up' : 'down'} />
+                      <ChevronIcon />
                     </button>
                   </div>
 
@@ -301,109 +376,114 @@ export default function BadgeWalletPage() {
                       .join(' ')}
                     aria-hidden={!isExpanded}
                   >
-                    {renderBadgeTokens(badges)}
+                    {renderBadgeTokens(badges, section.status)}
                   </div>
+
+                  {/* Anchored speech-bubble popover lives inside the badge's card */}
+                  {activeBadge && badges.some((b) => b.id === activeBadge.id) && popoverAnchor ? (
+                    <div
+                      ref={popoverRef}
+                      className={[styles.badgePopover, popoverAnchor.below ? styles.badgePopoverBelow : '']
+                        .filter(Boolean)
+                        .join(' ')}
+                      role="dialog"
+                      aria-modal="false"
+                      aria-label={`${activeBadge.name} details`}
+                      style={{
+                        top: popoverAnchor.top,
+                        left: popoverAnchor.left,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        className={styles.modalClose}
+                        onClick={() => setActiveBadgeId(null)}
+                        aria-label="Close"
+                      >
+                        ×
+                      </button>
+                      <h3>{activeBadge.name}</h3>
+                      <div className={styles.popoverStatus}>
+                        <span className={styles.badgeStatus}>Status: </span>
+                        <span>{formatBadgeStatus(activeBadge.status)}</span>
+                      </div>
+                      <p>{activeBadge.description}</p>
+
+                      {activeBadge.status === 'READY_FOR_ASSESSMENT' && (
+                        <p className={styles.popoverHelperText}>
+                          Show your assessor this QR code during the in-person skill check.
+                        </p>
+                      )}
+                      {activeBadge.status === 'COMPLETED' && (
+                        <p className={styles.popoverHelperText}>Badge finalized. Great work!</p>
+                      )}
+
+                      <div className={styles.popoverActions}>
+                        {activeBadge.status === 'READY_FOR_ASSESSMENT' && (
+                          <>
+                            <button
+                              type="button"
+                              className={styles.popoverActionPrimary}
+                              onClick={() => setQrBadge(activeBadge)}
+                            >
+                              Show Code
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.popoverActionLink}
+                              onClick={() => reviewFeedback(activeBadge)}
+                            >
+                              Review Skill
+                            </button>
+                          </>
+                        )}
+
+                        {activeBadge.status === 'READY_FOR_FINALIZATION' && (
+                          <button
+                            type="button"
+                            className={styles.popoverActionPrimary}
+                            onClick={() => startSurvey(activeBadge)}
+                          >
+                            Start Survey
+                          </button>
+                        )}
+
+                        {activeBadge.status === 'LEARNING' && (
+                          <button
+                            type="button"
+                            className={styles.popoverActionPrimary}
+                            onClick={() => reviewFeedback(activeBadge)}
+                          >
+                            Review Feedback
+                          </button>
+                        )}
+
+                        {activeBadge.status === 'COMPLETED' && (
+                          <button
+                            type="button"
+                            className={styles.popoverActionPrimary}
+                            onClick={() => exportBadgeToLinkedIn(activeBadge)}
+                            disabled={isExporting}
+                          >
+                            {isExporting ? 'Preparing LinkedIn package…' : 'Export to LinkedIn'}
+                          </button>
+                        )}
+                      </div>
+
+                      {activeBadge.status === 'COMPLETED' && exportStatus ? (
+                        <p className={styles.popoverHelperText}>{exportStatus}</p>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </section>
               );
             })}
           </div>
 
-          {activeBadge ? (
-            <div className={styles.modalOverlay}>
-              <article ref={modalRef} className={styles.badgeModal} role="dialog" aria-modal="true">
-                <button type="button" className={styles.modalClose} onClick={() => setActiveBadgeId(null)}>
-                  ×
-                </button>
-                <h3>{activeBadge.name}</h3>
-                <div>
-                  <span className={styles.badgeStatus}>Status: </span>
-                  <span>{formatBadgeStatus(activeBadge.status)}</span>
-                </div>
-                <p>{activeBadge.description}</p>
-
-                {activeBadge.status === 'READY_FOR_ASSESSMENT' && (
-                  <p className={styles.modalHelperText}>
-                    Show your assessor this QR code during the in-person skill check. When you finish, you can review
-                    the lesson details again.
-                  </p>
-                )}
-                {activeBadge.status === 'READY_FOR_FINALIZATION' && (
-                  <p className={styles.modalHelperText}>
-                    Take a quick feedback survey to finalize this badge and add it to your completed list.
-                  </p>
-                )}
-                {activeBadge.status === 'LEARNING' && (
-                  <p className={styles.modalHelperText}>
-                    Keep working through lesson checkpoints to unlock your assessment.
-                  </p>
-                )}
-                {activeBadge.status === 'COMPLETED' && (
-                  <p className={styles.modalHelperText}>Badge finalized. Great work!</p>
-                )}
-
-                <div className={styles.modalActions}>
-                  {activeBadge.status === 'READY_FOR_ASSESSMENT' && (
-                    <>
-                      <button
-                        type="button"
-                        className={styles.modalActionPrimary}
-                        onClick={() => setQrBadge(activeBadge)}
-                      >
-                        Show Code
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.modalActionLink}
-                        onClick={() => reviewFeedback(activeBadge)}
-                      >
-                        View skill
-                      </button>
-                    </>
-                  )}
-
-                  {activeBadge.status === 'READY_FOR_FINALIZATION' && (
-                    <button
-                      type="button"
-                      className={styles.modalActionPrimary}
-                      onClick={() => startSurvey(activeBadge)}
-                    >
-                      Start Survey
-                    </button>
-                  )}
-
-                  {activeBadge.status === 'LEARNING' && (
-                    <button
-                      type="button"
-                      className={styles.modalActionPrimary}
-                      onClick={() => reviewFeedback(activeBadge)}
-                    >
-                      Review Feedback
-                    </button>
-                  )}
-
-                  {activeBadge.status === 'COMPLETED' && (
-                    <button
-                      type="button"
-                      className={styles.modalActionPrimary}
-                      onClick={() => exportBadgeToLinkedIn(activeBadge)}
-                      disabled={isExporting}
-                    >
-                      {isExporting ? 'Preparing LinkedIn package…' : 'Export to LinkedIn'}
-                    </button>
-                  )}
-                </div>
-
-                {activeBadge.status === 'COMPLETED' && exportStatus ? (
-                  <p className={styles.modalHelperText}>{exportStatus}</p>
-                ) : null}
-              </article>
-            </div>
-          ) : null}
-
           {qrBadge ? (
             <div className={styles.modalOverlay}>
               <div className={styles.qrModal} role="dialog" aria-modal="true">
-                <button type="button" className={styles.modalClose} onClick={() => setQrBadge(null)}>
+                <button type="button" className={styles.modalClose} onClick={() => setQrBadge(null)} aria-label="Close">
                   ×
                 </button>
                 <div className={styles.qrCodeBox}>

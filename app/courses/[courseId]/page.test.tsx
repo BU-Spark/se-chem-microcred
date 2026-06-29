@@ -481,7 +481,7 @@ describe('Created course detail page', () => {
     fireEvent.change(screen.getByLabelText('Badge library'), {
       target: { value: 'badge-template-1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Import Badge' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to Course' }));
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/course-1/badges/import', {
@@ -490,7 +490,7 @@ describe('Created course detail page', () => {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        body: JSON.stringify({ badgeId: 'badge-template-1' }),
+        body: JSON.stringify({ badgeId: 'badge-template-1', availableOn: null, closesOn: null, neverCloses: true }),
       });
     });
     expect(await screen.findByText('Badge imported successfully.')).toBeInTheDocument();

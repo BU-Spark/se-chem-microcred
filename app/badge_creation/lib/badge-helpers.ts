@@ -200,9 +200,12 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
     availableOn: formatDateInput(badge.availableOn),
     closesOn: neverCloses ? '' : formatDateInput(closesOnSource),
     neverCloses,
-    youtubeUrl: segment?.videoUrl ?? '',
-    videoTitle: segment?.title ?? lesson?.title ?? '',
-    videoLength: formatDurationInput(segment?.duration, lesson?.estimatedMinutes),
+    // Prefer the summary-stored video (the only copy the editor can see, since it
+    // loads the source badge which has no lesson row); fall back to the lesson
+    // segment for legacy badges created before video was stored in the summary.
+    youtubeUrl: requirement?.youtubeUrl ?? segment?.videoUrl ?? '',
+    videoTitle: requirement?.videoTitle ?? segment?.title ?? lesson?.title ?? '',
+    videoLength: requirement?.videoLength ?? formatDurationInput(segment?.duration, lesson?.estimatedMinutes),
     checkpoints: requirement?.checkpoints?.length
       ? requirement.checkpoints.map((checkpoint, index) => checkpointFromCatalog(checkpoint, index))
       : DEFAULT_DRAFT.checkpoints,

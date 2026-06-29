@@ -27,6 +27,9 @@ type RequirementSummary = {
 
 type ImportBadgePayload = {
   badgeId?: string | null;
+  availableOn?: string | null;
+  closesOn?: string | null;
+  neverCloses?: boolean | null;
 };
 
 function normalizeString(value?: string | null) {
@@ -184,6 +187,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
 
     const body = (await req.json()) as ImportBadgePayload;
     const sourceBadgeId = normalizeString(body.badgeId);
+    const neverCloses = body.neverCloses !== false;
+    const availableOnDate = body.availableOn ? new Date(body.availableOn) : null;
+    const closesOnDate = !neverCloses && body.closesOn ? new Date(body.closesOn) : null;
 
     if (!sourceBadgeId) {
       return NextResponse.json({ error: 'Badge id is required.' }, { status: 400 });
@@ -321,6 +327,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             category: sourceBadge.category,
             createdById: creator.id,
             sourceBadgeId: rootSourceBadgeId,
+            availableOn: availableOnDate,
+            closesOn: closesOnDate,
+            neverCloses,
           },
           select: {
             id: true,
@@ -337,7 +346,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             summary: sourceLesson?.summary ?? sourceBadge.description ?? `Lesson for ${sourceBadge.name}`,
             description: sourceLesson?.description ?? sourceBadge.description,
             thumbnailUrl: sourceLesson?.thumbnailUrl ?? null,
-            dueDate: null,
+            dueDate: closesOnDate,
             estimatedMinutes: sourceLesson?.estimatedMinutes ?? null,
             passingPercent: sourceLesson?.passingPercent ?? 70,
             sortOrder: (course.lessons[0]?.sortOrder ?? -1) + 1,

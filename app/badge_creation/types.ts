@@ -81,6 +81,10 @@ export type BadgeCatalogItem = {
       optionFeedback?: string[];
     }>;
     checkpoints?: Array<Partial<CheckpointDraft> & { number?: number; correctIndex?: number | null }>;
+    // Video stored in the requirement summary JSON (source badges have no lesson).
+    youtubeUrl?: string | null;
+    videoTitle?: string | null;
+    videoLength?: string | null;
     lesson: {
       title: string;
       description: string | null;

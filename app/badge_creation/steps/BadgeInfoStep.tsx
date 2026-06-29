@@ -1,10 +1,8 @@
 import type { BadgeCategory } from '@prisma/client';
 
 import styles from '../page.module.css';
-import { formatDisplayDate } from '../lib/badge-helpers';
 import type { BadgeDraft } from '../types';
 import ChipInput from '../components/ChipInput';
-import RangeCalendar from '../components/RangeCalendar';
 
 export default function BadgeInfoStep({
   draft,
@@ -70,29 +68,6 @@ export default function BadgeInfoStep({
           <option value="WASTE">Waste</option>
           <option value="OTHER">Other</option>
         </select>
-      </div>
-
-      <div className={styles.badgeInfoField}>
-        <label className={styles.sectionLabel}>Content Availability</label>
-        <div className={styles.availabilityRow}>
-          <div className={styles.availabilityPill}>
-            <span>Content Available On:</span>
-            <strong>{formatDisplayDate(draft.availableOn)}</strong>
-          </div>
-          <div className={styles.availabilityPill}>
-            <span>Content Closes On:</span>
-            <strong>{draft.neverCloses ? 'Never closes' : formatDisplayDate(draft.closesOn)}</strong>
-          </div>
-        </div>
-
-        <RangeCalendar
-          availableOn={draft.availableOn}
-          closesOn={draft.closesOn}
-          neverCloses={draft.neverCloses}
-          onAvailableOnChange={(value) => updateDraft('availableOn', value)}
-          onClosesOnChange={(value) => updateDraft('closesOn', value)}
-          onNeverClosesChange={(value) => updateDraft('neverCloses', value)}
-        />
       </div>
     </div>
   );

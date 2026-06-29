@@ -35,7 +35,7 @@
 .editAvatarModalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(34, 34, 34, 0.72);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -55,14 +55,14 @@
 
 .modal {
   position: relative;
-  width: min(820px, 100%);
+  width: min(1054px, 96vw);
   background: #ffffff;
-  border-radius: 2.25rem;
-  padding: 2.75rem 3rem;
-  box-shadow: 0 35px 72px rgba(15, 23, 42, 0.4);
+  border-radius: clamp(40px, 6vw, 92px);
+  padding: 3.5rem 3.5rem;
+  box-shadow: 0 30px 80px rgba(15, 23, 42, 0.45);
   display: flex;
   flex-direction: column;
-  gap: 2.25rem;
+  gap: 2rem;
   z-index: 1;
 }
 
@@ -72,93 +72,94 @@
 
 .title {
   font-family: 'Lato', sans-serif;
-  font-size: 2rem;
+  font-size: 3rem;
   font-weight: 700;
-  color: #111827;
-}
-
-.subtitle {
-  margin-top: 0.5rem;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 1rem;
-  color: #4b5563;
-}
-
-.stepIndicator {
-  /*display: flex;*/
-  /*justify-content: center;*/
-  /*gap: 0.6rem;*/
-  display: none;
-}
-
-.stepIndicatorDot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  background: rgba(31, 95, 171, 0.16);
-  transition: transform 0.2s ease, background-color 0.2s ease;
-}
-
-.stepIndicatorDotActive {
-  background: #1f5fab;
-  transform: scale(1.2);
+  color: #000000;
 }
 
 .avatarGrid {
   display: grid;
-  grid-template-columns: repeat(2, 160px);
-  gap: 5rem;
+  grid-template-columns: repeat(2, auto);
+  row-gap: 2.5rem;
+  column-gap: 3rem;
+  justify-items: center;
   justify-content: center;
 }
 
 .avatarButton {
-  background: #ffffff;
-  border: 2px solid #D9D9D9;
-  border-radius: 50%;
-  width: 180px;
-  height: 180px;
+  background: transparent;
+  border: none;
+  padding: 0;
   font-family: 'Open Sans', sans-serif;
-  /*padding: 1.5rem 1rem;*/
   display: flex;
   flex-direction: column;
-  /*gap: 1.25rem;*/
   align-items: center;
+  justify-content: flex-start;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.2s ease;
 }
 
-.avatarButton:hover {
-  transform: translateY(-4px);
-  scale: 1.2;
-  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.12);
+.avatarPreviewRing {
+  width: 192px;
+  height: 192px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+  background: transparent;
 }
 
-.avatarButtonSelected {
-  border-color: #1f5fab;
-  box-shadow: 0 24px 50px rgba(31, 95, 171, 0.18);
+.avatarButtonSelected .avatarPreviewRing {
+  transform: scale(1.3);
+  border-color: rgba(0, 0, 0, 0.18);
 }
 
 .avatarPreview {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
+  width: 86%;
+  height: 86%;
+  object-fit: contain;
 }
 
 .avatarLabel {
   margin-top: 1rem;
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 400;
   font-style: italic;
-  color: #1f2937;
-  font-family: "Open Sans", sans-serif;
+  color: #000000;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.avatarButtonSelected .avatarLabel {
+  margin-top: 2.1rem;
+}
+
+.avatarLabelSelected {
+  margin-top: 2.1rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 700;
+  font-style: normal;
+  color: #000000;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avatarLabelSelected::after {
+  content: '';
+  width: 56px;
+  height: 2px;
+  background: #000000;
+  margin: 6px auto 0;
 }
 
 .stepContent {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2.25rem;
+  gap: 1.5rem;
 }
 
 .carousel {
@@ -166,153 +167,147 @@
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 1.5rem;
+  gap: 0.5rem;
 }
 
 .arrowButton {
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
+  background: transparent;
   border: none;
-  background: #e5ecfc;
+  padding: 0;
   font-family: 'Lato', sans-serif;
-  color: #1f5fab;
+  color: #2e6aa9;
   display: grid;
   place-items: center;
   cursor: pointer;
-  box-shadow: 0 14px 32px rgba(31, 95, 171, 0.2);
-  transition: transform 0.2s ease, filter 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease;
 }
 
 .arrowButton:hover:not(:disabled) {
-  transform: translateY(-2px);
-  filter: brightness(0.96);
+  transform: translateX(0) scale(1.08);
 }
 
 .arrowButton:disabled {
   opacity: 0.35;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
 .arrowIcon {
-  width: 20px;
-  height: 20px;
+  width: 40px;
+  height: 40px;
 }
 
 .carouselTrack {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.5rem;
+  gap: 1rem;
   align-items: center;
+  justify-items: center;
 }
 
 .optionShell {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  background: #f3f6fb;
-  width: 120px;
-  height: 120px;
-  opacity: 0.45;
-  transform: scale(0.85);
-  transition: transform 0.25s ease, opacity 0.25s ease, box-shadow 0.25s ease;
+  background: #ededed;
+  width: 160px;
+  height: 160px;
+  opacity: 0.85;
+  transform: scale(1);
+  transition: transform 0.25s ease, opacity 0.25s ease;
   border: none;
   cursor: pointer;
   padding: 0;
   overflow: hidden;
+  max-width: 100%;
 }
 
 .optionShellPrimary {
-  width: 170px;
-  height: 170px;
+  width: 366px;
+  height: 366px;
+  max-width: 100%;
   opacity: 1;
-  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  background: transparent;
   transform: scale(1);
   cursor: default;
-  border: 2px solid #D9D9D9;
-  box-shadow: 0 26px 52px rgba(15, 23, 42, 0.14);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-shadow: none;
   overflow: hidden;
 }
 
 .optionShell:not(.optionShellPrimary):hover {
-  opacity: 0.65;
-  transform: scale(0.88);
+  opacity: 1;
+  transform: scale(1.04);
 }
 
 .optionShell:focus-visible {
-  outline: 3px solid rgba(31, 95, 171, 0.65);
+  outline: 3px solid rgba(46, 106, 169, 0.65);
   outline-offset: 6px;
 }
 
 .optionLabel {
-  margin-top: 1.2rem;
+  margin-top: 0.5rem;
   text-align: center;
   font-family: 'Lato', sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.optionTagline {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 0.9rem;
-  color: #6b7280;
-  text-align: center;
-  margin-top: 0.35rem;
+  font-size: 24px;
+  font-weight: 700;
+  color: #000000;
 }
 
 .facePreview,
 .hatPreview {
-  width: 120px;
-  height: 120px;
+  width: 78%;
+  height: 78%;
 }
 
 .facePreviewLarge,
 .hatPreviewLarge {
-  width: 80%;
-  height: 80%;
+  width: 88%;
+  height: 88%;
 }
 
 .footer {
   display: flex;
   justify-content: flex-end;
-  gap: 1.5rem;
+  align-items: center;
+  gap: 2.5rem;
 }
 
 .cancelButton {
   background: transparent;
   border: none;
   font-family: 'Lato', sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #1f2937;
+  font-size: 1.5rem;
+  font-weight: 400;
+  color: #000000;
   cursor: pointer;
+  text-decoration: none;
   display: inline-flex;
+  flex-direction: column;
   align-items: center;
-  gap: 0.3rem;
+  line-height: 1.2;
 }
 
 .cancelButton::after {
   content: '';
   display: block;
   width: 100%;
-  height: 2px;
-  background: #1f2937;
+  height: 1px;
+  background: #000000;
   margin-top: 2px;
 }
 
 .nextButton {
-  padding: 0.85rem 2.75rem;
-  border-radius: 999px;
+  min-width: 152px;
+  padding: 0.9rem 2.2rem;
+  border-radius: 19px;
   border: none;
-  background: #1f5fab;
+  background: #2e6aa9;
   color: #ffffff;
   font-family: 'Lato', sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 1.5rem;
+  font-weight: 400;
   cursor: pointer;
-  box-shadow: 0 22px 44px rgba(31, 95, 171, 0.28);
+  box-shadow: none;
   transition: filter 0.2s ease, transform 0.2s ease;
 }
 
@@ -327,23 +322,54 @@
   box-shadow: none;
 }
 
-.selectionHint {
-  padding-top: 30px;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 0.95rem;
-  color: #4b5563;
-  text-align: center;
-}
-
 @media (max-width: 640px) {
   .modal {
-    padding: 2.25rem 1.75rem;
-    border-radius: 1.75rem;
+    padding: 2.25rem 1.5rem;
+    border-radius: clamp(28px, 8vw, 44px);
+    gap: 1.5rem;
+  }
+
+  .title {
+    font-size: 2rem;
+  }
+
+  .avatarGrid {
+    column-gap: 1.5rem;
+    row-gap: 2rem;
+  }
+
+  .avatarPreviewRing {
+    width: 132px;
+    height: 132px;
+  }
+
+  .avatarButtonSelected .avatarPreviewRing {
+    transform: scale(1.2);
+  }
+
+  .optionShellPrimary {
+    width: min(280px, 70vw);
+    height: min(280px, 70vw);
+  }
+
+  .optionShell {
+    width: min(96px, 24vw);
+    height: min(96px, 24vw);
+  }
+
+  .arrowIcon {
+    width: 28px;
+    height: 28px;
+  }
+
+  .carousel {
+    gap: 0.25rem;
   }
 
   .footer {
     flex-direction: column;
     align-items: stretch;
+    gap: 1rem;
   }
 
   .cancelButton::after {
@@ -352,25 +378,14 @@
 
   .cancelButton {
     justify-content: center;
-    border: 1px solid rgba(17, 24, 39, 0.12);
+    border: 1px solid rgba(0, 0, 0, 0.12);
     padding: 0.75rem 0;
-    border-radius: 999px;
+    border-radius: 19px;
+    font-size: 1.25rem;
   }
 
   .nextButton {
     width: 100%;
-  }
-
-  .carousel {
-    grid-template-columns: 1fr;
-    gap: 1.25rem;
-  }
-
-  .arrowButton {
-    display: none;
-  }
-
-  .carouselTrack {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    font-size: 1.25rem;
   }
 }
