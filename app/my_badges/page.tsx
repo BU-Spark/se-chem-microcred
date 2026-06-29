@@ -100,10 +100,10 @@ export default function MyBadgesPage() {
   );
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isSigningOut) {
       router.replace('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   if (!isLoaded || !isSignedIn) return null;
 
@@ -112,7 +112,7 @@ export default function MyBadgesPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Sign out failed', error);
       setIsSigningOut(false);

@@ -137,10 +137,10 @@ export default function ProfilePage() {
 
   // kick user to sign-in if not authenticated
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isSigningOut) {
       router.replace('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   const restartSensitiveTimer = useCallback(() => {
     if (sensitiveTimerRef.current) clearTimeout(sensitiveTimerRef.current);
@@ -281,7 +281,7 @@ export default function ProfilePage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Failed to sign out', error);
       setIsSigningOut(false);

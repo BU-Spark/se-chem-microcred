@@ -108,8 +108,8 @@ export default function BadgeWalletPage() {
   const hasAutoOpenedSection = useRef(false);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) router.replace('/sign-in');
-  }, [isLoaded, isSignedIn, router]);
+    if (isLoaded && !isSignedIn && !isSigningOut) router.replace('/sign-in');
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   useEffect(() => {
     if (!activeBadgeId) return;
@@ -177,7 +177,7 @@ export default function BadgeWalletPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (e) {
       console.error('Failed to sign out', e);
       setIsSigningOut(false);

@@ -30,7 +30,7 @@ export function AppHeader() {
     setIsSigningOut(true);
     await signOut();
     setIsSigningOut(false);
-    router.push('/sign-in');
+    router.push('/splash');
   };
 
   return (

@@ -288,10 +288,10 @@ export default function CreatedCourseDetailPage() {
   const { data, isLoading, error, refresh } = useCreatedCourseDetail(courseId, email);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isSigningOut) {
       router.replace('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -299,7 +299,7 @@ export default function CreatedCourseDetailPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (err) {
       console.error('Failed to sign out', err);
       setIsSigningOut(false);

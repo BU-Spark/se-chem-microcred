@@ -352,7 +352,7 @@ function HomeContent() {
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      router.replace('/sign-in');
+      router.replace('/splash');
     }
   }, [isLoaded, isSignedIn, router]);
 
@@ -380,7 +380,7 @@ function HomeContent() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Failed to sign out', error);
       setIsSigningOut(false);

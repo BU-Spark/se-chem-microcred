@@ -181,10 +181,10 @@ export default function StudentRosterPage() {
     : 'No students match the current search or filters.';
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isSigningOut) {
       router.replace('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -192,7 +192,7 @@ export default function StudentRosterPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Failed to sign out', error);
       setIsSigningOut(false);
