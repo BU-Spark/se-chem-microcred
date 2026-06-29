@@ -118,7 +118,9 @@
   color: #ffffff;
   font-weight: 600;
   cursor: pointer;
-  transition: filter 0.2s ease, background-color 0.2s ease;
+  transition:
+    filter 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .signOffButton:hover {
@@ -194,7 +196,6 @@
   align-items: center;
 }
 
-
 .alert[data-active='false'] {
   background: transparent;
   border: none;
@@ -208,7 +209,6 @@
   object-fit: contain;
   display: block;
 }
-
 
 .brandMark {
   font-weight: 700;
@@ -293,6 +293,20 @@
   cursor: not-allowed;
 }
 
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.joinPlus {
+  font-size: 1.3rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
 .joinError,
 .joinStatus {
   margin: 0;
@@ -361,7 +375,6 @@
   /* text aligned with image left edge */
 }
 
-
 .cardMedia {
   width: 100%;
   aspect-ratio: 1 / 1;
@@ -392,7 +405,6 @@
   object-fit: cover;
   object-position: 0% center;
 }
-
 
 .cardTitle {
   font-family: 'Lato', sans-serif;
@@ -432,7 +444,7 @@
   height: 59px;
   /* Figma height */
 
-  background: #2E6AA9;
+  background: #2e6aa9;
   /* Figma button color */
   border-radius: 19px;
   /* Figma border radius */
@@ -469,7 +481,7 @@
   flex-direction: column;
   width: 391px;
   height: 458px;
-  border: 2px solid #2E6AA9;
+  border: 2px solid #2e6aa9;
   text-decoration: none;
   background: white;
   overflow: hidden;
@@ -492,7 +504,7 @@
 
 .createCourseBottom {
   height: 64px;
-  border-top: 2px solid #2E6AA9;
+  border-top: 2px solid #2e6aa9;
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -621,7 +633,9 @@
   border: none;
   cursor: pointer;
   box-shadow: 0 10px 24px rgba(31, 95, 171, 0.32);
-  transition: filter 0.15s ease, transform 0.15s ease;
+  transition:
+    filter 0.15s ease,
+    transform 0.15s ease;
   z-index: 40;
 }
 
@@ -631,6 +645,41 @@
 }
 
 .duplicateIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/*======================
+  Flaoting Join Button
+======================*/
+.joinButton {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.5rem;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(31, 95, 171, 0.32);
+  transition:
+    filter 0.15s ease,
+    transform 0.15s ease;
+  z-index: 40;
+}
+
+.joinButton:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.joinIcon {
   width: 20px;
   height: 20px;
   flex-shrink: 0;
@@ -912,7 +961,6 @@
   display: block;
 }
 
-
 /* For the slightly_happy icon: source is yellow -> force it to blue in default state */
 .surveyFaceImageForceBlue {
   filter: none;
@@ -922,7 +970,6 @@
 .surveyFaceImageSelected {
   filter: none;
 }
-
 
 .surveySubmit {
   align-self: flex-end;

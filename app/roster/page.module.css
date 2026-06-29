@@ -18,6 +18,22 @@
   width: 100%;
 }
 
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2e6aa9;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
 .header {
   display: flex;
   align-items: baseline;
@@ -145,8 +161,8 @@
 }
 
 .filterPillActive {
-  background: #2E6AA9;
-  border-color: #2E6AA9;
+  background: #2e6aa9;
+  border-color: #2e6aa9;
   color: #ffffff;
 }
 
@@ -215,7 +231,7 @@
 
 .filterInput:focus,
 .filterSelect:focus {
-  border-color: #2E6AA9;
+  border-color: #2e6aa9;
 }
 
 .filterActions {
@@ -235,7 +251,10 @@
   font-size: 0.94rem;
   font-weight: 600;
   cursor: pointer;
-  transition: filter 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
+  transition:
+    filter 0.16s ease,
+    background-color 0.16s ease,
+    border-color 0.16s ease;
 }
 
 .clearFiltersButton {
@@ -246,7 +265,7 @@
 
 .applyFiltersButton {
   border: none;
-  background: #2E6AA9;
+  background: #2e6aa9;
   color: #ffffff;
 }
 
@@ -260,6 +279,101 @@
   border-radius: 40px;
   background: #ffffff;
   overflow: hidden;
+}
+
+/* Pending assessor requests (instructor view) */
+.pendingCard {
+  border: 4px solid #f0c33c;
+  border-radius: 28px;
+  background: #fffaf0;
+  padding: 1.25rem 1.65rem;
+  margin-bottom: 1.25rem;
+}
+
+.pendingTitle {
+  margin: 0 0 0.85rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #000000;
+}
+
+.pendingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pendingItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #ffffff;
+  border: 1px solid #e6dcc2;
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  flex-wrap: wrap;
+}
+
+.pendingInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pendingName {
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  color: #000000;
+}
+
+.pendingEmail {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.pendingActions {
+  display: flex;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.approveButton,
+.declineButton {
+  border: none;
+  border-radius: 12px;
+  padding: 0.5rem 1.1rem;
+  font-family: 'Lato', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.approveButton {
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
+.declineButton {
+  background: #ffffff;
+  color: #b42318;
+  border: 1px solid #e2b8b2;
+}
+
+.approveButton:hover,
+.declineButton:hover {
+  filter: brightness(0.97);
+}
+
+.approveButton:disabled,
+.declineButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .tableScroll {
@@ -315,7 +429,7 @@
 }
 
 .selectableRow[data-selected='true'] td {
-  background: #C9DB50;
+  background: #c9db50;
 }
 
 .emptyCell {

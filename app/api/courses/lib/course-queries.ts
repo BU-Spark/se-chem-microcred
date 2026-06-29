@@ -149,6 +149,9 @@ export async function fetchAssessorCourseEnrollments(userId: string) {
     where: {
       studentId: userId,
       role: { in: ['INSTRUCTOR', 'CHECKER'] },
+      // Pending assessor requests don't grant access yet — only active staff
+      // enrollments surface in the assessor's course list.
+      status: 'ACTIVE',
       OR: [
         { course: { createdById: { not: userId } } },
         ...(includeSeededDemoCourse ? [{ course: { code: SEEDED_DEMO_COURSE_CODE } }] : []),

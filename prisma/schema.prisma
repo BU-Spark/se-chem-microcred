@@ -141,12 +141,13 @@ enum CourseContactType {
 }
 
 model Enrollment {
-  id        String     @id @default(cuid())
+  id        String           @id @default(cuid())
   studentId String
   courseId  String
-  role      CourseRole @default(STUDENT)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  role      CourseRole       @default(STUDENT)
+  status    EnrollmentStatus @default(ACTIVE)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
   student  User                @relation(fields: [studentId], references: [id])
   course   Course              @relation(fields: [courseId], references: [id])
@@ -155,6 +156,7 @@ model Enrollment {
   @@unique([studentId, courseId])
   @@index([courseId])
   @@index([role, courseId])
+  @@index([courseId, role, status])
 }
 
 model EnrollmentSection {
@@ -172,6 +174,11 @@ enum CourseRole {
   STUDENT
   INSTRUCTOR
   CHECKER
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
 }
 
 model Lesson {

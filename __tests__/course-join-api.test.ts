@@ -74,6 +74,7 @@ describe('course join API', () => {
           studentId: 'student-1',
           courseId: 'course-1',
           role: 'STUDENT',
+          status: 'ACTIVE',
         },
       })
     );
@@ -81,6 +82,7 @@ describe('course join API', () => {
     const body = await response.json();
     expect(body.course).toEqual(expect.objectContaining({ id: 'course-1', code: 'CHEM101' }));
     expect(body.alreadyEnrolled).toBe(false);
+    expect(body.pending).toBeFalsy();
   });
 
   it('returns the existing enrollment without creating a duplicate', async () => {
@@ -139,7 +141,7 @@ describe('course join API', () => {
     expect(body.error).toMatch(/different role/i);
   });
 
-  it('enrolls the user as an assessor (CHECKER) when the assessor code is used', async () => {
+  it('creates a PENDING assessor request (not an immediate enrollment) for the assessor code', async () => {
     mockCourseFindFirst.mockResolvedValue({
       id: 'course-1',
       title: 'Chemistry 101',
@@ -148,7 +150,7 @@ describe('course join API', () => {
       createdById: 'instructor-1',
       enrollments: [],
     });
-    mockEnrollmentCreate.mockResolvedValue({ id: 'enrollment-2', role: 'CHECKER' });
+    mockEnrollmentCreate.mockResolvedValue({ id: 'enrollment-2', role: 'CHECKER', status: 'PENDING' });
 
     const response = await postJoin({ code: 'check-101' });
 
@@ -159,13 +161,35 @@ describe('course join API', () => {
           studentId: 'student-1',
           courseId: 'course-1',
           role: 'CHECKER',
+          status: 'PENDING',
         },
       })
     );
 
     const body = await response.json();
-    expect(body.message).toMatch(/assessor/i);
+    expect(body.pending).toBe(true);
     expect(body.alreadyEnrolled).toBe(false);
+    expect(body.message).toMatch(/approve|pending|request/i);
+  });
+
+  it('reports an already-pending assessor request without creating another', async () => {
+    mockCourseFindFirst.mockResolvedValue({
+      id: 'course-1',
+      title: 'Chemistry 101',
+      code: 'CHEM101',
+      assessorCode: 'CHECK101',
+      createdById: 'instructor-1',
+      enrollments: [{ id: 'checker-enrollment', role: 'CHECKER', status: 'PENDING' }],
+    });
+
+    const response = await postJoin({ code: 'CHECK101' });
+
+    expect(response.status).toBe(200);
+    expect(mockEnrollmentCreate).not.toHaveBeenCalled();
+
+    const body = await response.json();
+    expect(body.pending).toBe(true);
+    expect(body.alreadyRequested).toBe(true);
   });
 
   it('returns 404 for an unknown code', async () => {

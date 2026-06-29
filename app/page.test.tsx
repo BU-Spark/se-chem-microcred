@@ -364,10 +364,10 @@ describe('Home Page', () => {
 
     await screen.findByText('Created Course 1');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Join a course' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Join a course as a student' }));
     expect(await screen.findByRole('heading', { name: 'Join a course' })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Course or assessor code'), {
+    fireEvent.change(screen.getByLabelText('Course code'), {
       target: { value: 'chem-202' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Join' }));

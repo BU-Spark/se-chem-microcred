@@ -273,6 +273,34 @@ function HomeContent() {
   const [joinError, setJoinError] = useState<string | null>(null);
   const [isJoiningCourse, setIsJoiningCourse] = useState(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  // Which entry point opened the join modal — drives the modal's copy. The
+  // backend still resolves the actual role from whichever code is entered.
+  const [joinMode, setJoinMode] = useState<'student' | 'assessor'>('student');
+  // True after an assessor request is submitted (pending approval) — keeps the
+  // modal open briefly to show the confirmation before it auto-closes.
+  const [joinPending, setJoinPending] = useState(false);
+
+  const openJoinModal = useCallback((mode: 'student' | 'assessor') => {
+    setJoinMode(mode);
+    setJoinError(null);
+    setJoinStatus(null);
+    setJoinPending(false);
+    setIsJoinModalOpen(true);
+  }, []);
+
+  const closeJoinModal = useCallback(() => {
+    setIsJoinModalOpen(false);
+    setJoinError(null);
+    setJoinStatus(null);
+    setJoinPending(false);
+  }, []);
+
+  // Auto-close the modal a few seconds after a pending assessor request lands.
+  useEffect(() => {
+    if (!isJoinModalOpen || !joinPending || !joinStatus) return;
+    const timer = setTimeout(() => closeJoinModal(), 3000);
+    return () => clearTimeout(timer);
+  }, [isJoinModalOpen, joinPending, joinStatus, closeJoinModal]);
 
   const navItems = SIDEBAR_NAV;
   const displayName = myCourses?.user.name || studentData?.student?.name || '';
@@ -473,7 +501,13 @@ function HomeContent() {
 
       setJoinCode('');
       setJoinStatus(payload.message ?? `You joined ${payload.course?.title ?? 'the course'}.`);
-      setIsJoinModalOpen(false);
+      // Assessor joins return a pending request — keep the modal open so the
+      // confirmation is visible (it auto-closes after a few seconds). Direct
+      // (student) joins close the modal right away.
+      setJoinPending(Boolean(payload.pending));
+      if (!payload.pending) {
+        setIsJoinModalOpen(false);
+      }
       await refreshCourses();
     } catch (error) {
       setJoinError(error instanceof Error ? error.message : 'Unable to join course.');
@@ -578,7 +612,20 @@ function HomeContent() {
         </section>
 
         <section className={courseStyles.section}>
-          <h2 className={courseStyles.sectionTitle}>Assessor Courses</h2>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={courseStyles.sectionTitle}>Assessor Courses</h2>
+            <button
+              type="button"
+              className={styles.joinButton}
+              aria-label="Join a course as an assessor"
+              onClick={() => openJoinModal('assessor')}
+            >
+              <span className={styles.joinPlus} aria-hidden="true">
+                +
+              </span>
+              Join
+            </button>
+          </div>
 
           <div className={styles.myCoursesGrid} data-testid="assessor-courses-grid">
             {assessorEnrollments.map((enrollment) => (
@@ -602,7 +649,21 @@ function HomeContent() {
         </section>
 
         <section className={styles.section}>
-          <h2 className={courseStyles.sectionTitle}>My Enrolled Courses</h2>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={courseStyles.sectionTitle}>My Enrolled Courses</h2>
+            <button
+              type="button"
+              className={styles.joinButton}
+              data-testid="join-course-card"
+              aria-label="Join a course as a student"
+              onClick={() => openJoinModal('student')}
+            >
+              <span className={styles.joinPlus} aria-hidden="true">
+                +
+              </span>
+              Join
+            </button>
+          </div>
 
           {isLoadingEnrolled ? (
             <div className={styles.emptyState}>Loading enrolled courses…</div>
@@ -610,26 +671,8 @@ function HomeContent() {
             <div className={styles.emptyState}>{enrolledError}</div>
           ) : (
             <>
-              <div className={styles.myCoursesGrid}>
-                <button
-                  type="button"
-                  className={styles.addTileButton}
-                  data-testid="join-course-card"
-                  aria-label="Join a course"
-                  onClick={() => {
-                    setJoinError(null);
-                    setJoinStatus(null);
-                    setIsJoinModalOpen(true);
-                  }}
-                >
-                  <div className={styles.addTileMedia}>
-                    <span className={styles.addTilePlus}>+</span>
-                  </div>
-                  <p className={styles.addTileLabel}>Join a Course</p>
-                </button>
-                {enrolledCourseCards.map(renderEnrolledCourseCard)}
-              </div>
-              {joinStatus ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
+              <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
+              {joinStatus && !isJoinModalOpen ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
             </>
           )}
         </section>
@@ -722,10 +765,12 @@ function HomeContent() {
         <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
           <div className={styles.joinModal}>
             <h2 id="join-modal-title" className={styles.joinModalTitle}>
-              Join a course
+              {joinMode === 'assessor' ? 'Join as an assessor' : 'Join a course'}
             </h2>
             <p className={styles.joinModalHint}>
-              Enter a course code to join as a student, or an assessor code to join as an assessor.
+              {joinMode === 'assessor'
+                ? 'Enter the assessor code your instructor shared. Your request is sent to the instructor for approval.'
+                : 'Enter the course code your instructor shared to enroll as a student.'}
             </p>
             <div className={styles.joinControls}>
               <input
@@ -733,8 +778,8 @@ function HomeContent() {
                 className={styles.joinInput}
                 value={joinCode}
                 onChange={(event) => setJoinCode(event.target.value)}
-                placeholder="Enter course or assessor code"
-                aria-label="Course or assessor code"
+                placeholder={joinMode === 'assessor' ? 'Enter assessor code' : 'Enter course code'}
+                aria-label={joinMode === 'assessor' ? 'Assessor code' : 'Course code'}
                 disabled={isJoiningCourse}
                 autoFocus
               />
@@ -743,16 +788,9 @@ function HomeContent() {
               </button>
             </div>
             {joinError ? <p className={styles.joinError}>{joinError}</p> : null}
-            <button
-              type="button"
-              className={styles.joinCancel}
-              disabled={isJoiningCourse}
-              onClick={() => {
-                setIsJoinModalOpen(false);
-                setJoinError(null);
-              }}
-            >
-              Cancel
+            {joinStatus ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
+            <button type="button" className={styles.joinCancel} disabled={isJoiningCourse} onClick={closeJoinModal}>
+              {joinStatus ? 'Done' : 'Cancel'}
             </button>
           </div>
         </div>

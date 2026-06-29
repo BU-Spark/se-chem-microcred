@@ -44,7 +44,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       );
     }
 
-    const viewerEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === user.id);
+    // A pending assessor request does not grant access yet — only an active
+    // enrollment (or course ownership) does.
+    const viewerEnrollment = course.enrollments.find(
+      (enrollment) => enrollment.student.id === user.id && enrollment.status === 'ACTIVE'
+    );
     const viewerRole = course.createdById === user.id ? 'INSTRUCTOR' : viewerEnrollment?.role;
 
     if (!viewerRole) {

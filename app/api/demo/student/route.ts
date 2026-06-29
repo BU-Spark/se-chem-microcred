@@ -1,5 +1,13 @@
 import { NextResponse } from 'next/server';
-import { BadgeStatus, CourseContactType, CourseRole, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
+import {
+  BadgeStatus,
+  CourseContactType,
+  CourseRole,
+  EnrollmentStatus,
+  LessonStatus,
+  SegmentStatus,
+  SurveyContext,
+} from '@prisma/client';
 import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
@@ -293,6 +301,8 @@ export async function GET(req: Request) {
           where: {
             courseId: enrollment.courseId,
             role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
+            // Exclude pending assessor requests — they aren't staff until approved.
+            status: EnrollmentStatus.ACTIVE,
           },
           include: {
             sections: true,
