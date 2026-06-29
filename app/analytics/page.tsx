@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import Image from 'next/image';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
@@ -315,14 +314,6 @@ export default function AnalyticsPage() {
             <h1 className={styles.pageTitle}>Student&apos;s Analytics</h1>
             <p className={styles.pageSubtitle}>View your analytics and track learning progress.</p>
           </div>
-          <Image
-            className={styles.brandLogo}
-            src="/assets/checked_logo.png"
-            alt="checkd."
-            width={180}
-            height={56}
-            priority
-          />
         </header>
 
         <section className={styles.analyticsGrid}>

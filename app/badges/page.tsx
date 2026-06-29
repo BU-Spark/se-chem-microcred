@@ -319,14 +319,6 @@ export default function BadgeWalletPage() {
         <div className={styles.walletRoot}>
           <header className={styles.headerRow}>
             <h1 className={styles.pageTitle}>Badge Wallet</h1>
-            <Image
-              src="/assets/checked_logo.png"
-              alt="checkd"
-              width={173}
-              height={48}
-              className={styles.brandLogo}
-              priority
-            />
           </header>
 
           <div className={styles.walletSections}>
