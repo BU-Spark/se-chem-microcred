@@ -232,21 +232,19 @@ function getCheckpointStartTime(checkpoints: LessonRecord['checkpoints'], id: st
 
 export function LessonVideoPage({
   lesson,
-  studentName,
   studentEmail,
   studentId,
   courseId,
   lessonSurvey,
   resumeRequested,
-  studentAvatarUrl,
 }: LessonVideoPageProps) {
-  const resolvedStudentName = studentName && studentName.trim().length > 0 ? studentName : 'Student Demo';
-  const [firstName, lastName] = useMemo(() => {
-    const parts = resolvedStudentName.split(/\s+/).filter(Boolean);
-    const first = parts[0] ?? 'First';
-    const last = parts.length > 1 ? parts[parts.length - 1] : 'Last';
-    return [first, last];
-  }, [resolvedStudentName]);
+  // const resolvedStudentName = studentName && studentName.trim().length > 0 ? studentName : 'Student Demo';
+  // const [firstName, lastName] = useMemo(() => {
+  //   const parts = resolvedStudentName.split(/\s+/).filter(Boolean);
+  //   const first = parts[0] ?? 'First';
+  //   const last = parts.length > 1 ? parts[parts.length - 1] : 'Last';
+  //   return [first, last];
+  // }, [resolvedStudentName]);
   const router = useRouter();
   const effectiveLessonSurvey = useMemo<LessonSurveyPrompt | null>(
     () => lessonSurvey ?? { id: `auto-${lesson.slug}`, question: 'How was this lesson?', completed: false },
