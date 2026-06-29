@@ -62,7 +62,7 @@ async function patchBadge(body: unknown) {
 
 async function getBadges() {
   const { GET } = await import('../app/api/badges/route');
-  return (await GET()) as Response;
+  return (await GET(new NextRequest('http://localhost/api/badges'))) as Response;
 }
 
 describe('badge creation API', () => {

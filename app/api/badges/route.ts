@@ -413,7 +413,7 @@ function parseRequirementSummary(summary?: string | null) {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const clerkUser = await currentUser();
 
@@ -431,11 +431,14 @@ export async function GET() {
       return NextResponse.json({ error: 'Creator user record was not found in the database.' }, { status: 404 });
     }
 
+    // When a specific badgeId is requested (e.g. editing a course's imported badge
+    // copy), return that owned badge regardless of sourceBadgeId. Otherwise return
+    // the library list (source badges the user owns + global badges).
+    const requestedBadgeId = normalizeString(req.nextUrl.searchParams.get('badgeId'));
     const badges = await prisma.badge.findMany({
-      where: {
-        sourceBadgeId: null,
-        OR: [{ createdById: creator.id }, { createdById: null }],
-      },
+      where: requestedBadgeId
+        ? { id: requestedBadgeId, createdById: creator.id }
+        : { sourceBadgeId: null, OR: [{ createdById: creator.id }, { createdById: null }] },
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,

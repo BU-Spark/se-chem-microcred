@@ -85,6 +85,7 @@ type StudentProgressRow = {
 };
 
 type BadgeDetailResponse = {
+  viewerRole: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER' | null;
   badge: BadgeDetail | null;
   course: CourseDetail;
   summary: ProgressSummary;
@@ -207,6 +208,7 @@ export default function CourseBadgeProgress() {
   const course = data?.course ?? null;
   const summary = data?.summary ?? null;
   const assessment = data?.assessment ?? null;
+  const isInstructor = data?.viewerRole === 'INSTRUCTOR';
   const displayName = course?.createdBy?.name || user?.fullName || '';
 
   // Progress breakdown bars driven by the real summary percentages.
@@ -398,18 +400,24 @@ export default function CourseBadgeProgress() {
                           Length: <strong>00:20:00</strong>
                         </p>
                       </div>
-                      <button type="button" className={styles.editButton}>
-                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
-                          <path
-                            d="M4 20h4l10.5-10.5a2.121 2.121 0 0 0-3-3L5 17v3z"
-                            stroke="#1d1d1d"
-                            strokeWidth="1.6"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                        <span>Edit</span>
-                      </button>
+                      {isInstructor ? (
+                        <button
+                          type="button"
+                          className={styles.editButton}
+                          onClick={() => router.push(`/badge_creation?courseId=${courseId}&badgeId=${badgeId}`)}
+                        >
+                          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true">
+                            <path
+                              d="M4 20h4l10.5-10.5a2.121 2.121 0 0 0-3-3L5 17v3z"
+                              stroke="#1d1d1d"
+                              strokeWidth="1.6"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                          <span>Edit</span>
+                        </button>
+                      ) : null}
                     </div>
                   </div>
 

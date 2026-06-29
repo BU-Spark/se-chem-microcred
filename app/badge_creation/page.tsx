@@ -86,7 +86,7 @@ export default function BadgeCreationPage() {
       setSubmitError('');
 
       try {
-        const response = await fetch('/api/badges', {
+        const response = await fetch(`/api/badges?badgeId=${encodeURIComponent(editBadgeId)}`, {
           headers: { Accept: 'application/json' },
         });
         const payload = (await response.json().catch(() => ({

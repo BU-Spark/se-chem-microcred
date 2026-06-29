@@ -171,8 +171,16 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           )
         : null;
 
+    // Mirror the course-detail route: course owner is the instructor, otherwise
+    // fall back to the viewer's active enrollment role (STUDENT/CHECKER).
+    const viewerEnrollment = course.enrollments.find(
+      (enrollment) => enrollment.student.id === user.id && enrollment.status === 'ACTIVE'
+    );
+    const viewerRole = course.createdById === user.id ? 'INSTRUCTOR' : (viewerEnrollment?.role ?? null);
+
     return NextResponse.json(
       {
+        viewerRole,
         course: {
           ...course,
           enrollments: course.enrollments.map((enrollment) => ({
