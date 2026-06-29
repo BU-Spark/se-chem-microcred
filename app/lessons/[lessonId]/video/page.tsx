@@ -72,7 +72,7 @@ export default function LessonVideoRoute() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Sign out failed', error);
       setIsSigningOut(false);

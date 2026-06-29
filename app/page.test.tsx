@@ -330,7 +330,7 @@ describe('Home Page', () => {
     const { container } = renderHome();
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/sign-in');
+      expect(mockReplace).toHaveBeenCalledWith('/splash');
     });
     expect(container.firstChild).toBeNull();
   });
@@ -355,7 +355,7 @@ describe('Home Page', () => {
     expect(screen.getByRole('button', { name: 'Signing off…' })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/sign-in');
+      expect(mockReplace).toHaveBeenCalledWith('/splash');
     });
   });
 

@@ -45,10 +45,10 @@ export default function BadgeCreationPage() {
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isSigningOut) {
       router.replace('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || isEditMode) return;
@@ -135,7 +135,7 @@ export default function BadgeCreationPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Sign out failed', error);
       setIsSigningOut(false);

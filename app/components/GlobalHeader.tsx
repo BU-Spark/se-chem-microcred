@@ -19,6 +19,11 @@ export function GlobalHeader() {
     return null;
   }
 
+  // ❌ The splash page has its own header/logo, so skip the global one there
+  if (segments[0] === 'splash') {
+    return null;
+  }
+
   // ✅ Everywhere else, render the original global header
   return (
     <header className="global-header">

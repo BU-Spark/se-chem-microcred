@@ -344,10 +344,10 @@ function createStudentData(): StudentData {
 }
 
 describe('Home page', () => {
-  it('redirects to sign-in when not authenticated', () => {
+  it('redirects to splash when not authenticated', () => {
     mockUseUser.mockReturnValue({ isLoaded: true, isSignedIn: false, user: null });
     render(<HomePage />);
-    expect(mockReplace).toHaveBeenCalledWith('/sign-in');
+    expect(mockReplace).toHaveBeenCalledWith('/splash');
   });
 
   it('renders merged course sections and surfaces survey modal when deep-linked', async () => {

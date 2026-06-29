@@ -193,10 +193,10 @@ export default function CourseNewPage() {
   const [uploadDialog, setUploadDialog] = useState<UploadDialogState | null>(null);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isSigningOut) {
       router.replace('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   useEffect(() => {
     const userEmail = user?.primaryEmailAddress?.emailAddress ?? null;
@@ -302,7 +302,7 @@ export default function CourseNewPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Failed to sign out', error);
       setIsSigningOut(false);

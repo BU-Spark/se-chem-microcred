@@ -241,10 +241,10 @@ export default function AssessmentReadinessPage() {
   );
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isSigningOut) {
       router.replace('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -254,7 +254,7 @@ export default function AssessmentReadinessPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (signOutError) {
       console.error('Failed to sign out', signOutError);
       setIsSigningOut(false);

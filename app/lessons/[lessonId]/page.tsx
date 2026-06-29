@@ -26,18 +26,17 @@ export default function LessonDetailPage() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
   const { data: studentData, isLoading } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   // Redirect only after hooks have run
   const signedOut = isLoaded && !isSignedIn;
   useEffect(() => {
-    if (signedOut) router.replace('/sign-in');
-  }, [signedOut, router]);
+    if (signedOut && !isSigningOut) router.replace('/sign-in');
+  }, [signedOut, isSigningOut, router]);
 
   const displayName = studentData?.student.name || '';
 
   const lessonRecord = studentData?.lessons.catalog.find((e) => e.slug === params.lessonId);
-
-  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -46,7 +45,7 @@ export default function LessonDetailPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Failed to sign out', error);
       setIsSigningOut(false);
