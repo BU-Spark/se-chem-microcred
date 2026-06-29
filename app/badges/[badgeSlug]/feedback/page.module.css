@@ -45,9 +45,31 @@
   font-weight: 700;
 }
 
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: #1f4b99;
+  font-family: 'Lato', sans-serif;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 1.25rem;
+  transition: filter 0.2s ease;
+}
+
+.backLink:hover {
+  filter: brightness(0.85);
+}
+
+.backLink:focus-visible {
+  outline: 2px solid #1f4b99;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 .headerRow {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
   margin-bottom: 2rem;
 }
@@ -155,6 +177,9 @@
 }
 
 .primaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: #1f4b99;
   color: #fff;
   border: none;
@@ -163,12 +188,16 @@
   font-family: 'Lato', sans-serif;
   font-weight: 600;
   cursor: pointer;
+  text-decoration: none;
   margin-top: 1rem;
+  transition: filter 0.2s ease;
 }
 
-.brandMark {
-  font-family: 'Lato', sans-serif;
-  font-weight: 700;
-  font-size: 1.1rem;
-  color: #1f4b99;
+.primaryButton:hover {
+  filter: brightness(0.92);
+}
+
+.primaryButton:focus-visible {
+  outline: 2px solid #1f4b99;
+  outline-offset: 2px;
 }

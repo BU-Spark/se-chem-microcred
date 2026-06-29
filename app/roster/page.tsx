@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
@@ -10,6 +11,7 @@ import styles from './page.module.css';
 type EnrollmentSummary = {
   id: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
+  status: 'PENDING' | 'ACTIVE';
   sections: string[];
   student: {
     id: string;
@@ -30,6 +32,7 @@ type CourseRoster = {
 };
 
 type CourseRosterResponse = {
+  viewerRole?: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
   course: CourseRoster;
 };
 
@@ -131,7 +134,7 @@ function useCourseRoster(courseId?: string | null, email?: string | null) {
     void fetchData();
   }, [fetchData]);
 
-  return { data, isLoading, error };
+  return { data, isLoading, error, refresh: fetchData };
 }
 
 function SearchIcon() {
@@ -167,7 +170,8 @@ export default function StudentRosterPage() {
   const courseId = searchParams.get('courseId');
   const rosterRole = resolveRosterRole(searchParams.get('role'));
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
-  const { data, isLoading, error } = useCourseRoster(courseId, email);
+  const { data, isLoading, error, refresh } = useCourseRoster(courseId, email);
+  const [pendingActionId, setPendingActionId] = useState<string | null>(null);
   const isCheckerRoster = rosterRole === 'CHECKER';
   const rosterLabel = isCheckerRoster ? 'Assessor' : 'Student';
   const rosterPluralLabel = isCheckerRoster ? 'assessors' : 'students';
@@ -205,13 +209,49 @@ export default function StudentRosterPage() {
   };
 
   const course = data?.course ?? null;
+  const isInstructor = data?.viewerRole === 'INSTRUCTOR';
   const displayName = course?.createdBy?.name || '';
+
+  // Pending assessor requests an instructor can approve/decline (CHECKER roster only).
+  const pendingAssessors = useMemo(() => {
+    if (!course || !isCheckerRoster || !isInstructor) return [];
+    return course.enrollments
+      .filter((enrollment) => enrollment.role === 'CHECKER' && enrollment.status === 'PENDING')
+      .map((enrollment) => {
+        const { firstName, lastName } = splitName(enrollment.student.name);
+        return {
+          enrollmentId: enrollment.id,
+          name: [firstName, lastName].filter(Boolean).join(' ') || enrollment.student.email || 'Unknown',
+          email: enrollment.student.email?.trim() ?? '',
+        };
+      });
+  }, [course, isCheckerRoster, isInstructor]);
+
+  const handleAssessorDecision = useCallback(
+    async (enrollmentId: string, action: 'approve' | 'decline') => {
+      if (!courseId || pendingActionId) return;
+      setPendingActionId(enrollmentId);
+      try {
+        const response = await fetch(
+          `/api/courses/${encodeURIComponent(courseId)}/enrollments/${encodeURIComponent(enrollmentId)}`,
+          { method: action === 'approve' ? 'PATCH' : 'DELETE', headers: { Accept: 'application/json' } }
+        );
+        if (!response.ok) throw new Error('Request failed');
+        await refresh();
+      } catch (err) {
+        console.error(`Failed to ${action} assessor:`, err);
+      } finally {
+        setPendingActionId(null);
+      }
+    },
+    [courseId, pendingActionId, refresh]
+  );
 
   const rosterRows = useMemo<RosterMemberRow[]>(() => {
     if (!course) return [];
 
     return course.enrollments
-      .filter((enrollment) => enrollment.role === rosterRole)
+      .filter((enrollment) => enrollment.role === rosterRole && enrollment.status !== 'PENDING')
       .map((enrollment) => {
         const { firstName, lastName } = splitName(enrollment.student.name);
 
@@ -338,6 +378,12 @@ export default function StudentRosterPage() {
 
       <main className={styles.main}>
         <div className={styles.content}>
+          {courseId ? (
+            <Link href={`/courses/${courseId}`} className={styles.backLink}>
+              <span aria-hidden="true">←</span> Back to course
+            </Link>
+          ) : null}
+
           <header className={styles.header}>
             <h1 className={styles.pageTitle}>{rosterLabel} Roster</h1>
             <p className={styles.pageSubtitle}>
@@ -530,6 +576,40 @@ export default function StudentRosterPage() {
                       Apply Filters
                     </button>
                   </div>
+                </section>
+              ) : null}
+
+              {pendingAssessors.length > 0 ? (
+                <section className={styles.pendingCard}>
+                  <h2 className={styles.pendingTitle}>Pending Assessor Requests</h2>
+                  <ul className={styles.pendingList}>
+                    {pendingAssessors.map((request) => (
+                      <li key={request.enrollmentId} className={styles.pendingItem}>
+                        <div className={styles.pendingInfo}>
+                          <span className={styles.pendingName}>{request.name}</span>
+                          {request.email ? <span className={styles.pendingEmail}>{request.email}</span> : null}
+                        </div>
+                        <div className={styles.pendingActions}>
+                          <button
+                            type="button"
+                            className={styles.approveButton}
+                            disabled={pendingActionId === request.enrollmentId}
+                            onClick={() => handleAssessorDecision(request.enrollmentId, 'approve')}
+                          >
+                            {pendingActionId === request.enrollmentId ? 'Working…' : 'Accept'}
+                          </button>
+                          <button
+                            type="button"
+                            className={styles.declineButton}
+                            disabled={pendingActionId === request.enrollmentId}
+                            onClick={() => handleAssessorDecision(request.enrollmentId, 'decline')}
+                          >
+                            Decline
+                          </button>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </section>
               ) : null}
 

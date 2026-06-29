@@ -240,6 +240,7 @@ function HomeContent() {
     assessor,
     isLoading,
     error: fetchError,
+    mutate: refreshCourses,
   } = useMyCourses(isLoaded && isSignedIn);
   const coursesError = fetchError
     ? fetchError instanceof Error
@@ -267,9 +268,44 @@ function HomeContent() {
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinStatus, setJoinStatus] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [isJoiningCourse, setIsJoiningCourse] = useState(false);
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  // Which entry point opened the join modal — drives the modal's copy. The
+  // backend still resolves the actual role from whichever code is entered.
+  const [joinMode, setJoinMode] = useState<'student' | 'assessor'>('student');
+  // True after an assessor request is submitted (pending approval) — keeps the
+  // modal open briefly to show the confirmation before it auto-closes.
+  const [joinPending, setJoinPending] = useState(false);
+
+  const openJoinModal = useCallback((mode: 'student' | 'assessor') => {
+    setJoinMode(mode);
+    setJoinError(null);
+    setJoinStatus(null);
+    setJoinPending(false);
+    setIsJoinModalOpen(true);
+  }, []);
+
+  const closeJoinModal = useCallback(() => {
+    setIsJoinModalOpen(false);
+    setJoinError(null);
+    setJoinStatus(null);
+    setJoinPending(false);
+  }, []);
+
+  // Auto-close the modal a few seconds after a pending assessor request lands.
+  useEffect(() => {
+    if (!isJoinModalOpen || !joinPending || !joinStatus) return;
+    const timer = setTimeout(() => closeJoinModal(), 3000);
+    return () => clearTimeout(timer);
+  }, [isJoinModalOpen, joinPending, joinStatus, closeJoinModal]);
 
   const navItems = SIDEBAR_NAV;
   const displayName = myCourses?.user.name || studentData?.student?.name || '';
+  const assessmentAccessMessage = searchParams.get('assessmentMessage');
+  const showAssessmentAccessModal = Boolean(searchParams.get('assessmentAccess'));
 
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
 
@@ -361,6 +397,15 @@ function HomeContent() {
     router.replace(nextPath, { scroll: false });
   }, [pathname, router, searchParams]);
 
+  const closeAssessmentAccessModal = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('assessmentAccess');
+    params.delete('assessmentMessage');
+    const nextPath = params.size ? `${pathname}?${params.toString()}` : pathname;
+
+    router.replace(nextPath, { scroll: false });
+  }, [pathname, router, searchParams]);
+
   const handleStartSurvey = useCallback(
     (target?: {
       promptId: string;
@@ -423,6 +468,53 @@ function HomeContent() {
     },
     [router]
   );
+
+  const handleJoinCourse = useCallback(async () => {
+    if (isJoiningCourse) return;
+
+    setJoinError(null);
+    setJoinStatus(null);
+
+    const code = joinCode.trim();
+    if (!code) {
+      setJoinError('Enter a course code to join.');
+      return;
+    }
+
+    setIsJoiningCourse(true);
+    try {
+      const response = await fetch('/api/courses/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+      const payload = await response.json().catch(() => ({
+        error: `Request failed: ${response.status}`,
+      }));
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to join course.');
+      }
+
+      setJoinCode('');
+      setJoinStatus(payload.message ?? `You joined ${payload.course?.title ?? 'the course'}.`);
+      // Assessor joins return a pending request — keep the modal open so the
+      // confirmation is visible (it auto-closes after a few seconds). Direct
+      // (student) joins close the modal right away.
+      setJoinPending(Boolean(payload.pending));
+      if (!payload.pending) {
+        setIsJoinModalOpen(false);
+      }
+      await refreshCourses();
+    } catch (error) {
+      setJoinError(error instanceof Error ? error.message : 'Unable to join course.');
+    } finally {
+      setIsJoiningCourse(false);
+    }
+  }, [isJoiningCourse, joinCode, refreshCourses]);
 
   if (!isLoaded || !isSignedIn) return null;
 
@@ -520,7 +612,20 @@ function HomeContent() {
         </section>
 
         <section className={courseStyles.section}>
-          <h2 className={courseStyles.sectionTitle}>Assessor Courses</h2>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={courseStyles.sectionTitle}>Assessor Courses</h2>
+            <button
+              type="button"
+              className={styles.joinButton}
+              aria-label="Join a course as an assessor"
+              onClick={() => openJoinModal('assessor')}
+            >
+              <span className={styles.joinPlus} aria-hidden="true">
+                +
+              </span>
+              Join
+            </button>
+          </div>
 
           <div className={styles.myCoursesGrid} data-testid="assessor-courses-grid">
             {assessorEnrollments.map((enrollment) => (
@@ -544,16 +649,31 @@ function HomeContent() {
         </section>
 
         <section className={styles.section}>
-          <h2 className={courseStyles.sectionTitle}>My Enrolled Courses</h2>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={courseStyles.sectionTitle}>My Enrolled Courses</h2>
+            <button
+              type="button"
+              className={styles.joinButton}
+              data-testid="join-course-card"
+              aria-label="Join a course as a student"
+              onClick={() => openJoinModal('student')}
+            >
+              <span className={styles.joinPlus} aria-hidden="true">
+                +
+              </span>
+              Join
+            </button>
+          </div>
 
           {isLoadingEnrolled ? (
             <div className={styles.emptyState}>Loading enrolled courses…</div>
           ) : enrolledError ? (
             <div className={styles.emptyState}>{enrolledError}</div>
-          ) : enrolledCourseCards.length === 0 ? (
-            <div className={styles.emptyState}>You are not enrolled in any courses yet.</div>
           ) : (
-            <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
+            <>
+              <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
+              {joinStatus && !isJoinModalOpen ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
+            </>
           )}
         </section>
 
@@ -636,6 +756,56 @@ function HomeContent() {
               disabled={duplicatingId !== null}
             >
               Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {isJoinModalOpen ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
+          <div className={styles.joinModal}>
+            <h2 id="join-modal-title" className={styles.joinModalTitle}>
+              {joinMode === 'assessor' ? 'Join as an assessor' : 'Join a course'}
+            </h2>
+            <p className={styles.joinModalHint}>
+              {joinMode === 'assessor'
+                ? 'Enter the assessor code your instructor shared. Your request is sent to the instructor for approval.'
+                : 'Enter the course code your instructor shared to enroll as a student.'}
+            </p>
+            <div className={styles.joinControls}>
+              <input
+                type="text"
+                className={styles.joinInput}
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value)}
+                placeholder={joinMode === 'assessor' ? 'Enter assessor code' : 'Enter course code'}
+                aria-label={joinMode === 'assessor' ? 'Assessor code' : 'Course code'}
+                disabled={isJoiningCourse}
+                autoFocus
+              />
+              <button type="button" className={styles.joinButton} onClick={handleJoinCourse} disabled={isJoiningCourse}>
+                {isJoiningCourse ? 'Joining...' : 'Join'}
+              </button>
+            </div>
+            {joinError ? <p className={styles.joinError}>{joinError}</p> : null}
+            {joinStatus ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
+            <button type="button" className={styles.joinCancel} disabled={isJoiningCourse} onClick={closeJoinModal}>
+              {joinStatus ? 'Done' : 'Cancel'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showAssessmentAccessModal ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Assessment access">
+          <div className={styles.accessModal}>
+            <h2 className={styles.accessTitle}>Assessment unavailable</h2>
+            <p className={styles.accessText}>
+              {assessmentAccessMessage ||
+                'You are not authorized to assess this badge, or the badge is not ready for assessment yet.'}
+            </p>
+            <button type="button" className={styles.accessButton} onClick={closeAssessmentAccessModal}>
+              Back to home
             </button>
           </div>
         </div>

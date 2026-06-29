@@ -171,6 +171,20 @@
   color: #000000;
 }
 
+.courseCode {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2rem;
+  padding: 0.1rem 0.55rem;
+  border-radius: 8px;
+  background: #eef4fb;
+  color: #174f8e;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
 .actionRow {
   margin-top: 5rem;
   display: flex;
@@ -379,6 +393,23 @@
 }
 
 .badgeDeleteButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.badgeUnassignButton {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  color: #475467;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.badgeUnassignButton:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }

@@ -29,17 +29,19 @@ interface SidebarProps {
   isSigningOut: boolean;
 }
 
+// Messages is a work-in-progress feature: show it only when explicitly enabled
+// via env (set NEXT_PUBLIC_SHOW_MESSAGES=true in .env.local for dev). Unset in
+// prod, so it stays hidden there. Must be NEXT_PUBLIC_* to be readable in this
+// client component.
+const CUR_ENV = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
+
 export const SIDEBAR_NAV: NavItem[] = [
   { label: 'Home', href: '/' },
-  { label: 'Courses', href: '/courses' },
   { label: 'Badges', href: '/my_badges' },
-  // { label: 'Student Roster', href: '/roster' },
-  { label: 'Messages', href: '/messages' },
-  { label: 'Profile', href: '/profile' },
-  { label: 'My Analytics', href: '/analytics' },
   { label: 'Badge Wallet', href: '/badges' },
-  { label: 'Grades', href: '/grades' },
-  { label: 'Settings', href: '/settings' },
+  ...(CUR_ENV ? [{ label: 'Messages', href: '/messages' }] : []),
+  { label: 'My Analytics', href: '/analytics' },
+  { label: 'Profile', href: '/profile' }, // In this combine the setting and profile features.
 ];
 
 export function initialsFromName(name?: string | null) {
@@ -73,7 +75,15 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
       {/* Nav Links */}
       <nav className={styles.navList}>
         {navItems.map((item) => {
-          const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(`${item.href}/`));
+          const isCourseWorkspace =
+            pathname === '/course_dashboard' ||
+            pathname === '/courses' ||
+            pathname === '/courses/new' ||
+            pathname.startsWith('/courses/');
+          const isActive =
+            item.href === '/'
+              ? pathname === item.href || isCourseWorkspace
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
           const navItemClass = `${styles.navItem} ${isActive ? styles.navItemActive : ''}`.trim();
           return (
             <Link key={item.href} href={item.href} className={navItemClass}>

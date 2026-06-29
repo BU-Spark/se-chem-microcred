@@ -59,6 +59,15 @@
   text-decoration: none;
 }
 
+.createButton {
+  margin-top: 2rem;
+}
+
+.secondaryButton {
+  background: #f0f5fb;
+  color: #1f5fab;
+}
+
 .statusMessage {
   margin: 0;
   font-size: 0.95rem;

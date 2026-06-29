@@ -69,6 +69,22 @@ function formatBadgeStatus(status: BadgeRecord['status']) {
   return BADGE_STATUS_LABEL[status];
 }
 
+function buildAssessmentQrUrl(
+  courseId: string | null | undefined,
+  studentId: string | null | undefined,
+  badgeId: string
+) {
+  if (typeof window === 'undefined' || !courseId || !studentId) {
+    return null;
+  }
+
+  const url = new URL('/qr/assessment', window.location.origin);
+  url.searchParams.set('courseId', courseId);
+  url.searchParams.set('studentId', studentId);
+  url.searchParams.set('badgeId', badgeId);
+  return url.toString();
+}
+
 type PopoverAnchor = {
   // position relative to the card the badge lives in
   top: number;
@@ -158,6 +174,10 @@ export default function BadgeWalletPage() {
   );
 
   const activeBadge = allBadges.find((b) => b.id === activeBadgeId) ?? null;
+
+  const qrAssessmentUrl = qrBadge
+    ? buildAssessmentQrUrl(studentData?.course?.id, studentData?.student.id, qrBadge.id)
+    : null;
 
   if (!isLoaded || !isSignedIn) return null;
 
@@ -414,6 +434,16 @@ export default function BadgeWalletPage() {
                           Show your assessor this QR code during the in-person skill check.
                         </p>
                       )}
+                      {activeBadge.status === 'READY_FOR_FINALIZATION' && (
+                        <p className={styles.popoverHelperText}>
+                          Take a quick feedback survey to finalize this badge and add it to your completed list.
+                        </p>
+                      )}
+                      {activeBadge.status === 'LEARNING' && (
+                        <p className={styles.popoverHelperText}>
+                          Keep working through lesson checkpoints to unlock your assessment.
+                        </p>
+                      )}
                       {activeBadge.status === 'COMPLETED' && (
                         <p className={styles.popoverHelperText}>Badge finalized. Great work!</p>
                       )}
@@ -487,28 +517,36 @@ export default function BadgeWalletPage() {
                   ×
                 </button>
                 <div className={styles.qrCodeBox}>
-                  <div className={styles.qrCodeWrapper}>
-                    <div className={styles.qrCodeCanvas}>
-                      <Image
-                        src={`/api/qr?size=360&data=${encodeURIComponent(
-                          `student:${studentData?.student.id ?? 'unknown'}|badge:${qrBadge.id}`
-                        )}`}
-                        alt={`${qrBadge.name} QR code`}
-                        width={360}
-                        height={360}
-                        className={styles.qrCodeImage}
-                      />
-                      <div className={styles.qrCodeLogo}>
-                        <Image
-                          src="/assets/badge_wallet/QR/qr_logo.svg"
-                          alt="Checkd logo"
-                          width={74}
-                          height={74}
-                          className={styles.qrCodeLogoImage}
+                  {qrAssessmentUrl ? (
+                    <div className={styles.qrCodeWrapper}>
+                      <div className={styles.qrCodeCanvas}>
+                        {/* Plain <img> on purpose: next/image's optimizer fetches /api/qr
+                            server-side without the Clerk session cookie, so the route 401s.
+                            A direct browser request carries auth and renders the code. */}
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`/api/qr?size=360&data=${encodeURIComponent(qrAssessmentUrl)}`}
+                          alt={`${qrBadge.name} QR code`}
+                          width={360}
+                          height={360}
+                          className={styles.qrCodeImage}
                         />
+                        <div className={styles.qrCodeLogo}>
+                          <Image
+                            src="/assets/badge_wallet/QR/qr_logo.svg"
+                            alt="Checkd logo"
+                            width={74}
+                            height={74}
+                            className={styles.qrCodeLogoImage}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <p className={styles.popoverHelperText}>
+                      We could not build the assessment QR code for this badge.
+                    </p>
+                  )}
                   <div className={styles.qrCaption}>{qrBadge.name} Skill Check</div>
                   <p>
                     Show your assessor this QR code to complete the in-person assessment. Don&apos;t forget to bring

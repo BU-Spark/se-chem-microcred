@@ -60,6 +60,8 @@ type CourseLesson = {
 
 type CourseDetail = {
   id: string;
+  code: string | null;
+  assessorCode: string | null;
   title: string;
   description: string | null;
   sectionCount: number;
@@ -321,10 +323,35 @@ export default function CreatedCourseDetailPage() {
       const response = await fetch(`/api/courses/${encodeURIComponent(data.course.id)}`, { method: 'DELETE' });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? 'Failed to delete course.');
-      router.replace('/courses');
+      router.replace('/');
     } catch (err) {
       setIsDeleting(false);
       window.alert(err instanceof Error ? err.message : 'Failed to delete course.');
+    }
+  };
+
+  const handleUnassignBadge = async (badge: { id: string; name: string }) => {
+    if (!data?.course || isDeleting) return;
+    if (
+      !window.confirm(
+        `Remove the badge "${badge.name}" from this course? The badge itself is not deleted and can be re-assigned later.`
+      )
+    ) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const response = await fetch(
+        `/api/courses/${encodeURIComponent(data.course.id)}/badges/${encodeURIComponent(badge.id)}`,
+        { method: 'DELETE' }
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Failed to unassign badge.');
+      await refresh();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Failed to unassign badge.');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -502,8 +529,8 @@ export default function CreatedCourseDetailPage() {
           {!isLoading && error ? (
             <div className={styles.statusBlock}>
               <p className={styles.statusMessage}>{error}</p>
-              <Link href="/courses" className={styles.inlineLink}>
-                Back to courses
+              <Link href="/" className={styles.inlineLink}>
+                Back to home
               </Link>
             </div>
           ) : null}
@@ -525,6 +552,16 @@ export default function CreatedCourseDetailPage() {
                   <div className={styles.statLines}>
                     <p className={styles.statLine}>Number of Sections: {course.sectionCount}</p>
                     <p className={styles.statLine}>Number of Students Enrolled: {studentCount}</p>
+                    {isInstructor && course.code ? (
+                      <p className={styles.statLine}>
+                        Course Code: <span className={styles.courseCode}>{course.code}</span>
+                      </p>
+                    ) : null}
+                    {isInstructor && course.assessorCode ? (
+                      <p className={styles.statLine}>
+                        Assessor Code: <span className={styles.courseCode}>{course.assessorCode}</span>
+                      </p>
+                    ) : null}
                     {viewerRole ? (
                       <p className={styles.statLine}>Your Role: {isAssessorView ? 'ASSESSOR' : viewerRole}</p>
                     ) : null}
@@ -608,6 +645,14 @@ export default function CreatedCourseDetailPage() {
                                 aria-label={`Send a lesson reminder for ${badge.name.replace(/ Badge$/i, '')}`}
                               >
                                 <MessageIcon />
+                              </button>
+                              <button
+                                type="button"
+                                className={styles.badgeUnassignButton}
+                                onClick={() => handleUnassignBadge({ id: badge.id, name: badge.name })}
+                                disabled={isDeleting}
+                              >
+                                Unassign badge
                               </button>
                               {/* MVP test-cleanup button — remove before handoff. */}
                               <button

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
@@ -19,7 +18,9 @@ import veryHappyFaceSelected from '../../../public/assets/survey_faces/very_happ
 import playIcon from '../../../public/assets/lesson/qev/Play.svg';
 import pauseIcon from '../../../public/assets/lesson/qev/Pause.svg';
 
-const ENABLE_QEV_SKIP = (process.env.NEXT_PUBLIC_ENABLE_QEV_SKIP || 'true').toLowerCase() === 'true';
+// Dev-only testing controls (skip checkpoint / unlock progress bar): shown only
+// when the dev environment flag is set. Same flag the sidebar uses (CUR_ENV).
+const ENABLE_QEV_SKIP = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
 type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonSurvey' | 'lessonComplete' | 'lessonFailed';
 type RangeStyleVars = CSSProperties & {
@@ -111,6 +112,8 @@ interface LessonVideoPageProps {
   lesson: LessonRecord;
   studentName?: string | null;
   studentEmail: string;
+  studentId: string;
+  courseId?: string | null;
   lessonSurvey: LessonSurveyPrompt | null;
   resumeRequested: boolean;
   studentAvatarUrl?: string | null;
@@ -151,15 +154,6 @@ const LESSON_SURVEY_FACES = [
   },
 ] as const;
 
-function initialsFromName(name?: string | null) {
-  if (!name) return 'ST';
-  const tokens = name.trim().split(/\s+/);
-  return tokens
-    .slice(0, 2)
-    .map((token) => token.charAt(0).toUpperCase())
-    .join('');
-}
-
 function extractYouTubeId(url?: string | null) {
   if (!url) {
     return null;
@@ -180,6 +174,10 @@ function formatTime(seconds: number | null | undefined) {
   }
   const total = Math.max(0, Math.floor(seconds ?? 0));
   return `${Math.floor(total / 60)}:${pad(total % 60)}`;
+}
+
+function mergeUniqueIds(...groups: string[][]) {
+  return Array.from(new Set(groups.flat()));
 }
 
 let youtubeApiPromise: Promise<YouTubeApi | null> | null = null;
@@ -236,6 +234,8 @@ export function LessonVideoPage({
   lesson,
   studentName,
   studentEmail,
+  studentId,
+  courseId,
   lessonSurvey,
   resumeRequested,
   studentAvatarUrl,
@@ -264,6 +264,10 @@ export function LessonVideoPage({
     [lesson.checkpoints]
   );
   const initialCompletedIds = useMemo(() => lesson.completedCheckpointIds ?? [], [lesson.completedCheckpointIds]);
+  const initialEncounteredIds = useMemo(
+    () => mergeUniqueIds(lesson.completedCheckpointIds ?? [], lesson.answeredCheckpointIds ?? []),
+    [lesson.answeredCheckpointIds, lesson.completedCheckpointIds]
+  );
 
   const resumeBaseTime = useMemo(() => {
     const recorded = Math.max(0, lesson.resumeTimeSeconds ?? 0);
@@ -274,6 +278,7 @@ export function LessonVideoPage({
   const [modalState, setModalState] = useState<ModalState>('none');
   const [activeCheckpointId, setActiveCheckpointId] = useState<string | null>(null);
   const [completedCheckpointIds, setCompletedCheckpointIds] = useState<string[]>(initialCompletedIds);
+  const [encounteredCheckpointIds, setEncounteredCheckpointIds] = useState<string[]>(initialEncounteredIds);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, SelectedAnswerState>>({});
   const [attemptSummary, setAttemptSummary] = useState<AttemptSummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -291,6 +296,7 @@ export function LessonVideoPage({
   const [lessonSurveySubmitting, setLessonSurveySubmitting] = useState(false);
   const [lessonSurveyError, setLessonSurveyError] = useState<string | null>(null);
   const [lessonSurveyCompleted, setLessonSurveyCompleted] = useState(effectiveLessonSurvey?.completed ?? false);
+  const [showLessonQr, setShowLessonQr] = useState(false);
 
   const suppressCheckpointIdRef = useRef<string | null>(null);
   const scheduleCheckpointSuppression = useCallback((checkpointId: string, ms = 8000) => {
@@ -317,6 +323,7 @@ export function LessonVideoPage({
   const visibilityTimerRef = useRef<number | null>(null);
   const lessonSurveyTriggeredRef = useRef<boolean>(effectiveLessonSurvey?.completed ?? false);
   const gradingTriggeredRef = useRef<boolean>(false);
+  const lessonStartRecordedRef = useRef(false);
 
   const updateFurthestTime = useCallback((time: number, force = false) => {
     if (!Number.isFinite(time)) {
@@ -345,9 +352,27 @@ export function LessonVideoPage({
       header.style.display = previousDisplay;
     };
   }, []);
+
+  useEffect(() => {
+    if (lessonStartRecordedRef.current || !studentEmail) return;
+
+    lessonStartRecordedRef.current = true;
+    void fetch(`/api/lessons/${lesson.id}/start`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: studentEmail }),
+    }).catch((error) => {
+      console.error('Failed to record lesson start', error);
+    });
+  }, [lesson.id, studentEmail]);
+
   useEffect(() => {
     setCompletedCheckpointIds(initialCompletedIds);
   }, [initialCompletedIds]);
+
+  useEffect(() => {
+    setEncounteredCheckpointIds(initialEncounteredIds);
+  }, [initialEncounteredIds]);
 
   useEffect(() => {
     setFurthestTime(resumeBaseTime);
@@ -365,7 +390,25 @@ export function LessonVideoPage({
     gradingTriggeredRef.current = false;
     setLessonAssessment(null);
     setAssessmentError(null);
+    setShowLessonQr(false);
   }, [lesson.id]);
+
+  const assessmentBadge = useMemo(() => lesson.badgeRequirements[0] ?? null, [lesson.badgeRequirements]);
+  const lessonAssessmentQrUrl = useMemo(() => {
+    if (typeof window === 'undefined' || !courseId || !studentId || !assessmentBadge?.badgeId) {
+      return null;
+    }
+
+    const url = new URL('/qr/assessment', window.location.origin);
+    url.searchParams.set('courseId', courseId);
+    url.searchParams.set('studentId', studentId);
+    url.searchParams.set('badgeId', assessmentBadge.badgeId);
+    return url.toString();
+  }, [assessmentBadge?.badgeId, courseId, studentId]);
+
+  const lessonQrImageSrc = lessonAssessmentQrUrl
+    ? `/api/qr?size=360&data=${encodeURIComponent(lessonAssessmentQrUrl)}`
+    : null;
 
   const resolveMaxSeekableTime = useCallback(() => {
     const limit = furthestTimeRef.current;
@@ -404,20 +447,20 @@ export function LessonVideoPage({
   }, [playerStatus]);
 
   const firstIncompleteCheckpoint = useMemo(
-    () => orderedCheckpoints.find((checkpoint) => !completedCheckpointIds.includes(checkpoint.id)) ?? null,
-    [orderedCheckpoints, completedCheckpointIds]
+    () => orderedCheckpoints.find((checkpoint) => !encounteredCheckpointIds.includes(checkpoint.id)) ?? null,
+    [orderedCheckpoints, encounteredCheckpointIds]
   );
 
-  const allCheckpointsCompleted = useMemo(
+  const allCheckpointsEncountered = useMemo(
     () =>
       orderedCheckpoints.length > 0 &&
-      orderedCheckpoints.every((checkpoint) => completedCheckpointIds.includes(checkpoint.id)),
-    [orderedCheckpoints, completedCheckpointIds]
+      orderedCheckpoints.every((checkpoint) => encounteredCheckpointIds.includes(checkpoint.id)),
+    [orderedCheckpoints, encounteredCheckpointIds]
   );
 
   const lessonReadyForSurvey = useMemo(
-    () => (orderedCheckpoints.length === 0 || allCheckpointsCompleted) && videoEnded,
-    [allCheckpointsCompleted, orderedCheckpoints.length, videoEnded]
+    () => (orderedCheckpoints.length === 0 || allCheckpointsEncountered) && videoEnded,
+    [allCheckpointsEncountered, orderedCheckpoints.length, videoEnded]
   );
 
   const currentCheckpoint = useMemo(() => {
@@ -812,6 +855,7 @@ export function LessonVideoPage({
       }
       gradingTriggeredRef.current = false;
       setCompletedCheckpointIds([]);
+      setEncounteredCheckpointIds([]);
       setSelectedAnswers({});
       setAttemptSummary(null);
       setActiveQuestionIndex(0);
@@ -937,6 +981,9 @@ export function LessonVideoPage({
       const baseTime = currentCheckpoint.timeOffsetSeconds;
       lastCheckpointResumeRef.current = baseTime;
       setCompletedCheckpointIds((prev) =>
+        prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
+      );
+      setEncounteredCheckpointIds((prev) =>
         prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
       );
       setModalState('result');
@@ -1156,8 +1203,8 @@ export function LessonVideoPage({
   ]);
 
   const handleShowQrCode = useCallback(() => {
-    router.push('/badges');
-  }, [router]);
+    setShowLessonQr(true);
+  }, []);
 
   const handleRestartAfterFailure = useCallback(() => {
     setModalState('none');
@@ -1177,6 +1224,7 @@ export function LessonVideoPage({
     setFurthestTime(duration);
     furthestTimeRef.current = duration;
     setCompletedCheckpointIds(orderedCheckpoints.map((cp) => cp.id));
+    setEncounteredCheckpointIds(orderedCheckpoints.map((cp) => cp.id));
     setActiveCheckpointId(null);
     setSelectedAnswers({});
     setAttemptSummary(null);
@@ -1187,51 +1235,6 @@ export function LessonVideoPage({
 
   return (
     <div className={styles.page}>
-      <header className={styles.headerBar}>
-        <div className={styles.headerInner}>
-          {/* Left: logo, links back to home */}
-          <Link href="/" className={styles.logoLink}>
-            <Image
-              src="/assets/checked_logo.png"
-              alt="checkd home"
-              className={styles.logoImage}
-              width={219.85} // tweak to match Figma
-              height={61} // tweak to match Figma
-              priority
-            />
-          </Link>
-
-          {/* Center: navigation */}
-          <nav className={styles.headerNav} aria-label="Primary">
-            <Link href="/analytics">My Analytics</Link>
-            <Link href="/badges">Badge Wallet</Link>
-            <Link href="/grades">Grades</Link>
-            <Link href="/settings">Settings</Link>
-          </nav>
-
-          {/* Right: student avatar + name from DB */}
-          <div className={styles.userArea}>
-            <div className={styles.userNameBlock}>
-              <div className={styles.userNameLine1}>{firstName},</div>
-              <div className={styles.userNameLine2}>{lastName}</div>
-            </div>
-            <div className={styles.userAvatar}>
-              {studentAvatarUrl ? (
-                <Image
-                  src={studentAvatarUrl}
-                  alt={`${resolvedStudentName} avatar`}
-                  width={44}
-                  height={44}
-                  className={styles.userAvatarImage}
-                />
-              ) : (
-                <span className={styles.userAvatarInitials}>{initialsFromName(resolvedStudentName)}</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </header>
-
       <div className={styles.content}>
         <aside className={styles.timeline}>
           {timelineItems.map((item) => {
@@ -1387,17 +1390,6 @@ export function LessonVideoPage({
                 </button>
               </div>
             </div>
-
-            {ENABLE_QEV_SKIP && (firstIncompleteCheckpoint || !lessonSurveyCompleted) ? (
-              <div className={styles.qevDemoSkip}>
-                <button type="button" onClick={handleSkipToNextCheckpoint}>
-                  Skip to next checkpoint (demo)
-                </button>
-                <button type="button" onClick={handleUnlockProgressForTesting} disabled={duration <= 0}>
-                  Unlock progress bar (testing)
-                </button>
-              </div>
-            ) : null}
 
             {modalState !== 'none' && modalState !== 'lessonSurvey' ? (
               <div className={styles.overlay}>
@@ -1608,17 +1600,18 @@ export function LessonVideoPage({
               </div>
             ) : null}
           </div>
+
+          {ENABLE_QEV_SKIP ? (
+            <div className={styles.debugControls}>
+              <button type="button" onClick={handleSkipToNextCheckpoint}>
+                Skip to next checkpoint (demo)
+              </button>
+              <button type="button" onClick={handleUnlockProgressForTesting} disabled={duration <= 0}>
+                Unlock progress bar (testing)
+              </button>
+            </div>
+          ) : null}
         </div>
-        {ENABLE_QEV_SKIP ? (
-          <div className={styles.debugControls}>
-            <button type="button" onClick={handleSkipToNextCheckpoint}>
-              Skip to next checkpoint (demo)
-            </button>
-            <button type="button" onClick={handleUnlockProgressForTesting} disabled={duration <= 0}>
-              Unlock progress bar (testing)
-            </button>
-          </div>
-        ) : null}
       </div>
       {effectiveLessonSurvey && modalState === 'lessonSurvey' && (
         <div className={styles.lessonSurveyOverlay}>
@@ -1664,6 +1657,33 @@ export function LessonVideoPage({
           </div>
         </div>
       )}
+      {showLessonQr ? (
+        <div className={styles.overlay}>
+          <div className={styles.qrModal} role="dialog" aria-modal="true">
+            <button type="button" className={styles.qrCloseButton} onClick={() => setShowLessonQr(false)}>
+              &times;
+            </button>
+            <h2 className={styles.modalTitle}>{assessmentBadge?.badgeName ?? 'Badge'} Skill Check</h2>
+            {lessonQrImageSrc ? (
+              <div className={styles.qrCodeFrame}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={lessonQrImageSrc}
+                  alt={`${assessmentBadge?.badgeName ?? 'Badge'} QR code`}
+                  className={styles.qrCodeImage}
+                  width={360}
+                  height={360}
+                />
+              </div>
+            ) : (
+              <p className={styles.modalError}>We could not build the assessment QR code for this lesson.</p>
+            )}
+            <p className={styles.modalDescription}>
+              Have your assessor scan this code to open the assessment for this student and badge.
+            </p>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

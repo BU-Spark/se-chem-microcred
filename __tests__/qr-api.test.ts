@@ -20,9 +20,10 @@ jest.mock('qrcode', () => {
 jest.mock('../lib/prisma', () => {
   const user = { findUnique: jest.fn() };
   const studentBadge = { findUnique: jest.fn() };
+  const course = { findFirst: jest.fn() };
   return {
     __esModule: true,
-    default: { user, studentBadge },
+    default: { user, studentBadge, course },
   };
 });
 
@@ -37,6 +38,7 @@ const mockCurrentUser = currentUser as jest.MockedFunction<typeof currentUser>;
 const mockPrisma = prisma as unknown as {
   user: { findUnique: jest.Mock };
   studentBadge: { findUnique: jest.Mock };
+  course: { findFirst: jest.Mock };
 };
 
 describe('QR API', () => {
@@ -53,7 +55,8 @@ describe('QR API', () => {
       emailAddresses: [{ emailAddress: 'student@example.edu' }],
     } as Awaited<ReturnType<typeof currentUser>>);
     mockPrisma.user.findUnique.mockResolvedValue({ id: studentId });
-    mockPrisma.studentBadge.findUnique.mockResolvedValue({ id: 'student-badge-1' });
+    mockPrisma.studentBadge.findUnique.mockResolvedValue({ id: 'student-badge-1', status: 'READY_FOR_ASSESSMENT' });
+    mockPrisma.course.findFirst.mockResolvedValue({ id: 'course-1' });
   });
 
   it('returns a PNG with content length when user owns the badge', async () => {
@@ -64,6 +67,28 @@ describe('QR API', () => {
     const buf = Buffer.from(await res.arrayBuffer());
     expect(buf.byteLength).toBeGreaterThan(0);
     expect(res.headers.get('content-length')).toBe(String(buf.byteLength));
+  });
+
+  it('allows QR generation for an internal assessment resolver URL', async () => {
+    const assessmentUrl = `http://localhost/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`;
+    const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(assessmentUrl)}&size=180`)));
+
+    expect(res.status).toBe(200);
+    expect(mockPrisma.course.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: 'course-1',
+        }),
+      })
+    );
+  });
+
+  it('rejects assessment QR generation when the badge is not ready for assessment', async () => {
+    mockPrisma.studentBadge.findUnique.mockResolvedValue({ id: 'student-badge-1', status: 'LEARNING' });
+    const assessmentUrl = `http://localhost/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`;
+    const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(assessmentUrl)}`)));
+
+    expect(res.status).toBe(409);
   });
 
   it('handles HEAD requests with correct headers', async () => {

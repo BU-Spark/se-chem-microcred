@@ -1,5 +1,12 @@
 import prisma from '@/lib/prisma';
 
+const SEEDED_DEMO_EMAIL = process.env.SEEDED_DEMO_EMAIL?.trim().toLowerCase() || null;
+const SEEDED_DEMO_COURSE_CODE = 'CHEM101';
+
+function isSeededDemoUser(email?: string | null) {
+  return Boolean(SEEDED_DEMO_EMAIL) && email?.toLowerCase() === SEEDED_DEMO_EMAIL;
+}
+
 export async function fetchUserByEmail(email: string) {
   return prisma.user.findUnique({
     where: { email },
@@ -132,10 +139,23 @@ export async function fetchCreatedCourses(userId: string) {
 }
 
 export async function fetchAssessorCourseEnrollments(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  const includeSeededDemoCourse = isSeededDemoUser(user?.email);
+
   return prisma.enrollment.findMany({
     where: {
       studentId: userId,
       role: { in: ['INSTRUCTOR', 'CHECKER'] },
+      // Pending assessor requests don't grant access yet — only active staff
+      // enrollments surface in the assessor's course list.
+      status: 'ACTIVE',
+      OR: [
+        { course: { createdById: { not: userId } } },
+        ...(includeSeededDemoCourse ? [{ course: { code: SEEDED_DEMO_COURSE_CODE } }] : []),
+      ],
     },
     include: {
       sections: {
@@ -651,9 +671,16 @@ export async function fetchCreatedCourseMemberDetail(userId: string, courseId: s
 }
 
 export async function fetchEnrolledCourses(userId: string) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  const includeSeededDemoCourse = isSeededDemoUser(user?.email);
+
   return prisma.enrollment.findMany({
     where: {
       studentId: userId,
+      OR: [{ role: 'STUDENT' }, ...(includeSeededDemoCourse ? [{ course: { code: SEEDED_DEMO_COURSE_CODE } }] : [])],
     },
     include: {
       course: {

@@ -1,15 +1,18 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /*
  * Additive seed: upserts a single user without wiping anything.
- * Safe to run against the shared DB. Run with: node prisma/seed-user.js
+ * Safe to run against the shared DB. Run with: npm run db:seed-user
  */
+// DATABASE_URL lives in .env.local (Next.js convention); load it so `node` runs
+// pick it up — the Prisma CLI only auto-loads .env, not .env.local.
+require('dotenv').config({ path: '.env.local' });
 const { PrismaClient, AvatarBase, AvatarFace, AvatarAccessory } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
 // Edit these to seed a different person.
-const EMAIL = 'kzingade@bu.edu';
-const NAME = 'Kush Zingade';
+const EMAIL = 'jacksoncg730@gmail.com';
+const NAME = 'Jackson Gilstrap';
 
 async function main() {
   const user = await prisma.user.upsert({

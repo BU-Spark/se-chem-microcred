@@ -70,6 +70,7 @@ describe('Created course detail page', () => {
         viewerRole: 'INSTRUCTOR',
         course: {
           id: 'course-1',
+          code: 'CHEM101',
           title: 'Chemistry 101',
           description: 'Introduction to safe lab practices.',
           sectionCount: 5,
@@ -208,6 +209,7 @@ describe('Created course detail page', () => {
     expect(screen.getByText('Course Info')).toBeInTheDocument();
     expect(screen.getByText('Number of Sections: 5')).toBeInTheDocument();
     expect(screen.getByText('Number of Students Enrolled: 2')).toBeInTheDocument();
+    expect(screen.getByText('CHEM101')).toBeInTheDocument();
     expect(screen.getByText('One, Checker')).toBeInTheDocument();
     expect(screen.getByText('Two, Checker')).toBeInTheDocument();
     expect(screen.getByText('Assigned Badges')).toBeInTheDocument();
@@ -244,6 +246,7 @@ describe('Created course detail page', () => {
         viewerRole: 'STUDENT',
         course: {
           id: 'course-1',
+          code: 'CHEM101',
           title: 'Chemistry 101',
           description: null,
           sectionCount: 1,
@@ -291,6 +294,7 @@ describe('Created course detail page', () => {
         viewerRole: 'INSTRUCTOR',
         course: {
           id: 'course-1',
+          code: 'CHEM101',
           title: 'Chemistry 101',
           description: null,
           sectionCount: 1,
@@ -350,6 +354,7 @@ describe('Created course detail page', () => {
       viewerRole: 'INSTRUCTOR',
       course: {
         id: 'course-1',
+        code: 'CHEM101',
         title: 'Chemistry 101',
         description: 'Introduction to safe lab practices.',
         sectionCount: 2,

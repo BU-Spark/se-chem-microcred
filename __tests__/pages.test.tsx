@@ -234,6 +234,7 @@ function createStudentData(): StudentData {
           percentComplete: 0,
           segments: [],
           checkpoints: [],
+          badgeRequirements: [],
           skills: [],
           lastGradePercent: null,
           lastGradePassed: null,
@@ -259,6 +260,7 @@ function createStudentData(): StudentData {
           percentComplete: 50,
           segments: [],
           checkpoints: [],
+          badgeRequirements: [],
           skills: [],
           lastGradePercent: null,
           lastGradePassed: null,
@@ -360,6 +362,22 @@ describe('Home page', () => {
     expect(screen.getByText(/Finish your survey/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Submit/i })).toBeInTheDocument();
   });
+
+  it('shows an assessment access modal from QR redirects and clears the query on close', async () => {
+    mockSearchParams = new URLSearchParams({
+      assessmentAccess: 'denied',
+      assessmentMessage: 'You do not have permission to assess this badge.',
+    });
+
+    render(<HomePage />);
+
+    expect(await screen.findByText(/Assessment unavailable/i)).toBeInTheDocument();
+    expect(screen.getByText(/You do not have permission to assess this badge/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to home/i }));
+
+    expect(mockReplace).toHaveBeenCalledWith('/', { scroll: false });
+  });
 });
 
 describe('Badge Wallet page', () => {
@@ -382,6 +400,35 @@ describe('Badge Wallet page', () => {
     fireEvent.click(assessmentToggle);
     fireEvent.click(screen.getByRole('button', { name: /^Assessment$/i }));
     expect(screen.getByText(/Show your assessor this QR code/i)).toBeInTheDocument();
+  });
+
+  it('renders not-yet-started badges returned by the student API', () => {
+    const data = createStudentData();
+    data.badges.completed = [];
+    data.badges.readyForAssessment = [];
+    data.badges.readyForFinalization = [];
+    data.badges.learning = [];
+    data.badges.notStarted = [
+      {
+        id: 'b5',
+        slug: 'not-started-badge',
+        name: 'Not Started Badge',
+        description: 'Available but not started',
+        category: 'Safety',
+        status: 'NOT_STARTED',
+        awardedAt: null,
+        score: null,
+        requirements: [],
+      },
+    ];
+
+    mockUseStudentData.mockReturnValue({ data, isLoading: false, error: null, refresh: jest.fn() });
+
+    render(<BadgeWalletPage />);
+
+    expect(screen.getByText(/Not Yet Started/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Not Started/i }));
+    expect(screen.getAllByText(/Start the related lessons/i).length).toBeGreaterThan(0);
   });
 });
 
@@ -493,6 +540,7 @@ describe('Lesson detail page', () => {
             questions: [],
           },
         ],
+        badgeRequirements: [{ badgeId: 'b2', badgeName: 'Assessment Badge', badgeSlug: 'assessment-badge' }],
         skills: [],
         lastGradePercent: null,
         lastGradePassed: null,

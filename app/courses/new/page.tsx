@@ -353,7 +353,7 @@ export default function CourseNewPage() {
       try {
         const result = await handleCreateCourse();
         const savedCourseId = result?.course?.id ?? editingCourseId;
-        router.push(isEditMode && savedCourseId ? `/courses/${savedCourseId}` : '/courses');
+        router.push(savedCourseId ? `/courses/${savedCourseId}` : '/');
       } catch (error) {
         console.error(error);
         setSubmitError(error instanceof Error ? error.message : 'Failed to save course.');

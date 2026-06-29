@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
+import { LessonStatus } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../../lib/prisma';
+import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
 import {
   isAnswerWithinAcceptedRange,
   isAnswerWithinTolerance,
@@ -98,21 +100,41 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Checkpoint not found.' }, { status: 404 });
   }
 
-  const lessonProgress =
-    (await prisma.lessonProgress.findFirst({
-      where: { studentId: user.id, lessonId: checkpoint.lessonId },
-    })) ?? null;
-
   const normalizedQuestions = checkpoint.questions.map((question) => normalizeCheckpointQuestion(question));
   const evaluation = evaluateAttempt(payload.answers, normalizedQuestions);
   const isPassing = normalizedQuestions.length === 0 || evaluation.every((entry) => entry.isCorrect === true);
 
   const attempt = await prisma.$transaction(async (tx) => {
+    const existingLessonProgress = await tx.lessonProgress.findUnique({
+      where: {
+        studentId_lessonId: {
+          studentId: user.id,
+          lessonId: checkpoint.lessonId,
+        },
+      },
+    });
+
+    const lessonProgress =
+      existingLessonProgress?.status === LessonStatus.COMPLETED
+        ? existingLessonProgress
+        : existingLessonProgress
+          ? await tx.lessonProgress.update({
+              where: { id: existingLessonProgress.id },
+              data: { status: LessonStatus.IN_PROGRESS },
+            })
+          : await tx.lessonProgress.create({
+              data: {
+                studentId: user.id,
+                lessonId: checkpoint.lessonId,
+                status: LessonStatus.IN_PROGRESS,
+              },
+            });
+
     const created = await tx.checkpointAttempt.create({
       data: {
         checkpointId,
         userId: user.id,
-        lessonProgressId: lessonProgress?.id ?? null,
+        lessonProgressId: lessonProgress.id,
         isPassing,
         completedAt: new Date(),
         responses: {
@@ -120,7 +142,7 @@ export async function POST(request: Request, context: RouteContext) {
             checkpointId,
             questionId: entry.questionId,
             studentId: user.id,
-            lessonProgressId: lessonProgress?.id ?? null,
+            lessonProgressId: lessonProgress.id,
             selectedIndex: entry.selectedIndex,
             isCorrect: entry.isCorrect,
           })),
@@ -131,7 +153,7 @@ export async function POST(request: Request, context: RouteContext) {
       },
     });
 
-    if (isPassing && checkpoint.segmentId && lessonProgress) {
+    if (isPassing && checkpoint.segmentId) {
       await tx.segmentProgress.upsert({
         where: {
           lessonProgressId_segmentId: {
@@ -151,6 +173,8 @@ export async function POST(request: Request, context: RouteContext) {
         },
       });
     }
+
+    await syncLessonBadgesForStudent(tx, { studentId: user.id, lessonId: checkpoint.lessonId });
 
     return created;
   });
