@@ -568,12 +568,36 @@
 
 .timelineList,
 .checkpointEditorList,
+.questionEditorList,
 .optionList,
 .reviewList,
 .numberedRubricList,
 .gradingOptionsList {
   display: grid;
   gap: 14px;
+}
+
+.questionEditorCard {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #d9e2ea;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.questionEditorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.questionEditorHeader h3 {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 16px;
+  color: #000000;
 }
 
 .timelineList {

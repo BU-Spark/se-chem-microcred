@@ -1,5 +1,5 @@
 import { DEFAULT_DRAFT } from '../types';
-import type { BadgeCatalogItem, BadgeDraft, CheckpointDraft } from '../types';
+import type { BadgeCatalogItem, BadgeDraft, CheckpointDraft, CheckpointQuestionDraft } from '../types';
 
 export function extractYouTubeId(url?: string | null) {
   if (!url) return null;
@@ -130,35 +130,61 @@ export function formatDurationInput(seconds?: number | null, fallbackMinutes?: n
   return [hours, minutes, remainingSeconds].map((part) => String(part).padStart(2, '0')).join(':');
 }
 
-export function checkpointFromCatalog(
-  checkpoint: (Partial<CheckpointDraft> & { number?: number; correctIndex?: number | null }) | undefined,
+type CatalogCheckpoint = Partial<CheckpointDraft> & {
+  number?: number;
+  correctIndex?: number | null;
+  questions?: Array<Partial<CheckpointQuestionDraft> & { prompt?: string | null; correctIndex?: number | null }>;
+};
+
+function normalizeChoicePlaceholders(options?: string[] | null) {
+  const base = options?.length ? options.slice(0, 4) : ['', ''];
+  while (base.length < 2) base.push('');
+  return base;
+}
+
+function questionFromCatalog(
+  question: (Partial<CheckpointQuestionDraft> & { prompt?: string | null; correctIndex?: number | null }) | undefined,
   index: number
-): CheckpointDraft {
-  const title = checkpoint?.title || `Checkpoint ${index + 1}`;
-  const options = checkpoint?.options?.length ? checkpoint.options : ['', '', '', ''];
+): CheckpointQuestionDraft {
+  const options = normalizeChoicePlaceholders(question?.options);
   const correctIndices =
-    checkpoint?.correctIndices?.length &&
-    checkpoint.correctIndices.every((optionIndex) => typeof optionIndex === 'number')
-      ? checkpoint.correctIndices
-      : typeof checkpoint?.correctIndex === 'number'
-        ? [checkpoint.correctIndex]
+    question?.correctIndices?.length && question.correctIndices.every((optionIndex) => typeof optionIndex === 'number')
+      ? question.correctIndices.filter((optionIndex) => optionIndex >= 0 && optionIndex < options.length)
+      : typeof question?.correctIndex === 'number' &&
+          question.correctIndex >= 0 &&
+          question.correctIndex < options.length
+        ? [question.correctIndex]
         : [0];
 
   return {
+    id: question?.id || `question-${index + 1}`,
+    question: question?.question || question?.prompt || '',
+    questionType: question?.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice',
+    options,
+    correctIndices: correctIndices.length ? correctIndices : [0],
+    numericAnswer: question?.numericAnswer ? String(question.numericAnswer) : '',
+    numericRangeMin: question?.numericRangeMin ? String(question.numericRangeMin) : '',
+    numericRangeMax: question?.numericRangeMax ? String(question.numericRangeMax) : '',
+    unit: question?.unit ? String(question.unit) : '',
+    incorrectFeedback: question?.incorrectFeedback ? String(question.incorrectFeedback) : '',
+    incorrectFeedbackEnabled: Boolean(question?.incorrectFeedback) || Boolean(question?.incorrectFeedbackEnabled),
+  };
+}
+
+export function checkpointFromCatalog(checkpoint: CatalogCheckpoint | undefined, index: number): CheckpointDraft {
+  const title = checkpoint?.title || `Checkpoint ${index + 1}`;
+  const questions = checkpoint?.questions?.length
+    ? checkpoint.questions.map((question, questionIndex) => questionFromCatalog(question, questionIndex))
+    : [questionFromCatalog(checkpoint, 0)];
+  const firstQuestion = questions[0];
+
+  return {
+    ...firstQuestion,
     id: `checkpoint-${index + 1}`,
     title,
     time: checkpoint?.time || '00:00:00',
     points: Number(checkpoint?.points) || 5,
-    question: checkpoint?.question || '',
-    questionType: checkpoint?.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice',
-    options: [...options, '', '', '', ''].slice(0, Math.max(4, options.length)),
-    correctIndices,
-    numericAnswer: checkpoint?.numericAnswer ? String(checkpoint.numericAnswer) : '',
-    numericRangeMin: checkpoint?.numericRangeMin ? String(checkpoint.numericRangeMin) : '',
-    numericRangeMax: checkpoint?.numericRangeMax ? String(checkpoint.numericRangeMax) : '',
-    unit: checkpoint?.unit ? String(checkpoint.unit) : '',
-    incorrectFeedback: checkpoint?.incorrectFeedback ? String(checkpoint.incorrectFeedback) : '',
-    incorrectFeedbackEnabled: Boolean(checkpoint?.incorrectFeedback) || Boolean(checkpoint?.incorrectFeedbackEnabled),
+    questions,
     segmentLabel: checkpoint?.segmentLabel || `Segment ${index + 1} Starts ${checkpoint?.time || '00:00:00'}`,
   };
 }

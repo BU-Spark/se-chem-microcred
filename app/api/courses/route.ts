@@ -121,6 +121,10 @@ export async function POST(req: NextRequest) {
       return badRequest('Course title is required.');
     }
 
+    if (!Number.isInteger(sectionCount) || sectionCount < 1) {
+      return badRequest('Course must have at least 1 section.');
+    }
+
     const contacts = (body.contacts ?? []).map((contact) => ({
       type: contact.type,
       name: normalizeString(contact.name),

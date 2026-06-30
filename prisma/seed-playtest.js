@@ -44,7 +44,7 @@ const prisma = new PrismaClient();
 // be the instructor under an existing Clerk account.
 // ---------------------------------------------------------------------------
 const COURSE_CODE = 'CHEM101';
-const ASSESSOR_CODE = 'CHEM101';
+const ASSESSOR_CODE = 'CHECK101';
 const COURSE_SECTION = 'K1';
 const LEGACY_PLAYTEST_CODE = 'PLAYTEST';
 const LEGACY_SLUG_PREFIX = 'pt-';

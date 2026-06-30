@@ -7,11 +7,8 @@ export type StepDefinition = {
   label: string;
 };
 
-export type CheckpointDraft = {
+export type CheckpointQuestionDraft = {
   id: string;
-  title: string;
-  time: string;
-  points: number;
   question: string;
   questionType: 'multipleChoice' | 'shortAnswer';
   options: string[];
@@ -24,7 +21,14 @@ export type CheckpointDraft = {
   // Optional feedback shown when a learner answers incorrectly.
   incorrectFeedback: string;
   incorrectFeedbackEnabled: boolean;
+};
+
+export type CheckpointDraft = CheckpointQuestionDraft & {
+  title: string;
+  time: string;
+  points: number;
   segmentLabel: string;
+  questions: CheckpointQuestionDraft[];
 };
 
 export type RubricCriterion = {
@@ -80,7 +84,13 @@ export type BadgeCatalogItem = {
       options: string[];
       optionFeedback?: string[];
     }>;
-    checkpoints?: Array<Partial<CheckpointDraft> & { number?: number; correctIndex?: number | null }>;
+    checkpoints?: Array<
+      Partial<CheckpointDraft> & {
+        number?: number;
+        correctIndex?: number | null;
+        questions?: Array<Partial<CheckpointQuestionDraft> & { prompt?: string | null; correctIndex?: number | null }>;
+      }
+    >;
     // Video stored in the requirement summary JSON (source badges have no lesson).
     youtubeUrl?: string | null;
     videoTitle?: string | null;

@@ -157,6 +157,18 @@ describe('badge creation API', () => {
           question: 'What should you check first?',
           options: ['Gas off', 'Gas on'],
           correctIndices: [0, 1],
+          questions: [
+            {
+              question: 'What should you check first?',
+              options: ['Gas off', 'Gas on'],
+              correctIndices: [0, 1],
+            },
+            {
+              question: 'What color should a steady flame be?',
+              options: ['Orange', 'Blue', 'Yellow'],
+              correctIndices: [1],
+            },
+          ],
           segmentLabel: 'Segment 1 Starts 00:00:00',
         },
         {
@@ -226,8 +238,8 @@ describe('badge creation API', () => {
       data: expect.arrayContaining([
         expect.objectContaining({
           label: 'Checkpoint',
-          meta: '1 question',
-          questionCount: 1,
+          meta: '2 questions',
+          questionCount: 2,
         }),
       ]),
     });
@@ -249,6 +261,17 @@ describe('badge creation API', () => {
             correctIndices: [0, 1],
           },
           correctIndex: 0,
+        }),
+        expect.objectContaining({
+          checkpointId: 'checkpoint-1',
+          sortOrder: 1,
+          prompt: 'What color should a steady flame be?',
+          options: {
+            type: 'multipleChoice',
+            options: ['Orange', 'Blue', 'Yellow'],
+            correctIndices: [1],
+          },
+          correctIndex: 1,
         }),
         expect.objectContaining({
           checkpointId: 'checkpoint-2',

@@ -337,12 +337,24 @@ export default function CourseNewPage() {
     return `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} listed as both a student and an assessor. Each person can have only one role per course — remove the duplicate from one roster to continue.`;
   };
 
+  const hasAtLeastOneSection = () => Number(sections) >= 1;
+
   const goNext = async () => {
+    if (currentStep === 0 && !hasAtLeastOneSection()) {
+      setSubmitError('Course must have at least 1 section.');
+      return;
+    }
+
     if (currentStep === steps.length - 1) {
       // Re-entrancy guard: ignore clicks while a save is already in flight.
       if (isSubmittingRef.current) return;
 
       setSubmitError('');
+
+      if (!hasAtLeastOneSection()) {
+        setSubmitError('Course must have at least 1 section.');
+        return;
+      }
 
       const rosterConflict = findRosterRoleConflict();
       if (rosterConflict) {

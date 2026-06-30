@@ -97,7 +97,7 @@ describe('Badge creation page', () => {
     // Checkpoints are authored in a per-checkpoint modal opened from the rail
     // node or auto-opened when a new checkpoint is added via the video "+".
     fireEvent.click(screen.getByRole('button', { name: 'Add a checkpoint at the current time' }));
-    fireEvent.change(screen.getByLabelText('Question prompt'), {
+    fireEvent.change(screen.getByLabelText('Question 1 prompt'), {
       target: { value: 'What should you check first?' },
     });
     fireEvent.change(screen.getByPlaceholderText('Choice 1'), {
@@ -106,23 +106,36 @@ describe('Badge creation page', () => {
     fireEvent.change(screen.getByPlaceholderText('Choice 2'), {
       target: { value: 'Bench is wet' },
     });
-    fireEvent.click(screen.getByLabelText('Choice 2 is correct'));
+    fireEvent.click(screen.getByLabelText('Question 1 choice 2 is correct'));
+    fireEvent.click(screen.getByRole('button', { name: 'Add choice' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add choice' }));
+    expect(screen.getByRole('button', { name: 'Add choice' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Add question' }));
+    fireEvent.change(screen.getByLabelText('Question 2 prompt'), {
+      target: { value: 'What color should the flame be?' },
+    });
+    fireEvent.change(screen.getAllByPlaceholderText('Choice 1')[1], {
+      target: { value: 'Orange' },
+    });
+    fireEvent.change(screen.getAllByPlaceholderText('Choice 2')[1], {
+      target: { value: 'Blue' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Add a checkpoint at the current time' }));
-    fireEvent.change(screen.getByLabelText('Question prompt'), {
+    fireEvent.change(screen.getByLabelText('Question 1 prompt'), {
       target: { value: 'What temperature range is acceptable?' },
     });
-    fireEvent.change(screen.getByLabelText('Checkpoint 2 question type'), {
+    fireEvent.change(screen.getByLabelText('Checkpoint 2 question 1 type'), {
       target: { value: 'shortAnswer' },
     });
-    fireEvent.change(screen.getByLabelText('Checkpoint 2 exact numeric answer'), {
+    fireEvent.change(screen.getByLabelText('Checkpoint 2 question 1 exact numeric answer'), {
       target: { value: '42' },
     });
-    fireEvent.change(screen.getByLabelText('Checkpoint 2 accepted minimum'), {
+    fireEvent.change(screen.getByLabelText('Checkpoint 2 question 1 accepted minimum'), {
       target: { value: '40' },
     });
-    fireEvent.change(screen.getByLabelText('Checkpoint 2 accepted maximum'), {
+    fireEvent.change(screen.getByLabelText('Checkpoint 2 question 1 accepted maximum'), {
       target: { value: '45' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
@@ -184,6 +197,17 @@ describe('Badge creation page', () => {
         correctIndices: [0, 1],
       })
     );
+    expect(body.checkpoints[0].questions).toEqual([
+      expect.objectContaining({
+        question: 'What should you check first?',
+        options: ['Gas valve is off', 'Bench is wet', '', ''],
+        correctIndices: [0, 1],
+      }),
+      expect.objectContaining({
+        question: 'What color should the flame be?',
+        options: ['Orange', 'Blue'],
+      }),
+    ]);
     expect(body.checkpoints[1]).toEqual(
       expect.objectContaining({
         questionType: 'shortAnswer',
@@ -360,12 +384,14 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
 
     fireEvent.click(screen.getByRole('button', { name: /Add checkpoint/i }));
-    fireEvent.change(screen.getByLabelText('Question prompt'), { target: { value: 'What volume?' } });
-    fireEvent.change(screen.getByLabelText('Checkpoint 1 question type'), { target: { value: 'shortAnswer' } });
-    fireEvent.change(screen.getByLabelText('Checkpoint 1 exact numeric answer'), { target: { value: '10' } });
-    fireEvent.change(screen.getByLabelText('Checkpoint 1 unit'), { target: { value: 'mL' } });
-    fireEvent.click(screen.getByLabelText('Checkpoint 1 add incorrect-answer feedback'));
-    fireEvent.change(screen.getByLabelText('Checkpoint 1 incorrect-answer feedback'), {
+    fireEvent.change(screen.getByLabelText('Question 1 prompt'), { target: { value: 'What volume?' } });
+    fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 type'), { target: { value: 'shortAnswer' } });
+    fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 exact numeric answer'), {
+      target: { value: '10' },
+    });
+    fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 unit'), { target: { value: 'mL' } });
+    fireEvent.click(screen.getByLabelText('Checkpoint 1 question 1 add incorrect-answer feedback'));
+    fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 incorrect-answer feedback'), {
       target: { value: 'Re-measure carefully.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));

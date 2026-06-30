@@ -339,4 +339,20 @@ describe('Course new page edit mode', () => {
       ).not.toBeInTheDocument();
     });
   });
+
+  it('requires at least one section before leaving course information', () => {
+    mockSearchParams = new URLSearchParams();
+
+    render(<CourseNewPage />);
+
+    fireEvent.change(screen.getByPlaceholderText('Course Name'), {
+      target: { value: 'Chemistry 101' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(screen.getByText('Course must have at least 1 section.')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Course Name')).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
 });

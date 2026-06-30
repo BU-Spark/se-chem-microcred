@@ -8,10 +8,11 @@ import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
 import { DEFAULT_DRAFT, DRAFT_STORAGE_KEY, STEP_DEFINITIONS } from './types';
-import type { BadgeDraft, BadgesResponse, CheckpointDraft, RubricCriterion } from './types';
+import type { BadgeDraft, BadgesResponse, CheckpointDraft, CheckpointQuestionDraft, RubricCriterion } from './types';
 import {
   badgeToDraft,
   buildVideoThumbnail,
+  checkpointFromCatalog,
   extractYouTubeId,
   formatSecondsToTimecode,
   isValidVideoLength,
@@ -45,6 +46,33 @@ function isLegacyEmptyCheckpointSeed(checkpoint: CheckpointDraft) {
     checkpoint.incorrectFeedbackEnabled === false &&
     checkpoint.segmentLabel === 'Segment 1 Starts 00:00:00'
   );
+}
+
+function makeDefaultCheckpointQuestion(id = `question-${Date.now()}`): CheckpointQuestionDraft {
+  return {
+    id,
+    question: '',
+    questionType: 'multipleChoice',
+    options: ['', ''],
+    correctIndices: [0],
+    numericAnswer: '',
+    numericRangeMin: '',
+    numericRangeMax: '',
+    unit: '',
+    incorrectFeedback: '',
+    incorrectFeedbackEnabled: false,
+  };
+}
+
+function withMirroredFirstQuestion(checkpoint: CheckpointDraft, questions: CheckpointQuestionDraft[]) {
+  const nextQuestions = questions.length ? questions : [makeDefaultCheckpointQuestion()];
+  const firstQuestion = nextQuestions[0];
+  return {
+    ...checkpoint,
+    ...firstQuestion,
+    id: checkpoint.id,
+    questions: nextQuestions,
+  };
 }
 
 export default function BadgeCreationPage() {
@@ -84,10 +112,13 @@ export default function BadgeCreationPage() {
         parsed.checkpoints?.length === 1 && isLegacyEmptyCheckpointSeed(parsed.checkpoints[0])
           ? []
           : parsed.checkpoints;
+      const hydratedCheckpoints = parsedCheckpoints?.map((checkpoint, index) =>
+        checkpoint.questions?.length ? checkpoint : checkpointFromCatalog(checkpoint, index)
+      );
       setDraft((current) => ({
         ...current,
         ...parsed,
-        checkpoints: parsedCheckpoints ?? current.checkpoints,
+        checkpoints: hydratedCheckpoints ?? current.checkpoints,
         reassessmentResources: parsed.reassessmentResources ?? current.reassessmentResources,
         rubricItems: parsed.rubricItems ?? current.rubricItems,
         rubricCriteria: parsed.rubricCriteria ?? current.rubricCriteria,
@@ -193,32 +224,117 @@ export default function BadgeCreationPage() {
     );
   };
 
-  const updateCheckpointOption = (checkpointId: string, optionIndex: number, value: string) => {
+  const updateCheckpointQuestion = <K extends keyof CheckpointQuestionDraft>(
+    checkpointId: string,
+    questionId: string,
+    field: K,
+    value: CheckpointQuestionDraft[K]
+  ) => {
     mutateCheckpoints((checkpoints) =>
       checkpoints.map((checkpoint) => {
         if (checkpoint.id !== checkpointId) return checkpoint;
-        const nextOptions = checkpoint.options.map((option, index) => (index === optionIndex ? value : option));
-        return { ...checkpoint, options: nextOptions };
+        const nextQuestions = checkpoint.questions.map((question) =>
+          question.id === questionId ? { ...question, [field]: value } : question
+        );
+        return withMirroredFirstQuestion(checkpoint, nextQuestions);
       })
     );
   };
 
-  const toggleCheckpointCorrectOption = (checkpointId: string, optionIndex: number) => {
+  const updateCheckpointQuestionOption = (
+    checkpointId: string,
+    questionId: string,
+    optionIndex: number,
+    value: string
+  ) => {
     mutateCheckpoints((checkpoints) =>
       checkpoints.map((checkpoint) => {
         if (checkpoint.id !== checkpointId) return checkpoint;
+        const nextQuestions = checkpoint.questions.map((question) => {
+          if (question.id !== questionId) return question;
+          return {
+            ...question,
+            options: question.options.map((option, index) => (index === optionIndex ? value : option)),
+          };
+        });
+        return withMirroredFirstQuestion(checkpoint, nextQuestions);
+      })
+    );
+  };
 
-        const correctSet = new Set(checkpoint.correctIndices);
-        if (correctSet.has(optionIndex)) {
-          correctSet.delete(optionIndex);
-        } else {
-          correctSet.add(optionIndex);
-        }
+  const toggleCheckpointQuestionCorrectOption = (checkpointId: string, questionId: string, optionIndex: number) => {
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => {
+        if (checkpoint.id !== checkpointId) return checkpoint;
+        const nextQuestions = checkpoint.questions.map((question) => {
+          if (question.id !== questionId) return question;
+          const correctSet = new Set(question.correctIndices);
+          if (correctSet.has(optionIndex)) {
+            correctSet.delete(optionIndex);
+          } else {
+            correctSet.add(optionIndex);
+          }
+          const correctIndices = Array.from(correctSet).sort((left, right) => left - right);
+          return { ...question, correctIndices: correctIndices.length ? correctIndices : [0] };
+        });
+        return withMirroredFirstQuestion(checkpoint, nextQuestions);
+      })
+    );
+  };
 
-        return {
-          ...checkpoint,
-          correctIndices: Array.from(correctSet).sort((left, right) => left - right),
-        };
+  const addCheckpointQuestion = (checkpointId: string) => {
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) =>
+        checkpoint.id === checkpointId
+          ? withMirroredFirstQuestion(checkpoint, [
+              ...checkpoint.questions,
+              makeDefaultCheckpointQuestion(`question-${Date.now()}`),
+            ])
+          : checkpoint
+      )
+    );
+  };
+
+  const removeCheckpointQuestion = (checkpointId: string, questionId: string) => {
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => {
+        if (checkpoint.id !== checkpointId || checkpoint.questions.length <= 1) return checkpoint;
+        return withMirroredFirstQuestion(
+          checkpoint,
+          checkpoint.questions.filter((question) => question.id !== questionId)
+        );
+      })
+    );
+  };
+
+  const addCheckpointQuestionOption = (checkpointId: string, questionId: string) => {
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => {
+        if (checkpoint.id !== checkpointId) return checkpoint;
+        const nextQuestions = checkpoint.questions.map((question) =>
+          question.id === questionId && question.options.length < 4
+            ? { ...question, options: [...question.options, ''] }
+            : question
+        );
+        return withMirroredFirstQuestion(checkpoint, nextQuestions);
+      })
+    );
+  };
+
+  const removeCheckpointQuestionOption = (checkpointId: string, questionId: string, optionIndex: number) => {
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => {
+        if (checkpoint.id !== checkpointId) return checkpoint;
+        const nextQuestions = checkpoint.questions.map((question) => {
+          if (question.id !== questionId || question.options.length <= 2) return question;
+          const options = question.options.filter((_, index) => index !== optionIndex);
+          const correctIndices = question.correctIndices
+            .filter((index) => index !== optionIndex)
+            .map((index) => (index > optionIndex ? index - 1 : index))
+            .filter((index) => index >= 0 && index < options.length);
+          return { ...question, options, correctIndices: correctIndices.length ? correctIndices : [0] };
+        });
+        return withMirroredFirstQuestion(checkpoint, nextQuestions);
       })
     );
   };
@@ -235,20 +351,12 @@ export default function BadgeCreationPage() {
         checkpoints: [
           ...current.checkpoints,
           {
+            ...makeDefaultCheckpointQuestion('question-1'),
             id,
             title: `Checkpoint ${nextCount}`,
             time,
             points: 5,
-            question: '',
-            questionType: 'multipleChoice',
-            options: ['', '', '', ''],
-            correctIndices: [0],
-            numericAnswer: '',
-            numericRangeMin: '',
-            numericRangeMax: '',
-            unit: '',
-            incorrectFeedback: '',
-            incorrectFeedbackEnabled: false,
+            questions: [makeDefaultCheckpointQuestion('question-1')],
             segmentLabel: `Segment ${nextCount} Starts ${time}`,
           },
         ],
@@ -503,8 +611,13 @@ export default function BadgeCreationPage() {
                 addCheckpoint={addCheckpoint}
                 removeCheckpoint={removeCheckpoint}
                 updateCheckpoint={updateCheckpoint}
-                updateCheckpointOption={updateCheckpointOption}
-                toggleCheckpointCorrectOption={toggleCheckpointCorrectOption}
+                updateCheckpointQuestion={updateCheckpointQuestion}
+                updateCheckpointQuestionOption={updateCheckpointQuestionOption}
+                toggleCheckpointQuestionCorrectOption={toggleCheckpointQuestionCorrectOption}
+                addCheckpointQuestion={addCheckpointQuestion}
+                removeCheckpointQuestion={removeCheckpointQuestion}
+                addCheckpointQuestionOption={addCheckpointQuestionOption}
+                removeCheckpointQuestionOption={removeCheckpointQuestionOption}
               />
             )}
 

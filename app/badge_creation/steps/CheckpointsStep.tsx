@@ -6,7 +6,7 @@ import QuestionModal from '../components/QuestionModal';
 import VideoCheckpointPlayer from '../components/VideoCheckpointPlayer';
 import { parseTimecodeToSeconds } from '../lib/badge-helpers';
 import styles from '../page.module.css';
-import type { BadgeDraft, CheckpointDraft } from '../types';
+import type { BadgeDraft, CheckpointDraft, CheckpointQuestionDraft } from '../types';
 
 export default function CheckpointsStep({
   draft,
@@ -15,8 +15,13 @@ export default function CheckpointsStep({
   addCheckpoint,
   removeCheckpoint,
   updateCheckpoint,
-  updateCheckpointOption,
-  toggleCheckpointCorrectOption,
+  updateCheckpointQuestion,
+  updateCheckpointQuestionOption,
+  toggleCheckpointQuestionCorrectOption,
+  addCheckpointQuestion,
+  removeCheckpointQuestion,
+  addCheckpointQuestionOption,
+  removeCheckpointQuestionOption,
 }: {
   draft: BadgeDraft;
   videoId: string | null;
@@ -28,8 +33,23 @@ export default function CheckpointsStep({
     field: K,
     value: CheckpointDraft[K]
   ) => void;
-  updateCheckpointOption: (checkpointId: string, optionIndex: number, value: string) => void;
-  toggleCheckpointCorrectOption: (checkpointId: string, optionIndex: number) => void;
+  updateCheckpointQuestion: <K extends keyof CheckpointQuestionDraft>(
+    checkpointId: string,
+    questionId: string,
+    field: K,
+    value: CheckpointQuestionDraft[K]
+  ) => void;
+  updateCheckpointQuestionOption: (
+    checkpointId: string,
+    questionId: string,
+    optionIndex: number,
+    value: string
+  ) => void;
+  toggleCheckpointQuestionCorrectOption: (checkpointId: string, questionId: string, optionIndex: number) => void;
+  addCheckpointQuestion: (checkpointId: string) => void;
+  removeCheckpointQuestion: (checkpointId: string, questionId: string) => void;
+  addCheckpointQuestionOption: (checkpointId: string, questionId: string) => void;
+  removeCheckpointQuestionOption: (checkpointId: string, questionId: string, optionIndex: number) => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -121,125 +141,217 @@ export default function CheckpointsStep({
               </label>
             </div>
 
-            <label className={styles.fieldStack}>
-              <span>Question prompt</span>
-              <textarea
-                className={styles.textAreaCompact}
-                value={selectedCheckpoint.question}
-                onChange={(event) => updateCheckpoint(selectedCheckpoint.id, 'question', event.target.value)}
-              />
-            </label>
+            <div className={styles.questionEditorList}>
+              {selectedCheckpoint.questions.map((question, questionIndex) => (
+                <section key={question.id} className={styles.questionEditorCard}>
+                  <div className={styles.questionEditorHeader}>
+                    <h3>Question {questionIndex + 1}</h3>
+                    {selectedCheckpoint.questions.length > 1 && (
+                      <button
+                        type="button"
+                        className={styles.removeTextButton}
+                        onClick={() => removeCheckpointQuestion(selectedCheckpoint.id, question.id)}
+                      >
+                        Remove question
+                      </button>
+                    )}
+                  </div>
 
-            <label className={styles.fieldStack}>
-              <span>Question type</span>
-              <select
-                aria-label={`${selectedCheckpoint.title} question type`}
-                className={styles.selectField}
-                value={selectedCheckpoint.questionType}
-                onChange={(event) =>
-                  updateCheckpoint(
-                    selectedCheckpoint.id,
-                    'questionType',
-                    event.target.value as CheckpointDraft['questionType']
-                  )
-                }
-              >
-                <option value="multipleChoice">Multiple choice</option>
-                <option value="shortAnswer">Short answer number</option>
-              </select>
-            </label>
-
-            {selectedCheckpoint.questionType === 'multipleChoice' ? (
-              <div className={styles.optionList}>
-                {selectedCheckpoint.options.map((option, optionIndex) => (
-                  <label key={`${selectedCheckpoint.id}-option-${optionIndex}`} className={styles.optionRow}>
-                    <input
-                      type="checkbox"
-                      checked={selectedCheckpoint.correctIndices.includes(optionIndex)}
-                      onChange={() => toggleCheckpointCorrectOption(selectedCheckpoint.id, optionIndex)}
-                      aria-label={`Choice ${optionIndex + 1} is correct`}
-                    />
-                    <input
-                      className={styles.textField}
-                      value={option}
-                      placeholder={`Choice ${optionIndex + 1}`}
+                  <label className={styles.fieldStack}>
+                    <span>Question prompt</span>
+                    <textarea
+                      aria-label={`Question ${questionIndex + 1} prompt`}
+                      className={styles.textAreaCompact}
+                      value={question.question}
                       onChange={(event) =>
-                        updateCheckpointOption(selectedCheckpoint.id, optionIndex, event.target.value)
+                        updateCheckpointQuestion(selectedCheckpoint.id, question.id, 'question', event.target.value)
                       }
                     />
                   </label>
-                ))}
-              </div>
-            ) : (
-              <div className={styles.shortAnswerGrid}>
-                <label className={styles.fieldStack}>
-                  <span>Exact numeric answer</span>
-                  <input
-                    aria-label={`${selectedCheckpoint.title} exact numeric answer`}
-                    className={styles.textField}
-                    value={selectedCheckpoint.numericAnswer}
-                    inputMode="decimal"
-                    placeholder="42"
-                    onChange={(event) => updateCheckpoint(selectedCheckpoint.id, 'numericAnswer', event.target.value)}
-                  />
-                </label>
-                <label className={styles.fieldStack}>
-                  <span>Accepted minimum</span>
-                  <input
-                    aria-label={`${selectedCheckpoint.title} accepted minimum`}
-                    className={styles.textField}
-                    value={selectedCheckpoint.numericRangeMin}
-                    inputMode="decimal"
-                    placeholder="40"
-                    onChange={(event) => updateCheckpoint(selectedCheckpoint.id, 'numericRangeMin', event.target.value)}
-                  />
-                </label>
-                <label className={styles.fieldStack}>
-                  <span>Accepted maximum</span>
-                  <input
-                    aria-label={`${selectedCheckpoint.title} accepted maximum`}
-                    className={styles.textField}
-                    value={selectedCheckpoint.numericRangeMax}
-                    inputMode="decimal"
-                    placeholder="45"
-                    onChange={(event) => updateCheckpoint(selectedCheckpoint.id, 'numericRangeMax', event.target.value)}
-                  />
-                </label>
-                <label className={styles.fieldStack}>
-                  <span>Units set to</span>
-                  <input
-                    aria-label={`${selectedCheckpoint.title} unit`}
-                    className={styles.textField}
-                    value={selectedCheckpoint.unit}
-                    placeholder="e.g. °C (leave blank for none)"
-                    onChange={(event) => updateCheckpoint(selectedCheckpoint.id, 'unit', event.target.value)}
-                  />
-                </label>
-              </div>
-            )}
 
-            <div className={styles.feedbackBlock}>
-              <label className={styles.feedbackToggleRow}>
-                <input
-                  type="checkbox"
-                  checked={selectedCheckpoint.incorrectFeedbackEnabled}
-                  aria-label={`${selectedCheckpoint.title} add incorrect-answer feedback`}
-                  onChange={(event) =>
-                    updateCheckpoint(selectedCheckpoint.id, 'incorrectFeedbackEnabled', event.target.checked)
-                  }
-                />
-                <span>Add feedback for incorrect answers</span>
-              </label>
-              {selectedCheckpoint.incorrectFeedbackEnabled && (
-                <textarea
-                  aria-label={`${selectedCheckpoint.title} incorrect-answer feedback`}
-                  className={styles.textAreaCompact}
-                  value={selectedCheckpoint.incorrectFeedback}
-                  placeholder="Shown to learners who answer incorrectly."
-                  onChange={(event) => updateCheckpoint(selectedCheckpoint.id, 'incorrectFeedback', event.target.value)}
-                />
-              )}
+                  <label className={styles.fieldStack}>
+                    <span>Question type</span>
+                    <select
+                      aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} type`}
+                      className={styles.selectField}
+                      value={question.questionType}
+                      onChange={(event) =>
+                        updateCheckpointQuestion(
+                          selectedCheckpoint.id,
+                          question.id,
+                          'questionType',
+                          event.target.value as CheckpointQuestionDraft['questionType']
+                        )
+                      }
+                    >
+                      <option value="multipleChoice">Multiple choice</option>
+                      <option value="shortAnswer">Short answer number</option>
+                    </select>
+                  </label>
+
+                  {question.questionType === 'multipleChoice' ? (
+                    <div className={styles.optionList}>
+                      {question.options.map((option, optionIndex) => (
+                        <div key={`${question.id}-option-${optionIndex}`} className={styles.optionRow}>
+                          <input
+                            type="checkbox"
+                            checked={question.correctIndices.includes(optionIndex)}
+                            onChange={() =>
+                              toggleCheckpointQuestionCorrectOption(selectedCheckpoint.id, question.id, optionIndex)
+                            }
+                            aria-label={`Question ${questionIndex + 1} choice ${optionIndex + 1} is correct`}
+                          />
+                          <input
+                            className={styles.textField}
+                            value={option}
+                            placeholder={`Choice ${optionIndex + 1}`}
+                            onChange={(event) =>
+                              updateCheckpointQuestionOption(
+                                selectedCheckpoint.id,
+                                question.id,
+                                optionIndex,
+                                event.target.value
+                              )
+                            }
+                          />
+                          {question.options.length > 2 && (
+                            <button
+                              type="button"
+                              className={styles.removeTextButton}
+                              onClick={() =>
+                                removeCheckpointQuestionOption(selectedCheckpoint.id, question.id, optionIndex)
+                              }
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={() => addCheckpointQuestionOption(selectedCheckpoint.id, question.id)}
+                        disabled={question.options.length >= 4}
+                      >
+                        Add choice
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={styles.shortAnswerGrid}>
+                      <label className={styles.fieldStack}>
+                        <span>Exact numeric answer</span>
+                        <input
+                          aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} exact numeric answer`}
+                          className={styles.textField}
+                          value={question.numericAnswer}
+                          inputMode="decimal"
+                          placeholder="42"
+                          onChange={(event) =>
+                            updateCheckpointQuestion(
+                              selectedCheckpoint.id,
+                              question.id,
+                              'numericAnswer',
+                              event.target.value
+                            )
+                          }
+                        />
+                      </label>
+                      <label className={styles.fieldStack}>
+                        <span>Accepted minimum</span>
+                        <input
+                          aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} accepted minimum`}
+                          className={styles.textField}
+                          value={question.numericRangeMin}
+                          inputMode="decimal"
+                          placeholder="40"
+                          onChange={(event) =>
+                            updateCheckpointQuestion(
+                              selectedCheckpoint.id,
+                              question.id,
+                              'numericRangeMin',
+                              event.target.value
+                            )
+                          }
+                        />
+                      </label>
+                      <label className={styles.fieldStack}>
+                        <span>Accepted maximum</span>
+                        <input
+                          aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} accepted maximum`}
+                          className={styles.textField}
+                          value={question.numericRangeMax}
+                          inputMode="decimal"
+                          placeholder="45"
+                          onChange={(event) =>
+                            updateCheckpointQuestion(
+                              selectedCheckpoint.id,
+                              question.id,
+                              'numericRangeMax',
+                              event.target.value
+                            )
+                          }
+                        />
+                      </label>
+                      <label className={styles.fieldStack}>
+                        <span>Units set to</span>
+                        <input
+                          aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} unit`}
+                          className={styles.textField}
+                          value={question.unit}
+                          placeholder="e.g. degrees C (leave blank for none)"
+                          onChange={(event) =>
+                            updateCheckpointQuestion(selectedCheckpoint.id, question.id, 'unit', event.target.value)
+                          }
+                        />
+                      </label>
+                    </div>
+                  )}
+
+                  <div className={styles.feedbackBlock}>
+                    <label className={styles.feedbackToggleRow}>
+                      <input
+                        type="checkbox"
+                        checked={question.incorrectFeedbackEnabled}
+                        aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} add incorrect-answer feedback`}
+                        onChange={(event) =>
+                          updateCheckpointQuestion(
+                            selectedCheckpoint.id,
+                            question.id,
+                            'incorrectFeedbackEnabled',
+                            event.target.checked
+                          )
+                        }
+                      />
+                      <span>Add feedback for incorrect answers</span>
+                    </label>
+                    {question.incorrectFeedbackEnabled && (
+                      <textarea
+                        aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} incorrect-answer feedback`}
+                        className={styles.textAreaCompact}
+                        value={question.incorrectFeedback}
+                        placeholder="Shown to learners who answer incorrectly."
+                        onChange={(event) =>
+                          updateCheckpointQuestion(
+                            selectedCheckpoint.id,
+                            question.id,
+                            'incorrectFeedback',
+                            event.target.value
+                          )
+                        }
+                      />
+                    )}
+                  </div>
+                </section>
+              ))}
             </div>
+
+            <button
+              type="button"
+              className={styles.secondaryButton}
+              onClick={() => addCheckpointQuestion(selectedCheckpoint.id)}
+            >
+              Add question
+            </button>
 
             <div className={styles.inlineActions}>
               <button

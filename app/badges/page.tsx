@@ -24,15 +24,15 @@ const SECTION_CONFIG: SectionConfig[] = [
     subtitle: "You've completed these skills!",
   },
   {
+    status: 'finalization',
+    title: 'Ready to be Finalized',
+    subtitle: 'Complete the feedback survey to finalize your badge.',
+  },
+  {
     status: 'assessment',
     title: 'Ready to be Assessed',
     subtitle: "You'll earn these badges after an in-person assessment.",
     collapsedByDefault: true,
-  },
-  {
-    status: 'finalization',
-    title: 'Ready to be Finalized',
-    subtitle: 'Complete the feedback survey to finalize your badge.',
   },
   {
     status: 'learning',
