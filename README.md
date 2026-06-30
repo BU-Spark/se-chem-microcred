@@ -60,7 +60,7 @@ Use the provided Prisma/PostgreSQL connection string; you do **not** need to cre
 
    | Role | Email | Course access |
    |------|-------|---------------|
-   | Instructor | `SEEDED_DEMO_EMAIL`, or `jacksoncg730+clerk_test@gmail.com` if unset | owns CHEM101 |
+   | Instructor | `SEEDED_DEMO_EMAIL`, or `instructor+clerk_test@gmail.com` if unset | owns CHEM101 |
    | Student | `student+clerk_test@bu.edu` | enrolled as student |
    | Assessor | `checker+clerk_test@bu.edu` | enrolled as active assessor |
 
