@@ -243,4 +243,79 @@ describe('badge import API', () => {
       })
     );
   });
+
+  it('imports all checkpoint questions from a source badge summary when no source lesson exists', async () => {
+    mockPrisma.__tx.badge.findFirst.mockResolvedValue({
+      id: 'source-badge-1',
+      sourceBadgeId: null,
+      slug: 'library-badge',
+      name: 'Library Badge',
+      description: 'Created before course assignment',
+      category: 'SAFETY',
+      requirements: [
+        {
+          summary: JSON.stringify({
+            version: 2,
+            badgeName: 'Library Badge',
+            lessonTitle: 'Library Lesson',
+            skills: ['Observe carefully'],
+            checkpoints: [
+              {
+                title: 'Checkpoint 1',
+                time: '00:01:00',
+                questions: [
+                  {
+                    question: 'First question?',
+                    questionType: 'multipleChoice',
+                    options: ['One', 'Two'],
+                    correctIndices: [0],
+                  },
+                  {
+                    question: 'Second question?',
+                    questionType: 'multipleChoice',
+                    options: ['Red', 'Blue'],
+                    correctIndices: [1],
+                  },
+                ],
+              },
+            ],
+          }),
+          lesson: null,
+        },
+      ],
+    });
+
+    const response = await importBadge({ badgeId: 'source-badge-1' });
+
+    expect(response.status).toBe(201);
+    expect(mockPrisma.__tx.lessonCheckpoint.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            meta: '2 questions',
+            questionCount: 2,
+            timeOffsetSeconds: 60,
+          }),
+        ],
+      })
+    );
+    expect(mockPrisma.__tx.checkpointQuestion.createMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            checkpointId: 'checkpoint-copy-1',
+            sortOrder: 0,
+            prompt: 'First question?',
+            correctIndex: 0,
+          }),
+          expect.objectContaining({
+            checkpointId: 'checkpoint-copy-1',
+            sortOrder: 1,
+            prompt: 'Second question?',
+            correctIndex: 1,
+          }),
+        ],
+      })
+    );
+  });
 });

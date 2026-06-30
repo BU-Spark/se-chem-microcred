@@ -168,6 +168,11 @@ function extractYouTubeId(url?: string | null) {
     if (embedIndex >= 0) {
       return parts[embedIndex + 1] ?? null;
     }
+
+    const shortsIndex = parts.indexOf('shorts');
+    if (shortsIndex >= 0) {
+      return parts[shortsIndex + 1] ?? null;
+    }
   } catch {
     return null;
   }
@@ -808,6 +813,67 @@ export async function PATCH(req: NextRequest) {
                 thumbnailUrl: thumbnailUrl ?? undefined,
               },
             });
+          }
+
+          if (checkpoints.length > 0) {
+            for (const lessonId of lessonIds) {
+              const firstSegmentId = firstSegmentIdByLesson.get(lessonId) ?? null;
+
+              for (const [checkpointIndex, checkpoint] of checkpoints.entries()) {
+                const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
+                const questions = normalizeCheckpointQuestions(checkpoint);
+                const lessonCheckpoint = await tx.lessonCheckpoint.upsert({
+                  where: {
+                    lessonId_sortOrder: {
+                      lessonId,
+                      sortOrder: checkpointIndex,
+                    },
+                  },
+                  create: {
+                    lessonId,
+                    segmentId: firstSegmentId,
+                    sortOrder: checkpointIndex,
+                    title,
+                    label: 'Checkpoint',
+                    meta: formatQuestionCount(questions.length),
+                    questionCount: questions.length,
+                    timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
+                  },
+                  update: {
+                    segmentId: firstSegmentId,
+                    title,
+                    label: 'Checkpoint',
+                    meta: formatQuestionCount(questions.length),
+                    questionCount: questions.length,
+                    timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
+                  },
+                  select: { id: true },
+                });
+
+                for (const question of questions) {
+                  await tx.checkpointQuestion.upsert({
+                    where: {
+                      checkpointId_sortOrder: {
+                        checkpointId: lessonCheckpoint.id,
+                        sortOrder: question.sortOrder,
+                      },
+                    },
+                    create: {
+                      checkpointId: lessonCheckpoint.id,
+                      sortOrder: question.sortOrder,
+                      prompt: question.prompt!,
+                      options: question.questionOptions.options,
+                      correctIndex: question.questionOptions.correctIndex,
+                    },
+                    update: {
+                      prompt: question.prompt!,
+                      options: question.questionOptions.options,
+                      correctIndex: question.questionOptions.correctIndex,
+                    },
+                  });
+                }
+              }
+            }
           }
         }
       }
