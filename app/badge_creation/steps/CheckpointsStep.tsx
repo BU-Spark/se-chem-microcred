@@ -246,7 +246,6 @@ export default function CheckpointsStep({
                 type="button"
                 className={styles.removeTextButton}
                 onClick={() => handleRemove(selectedCheckpoint.id)}
-                disabled={draft.checkpoints.length <= 1}
               >
                 Remove checkpoint
               </button>

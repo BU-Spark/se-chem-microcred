@@ -10,11 +10,18 @@ jest.mock('@clerk/nextjs/server', () => ({
 const mockTx = {
   course: { findFirst: jest.fn() },
   badge: { create: jest.fn(), update: jest.fn(), updateMany: jest.fn(), findMany: jest.fn() },
-  lesson: { create: jest.fn() },
-  lessonSegment: { create: jest.fn() },
+  lesson: { create: jest.fn(), updateMany: jest.fn() },
+  lessonSkill: { createMany: jest.fn(), deleteMany: jest.fn() },
+  lessonSegment: { create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
   lessonCheckpoint: { createMany: jest.fn(), findMany: jest.fn() },
   checkpointQuestion: { createMany: jest.fn() },
-  badgeRequirement: { create: jest.fn(), findFirst: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
+  badgeRequirement: {
+    create: jest.fn(),
+    findFirst: jest.fn(),
+    findMany: jest.fn(),
+    update: jest.fn(),
+    updateMany: jest.fn(),
+  },
   surveyPrompt: { create: jest.fn() },
   studentBadge: { createMany: jest.fn() },
 };
@@ -90,7 +97,10 @@ describe('badge creation API', () => {
       slug: 'bunsen-burner-abc12345-lesson',
       title: 'Burner lesson',
     });
+    mockPrisma.__tx.lessonSkill.createMany.mockResolvedValue({ count: 2 });
+    mockPrisma.__tx.lessonSkill.deleteMany.mockResolvedValue({ count: 0 });
     mockPrisma.__tx.lessonSegment.create.mockResolvedValue({ id: 'segment-1' });
+    mockPrisma.__tx.lessonSegment.findMany.mockResolvedValue([]);
     mockPrisma.__tx.lessonCheckpoint.createMany.mockResolvedValue({ count: 2 });
     mockPrisma.__tx.lessonCheckpoint.findMany.mockResolvedValue([
       { id: 'checkpoint-1', sortOrder: 0 },
@@ -109,6 +119,7 @@ describe('badge creation API', () => {
       id: 'requirement-1',
       lesson: { title: 'Existing lesson' },
     });
+    mockPrisma.__tx.badgeRequirement.findMany.mockResolvedValue([{ lessonId: 'lesson-1' }]);
     mockPrisma.__tx.badge.findMany.mockResolvedValue([]);
   });
 
@@ -137,6 +148,7 @@ describe('badge creation API', () => {
       youtubeUrl: 'https://www.youtube.com/watch?v=abc123',
       videoTitle: 'Burner lesson',
       videoLength: '00:20:00',
+      skills: ['Inspect setup', 'Control flame'],
       checkpoints: [
         {
           title: 'Checkpoint 1',
@@ -190,6 +202,35 @@ describe('badge creation API', () => {
       })
     );
     expect(mockPrisma.__tx.lessonCheckpoint.createMany).toHaveBeenCalledTimes(1);
+    expect(mockPrisma.__tx.lesson.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          title: 'Bunsen Burner',
+        }),
+      })
+    );
+    expect(mockPrisma.__tx.lessonSegment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          title: 'Burner lesson',
+        }),
+      })
+    );
+    expect(mockPrisma.__tx.lessonSkill.createMany).toHaveBeenCalledWith({
+      data: [
+        { lessonId: 'lesson-1', sortOrder: 0, text: 'Inspect setup' },
+        { lessonId: 'lesson-1', sortOrder: 1, text: 'Control flame' },
+      ],
+    });
+    expect(mockPrisma.__tx.lessonCheckpoint.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          label: 'Checkpoint',
+          meta: '1 question',
+          questionCount: 1,
+        }),
+      ]),
+    });
     expect(mockPrisma.__tx.checkpointQuestion.createMany).toHaveBeenCalledTimes(1);
     const questionData = mockPrisma.__tx.checkpointQuestion.createMany.mock.calls[0][0].data as Array<{
       checkpointId: string;
@@ -348,6 +389,7 @@ describe('badge creation API', () => {
       badgeName: 'Updated Badge',
       badgeDescription: 'Updated description',
       category: 'SAFETY',
+      skills: ['Updated skill'],
       rubricItems: [{ text: 'First rubric item' }, { text: 'Second rubric item' }],
       checkpoints: [
         {
@@ -381,10 +423,24 @@ describe('badge creation API', () => {
 
     const updateCall = mockPrisma.__tx.badgeRequirement.update.mock.calls[0][0];
     const storedSummary = JSON.parse(updateCall.data.summary);
+    expect(storedSummary.lessonTitle).toBe('Updated Badge');
     expect(storedSummary.rubricItems).toEqual([
       { number: 1, text: 'First rubric item' },
       { number: 2, text: 'Second rubric item' },
     ]);
     expect(storedSummary.checkpoints).toEqual([]);
+    expect(mockPrisma.__tx.lesson.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          title: 'Updated Badge',
+        }),
+      })
+    );
+    expect(mockPrisma.__tx.lessonSkill.deleteMany).toHaveBeenCalledWith({
+      where: { lessonId: { in: ['lesson-1'] } },
+    });
+    expect(mockPrisma.__tx.lessonSkill.createMany).toHaveBeenCalledWith({
+      data: [{ lessonId: 'lesson-1', sortOrder: 0, text: 'Updated skill' }],
+    });
   });
 });

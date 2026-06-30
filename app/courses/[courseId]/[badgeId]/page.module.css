@@ -35,10 +35,14 @@
 .backLink,
 .inlineLink {
   width: fit-content;
+  border: none;
+  padding: 0;
+  background: transparent;
   color: #2e6aa9;
   font-family: 'Lato', sans-serif;
   font-weight: 700;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .statusBlock {

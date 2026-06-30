@@ -203,11 +203,15 @@
 }
 
 .backLink {
+  border: none;
+  padding: 0;
+  background: transparent;
   color: #161616;
   font-family: 'Open Sans', sans-serif;
   font-size: 0.98rem;
   text-decoration: underline;
   text-underline-offset: 0.35rem;
+  cursor: pointer;
 }
 
 .primaryButton {

@@ -275,7 +275,7 @@ export function LessonVideoPage({
 
   const [modalState, setModalState] = useState<ModalState>('none');
   const [activeCheckpointId, setActiveCheckpointId] = useState<string | null>(null);
-  const [completedCheckpointIds, setCompletedCheckpointIds] = useState<string[]>(initialCompletedIds);
+  const [, setCompletedCheckpointIds] = useState<string[]>(initialCompletedIds);
   const [encounteredCheckpointIds, setEncounteredCheckpointIds] = useState<string[]>(initialEncounteredIds);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, SelectedAnswerState>>({});
   const [attemptSummary, setAttemptSummary] = useState<AttemptSummary | null>(null);
@@ -515,7 +515,7 @@ export function LessonVideoPage({
 
   const timelineItems = useMemo(() => {
     return orderedCheckpoints.map((checkpoint, index) => {
-      const isCompleted = completedCheckpointIds.includes(checkpoint.id);
+      const isCompleted = encounteredCheckpointIds.includes(checkpoint.id);
       const isActive =
         checkpoint.id === activeCheckpointId || (!isCompleted && firstIncompleteCheckpoint?.id === checkpoint.id);
       return {
@@ -525,7 +525,7 @@ export function LessonVideoPage({
         status: isCompleted ? 'completed' : isActive ? 'current' : 'pending',
       } as const;
     });
-  }, [orderedCheckpoints, completedCheckpointIds, activeCheckpointId, firstIncompleteCheckpoint, thumbnailCache]);
+  }, [orderedCheckpoints, encounteredCheckpointIds, activeCheckpointId, firstIncompleteCheckpoint, thumbnailCache]);
 
   useEffect(() => {
     if (!primaryVideoUrl) {
@@ -1215,6 +1215,15 @@ export function LessonVideoPage({
     router.push('/');
   }, [router]);
 
+  const handleBackToLessonDetail = useCallback(() => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push(`/lessons/${lesson.slug}`);
+  }, [lesson.slug, router]);
+
   const handleUnlockProgressForTesting = useCallback(() => {
     if (duration <= 0) {
       return;
@@ -1234,6 +1243,10 @@ export function LessonVideoPage({
   return (
     <div className={styles.page}>
       <div className={styles.content}>
+        <button type="button" className={styles.backButton} onClick={handleBackToLessonDetail}>
+          Back
+        </button>
+
         <aside className={styles.timeline}>
           {timelineItems.map((item) => {
             const thumbnailClass = [
@@ -1290,7 +1303,7 @@ export function LessonVideoPage({
                   {duration > 0 &&
                     orderedCheckpoints.map((cp) => {
                       const leftPct = Math.min(100, Math.max(0, (cp.timeOffsetSeconds / duration) * 100));
-                      const done = completedCheckpointIds.includes(cp.id);
+                      const done = encounteredCheckpointIds.includes(cp.id);
                       const curr = currentCheckpoint?.id === cp.id;
                       const cls = [styles.qevBreak, done ? styles.qevBreakDone : '', curr ? styles.qevBreakCurrent : '']
                         .filter(Boolean)

@@ -51,6 +51,11 @@ const config = [
 
   // Prettier - MUST be last to override other formatting rules
   eslintPluginPrettierRecommended,
+  {
+    rules: {
+      'prettier/prettier': ['error', { endOfLine: 'auto' }],
+    },
+  },
 ];
 
 export default config;

@@ -22,6 +22,7 @@ type CheckpointPayload = {
 
 type RequirementSummary = {
   lessonTitle?: string | null;
+  skills?: string[];
   checkpoints?: CheckpointPayload[];
 };
 
@@ -40,6 +41,25 @@ function normalizeString(value?: string | null) {
 function normalizeEmail(email?: string | null) {
   const trimmed = email?.trim().toLowerCase();
   return trimmed ? trimmed : null;
+}
+
+function normalizeSkills(skills?: string[] | null) {
+  const seen = new Set<string>();
+  const result: string[] = [];
+  for (const raw of skills ?? []) {
+    const value = normalizeString(raw);
+    if (!value) continue;
+    const key = value.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    result.push(value);
+    if (result.length >= 5) break;
+  }
+  return result;
+}
+
+function formatQuestionCount(count: number) {
+  return `${count} question${count === 1 ? '' : 's'}`;
 }
 
 function slugify(value: string) {
@@ -271,6 +291,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
                         thumbnailUrl: true,
                       },
                     },
+                    skills: {
+                      orderBy: { sortOrder: 'asc' },
+                      select: {
+                        sortOrder: true,
+                        text: true,
+                      },
+                    },
                     checkpoints: {
                       orderBy: { sortOrder: 'asc' },
                       select: {
@@ -314,6 +341,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
         const sourceRequirement = sourceBadge.requirements[0] ?? null;
         const sourceLesson = sourceRequirement?.lesson ?? null;
         const summary = parseRequirementSummary(sourceRequirement?.summary);
+        const lessonSkills =
+          sourceLesson?.skills?.map((skill) => skill.text).filter((skill): skill is string => Boolean(skill)) ??
+          normalizeSkills(summary.skills);
         const slugSuffix = randomUUID().slice(0, 8);
         const badgeSlug = `${slugify(sourceBadge.name)}-${slugSuffix}`;
         const lessonSlug = `${badgeSlug}-lesson`;
@@ -360,6 +390,16 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
 
         const segmentIdBySourceId = new Map<string, string>();
         const sourceSegments = sourceLesson?.segments ?? [];
+
+        if (lessonSkills.length > 0) {
+          await tx.lessonSkill.createMany({
+            data: lessonSkills.map((skill, skillIndex) => ({
+              lessonId: lesson.id,
+              sortOrder: skillIndex,
+              text: skill,
+            })),
+          });
+        }
 
         if (sourceSegments.length > 0) {
           // Batch-create all segments, then read back generated ids via the
@@ -445,8 +485,8 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
           const checkpointPlans = (summary.checkpoints ?? []).map((checkpoint, checkpointIndex) => {
             const prompt = normalizeString(checkpoint.question);
             const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
-            const points = Number(checkpoint.points) || 0;
             const questionOptions = buildQuestionOptions(checkpoint);
+            const questionCount = prompt ? 1 : 0;
 
             return {
               sortOrder: checkpointIndex,
@@ -457,12 +497,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
                 segmentId: fallbackSegmentId,
                 sortOrder: checkpointIndex,
                 title,
-                label: title,
-                meta: JSON.stringify({
-                  points,
-                  segmentLabel: normalizeString(checkpoint.segmentLabel),
-                }),
-                questionCount: prompt ? 1 : 0,
+                label: 'Checkpoint',
+                meta: formatQuestionCount(questionCount),
+                questionCount,
                 timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
               },
             };

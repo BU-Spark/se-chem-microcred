@@ -193,6 +193,15 @@ export default function BadgeFeedbackPage() {
 
   const displayName = studentData?.student.name || user?.fullName || 'Student Demo';
 
+  const handleBackToBadges = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push('/badges');
+  };
+
   const handleSignOut = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
@@ -224,9 +233,9 @@ export default function BadgeFeedbackPage() {
             <div className={styles.badgeCard}>
               <h2>Feedback content not yet available</h2>
               <p>We&apos;re still preparing feedback for this badge. Please check back later.</p>
-              <Link href="/badges" className={styles.primaryButton}>
+              <button type="button" className={styles.primaryButton} onClick={handleBackToBadges}>
                 Back to badges
-              </Link>
+              </button>
             </div>
           </div>
         </main>
@@ -242,9 +251,9 @@ export default function BadgeFeedbackPage() {
 
       <main className="main">
         <div className={styles.pageContent}>
-          <Link href="/badges" className={styles.backLink}>
+          <button type="button" className={styles.backLink} onClick={handleBackToBadges}>
             ← Back to badges
-          </Link>
+          </button>
           <div className={styles.headerRow}>
             <h1 className={styles.title}>{content.title}</h1>
           </div>

@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../../../hooks/useStudentData';
@@ -24,6 +23,15 @@ export default function LessonVideoRoute() {
   const { data: studentData, isLoading, error } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push('/');
+  };
+
   if (!isLoaded || !isSignedIn) {
     return null;
   }
@@ -36,7 +44,9 @@ export default function LessonVideoRoute() {
     return (
       <div style={{ padding: '2rem' }}>
         <p>We could not load your lesson data{error ? `: ${error}` : '.'}</p>
-        <Link href="/">Back to lessons</Link>
+        <button type="button" onClick={handleBack}>
+          Back to lessons
+        </button>
       </div>
     );
   }
@@ -47,7 +57,9 @@ export default function LessonVideoRoute() {
     return (
       <div style={{ padding: '2rem' }}>
         <p>We could not find a lesson that matches this page.</p>
-        <Link href="/">Back to lessons</Link>
+        <button type="button" onClick={handleBack}>
+          Back to lessons
+        </button>
       </div>
     );
   }
@@ -62,7 +74,9 @@ export default function LessonVideoRoute() {
     return (
       <div style={{ padding: '2rem' }}>
         <p>We could not determine your student email for this lesson.</p>
-        <Link href="/">Back to lessons</Link>
+        <button type="button" onClick={handleBack}>
+          Back to lessons
+        </button>
       </div>
     );
   }

@@ -275,6 +275,7 @@ export default function CreatedCourseDetailPage() {
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [reminderBadge, setReminderBadge] = useState<{ id: string; name: string } | null>(null);
+  const [badgePendingUnassign, setBadgePendingUnassign] = useState<{ id: string; name: string } | null>(null);
   // MVP test-cleanup affordance (remove before handoff).
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
@@ -311,7 +312,7 @@ export default function CreatedCourseDetailPage() {
     }
   };
 
-  // MVP test-cleanup handlers — delete a whole test course or a test badge.
+  // MVP test-cleanup handler — remove before handoff.
   // Remove these (and the buttons that call them) before handoff.
   const handleDeleteCourse = async () => {
     if (!data?.course || isDeleting) return;
@@ -330,44 +331,25 @@ export default function CreatedCourseDetailPage() {
     }
   };
 
-  const handleUnassignBadge = async (badge: { id: string; name: string }) => {
-    if (!data?.course || isDeleting) return;
-    if (
-      !window.confirm(
-        `Remove the badge "${badge.name}" from this course? The badge itself is not deleted and can be re-assigned later.`
-      )
-    ) {
-      return;
-    }
+  const requestUnassignBadge = (badge: { id: string; name: string }) => {
+    if (isDeleting) return;
+    setBadgePendingUnassign(badge);
+  };
+
+  const confirmUnassignBadge = async () => {
+    if (!data?.course || !badgePendingUnassign || isDeleting) return;
     setIsDeleting(true);
     try {
       const response = await fetch(
-        `/api/courses/${encodeURIComponent(data.course.id)}/badges/${encodeURIComponent(badge.id)}`,
+        `/api/courses/${encodeURIComponent(data.course.id)}/badges/${encodeURIComponent(badgePendingUnassign.id)}`,
         { method: 'DELETE' }
       );
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? 'Failed to unassign badge.');
+      setBadgePendingUnassign(null);
       await refresh();
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Failed to unassign badge.');
-    } finally {
-      setIsDeleting(false);
-    }
-  };
-
-  const handleDeleteBadge = async (badge: { id: string; name: string }) => {
-    if (isDeleting) return;
-    if (!window.confirm(`Delete the badge "${badge.name}"? This removes it everywhere and cannot be undone.`)) {
-      return;
-    }
-    setIsDeleting(true);
-    try {
-      const response = await fetch(`/api/badges/${encodeURIComponent(badge.id)}`, { method: 'DELETE' });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error ?? 'Failed to delete badge.');
-      await refresh();
-    } catch (err) {
-      window.alert(err instanceof Error ? err.message : 'Failed to delete badge.');
     } finally {
       setIsDeleting(false);
     }
@@ -649,19 +631,10 @@ export default function CreatedCourseDetailPage() {
                               <button
                                 type="button"
                                 className={styles.badgeUnassignButton}
-                                onClick={() => handleUnassignBadge({ id: badge.id, name: badge.name })}
+                                onClick={() => requestUnassignBadge({ id: badge.id, name: badge.name })}
                                 disabled={isDeleting}
                               >
                                 Unassign badge
-                              </button>
-                              {/* MVP test-cleanup button — remove before handoff. */}
-                              <button
-                                type="button"
-                                className={styles.badgeDeleteButton}
-                                onClick={() => handleDeleteBadge({ id: badge.id, name: badge.name })}
-                                disabled={isDeleting}
-                              >
-                                Delete badge
                               </button>
                             </>
                           ) : (
@@ -680,9 +653,6 @@ export default function CreatedCourseDetailPage() {
                     <button type="button" className={styles.primaryButton} onClick={openImportPanel}>
                       Import Existing Badge
                     </button>
-                    <Link href={`/badge_creation?courseId=${course.id}`} className={styles.primaryButton}>
-                      Create Badge
-                    </Link>
                   </div>
                 ) : null}
 
@@ -770,6 +740,54 @@ export default function CreatedCourseDetailPage() {
           badgeName={reminderBadge.name}
           onClose={() => setReminderBadge(null)}
         />
+      ) : null}
+
+      {badgePendingUnassign ? (
+        <div
+          className={styles.modalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Unassign ${badgePendingUnassign.name}`}
+        >
+          <div className={styles.confirmModal}>
+            <button
+              type="button"
+              className={styles.modalCloseButton}
+              onClick={() => setBadgePendingUnassign(null)}
+              aria-label="Close unassign confirmation"
+              disabled={isDeleting}
+            >
+              ×
+            </button>
+
+            <h2 className={styles.modalTitle}>Unassign badge?</h2>
+            <div className={styles.modalBadgeCircle} aria-hidden="true" />
+            <p className={styles.modalBadgeName}>{badgePendingUnassign.name}</p>
+            <p className={styles.modalText}>
+              This removes the badge and its lesson from this course. The badge itself will not be deleted and can be
+              imported again later.
+            </p>
+
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={() => setBadgePendingUnassign(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.confirmButton}
+                onClick={confirmUnassignBadge}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Unassigning...' : 'Unassign Badge'}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </div>
   );

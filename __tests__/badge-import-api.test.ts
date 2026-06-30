@@ -11,6 +11,7 @@ const mockTx = {
   course: { findFirst: jest.fn() },
   badge: { findFirst: jest.fn(), create: jest.fn() },
   lesson: { create: jest.fn() },
+  lessonSkill: { createMany: jest.fn() },
   lessonSegment: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn() },
   lessonCheckpoint: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn() },
   checkpointQuestion: { createMany: jest.fn() },
@@ -83,6 +84,7 @@ describe('badge import API', () => {
             rubricItems: [{ number: 1, text: 'Use the burner safely.' }],
             gradingCriteria: [],
             checkpoints: [],
+            skills: ['Inspect setup'],
           }),
           lesson: {
             title: 'Bunsen Burner Lesson',
@@ -101,6 +103,12 @@ describe('badge import API', () => {
                 videoUrl: 'https://www.youtube.com/watch?v=abc123',
                 muxPlaybackId: null,
                 thumbnailUrl: 'https://i.ytimg.com/vi/abc123/hqdefault.jpg',
+              },
+            ],
+            skills: [
+              {
+                sortOrder: 0,
+                text: 'Inspect setup',
               },
             ],
             checkpoints: [
@@ -143,6 +151,7 @@ describe('badge import API', () => {
       slug: 'bunsen-burner-badge-abc12345-lesson',
       title: 'Bunsen Burner Lesson',
     });
+    mockPrisma.__tx.lessonSkill.createMany.mockResolvedValue({ count: 1 });
     mockPrisma.__tx.lessonSegment.create.mockResolvedValue({ id: 'segment-copy-1' });
     mockPrisma.__tx.lessonSegment.createMany.mockResolvedValue({ count: 1 });
     mockPrisma.__tx.lessonSegment.findMany.mockResolvedValue([{ id: 'segment-copy-1', sortOrder: 0 }]);
@@ -202,6 +211,9 @@ describe('badge import API', () => {
         ]),
       })
     );
+    expect(mockPrisma.__tx.lessonSkill.createMany).toHaveBeenCalledWith({
+      data: [{ lessonId: 'lesson-copy-1', sortOrder: 0, text: 'Inspect setup' }],
+    });
     expect(mockPrisma.__tx.checkpointQuestion.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.arrayContaining([

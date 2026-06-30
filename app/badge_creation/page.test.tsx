@@ -61,6 +61,15 @@ describe('Badge creation page', () => {
     global.fetch = mockFetch as unknown as typeof fetch;
   });
 
+  it('starts a new video with no checkpoints', async () => {
+    render(<BadgeCreationPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(screen.queryByRole('button', { name: /Edit Checkpoint/i })).not.toBeInTheDocument();
+  });
+
   it('submits the badge draft to the badge creation API with the course id', async () => {
     render(<BadgeCreationPage />);
 
@@ -86,8 +95,8 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
     // Checkpoints are authored in a per-checkpoint modal opened from the rail
-    // node (or auto-opened when a new checkpoint is added via the video "+").
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Checkpoint 1' }));
+    // node or auto-opened when a new checkpoint is added via the video "+".
+    fireEvent.click(screen.getByRole('button', { name: 'Add a checkpoint at the current time' }));
     fireEvent.change(screen.getByLabelText('Question prompt'), {
       target: { value: 'What should you check first?' },
     });
@@ -350,7 +359,7 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> video
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
 
-    fireEvent.click(screen.getByRole('button', { name: 'Edit Checkpoint 1' }));
+    fireEvent.click(screen.getByRole('button', { name: /Add checkpoint/i }));
     fireEvent.change(screen.getByLabelText('Question prompt'), { target: { value: 'What volume?' } });
     fireEvent.change(screen.getByLabelText('Checkpoint 1 question type'), { target: { value: 'shortAnswer' } });
     fireEvent.change(screen.getByLabelText('Checkpoint 1 exact numeric answer'), { target: { value: '10' } });

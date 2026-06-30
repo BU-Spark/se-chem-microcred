@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
@@ -259,6 +258,20 @@ export default function AssessmentReadinessPage() {
       console.error('Failed to sign out', signOutError);
       setIsSigningOut(false);
     }
+  };
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    if (profile && badgeDetail) {
+      router.push(`/roster/${profile.member.id}?courseId=${profile.course.id}&badgeId=${badgeDetail.badge.id}`);
+      return;
+    }
+
+    router.push(courseId ? `/courses/${courseId}` : '/');
   };
 
   const memberDisplay = useMemo(() => splitNameForProfile(profile?.member.name), [profile?.member.name]);
@@ -613,12 +626,9 @@ export default function AssessmentReadinessPage() {
               </section>
 
               <div className={styles.actionRow}>
-                <Link
-                  href={`/roster/${profile.member.id}?courseId=${profile.course.id}&badgeId=${badgeDetail.badge.id}`}
-                  className={styles.backLink}
-                >
+                <button type="button" className={styles.backLink} onClick={handleBack}>
                   Back
-                </Link>
+                </button>
                 <button
                   type="button"
                   className={styles.primaryButton}

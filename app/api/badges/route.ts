@@ -99,6 +99,10 @@ function normalizeSkills(skills?: string[] | null) {
   return result;
 }
 
+function formatQuestionCount(count: number) {
+  return `${count} question${count === 1 ? '' : 's'}`;
+}
+
 function slugify(value: string) {
   return value
     .trim()
@@ -647,7 +651,7 @@ export async function PATCH(req: NextRequest) {
 
       const requirementSummary = buildRequirementSummary({
         badgeName,
-        lessonTitle: videoTitle ?? firstRequirement?.lesson?.title ?? badgeName,
+        lessonTitle: badgeName,
         skills,
         rubricItems,
         gradingCriteria,
@@ -689,12 +693,9 @@ export async function PATCH(req: NextRequest) {
         });
       }
 
-      // Push the edited video onto the course-copy lessons so students see it.
-      // The editor only ever loads the source badge (no lesson row), so the
-      // video must be propagated to the copies' lesson segments here. Guard on a
-      // non-null URL: a blank field (e.g. a legacy badge whose summary predates
-      // video storage) must NOT wipe an existing student-facing video.
-      if (youtubeUrl) {
+      // Keep course-copy lessons aligned with the badge title students see,
+      // while the first segment stores the video-specific metadata.
+      if (badgeName) {
         const familyBadgeIds = [badge.id, ...otherFamilyBadges.map((familyBadge) => familyBadge.id)];
         const requirementsWithLessons = await tx.badgeRequirement.findMany({
           where: { badgeId: { in: familyBadgeIds }, lessonId: { not: null } },
@@ -710,10 +711,26 @@ export async function PATCH(req: NextRequest) {
           await tx.lesson.updateMany({
             where: { id: { in: lessonIds } },
             data: {
-              title: videoTitle ?? undefined,
+              title: badgeName,
               estimatedMinutes: videoDurationSeconds ? Math.max(1, Math.round(videoDurationSeconds / 60)) : undefined,
             },
           });
+
+          await tx.lessonSkill.deleteMany({
+            where: { lessonId: { in: lessonIds } },
+          });
+
+          if (skills.length > 0) {
+            await tx.lessonSkill.createMany({
+              data: lessonIds.flatMap((lessonId) =>
+                skills.map((skill, skillIndex) => ({
+                  lessonId,
+                  sortOrder: skillIndex,
+                  text: skill,
+                }))
+              ),
+            });
+          }
 
           // Update only the first segment (lowest sortOrder) of each lesson — the
           // one POST/import seeds with the video. Prisma can't do distinct-on, so
@@ -731,14 +748,14 @@ export async function PATCH(req: NextRequest) {
           }
           const firstSegmentIds = Array.from(firstSegmentIdByLesson.values());
 
-          if (firstSegmentIds.length > 0) {
+          if (firstSegmentIds.length > 0 && (youtubeUrl || videoTitle || videoDurationSeconds || thumbnailUrl)) {
             await tx.lessonSegment.updateMany({
               where: { id: { in: firstSegmentIds } },
               data: {
-                videoUrl: youtubeUrl,
+                videoUrl: youtubeUrl ?? undefined,
                 title: videoTitle ?? undefined,
-                duration: videoDurationSeconds || null,
-                thumbnailUrl,
+                duration: videoDurationSeconds || undefined,
+                thumbnailUrl: thumbnailUrl ?? undefined,
               },
             });
           }
@@ -788,7 +805,7 @@ export async function POST(req: NextRequest) {
     const courseId = normalizeString(body.courseId);
     const badgeName = normalizeString(body.badgeName);
     const badgeDescription = normalizeString(body.badgeDescription);
-    const videoTitle = normalizeString(body.videoTitle) ?? badgeName;
+    const videoTitle = normalizeString(body.videoTitle);
     const youtubeUrl = normalizeString(body.youtubeUrl);
     const category = normalizeCategory(body.category);
     const checkpoints = body.checkpoints ?? [];
@@ -854,7 +871,7 @@ export async function POST(req: NextRequest) {
         const sourceBadgeSlug = `${slugify(badgeName)}-${slugSuffix}`;
         const sourceSummary = buildRequirementSummary({
           badgeName,
-          lessonTitle: videoTitle,
+          lessonTitle: badgeName,
           skills,
           rubricItems,
           gradingCriteria,
@@ -928,7 +945,7 @@ export async function POST(req: NextRequest) {
             data: {
               courseId: course.id,
               slug: lessonSlug,
-              title: videoTitle ?? badgeName,
+              title: badgeName,
               summary: badgeDescription ?? `Lesson for ${badgeName}`,
               description: badgeDescription,
               thumbnailUrl,
@@ -958,16 +975,27 @@ export async function POST(req: NextRequest) {
             },
           });
 
+          const lessonId = lesson.id;
+
+          if (skills.length > 0) {
+            await tx.lessonSkill.createMany({
+              data: skills.map((skill, skillIndex) => ({
+                lessonId,
+                sortOrder: skillIndex,
+                text: skill,
+              })),
+            });
+          }
+
           // Precompute each checkpoint's normalized data once, keyed by its sortOrder
           // (== checkpointIndex). We batch-create checkpoints, read their generated ids
           // back via the (lessonId, sortOrder) unique key, then batch-create questions.
           // Capture lesson in a non-null local so the map closure narrows correctly.
-          const lessonId = lesson.id;
           const checkpointPlans = checkpoints.map((checkpoint, checkpointIndex) => {
             const prompt = normalizeString(checkpoint.question);
             const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
-            const points = Number(checkpoint.points) || 0;
             const questionOptions = buildQuestionOptions(checkpoint);
+            const questionCount = prompt ? 1 : 0;
 
             return {
               sortOrder: checkpointIndex,
@@ -978,12 +1006,9 @@ export async function POST(req: NextRequest) {
                 segmentId: segment.id,
                 sortOrder: checkpointIndex,
                 title,
-                label: title,
-                meta: JSON.stringify({
-                  points,
-                  segmentLabel: normalizeString(checkpoint.segmentLabel),
-                }),
-                questionCount: prompt ? 1 : 0,
+                label: 'Checkpoint',
+                meta: formatQuestionCount(questionCount),
+                questionCount,
                 timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
               },
             };

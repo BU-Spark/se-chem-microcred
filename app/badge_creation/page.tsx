@@ -25,6 +25,28 @@ import CheckpointsStep from './steps/CheckpointsStep';
 import RubricStep from './steps/RubricStep';
 import ReviewStep from './steps/ReviewStep';
 
+function isLegacyEmptyCheckpointSeed(checkpoint: CheckpointDraft) {
+  return (
+    checkpoint.id === 'checkpoint-1' &&
+    checkpoint.title === 'Checkpoint 1' &&
+    checkpoint.time === '00:00:00' &&
+    checkpoint.points === 5 &&
+    checkpoint.question === '' &&
+    checkpoint.questionType === 'multipleChoice' &&
+    checkpoint.options.length === 4 &&
+    checkpoint.options.every((option) => option === '') &&
+    checkpoint.correctIndices.length === 1 &&
+    checkpoint.correctIndices[0] === 0 &&
+    checkpoint.numericAnswer === '' &&
+    checkpoint.numericRangeMin === '' &&
+    checkpoint.numericRangeMax === '' &&
+    checkpoint.unit === '' &&
+    checkpoint.incorrectFeedback === '' &&
+    checkpoint.incorrectFeedbackEnabled === false &&
+    checkpoint.segmentLabel === 'Segment 1 Starts 00:00:00'
+  );
+}
+
 export default function BadgeCreationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -58,10 +80,14 @@ export default function BadgeCreationPage() {
 
     try {
       const parsed = JSON.parse(storedDraft) as Partial<BadgeDraft>;
+      const parsedCheckpoints =
+        parsed.checkpoints?.length === 1 && isLegacyEmptyCheckpointSeed(parsed.checkpoints[0])
+          ? []
+          : parsed.checkpoints;
       setDraft((current) => ({
         ...current,
         ...parsed,
-        checkpoints: parsed.checkpoints ?? current.checkpoints,
+        checkpoints: parsedCheckpoints ?? current.checkpoints,
         reassessmentResources: parsed.reassessmentResources ?? current.reassessmentResources,
         rubricItems: parsed.rubricItems ?? current.rubricItems,
         rubricCriteria: parsed.rubricCriteria ?? current.rubricCriteria,

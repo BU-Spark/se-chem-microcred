@@ -9,6 +9,7 @@ type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION
 
 type AssessmentSummary = {
   displayText: string;
+  videoTitle?: string | null;
   rubricItems: Array<{ number: number; text: string }>;
   gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
   checkpoints: Array<{
@@ -41,6 +42,7 @@ function parseRequirementSummary(summary?: string | null): AssessmentSummary {
   if (!summary) {
     return {
       displayText: 'No assessment details recorded yet.',
+      videoTitle: null,
       rubricItems: [],
       gradingCriteria: [],
       checkpoints: [],
@@ -64,6 +66,7 @@ function parseRequirementSummary(summary?: string | null): AssessmentSummary {
 
     return {
       displayText: rubricItems[0]?.text ?? gradingCriteria[0]?.criterion ?? 'Assessment details recorded.',
+      videoTitle: typeof parsed.videoTitle === 'string' && parsed.videoTitle.trim() ? parsed.videoTitle.trim() : null,
       rubricItems,
       gradingCriteria,
       checkpoints,
@@ -71,6 +74,7 @@ function parseRequirementSummary(summary?: string | null): AssessmentSummary {
   } catch {
     return {
       displayText: summary,
+      videoTitle: null,
       rubricItems: [],
       gradingCriteria: [],
       checkpoints: [],

@@ -49,12 +49,16 @@
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
+  border: none;
+  padding: 0;
+  background: transparent;
   color: #1f4b99;
   font-family: 'Lato', sans-serif;
   font-weight: 600;
   text-decoration: none;
   margin-bottom: 1.25rem;
   transition: filter 0.2s ease;
+  cursor: pointer;
 }
 
 .backLink:hover {

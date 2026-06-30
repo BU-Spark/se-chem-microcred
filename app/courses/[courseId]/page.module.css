@@ -380,23 +380,6 @@
   cursor: not-allowed;
 }
 
-.badgeDeleteButton {
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  color: #b42318;
-  font-family: 'Open Sans', system-ui, sans-serif;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-decoration: underline;
-}
-
-.badgeDeleteButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .badgeUnassignButton {
   border: none;
   background: transparent;
@@ -500,6 +483,108 @@
 
 .successText {
   color: #1b6b3a;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 19, 33, 0.42);
+}
+
+.confirmModal {
+  position: relative;
+  width: min(520px, 100%);
+  border-radius: 30px;
+  background: #ffffff;
+  padding: 40px 44px 36px;
+  color: #000000;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.modalCloseButton {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  border: none;
+  background: transparent;
+  color: #000000;
+  cursor: pointer;
+  font-family: 'Lato', sans-serif;
+  font-size: 28px;
+  line-height: 1;
+}
+
+.modalTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.modalBadgeCircle {
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  background: #d9d9d9;
+  margin: 26px 0 22px;
+}
+
+.modalBadgeName {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
+  color: #111111;
+}
+
+.modalText {
+  margin: 14px 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #333333;
+}
+
+.modalActions {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 26px;
+}
+
+.confirmButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.7rem;
+  border: 0;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  cursor: pointer;
+  font-family: 'Lato', sans-serif;
+  font-size: 17px;
+  font-weight: 700;
+  padding: 0.65rem 1.35rem;
+}
+
+.confirmButton:hover {
+  filter: brightness(1.05);
+}
+
+.modalCloseButton:disabled,
+.confirmButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 @media (max-width: 1100px) {

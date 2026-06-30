@@ -201,7 +201,12 @@ async function fetchLessonProgress(studentId: string) {
 
 async function fetchLessons(courseId: string) {
   return prisma.lesson.findMany({
-    where: { courseId },
+    where: {
+      courseId,
+      badgeRequirements: {
+        some: {},
+      },
+    },
     include: {
       segments: {
         orderBy: { sortOrder: 'asc' },

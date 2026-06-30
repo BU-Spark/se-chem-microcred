@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
@@ -51,6 +50,7 @@ type ProgressSummary = {
 
 type AssessmentDetails = {
   displayText: string;
+  videoTitle?: string | null;
   rubricItems: Array<{ number: number; text: string }>;
   gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
   checkpoints: Array<{
@@ -191,6 +191,15 @@ export default function CourseBadgeProgress() {
     }
   }, [isLoaded, isSignedIn, router]);
 
+  const handleBackToCourse = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push(`/courses/${courseId}`);
+  };
+
   const handleSignOut = async () => {
     if (isSigningOut) return;
 
@@ -239,7 +248,7 @@ export default function CourseBadgeProgress() {
     return `conic-gradient(#c9db50 0deg ${completedDeg}deg, #f3b55b ${completedDeg}deg ${inProgressEnd}deg, #e4e4e4 ${inProgressEnd}deg 360deg)`;
   })();
   const checkpointCount = assessment?.checkpoints.length ?? 0;
-  const videoTitle = badge?.lesson?.title || 'Lesson video';
+  const videoTitle = assessment?.videoTitle || badge?.lesson?.title || 'Lesson video';
 
   return (
     <div className={styles.page}>
@@ -248,9 +257,9 @@ export default function CourseBadgeProgress() {
       <main className={styles.main}>
         <div className={styles.content}>
           <header className={styles.header}>
-            <Link href={`/courses/${courseId}`} className={styles.backLink}>
+            <button type="button" className={styles.backLink} onClick={handleBackToCourse}>
               Back to course
-            </Link>
+            </button>
             <h1 className={styles.pageTitle}>{badge?.name ?? course?.title ?? 'Badge'}</h1>
           </header>
 
@@ -259,18 +268,18 @@ export default function CourseBadgeProgress() {
           {!isLoading && error ? (
             <div className={styles.statusBlock}>
               <p className={styles.statusMessage}>{error}</p>
-              <Link href={`/courses/${courseId}`} className={styles.inlineLink}>
+              <button type="button" className={styles.inlineLink} onClick={handleBackToCourse}>
                 Back to course
-              </Link>
+              </button>
             </div>
           ) : null}
 
           {!isLoading && !error && !(badge && summary && assessment) ? (
             <div className={styles.statusBlock}>
               <p className={styles.statusMessage}>Badge details could not be loaded.</p>
-              <Link href={`/courses/${courseId}`} className={styles.inlineLink}>
+              <button type="button" className={styles.inlineLink} onClick={handleBackToCourse}>
                 Back to course
-              </Link>
+              </button>
             </div>
           ) : null}
 

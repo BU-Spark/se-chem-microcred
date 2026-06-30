@@ -73,6 +73,7 @@ describe('course badge detail API', () => {
             {
               id: 'requirement-1',
               summary: JSON.stringify({
+                videoTitle: 'Burner safety video',
                 rubricItems: [{ number: 1, text: 'Use the burner safely.' }],
                 gradingCriteria: [{ number: 1, criterion: 'Technique', options: ['Needs support', 'Ready'] }],
                 checkpoints: [
@@ -182,6 +183,7 @@ describe('course badge detail API', () => {
       })
     );
     expect(body.assessment.rubricItems).toEqual([{ number: 1, text: 'Use the burner safely.' }]);
+    expect(body.assessment.videoTitle).toBe('Burner safety video');
     expect(body.students).toHaveLength(3);
     expect(body.students[2]).toEqual(expect.objectContaining({ status: 'NOT_STARTED', progress: null }));
   });

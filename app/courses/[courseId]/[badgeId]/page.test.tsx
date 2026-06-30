@@ -63,7 +63,7 @@ describe('Course badge progress page', () => {
           category: 'EQUIPMENT',
           lesson: {
             id: 'lesson-1',
-            title: 'Bunsen Burner Lesson',
+            title: 'Bunsen Burner Badge',
             sortOrder: 0,
           },
         },
@@ -83,6 +83,7 @@ describe('Course badge progress page', () => {
         },
         assessment: {
           displayText: 'Use the burner safely.',
+          videoTitle: 'Bunsen Burner Lesson',
           rubricItems: [{ number: 1, text: 'Use the burner safely.' }],
           gradingCriteria: [{ number: 1, criterion: 'Technique', options: ['Needs support', 'Ready'] }],
           checkpoints: [

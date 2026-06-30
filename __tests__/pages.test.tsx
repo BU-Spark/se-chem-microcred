@@ -503,7 +503,7 @@ describe('Lesson detail page', () => {
             title: 'Checkpoint 1',
             description: null,
             label: 'Check point',
-            meta: null,
+            meta: JSON.stringify({ points: 5, segmentLabel: 'Segment 1 Starts 00:00:00' }),
             questionCount: 2,
             segmentId: 'seg-1',
             timeOffsetSeconds: 30,
@@ -529,6 +529,8 @@ describe('Lesson detail page', () => {
     expect(screen.getByText(/Lesson 3/i)).toBeInTheDocument();
     expect(screen.getByText(/Part 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Checkpoint/i)).toBeInTheDocument();
+    expect(screen.getByText('2 questions')).toBeInTheDocument();
+    expect(screen.queryByText(/segmentLabel/)).not.toBeInTheDocument();
   });
 });
 

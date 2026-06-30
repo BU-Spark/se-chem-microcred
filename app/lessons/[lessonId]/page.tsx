@@ -19,6 +19,11 @@ function extractYouTubeId(url?: string | null) {
   return candidate && candidate.length === 11 ? candidate : null;
 }
 
+function formatQuestionCount(count?: number | null) {
+  const safeCount = Math.max(0, Math.floor(count ?? 0));
+  return `${safeCount} question${safeCount === 1 ? '' : 's'}`;
+}
+
 export default function LessonDetailPage() {
   const router = useRouter();
   const params = useParams<{ lessonId: string }>();
@@ -51,6 +56,15 @@ export default function LessonDetailPage() {
       console.error('Failed to sign out', error);
       setIsSigningOut(false);
     }
+  };
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push('/');
   };
 
   /**
@@ -137,8 +151,8 @@ export default function LessonDetailPage() {
         id: cp.id ?? String(idx),
         title,
         duration: durationText,
-        cpLabel: cp.label || 'Check point',
-        cpMeta: cp.meta || `${cp.questionCount ?? 0} question${(cp.questionCount ?? 0) === 1 ? '' : 's'}`,
+        cpLabel: 'Checkpoint',
+        cpMeta: formatQuestionCount(cp.questions?.length || cp.questionCount),
         img,
       };
     });
@@ -187,12 +201,12 @@ export default function LessonDetailPage() {
       <main className="main">
         <div className={styles.root}>
           <header className={styles.header}>
-            <Link href="/" className={styles.backLink}>
+            <button type="button" className={styles.backLink} onClick={handleBack}>
               <span className={styles.backLinkContent}>
                 <span className={styles.backText}>Back</span>
                 <Image src={backArrow} alt="Back" className={styles.backArrow} width={52} height={12} />
               </span>
-            </Link>
+            </button>
           </header>
 
           <h1 className={styles.lessonTitle}>{title}</h1>
@@ -239,7 +253,7 @@ export default function LessonDetailPage() {
 
                         <div className={styles.timelineConnectorBlock}>
                           <div className={styles.timelineCheckpointLabel}>
-                            <div>Checkpoint</div>
+                            <div>{item.cpLabel}</div>
                             <div className={styles.timelineCheckpointMeta}>{item.cpMeta}</div>
                           </div>
                           <div className={styles.timelineConnector}>

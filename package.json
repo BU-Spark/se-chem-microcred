@@ -2,10 +2,17 @@
   "name": "template-next-js",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20 <23",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "postinstall": "prisma generate",
+    "railway:build": "prisma generate && npm run build",
+    "railway:start": "npx prisma migrate deploy && npm run start",
     "lint": "eslint . --fix",
     "lint:debug": "eslint . --fix --debug",
     "test": "jest",
