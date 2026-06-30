@@ -28,10 +28,10 @@ export default function MessagesPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isSigningOut) {
       router.replace('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return;
@@ -60,7 +60,7 @@ export default function MessagesPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (err) {
       console.error('Failed to sign out', err);
       setIsSigningOut(false);

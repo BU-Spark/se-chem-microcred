@@ -200,20 +200,35 @@ function HomePageContent() {
   };
 
   const displayName = studentData?.student?.name || user?.fullName || 'Student';
+  const courseTitle = studentData?.course?.title ?? '';
+  const courseCode = studentData?.course?.code ?? '';
+  const courseSection = studentData?.course?.section ?? null;
+  const courseDescription = studentData?.course?.description ?? '';
+  const courseContacts = studentData?.course?.contacts ?? [];
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
   const readyForFinalization = useMemo(() => studentData?.badges?.readyForFinalization ?? [], [studentData]);
 
+  // Merge both "ready" sources so neither hides the other, deduping by badgeId.
+  // Pending survey entries win — they carry the real promptId/question.
   const readyBadgeAlerts = useMemo(() => {
-    if (pendingSurveyBadges.length > 0) {
-      return pendingSurveyBadges;
+    const merged = [...pendingSurveyBadges];
+    const seen = new Set(pendingSurveyBadges.map((entry) => entry.badgeId));
+
+    for (const badge of readyForFinalization) {
+      if (seen.has(badge.id)) {
+        continue;
+      }
+      seen.add(badge.id);
+      merged.push({
+        promptId: `auto-${badge.id}`,
+        badgeId: badge.id,
+        badgeSlug: badge.slug,
+        badgeName: badge.name,
+        question: `Complete the final survey for ${badge.name}`,
+      });
     }
-    return readyForFinalization.map((badge) => ({
-      promptId: `auto-${badge.id}`,
-      badgeId: badge.id,
-      badgeSlug: badge.slug,
-      badgeName: badge.name,
-      question: `Complete the final survey for ${badge.name}`,
-    }));
+
+    return merged;
   }, [pendingSurveyBadges, readyForFinalization]);
 
   useEffect(() => {
@@ -243,10 +258,10 @@ function HomePageContent() {
   }, [studentData]);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isSigningOut) {
       router.replace('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -256,7 +271,7 @@ function HomePageContent() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Failed to sign out', error);
       setIsSigningOut(false);
@@ -334,6 +349,12 @@ function HomePageContent() {
     const imageSrc = lesson.image ?? DEFAULT_LESSON_IMAGE;
     const isYouTubeThumb = imageSrc.includes('ytimg.com') || imageSrc.includes('youtube.com');
 
+    // Carry the dashboard's courseId into the lesson link so the lesson page
+    // resolves data for THIS course; without it the student API falls back to
+    // the student's first enrollment and can't find the lesson.
+    const lessonHref =
+      lesson.href && courseId ? `${lesson.href}?courseId=${encodeURIComponent(courseId)}` : lesson.href;
+
     return (
       <div key={lesson.id} className={styles.card}>
         <div className={styles.cardMedia}>
@@ -352,8 +373,8 @@ function HomePageContent() {
           <div className={styles.cardMeta}>{lesson.meta}</div>
         </div>
 
-        {lesson.href ? (
-          <Link href={lesson.href} className={buttonClass}>
+        {lessonHref ? (
+          <Link href={lessonHref} className={buttonClass}>
             {lesson.actionLabel}
           </Link>
         ) : (
@@ -365,61 +386,116 @@ function HomePageContent() {
     );
   };
 
+  const renderBadgeListItem = (alert: (typeof readyBadgeAlerts)[number]) => (
+    <li key={alert.badgeId} className={styles.badgeListItem}>
+      <div className={styles.badgeListInfo}>
+        <Image
+          src="/assets/survey_alarm/survey_alarm_x_icon.png"
+          alt=""
+          width={28}
+          height={28}
+          className={styles.badgeListIcon}
+        />
+        <div className={styles.badgeListText}>
+          <span className={styles.badgeListName}>{alert.badgeName ?? 'Your badge'}</span>
+          <span className={styles.badgeListMeta}>Ready to finalize</span>
+        </div>
+      </div>
+      <button type="button" className={styles.badgeListAction} onClick={() => handleStartSurvey(alert)}>
+        Finalize
+      </button>
+    </li>
+  );
+
   return (
     <div className={`page ${styles.page}`}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
-        <div className={styles.topRow}>
-          <div className={styles.alertWrapper}>
-            <div
-              className={styles.alert}
-              data-active={readyBadgeAlerts.length > 0}
-              onClick={readyBadgeAlerts.length > 0 ? () => handleStartSurvey() : undefined}
-            >
-              {readyBadgeAlerts.length > 0 ? (
-                <>
-                  <Image
-                    src="/assets/survey_alarm/survey_alarm_x_icon.png"
-                    alt="Survey reminder"
-                    className={styles.alertIcon}
-                    width={24}
-                    height={24}
-                  />
-                  <span className={styles.alertText}>
-                    {readyBadgeAlerts.length === 1
-                      ? `Complete feedback for ${readyBadgeAlerts[0]?.badgeName ?? 'your badge'} to finalize it.`
-                      : `You have ${readyBadgeAlerts.length} badges ready to finalize. Start the surveys to finish.`}
-                  </span>
-                </>
-              ) : (
-                <span className={styles.alertText}>Welcome, Student</span>
-              )}
-            </div>
+        <section className={styles.hero}>
+          <div className={styles.heroText}>
+            <p className={styles.heroEyebrow}>Welcome back, {displayName}</p>
+            <h1 className={styles.heroTitle}>{courseTitle || 'Your course'}</h1>
+            {courseCode || courseSection ? (
+              <p className={styles.heroMeta}>
+                {courseCode}
+                {courseCode && courseSection ? ' · ' : ''}
+                {courseSection ? `Section ${courseSection}` : ''}
+              </p>
+            ) : null}
+          </div>
+        </section>
+
+        <div className={styles.statRow}>
+          <div className={styles.statCard}>
+            <span className={styles.statNumber}>{upNextLessons.length}</span>
+            <span className={styles.statLabel}>Lessons up next</span>
+          </div>
+          <div className={styles.statCard}>
+            <span className={styles.statNumber}>{continueLessons.length}</span>
+            <span className={styles.statLabel}>In progress</span>
+          </div>
+          <div className={styles.statCard}>
+            <span className={styles.statNumber}>{readyBadgeAlerts.length}</span>
+            <span className={styles.statLabel}>Ready to finalize</span>
           </div>
         </div>
 
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Up next</h2>
-          {isLoading ? (
-            <div className={styles.emptyState}>Loading lessons…</div>
-          ) : upNextLessons.length === 0 ? (
-            <div className={styles.emptyState}>No lessons ready to start.</div>
-          ) : (
-            <div className={styles.cardRow}>{upNextLessons.map(renderCard)}</div>
-          )}
-        </section>
+        <div className={styles.dashboardGrid}>
+          <div className={styles.mainColumn}>
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Up next</h2>
+              {isLoading ? (
+                <div className={styles.emptyState}>Loading lessons…</div>
+              ) : upNextLessons.length === 0 ? (
+                <div className={styles.emptyState}>No lessons ready to start.</div>
+              ) : (
+                <div className={styles.cardGrid}>{upNextLessons.map(renderCard)}</div>
+              )}
+            </section>
 
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Pick up where you left off</h2>
-          {isLoading ? (
-            <div className={styles.emptyState}>Loading your progress…</div>
-          ) : continueLessons.length === 0 ? (
-            <div className={styles.emptyState}>There are no in-progress lessons right now.</div>
-          ) : (
-            <div className={styles.cardRow}>{continueLessons.map(renderCard)}</div>
-          )}
-        </section>
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Pick up where you left off</h2>
+              {isLoading ? (
+                <div className={styles.emptyState}>Loading your progress…</div>
+              ) : continueLessons.length === 0 ? (
+                <div className={styles.emptyState}>There are no in-progress lessons right now.</div>
+              ) : (
+                <div className={styles.cardGrid}>{continueLessons.map(renderCard)}</div>
+              )}
+            </section>
+          </div>
+
+          <aside className={styles.sideColumn}>
+            <section className={styles.panel}>
+              <h2 className={styles.panelTitle}>Ready to finalize</h2>
+              {isLoading ? (
+                <p className={styles.emptyState}>Loading your badges…</p>
+              ) : readyBadgeAlerts.length === 0 ? (
+                <p className={styles.emptyState}>No badges ready to finalize right now.</p>
+              ) : (
+                <ul className={styles.badgeList}>{readyBadgeAlerts.map(renderBadgeListItem)}</ul>
+              )}
+            </section>
+
+            {courseDescription || courseContacts.length > 0 ? (
+              <section className={styles.panel}>
+                <h2 className={styles.panelTitle}>About this course</h2>
+                {courseDescription ? <p className={styles.panelText}>{courseDescription}</p> : null}
+                {courseContacts.length > 0 ? (
+                  <ul className={styles.contactList}>
+                    {courseContacts.map((contact) => (
+                      <li key={contact.id} className={styles.contactItem}>
+                        <span className={styles.contactName}>{contact.name}</span>
+                        <span className={styles.contactMeta}>{contact.type}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </section>
+            ) : null}
+          </aside>
+        </div>
       </main>
 
       {activeSurvey ? (

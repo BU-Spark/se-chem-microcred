@@ -264,6 +264,8 @@ function HomeContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
+  const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false);
+  const [surveyError, setSurveyError] = useState<string | null>(null);
   const [isWelcomeDismissed, setIsWelcomeDismissed] = useState(false);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -352,7 +354,7 @@ function HomeContent() {
 
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
-      router.replace('/sign-in');
+      router.replace('/splash');
     }
   }, [isLoaded, isSignedIn, router]);
 
@@ -365,6 +367,7 @@ function HomeContent() {
     if (match) {
       setActiveSurvey(match);
       setSurveyRating(3);
+      setSurveyError(null);
     }
   }, [pendingSurveyBadges, searchParams]);
 
@@ -380,7 +383,7 @@ function HomeContent() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Failed to sign out', error);
       setIsSigningOut(false);
@@ -389,6 +392,7 @@ function HomeContent() {
 
   const closeSurveyModal = useCallback(() => {
     setActiveSurvey(null);
+    setSurveyError(null);
 
     const params = new URLSearchParams(searchParams.toString());
     params.delete('surveyBadge');
@@ -419,6 +423,7 @@ function HomeContent() {
 
       setActiveSurvey(surveyTarget);
       setSurveyRating(3);
+      setSurveyError(null);
 
       const params = new URLSearchParams(searchParams.toString());
       if (surveyTarget.badgeSlug) {
@@ -431,7 +436,10 @@ function HomeContent() {
   );
 
   const handleSubmitSurvey = useCallback(async () => {
-    if (!activeSurvey || !studentData?.student.email) return;
+    if (!activeSurvey || !studentData?.student.email || isSubmittingSurvey) return;
+
+    setIsSubmittingSurvey(true);
+    setSurveyError(null);
 
     try {
       const response = await fetch(`/api/badges/${activeSurvey.badgeId}/survey`, {
@@ -443,14 +451,20 @@ function HomeContent() {
         }),
       });
 
-      if (!response.ok) throw new Error('Failed to submit survey');
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error ?? 'Failed to submit survey.');
+      }
 
       await refresh();
       closeSurveyModal();
     } catch (error) {
       console.error('Failed to submit survey', error);
+      setSurveyError(error instanceof Error ? error.message : 'Failed to submit survey. Please try again.');
+    } finally {
+      setIsSubmittingSurvey(false);
     }
-  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal]);
+  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal, isSubmittingSurvey]);
 
   const handleDuplicateCourse = useCallback(
     async (courseId: string) => {
@@ -597,7 +611,24 @@ function HomeContent() {
         {/* All three role sections are shown together on Home — the client validated this
             combined professor/assessor/student view, so we intentionally do not role-gate them. */}
         <section className={courseStyles.section}>
-          <h2 className={courseStyles.sectionTitle}>My Courses</h2>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={courseStyles.sectionTitle}>Instructor Courses</h2>
+            <button
+              type="button"
+              className={styles.duplicateButton}
+              aria-label="Duplicate course"
+              onClick={() => {
+                setDuplicateError(null);
+                setIsDuplicateOpen(true);
+              }}
+            >
+              <svg className={styles.duplicateIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="8" y="8" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M4 15.5V5a2 2 0 0 1 2-2h9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              Duplicate Course
+            </button>
+          </div>
 
           <div className={styles.myCoursesGrid} data-testid="created-courses-grid">
             <AddCourseCard />
@@ -609,6 +640,35 @@ function HomeContent() {
           {isLoadingCreated ? <p className={courseStyles.statusMessage}>Loading created courses…</p> : null}
 
           {!isLoadingCreated && createdError ? <p className={courseStyles.statusMessage}>{createdError}</p> : null}
+        </section>
+
+        <section className={styles.section}>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={courseStyles.sectionTitle}>My Enrolled Courses</h2>
+            <button
+              type="button"
+              className={styles.joinButton}
+              data-testid="join-course-card"
+              aria-label="Join a course as a student"
+              onClick={() => openJoinModal('student')}
+            >
+              <span className={styles.joinPlus} aria-hidden="true">
+                +
+              </span>
+              Join
+            </button>
+          </div>
+
+          {isLoadingEnrolled ? (
+            <div className={styles.emptyState}>Loading enrolled courses…</div>
+          ) : enrolledError ? (
+            <div className={styles.emptyState}>{enrolledError}</div>
+          ) : (
+            <>
+              <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
+              {joinStatus && !isJoinModalOpen ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
+            </>
+          )}
         </section>
 
         <section className={courseStyles.section}>
@@ -647,51 +707,6 @@ function HomeContent() {
             <p className={courseStyles.statusMessage}>No assessor courses assigned yet.</p>
           ) : null}
         </section>
-
-        <section className={styles.section}>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={courseStyles.sectionTitle}>My Enrolled Courses</h2>
-            <button
-              type="button"
-              className={styles.joinButton}
-              data-testid="join-course-card"
-              aria-label="Join a course as a student"
-              onClick={() => openJoinModal('student')}
-            >
-              <span className={styles.joinPlus} aria-hidden="true">
-                +
-              </span>
-              Join
-            </button>
-          </div>
-
-          {isLoadingEnrolled ? (
-            <div className={styles.emptyState}>Loading enrolled courses…</div>
-          ) : enrolledError ? (
-            <div className={styles.emptyState}>{enrolledError}</div>
-          ) : (
-            <>
-              <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
-              {joinStatus && !isJoinModalOpen ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
-            </>
-          )}
-        </section>
-
-        <button
-          type="button"
-          className={styles.duplicateButton}
-          aria-label="Duplicate course"
-          onClick={() => {
-            setDuplicateError(null);
-            setIsDuplicateOpen(true);
-          }}
-        >
-          <svg className={styles.duplicateIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <rect x="8" y="8" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-            <path d="M4 15.5V5a2 2 0 0 1 2-2h9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-          Duplicate Course
-        </button>
       </main>
 
       {showWelcomeModal ? (
@@ -849,8 +864,19 @@ function HomeContent() {
               })}
             </div>
 
-            <button type="button" className={styles.surveySubmit} onClick={handleSubmitSurvey}>
-              Submit
+            {surveyError ? (
+              <p className={styles.surveyError} role="alert">
+                {surveyError}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              className={styles.surveySubmit}
+              onClick={handleSubmitSurvey}
+              disabled={isSubmittingSurvey}
+            >
+              {isSubmittingSurvey ? 'Submitting…' : 'Submit'}
             </button>
           </div>
         </div>

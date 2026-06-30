@@ -24,12 +24,15 @@
 
 .months {
   display: flex;
-  gap: 1.5rem;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  gap: 1rem;
+  /* Breathing room so the calendar block keeps a steady height as months change. */
+  padding-block: 0.75rem;
 }
 
 .month {
-  flex: 1 1 240px;
+  flex: 1 1 0;
+  min-width: 0;
 }
 
 .monthLabel {

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
@@ -15,12 +15,14 @@ function buildAvatarUrlFromAvatar(
   return `/assets/edit_avatar/${avatar.base.toLowerCase()}.svg`;
 }
 
-export default function LessonVideoRoute() {
+function LessonVideoRouteContent() {
   const params = useParams<{ lessonId: string }>();
+  const searchParams = useSearchParams();
+  const courseId = searchParams.get('courseId');
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
-  const { data: studentData, isLoading, error } = useStudentData(user?.primaryEmailAddress?.emailAddress);
+  const { data: studentData, isLoading, error } = useStudentData(user?.primaryEmailAddress?.emailAddress, courseId);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleBack = () => {
@@ -86,7 +88,7 @@ export default function LessonVideoRoute() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Sign out failed', error);
       setIsSigningOut(false);
@@ -109,5 +111,13 @@ export default function LessonVideoRoute() {
         />
       </div>
     </div>
+  );
+}
+
+export default function LessonVideoRoute() {
+  return (
+    <Suspense fallback={null}>
+      <LessonVideoRouteContent />
+    </Suspense>
   );
 }

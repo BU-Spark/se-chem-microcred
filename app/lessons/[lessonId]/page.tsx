@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
@@ -24,25 +24,25 @@ function formatQuestionCount(count?: number | null) {
   return `${safeCount} question${safeCount === 1 ? '' : 's'}`;
 }
 
-export default function LessonDetailPage() {
+function LessonDetailContent() {
   const router = useRouter();
   const params = useParams<{ lessonId: string }>();
+  const searchParams = useSearchParams();
+  const courseId = searchParams.get('courseId');
 
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
-  const { data: studentData, isLoading } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null);
-
+  const { data: studentData, isLoading } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null, courseId);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   // Redirect only after hooks have run
   const signedOut = isLoaded && !isSignedIn;
   useEffect(() => {
-    if (signedOut) router.replace('/sign-in');
-  }, [signedOut, router]);
+    if (signedOut && !isSigningOut) router.replace('/sign-in');
+  }, [signedOut, isSigningOut, router]);
 
   const displayName = studentData?.student.name || '';
 
   const lessonRecord = studentData?.lessons.catalog.find((e) => e.slug === params.lessonId);
-
-  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
     if (isSigningOut) {
@@ -51,7 +51,7 @@ export default function LessonDetailPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Failed to sign out', error);
       setIsSigningOut(false);
@@ -323,7 +323,14 @@ export default function LessonDetailPage() {
               </section>
 
               <div className={styles.actionsRow}>
-                <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
+                <Link
+                  href={
+                    courseId
+                      ? `/lessons/${lessonRecord.slug}/video?courseId=${encodeURIComponent(courseId)}`
+                      : `/lessons/${lessonRecord.slug}/video`
+                  }
+                  className={styles.primaryButton}
+                >
                   Start Lesson
                 </Link>
               </div>
@@ -343,5 +350,13 @@ export default function LessonDetailPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function LessonDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <LessonDetailContent />
+    </Suspense>
   );
 }

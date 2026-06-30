@@ -140,30 +140,18 @@ describe('Course new page edit mode', () => {
       });
     });
 
-    expect(await screen.findByDisplayValue('Chemistry 101')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('3')).toBeInTheDocument();
+    // Edit mode opens directly on the Review step, which summarizes the preloaded course.
+    expect(await screen.findByText('Chemistry 101')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Edit course' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(await screen.findByText('Jane')).toBeInTheDocument();
-    expect(screen.getByText('Student')).toBeInTheDocument();
-    expect(screen.getByText('U12345678')).toBeInTheDocument();
-    expect(screen.getByText('jane@bu.edu')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(await screen.findByText('Alex')).toBeInTheDocument();
-    expect(screen.getByText('Checker')).toBeInTheDocument();
-    expect(screen.getByText('U87654321')).toBeInTheDocument();
-    expect(screen.getByText('checker@bu.edu')).toBeInTheDocument();
-    // Section is now an inline dropdown; the preloaded primary section is selected.
-    expect(screen.getByDisplayValue('3')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    expect(await screen.findByText('1 students enrolled')).toBeInTheDocument();
+    expect(screen.getByText('1 students enrolled')).toBeInTheDocument();
     expect(screen.getByText('1 assessors enrolled')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Save Changes' }));
+    const saveButton = screen.getByRole('button', { name: 'Save Changes' });
+    await waitFor(() => {
+      expect(saveButton).toBeEnabled();
+    });
+
+    fireEvent.click(saveButton);
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -246,11 +234,8 @@ describe('Course new page edit mode', () => {
       });
     });
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    // Edit mode opens on the Review step; jump to the student roster step to reach the upload control.
+    fireEvent.click(await screen.findByRole('button', { name: 'View Student Roster' }));
 
     await waitFor(() => {
       expect(container.querySelector('input[type="file"]')).not.toBeNull();
@@ -311,11 +296,8 @@ describe('Course new page edit mode', () => {
       });
     });
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Next' })).toBeEnabled();
-    });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    // Edit mode opens on the Review step; jump to the student roster step to reach the upload control.
+    fireEvent.click(await screen.findByRole('button', { name: 'View Student Roster' }));
 
     await waitFor(() => {
       expect(container.querySelector('input[type="file"]')).not.toBeNull();
