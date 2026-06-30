@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { BadgeStatus, LessonStatus, SurveyContext } from '@prisma/client';
+import { LessonStatus, SurveyContext } from '@prisma/client';
 import prisma from '../../../../../lib/prisma';
+import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
 
 type RouteContext = {
   params: Promise<{
@@ -54,61 +55,82 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Lesson not found.' }, { status: 404 });
   }
 
+  // The survey prompt is a read-mostly lookup with no dependency on any write in
+  // the transaction, so resolve it BEFORE opening the interactive tx to keep the
+  // tx holding fewer serial round-trips. SurveyPrompt has no natural unique key
+  // (only @id), so it cannot be upserted; keep find-then-create.
+  let surveyPromptRecord =
+    (await prisma.surveyPrompt.findFirst({
+      where: {
+        lessonId,
+        context: SurveyContext.LESSON,
+      },
+      select: { id: true, question: true },
+    })) ?? null;
+
+  if (!surveyPromptRecord) {
+    const question = lesson?.title ? `How was the lesson "${lesson.title}"?` : 'How was this lesson?';
+    surveyPromptRecord = await prisma.surveyPrompt.create({
+      data: {
+        context: SurveyContext.LESSON,
+        lessonId,
+        question,
+      },
+      select: { id: true, question: true },
+    });
+  }
+
+  const promptId = surveyPromptRecord.id;
+
   const { readyForAssessment } = await prisma.$transaction(async (tx) => {
-    let surveyPromptRecord =
-      (await tx.surveyPrompt.findFirst({
-        where: {
-          lessonId,
-          context: SurveyContext.LESSON,
-        },
-        select: { id: true, question: true },
-      })) ?? null;
-
-    if (!surveyPromptRecord) {
-      const question = lesson?.title ? `How was the lesson "${lesson.title}"?` : 'How was this lesson?';
-      surveyPromptRecord = await tx.surveyPrompt.create({
-        data: {
-          context: SurveyContext.LESSON,
-          lessonId,
-          question,
-        },
-        select: { id: true, question: true },
-      });
-    }
-
-    let lessonProgressRecord =
-      (await tx.lessonProgress.findFirst({
-        where: {
+    // Collapse find → create → conditional-update into a single upsert keyed on
+    // the @@unique([studentId, lessonId]) constraint (studentId_lessonId).
+    const lessonProgressRecord = await tx.lessonProgress.upsert({
+      where: {
+        studentId_lessonId: {
           studentId: user.id,
           lessonId,
         },
-      })) ?? null;
+      },
+      create: {
+        studentId: user.id,
+        lessonId,
+        ...(payload.videoCompleted
+          ? {
+              status: LessonStatus.COMPLETED,
+              completedAt: new Date(),
+              percentComplete: 100,
+            }
+          : {
+              status: LessonStatus.IN_PROGRESS,
+              percentComplete: 0,
+            }),
+      },
+      // completedAt is handled separately below to preserve "?? new Date()"
+      // (don't clobber a pre-existing completion timestamp).
+      update: payload.videoCompleted
+        ? {
+            status: LessonStatus.COMPLETED,
+            percentComplete: 100,
+          }
+        : {},
+    });
 
-    if (!lessonProgressRecord) {
-      lessonProgressRecord = await tx.lessonProgress.create({
-        data: {
-          studentId: user.id,
-          lessonId,
-          status: LessonStatus.IN_PROGRESS,
-          percentComplete: 0,
-        },
-      });
-    }
-
-    if (payload.videoCompleted) {
-      lessonProgressRecord = await tx.lessonProgress.update({
+    // Preserve "completedAt ?? new Date()" semantics: if videoCompleted and the
+    // row had no completedAt, stamp it now without clobbering an existing value.
+    if (payload.videoCompleted && !lessonProgressRecord.completedAt) {
+      lessonProgressRecord.completedAt = new Date();
+      await tx.lessonProgress.update({
         where: { id: lessonProgressRecord.id },
-        data: {
-          status: LessonStatus.COMPLETED,
-          completedAt: lessonProgressRecord.completedAt ?? new Date(),
-          percentComplete: 100,
-        },
+        data: { completedAt: lessonProgressRecord.completedAt },
       });
     }
 
+    // SurveyResponse has no natural unique key (only @id), so it cannot be
+    // upserted; keep find-then-create-or-update.
     const existingResponse = await tx.surveyResponse.findFirst({
       where: {
-        promptId: surveyPromptRecord.id,
+        promptId,
         studentId: user.id,
       },
     });
@@ -124,7 +146,7 @@ export async function POST(request: Request, context: RouteContext) {
     } else {
       await tx.surveyResponse.create({
         data: {
-          promptId: surveyPromptRecord.id,
+          promptId,
           studentId: user.id,
           rating: payload.rating ?? 3,
           comment: payload.comment ?? null,
@@ -132,60 +154,7 @@ export async function POST(request: Request, context: RouteContext) {
       });
     }
 
-    const [lessonCheckpoints, passedAttempts] = await Promise.all([
-      tx.lessonCheckpoint.findMany({
-        where: { lessonId },
-        select: { id: true },
-      }),
-      tx.checkpointAttempt.findMany({
-        where: {
-          userId: user.id,
-          isPassing: true,
-          checkpoint: {
-            lessonId,
-          },
-        },
-        select: { checkpointId: true },
-      }),
-    ]);
-
-    const passedCheckpointIds = new Set(passedAttempts.map((entry) => entry.checkpointId));
-    const allCheckpointsPassed =
-      lessonCheckpoints.length === 0 || lessonCheckpoints.every((checkpoint) => passedCheckpointIds.has(checkpoint.id));
-    const videoCompleted =
-      lessonProgressRecord.status === LessonStatus.COMPLETED ||
-      lessonProgressRecord.percentComplete === 100 ||
-      payload.videoCompleted;
-
-    let readyForAssessment = false;
-
-    if (allCheckpointsPassed && videoCompleted) {
-      const badgeRequirement = await tx.badgeRequirement.findFirst({
-        where: { lessonId },
-        select: { badgeId: true },
-      });
-
-      if (badgeRequirement) {
-        const studentBadge = await tx.studentBadge.findUnique({
-          where: {
-            studentId_badgeId: {
-              studentId: user.id,
-              badgeId: badgeRequirement.badgeId,
-            },
-          },
-        });
-
-        if (studentBadge && studentBadge.status === BadgeStatus.LEARNING) {
-          await tx.studentBadge.update({
-            where: { id: studentBadge.id },
-            data: {
-              status: BadgeStatus.READY_FOR_ASSESSMENT,
-            },
-          });
-          readyForAssessment = true;
-        }
-      }
-    }
+    const { readyForAssessment } = await syncLessonBadgesForStudent(tx, { studentId: user.id, lessonId });
 
     return { surveyPrompt: surveyPromptRecord, lessonProgress: lessonProgressRecord, readyForAssessment };
   });

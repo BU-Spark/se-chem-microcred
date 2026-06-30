@@ -1,12 +1,14 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useMyCourses } from './hooks/useMyCourses';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
-import { useStudentData, type LessonRecord } from './hooks/useStudentData';
+import { useStudentData, type StudentData } from './hooks/useStudentData';
 import styles from './page.module.css';
+import courseStyles from './courses/page.module.css';
 import veryUnhappy from '../public/assets/survey_faces/very_unhappy.svg';
 import slightlyUnhappy from '../public/assets/survey_faces/slightly_unhappy.svg';
 import neutral from '../public/assets/survey_faces/neutral.svg';
@@ -17,52 +19,85 @@ import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unha
 import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
 import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
 import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
+import gemAvatar from '../public/edit_avatar/sapphire.svg';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
-interface LessonCard {
+interface EnrolledCourseCardData {
   id: string;
   title: string;
-  status: string;
-  meta: string;
-  actionLabel: string;
-  variant?: 'start' | 'continue';
   image?: string;
   href?: string;
 }
 
+type CourseContact = NonNullable<StudentData['course']>['contacts'][number];
+
+type CoursePreviewLesson = {
+  thumbnailUrl: string | null;
+  segments: Array<{
+    videoUrl: string | null;
+    thumbnailUrl: string | null;
+  }>;
+};
+
+type CreatedCourse = {
+  id: string;
+  title: string;
+  description: string | null;
+  section: string | null;
+  sectionCount: number;
+  createdAt: string;
+  lessons: Array<{
+    thumbnailUrl: string | null;
+  }>;
+};
+
+type EnrolledCourse = {
+  id: string;
+  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
+  course: {
+    id: string;
+    code: string;
+    section: string | null;
+    title: string;
+    description: string | null;
+    contacts: CourseContact[];
+    lessons: CoursePreviewLesson[];
+  };
+};
+
+type AssessorCourseEnrollment = {
+  id: string;
+  role: 'INSTRUCTOR' | 'CHECKER';
+  sections: string[];
+  course: CreatedCourse;
+};
+
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
 
-function initialsFromName(name?: string | null) {
-  if (!name) {
-    return 'ST';
-  }
-  const parts = name.trim().split(/\s+/);
-  const initials = parts.slice(0, 2).map((part) => part.charAt(0).toUpperCase());
-  return initials.join('') || 'ST';
-}
+const FACE_IMAGES: Record<number, StaticImageData> = {
+  1: veryUnhappy,
+  2: slightlyUnhappy,
+  3: neutral,
+  4: slightlyHappy,
+  5: veryHappy,
+};
 
-function formatDueDate(dueDate: string | null) {
-  if (!dueDate) {
-    return null;
-  }
-  const date = new Date(dueDate);
-  if (Number.isNaN(date.getTime())) {
-    return null;
-  }
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
+const FACE_IMAGES_SELECTED: Record<number, StaticImageData> = {
+  1: veryUnhappySelected,
+  2: slightlyUnhappySelected,
+  3: neutralSelected,
+  4: slightlyHappySelected,
+  5: veryHappySelected,
+};
 
-/**
- * Robust YouTube ID extractor:
- * - https://www.youtube.com/watch?v=ID
- * - https://youtu.be/ID
- * - https://www.youtube.com/embed/ID
- * - with extra query params / playlists
- */
+const FACE_ALTS: Record<number, string> = {
+  1: 'Very unhappy',
+  2: 'Slightly unhappy',
+  3: 'Neutral',
+  4: 'Slightly happy',
+  5: 'Very happy',
+};
+
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
   const trimmed = url.trim();
@@ -71,17 +106,14 @@ function extractYouTubeId(url?: string | null) {
   try {
     const u = new URL(trimmed);
 
-    // youtu.be/<id>
     if (u.hostname.includes('youtu.be')) {
       const pathId = u.pathname.replace('/', '').trim();
       if (pathId.length === 11) return pathId;
     }
 
-    // ?v=<id>
     const v = u.searchParams.get('v');
     if (v && v.length === 11) return v;
 
-    // /embed/<id>
     const parts = u.pathname.split('/');
     const embedIndex = parts.indexOf('embed');
     if (embedIndex >= 0 && parts[embedIndex + 1]?.length === 11) {
@@ -95,30 +127,18 @@ function extractYouTubeId(url?: string | null) {
   return match?.[1] ?? null;
 }
 
-/**
- * Decide which image to show for a lesson.
- * Priority:
- * 1. YouTube thumbnail derived from lesson/segment videoUrl
- * 2. record.thumbnailUrl
- * 3. first segment thumbnailUrl
- * 4. dummy fallback
- */
-function resolveLessonImage(record: LessonRecord) {
+function resolvePreviewImage(record?: CoursePreviewLesson | null) {
+  if (!record) return DEFAULT_LESSON_IMAGE;
+
   const clean = (u?: string | null) => {
     if (!u) return null;
     const trimmed = u.trim();
     if (!trimmed) return null;
-    // normalize accidentally stored "/public/assets/..." paths to "/assets/..."
     if (trimmed.startsWith('/public/')) return trimmed.replace(/^\/public/, '');
     return trimmed;
   };
 
-  // First try YouTube thumbnails from any video URLs
   const candidateUrls: (string | null | undefined)[] = [];
-  if ('videoUrl' in record) {
-    const maybeVideo = (record as Partial<{ videoUrl: string | null }>).videoUrl;
-    if (maybeVideo) candidateUrls.push(maybeVideo);
-  }
 
   if (record.segments && Array.isArray(record.segments)) {
     for (const seg of record.segments) {
@@ -128,9 +148,7 @@ function resolveLessonImage(record: LessonRecord) {
 
   for (const url of candidateUrls) {
     const id = extractYouTubeId(url);
-    if (id) {
-      return `https://i.ytimg.com/vi/${id}/hqdefault.jpg`;
-    }
+    if (id) return `https://img.youtube.com/vi/${id}/hqdefault.jpg`;
   }
 
   const fromRecordThumb = clean(record.thumbnailUrl);
@@ -140,39 +158,103 @@ function resolveLessonImage(record: LessonRecord) {
   const fromSegmentThumb = clean(primarySegment?.thumbnailUrl);
   if (fromSegmentThumb) return fromSegmentThumb;
 
-  // 最后兜底 dummy
   return DEFAULT_LESSON_IMAGE;
 }
 
-function lessonRecordToCard(record: LessonRecord): LessonCard {
-  const due = formatDueDate(record.dueDate);
-  const metaParts: string[] = [];
-  if (due) {
-    metaParts.push(`Due: ${due}`);
-  }
-  if (record.estimatedMinutes) {
-    metaParts.push(`${record.estimatedMinutes} min`);
-  }
+function resolveThumbnailUrl(course: CreatedCourse) {
+  const candidate = course.lessons[0]?.thumbnailUrl?.trim();
+  return candidate ? candidate : null;
+}
+
+function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: string }) {
+  const thumbnailUrl = resolveThumbnailUrl(course);
+
+  return (
+    <Link
+      href={href ?? `/courses/${course.id}`}
+      className={courseStyles.courseCard}
+      data-testid="course-card"
+      aria-label={`Open ${course.title}`}
+    >
+      <div className={courseStyles.courseMedia}>
+        {thumbnailUrl ? (
+          <Image
+            src={thumbnailUrl}
+            alt={`${course.title} preview`}
+            fill
+            sizes="(max-width: 768px) 100vw, 240px"
+            className={courseStyles.courseImage}
+          />
+        ) : (
+          <div className={courseStyles.coursePlaceholder} aria-hidden="true" />
+        )}
+      </div>
+
+      <div className={courseStyles.courseText}>
+        <h3 className={courseStyles.courseTitle}>{course.title}</h3>
+      </div>
+    </Link>
+  );
+}
+
+function AddCourseCard() {
+  return (
+    <Link href="/courses/new" className={styles.addTile} data-testid="add-course-card" aria-label="Create a course">
+      <div className={styles.addTileMedia}>
+        <span className={styles.addTilePlus}>+</span>
+      </div>
+      <p className={styles.addTileLabel}>Create a Course</p>
+    </Link>
+  );
+}
+
+function enrollmentToCard(enrollment: EnrolledCourse): EnrolledCourseCardData {
+  const course = enrollment.course;
 
   return {
-    id: record.id,
-    title: record.title,
-    status: record.status === 'IN_PROGRESS' ? `${Math.max(record.percentComplete, 1)}% complete` : 'Not started',
-    meta: metaParts.join(' • ') || 'No due date',
-    actionLabel: record.status === 'IN_PROGRESS' ? 'Continue' : 'Start',
-    variant: record.status === 'IN_PROGRESS' ? 'continue' : 'start',
-    image: resolveLessonImage(record),
-    href: `/lessons/${record.slug}`,
+    id: enrollment.id,
+    title: course.title,
+    image: resolvePreviewImage(course.lessons[0]),
+    href: `/course_dashboard?courseId=${course.id}`,
   };
 }
 
-function HomePageContent() {
+function HomeContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
-  const { data: studentData, isLoading, refresh } = useStudentData(user?.primaryEmailAddress?.emailAddress);
-  const pathname = usePathname();
+  const email = user?.primaryEmailAddress?.emailAddress ?? null;
+
+  const { data: studentData, refresh } = useStudentData(email);
+
+  // One consolidated SWR-cached fetch replaces the three per-role fetches. The
+  // single loading/error state applies to all sections, matching the prior
+  // behaviour where the three calls always resolved together. Gated on Clerk
+  // auth so we never fetch before the user is known to be signed in.
+  const {
+    data: myCourses,
+    created,
+    enrolled,
+    assessor,
+    isLoading,
+    error: fetchError,
+    mutate: refreshCourses,
+  } = useMyCourses(isLoaded && isSignedIn);
+  const coursesError = fetchError
+    ? fetchError instanceof Error
+      ? fetchError.message
+      : 'Unable to load courses.'
+    : null;
+
+  const isLoadingCreated = isLoading;
+  const createdError = coursesError;
+  const isLoadingEnrolled = isLoading;
+  const enrolledError = coursesError;
+  const isLoadingAssessorCourses = isLoading;
+  const assessorCoursesError = coursesError;
+
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{
     promptId: string;
@@ -182,38 +264,58 @@ function HomePageContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
+  const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false);
+  const [surveyError, setSurveyError] = useState<string | null>(null);
+  const [isWelcomeDismissed, setIsWelcomeDismissed] = useState(false);
+  const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [joinCode, setJoinCode] = useState('');
+  const [joinStatus, setJoinStatus] = useState<string | null>(null);
+  const [joinError, setJoinError] = useState<string | null>(null);
+  const [isJoiningCourse, setIsJoiningCourse] = useState(false);
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
+  // Which entry point opened the join modal — drives the modal's copy. The
+  // backend still resolves the actual role from whichever code is entered.
+  const [joinMode, setJoinMode] = useState<'student' | 'assessor'>('student');
+  // True after an assessor request is submitted (pending approval) — keeps the
+  // modal open briefly to show the confirmation before it auto-closes.
+  const [joinPending, setJoinPending] = useState(false);
 
-  const FACE_IMAGES: Record<number, StaticImageData> = {
-    1: veryUnhappy,
-    2: slightlyUnhappy,
-    3: neutral,
-    4: slightlyHappy,
-    5: veryHappy,
-  };
-  const FACE_IMAGES_SELECTED: Record<number, StaticImageData> = {
-    1: veryUnhappySelected,
-    2: slightlyUnhappySelected,
-    3: neutralSelected,
-    4: slightlyHappySelected,
-    5: veryHappySelected,
-  };
+  const openJoinModal = useCallback((mode: 'student' | 'assessor') => {
+    setJoinMode(mode);
+    setJoinError(null);
+    setJoinStatus(null);
+    setJoinPending(false);
+    setIsJoinModalOpen(true);
+  }, []);
 
-  const FACE_ALTS: Record<number, string> = {
-    1: 'Very unhappy',
-    2: 'Slightly unhappy',
-    3: 'Neutral',
-    4: 'Slightly happy',
-    5: 'Very happy',
-  };
+  const closeJoinModal = useCallback(() => {
+    setIsJoinModalOpen(false);
+    setJoinError(null);
+    setJoinStatus(null);
+    setJoinPending(false);
+  }, []);
 
-  const displayName = studentData?.student?.name || user?.fullName || 'Student';
+  // Auto-close the modal a few seconds after a pending assessor request lands.
+  useEffect(() => {
+    if (!isJoinModalOpen || !joinPending || !joinStatus) return;
+    const timer = setTimeout(() => closeJoinModal(), 3000);
+    return () => clearTimeout(timer);
+  }, [isJoinModalOpen, joinPending, joinStatus, closeJoinModal]);
+
+  const navItems = SIDEBAR_NAV;
+  const displayName = myCourses?.user.name || studentData?.student?.name || '';
+  const assessmentAccessMessage = searchParams.get('assessmentMessage');
+  const showAssessmentAccessModal = Boolean(searchParams.get('assessmentAccess'));
+
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
+
   const readyForFinalization = useMemo(() => studentData?.badges?.readyForFinalization ?? [], [studentData]);
 
   const readyBadgeAlerts = useMemo(() => {
-    if (pendingSurveyBadges.length > 0) {
-      return pendingSurveyBadges;
-    }
+    if (pendingSurveyBadges.length > 0) return pendingSurveyBadges;
+
     return readyForFinalization.map((badge) => ({
       promptId: `auto-${badge.id}`,
       badgeId: badge.id,
@@ -223,15 +325,49 @@ function HomePageContent() {
     }));
   }, [pendingSurveyBadges, readyForFinalization]);
 
+  const createdCourses = useMemo<CreatedCourse[]>(() => created?.courses ?? [], [created]);
+  const assessorEnrollments = useMemo<AssessorCourseEnrollment[]>(() => assessor?.enrollments ?? [], [assessor]);
+
+  const enrolledCourseCards = useMemo(
+    () => (enrolled?.enrollments ?? []).map((e: EnrolledCourse) => enrollmentToCard(e)),
+    [enrolled]
+  );
+
+  // Role gating: the three course endpoints already segment by role, so data presence
+  // is a reliable signal for which sections to surface.
+  const hasCreated = createdCourses.length > 0;
+  const hasAssessor = assessorEnrollments.length > 0;
+  const hasEnrolled = enrolledCourseCards.length > 0;
+  const isLoadingRoles = isLoadingCreated || isLoadingAssessorCourses || isLoadingEnrolled;
+  // Instructors (and brand-new users with no role context) see "My Courses".
+  const showMyCourses = hasCreated || (!hasAssessor && !hasEnrolled);
+  // Empty professor: signed in, finished loading, no courses in any role, no fetch error.
+  const isEmptyProfessor =
+    !isLoadingRoles &&
+    !hasCreated &&
+    !hasAssessor &&
+    !hasEnrolled &&
+    !createdError &&
+    !assessorCoursesError &&
+    !enrolledError;
+  const showWelcomeModal = isEmptyProfessor && !isWelcomeDismissed;
+
+  useEffect(() => {
+    if (isLoaded && !isSignedIn) {
+      router.replace('/splash');
+    }
+  }, [isLoaded, isSignedIn, router]);
+
   useEffect(() => {
     const slug = searchParams.get('surveyBadge');
-    if (!slug) {
-      return;
-    }
-    const match = pendingSurveyBadges.find((entry) => entry.badgeSlug === slug) ?? pendingSurveyBadges[0] ?? null;
+    if (!slug) return;
+
+    const match = pendingSurveyBadges.find((e) => e.badgeSlug === slug) ?? pendingSurveyBadges[0] ?? null;
+
     if (match) {
       setActiveSurvey(match);
       setSurveyRating(3);
+      setSurveyError(null);
     }
   }, [pendingSurveyBadges, searchParams]);
 
@@ -241,29 +377,13 @@ function HomePageContent() {
     }
   }, [pendingSurveyBadges]);
 
-  const upNextLessons = useMemo(() => {
-    return studentData?.lessons.upNext.map(lessonRecordToCard) ?? [];
-  }, [studentData]);
-
-  const continueLessons = useMemo(() => {
-    return studentData?.lessons.inProgress.map(lessonRecordToCard) ?? [];
-  }, [studentData]);
-
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace('/sign-in');
-    }
-  }, [isLoaded, isSignedIn, router]);
-
   const handleSignOut = async () => {
-    if (isSigningOut) {
-      return;
-    }
+    if (isSigningOut) return;
 
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (error) {
       console.error('Failed to sign out', error);
       setIsSigningOut(false);
@@ -272,9 +392,21 @@ function HomePageContent() {
 
   const closeSurveyModal = useCallback(() => {
     setActiveSurvey(null);
+    setSurveyError(null);
+
     const params = new URLSearchParams(searchParams.toString());
     params.delete('surveyBadge');
     const nextPath = params.size ? `${pathname}?${params.toString()}` : pathname;
+
+    router.replace(nextPath, { scroll: false });
+  }, [pathname, router, searchParams]);
+
+  const closeAssessmentAccessModal = useCallback(() => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('assessmentAccess');
+    params.delete('assessmentMessage');
+    const nextPath = params.size ? `${pathname}?${params.toString()}` : pathname;
+
     router.replace(nextPath, { scroll: false });
   }, [pathname, router, searchParams]);
 
@@ -287,27 +419,27 @@ function HomePageContent() {
       question: string;
     }) => {
       const surveyTarget = target ?? readyBadgeAlerts[0];
-      if (!surveyTarget) {
-        return;
-      }
+      if (!surveyTarget) return;
 
       setActiveSurvey(surveyTarget);
       setSurveyRating(3);
+      setSurveyError(null);
 
       const params = new URLSearchParams(searchParams.toString());
       if (surveyTarget.badgeSlug) {
         params.set('surveyBadge', surveyTarget.badgeSlug);
       }
-      const nextPath = `${pathname}?${params.toString()}`;
-      router.replace(nextPath, { scroll: false });
+
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
     [readyBadgeAlerts, pathname, router, searchParams]
   );
 
   const handleSubmitSurvey = useCallback(async () => {
-    if (!activeSurvey || !studentData?.student.email) {
-      return;
-    }
+    if (!activeSurvey || !studentData?.student.email || isSubmittingSurvey) return;
+
+    setIsSubmittingSurvey(true);
+    setSurveyError(null);
 
     try {
       const response = await fetch(`/api/badges/${activeSurvey.badgeId}/survey`, {
@@ -320,142 +452,379 @@ function HomePageContent() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to submit survey');
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error ?? 'Failed to submit survey.');
       }
 
       await refresh();
       closeSurveyModal();
     } catch (error) {
       console.error('Failed to submit survey', error);
+      setSurveyError(error instanceof Error ? error.message : 'Failed to submit survey. Please try again.');
+    } finally {
+      setIsSubmittingSurvey(false);
     }
-  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal]);
+  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal, isSubmittingSurvey]);
 
-  if (!isLoaded || !isSignedIn) {
-    return null;
-  }
+  const handleDuplicateCourse = useCallback(
+    async (courseId: string) => {
+      setDuplicatingId(courseId);
+      setDuplicateError(null);
+      try {
+        const response = await fetch(`/api/courses/${courseId}/duplicate`, { method: 'POST' });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error ?? 'Failed to duplicate course.');
+        router.push(`/courses/${payload.course.id}`);
+      } catch (error) {
+        setDuplicateError(error instanceof Error ? error.message : 'Failed to duplicate course.');
+        setDuplicatingId(null);
+      }
+    },
+    [router]
+  );
 
-  const renderCard = (lesson: LessonCard) => {
-    const buttonClass =
-      lesson.variant === 'continue' ? `${styles.cardButton} ${styles.secondaryAction}` : styles.cardButton;
+  const handleJoinCourse = useCallback(async () => {
+    if (isJoiningCourse) return;
 
-    const imageSrc = lesson.image ?? DEFAULT_LESSON_IMAGE;
-    const isYouTubeThumb = imageSrc.includes('ytimg.com') || imageSrc.includes('youtube.com');
+    setJoinError(null);
+    setJoinStatus(null);
+
+    const code = joinCode.trim();
+    if (!code) {
+      setJoinError('Enter a course code to join.');
+      return;
+    }
+
+    setIsJoiningCourse(true);
+    try {
+      const response = await fetch('/api/courses/join', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ code }),
+      });
+      const payload = await response.json().catch(() => ({
+        error: `Request failed: ${response.status}`,
+      }));
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to join course.');
+      }
+
+      setJoinCode('');
+      setJoinStatus(payload.message ?? `You joined ${payload.course?.title ?? 'the course'}.`);
+      // Assessor joins return a pending request — keep the modal open so the
+      // confirmation is visible (it auto-closes after a few seconds). Direct
+      // (student) joins close the modal right away.
+      setJoinPending(Boolean(payload.pending));
+      if (!payload.pending) {
+        setIsJoinModalOpen(false);
+      }
+      await refreshCourses();
+    } catch (error) {
+      setJoinError(error instanceof Error ? error.message : 'Unable to join course.');
+    } finally {
+      setIsJoiningCourse(false);
+    }
+  }, [isJoiningCourse, joinCode, refreshCourses]);
+
+  if (!isLoaded || !isSignedIn) return null;
+
+  const renderEnrolledCourseCard = (course: EnrolledCourseCardData) => {
+    const imageSrc = course.image ?? DEFAULT_LESSON_IMAGE;
+    const isYouTubeThumb =
+      imageSrc.includes('ytimg.com') || imageSrc.includes('youtube.com') || imageSrc.includes('img.youtube.com');
 
     return (
-      <div key={lesson.id} className={styles.card}>
-        <div className={styles.cardMedia}>
+      <Link
+        key={course.id}
+        href={course.href ?? '#'}
+        className={courseStyles.courseCard}
+        data-testid="enrolled-course-card"
+        aria-label={`Open ${course.title}`}
+      >
+        <div className={courseStyles.courseMedia}>
           {isYouTubeThumb ? (
-            // 对 YouTube 缩略图使用普通 <img>，避免 next/image 域名限制
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
+            <img src={imageSrc} alt={`${course.title} preview`} className={courseStyles.courseImage} />
           ) : (
-            <Image src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
+            <Image
+              src={imageSrc}
+              alt={`${course.title} preview`}
+              fill
+              sizes="(max-width: 768px) 100vw, 240px"
+              className={courseStyles.courseImage}
+            />
           )}
         </div>
 
-        <div className={styles.cardTextBlock}>
-          <div className={styles.cardTitle}>{lesson.title}</div>
-          <div className={styles.cardStatus}>{lesson.status}</div>
-          <div className={styles.cardMeta}>{lesson.meta}</div>
+        <div className={courseStyles.courseText}>
+          <h3 className={courseStyles.courseTitle}>{course.title}</h3>
         </div>
-
-        {lesson.href ? (
-          <Link href={lesson.href} className={buttonClass}>
-            {lesson.actionLabel}
-          </Link>
-        ) : (
-          <button type="button" className={buttonClass}>
-            {lesson.actionLabel}
-          </button>
-        )}
-      </div>
+      </Link>
     );
   };
 
   return (
     <div className={`page ${styles.page}`}>
-      <aside className={`sidebar ${styles.sidebar}`}>
-        <div className={styles.profile}>
-          <div className={styles.avatar}>{initialsFromName(displayName)}</div>
-          <div className={styles.name}>{displayName}</div>
-        </div>
-        <nav className={styles.navList}>
-          {[
-            { label: 'Home', href: '/' },
-            { label: 'Profile', href: '/profile' },
-            { label: 'My Analytics', href: '/analytics' },
-            { label: 'Badge Wallet', href: '/badges' },
-            { label: 'Grades', href: '/grades' },
-            { label: 'Settings', href: '/settings' },
-          ].map((item) => {
-            const isActive = pathname === item.href;
-            const navItemClass = `${styles.navItem} ${isActive ? styles.navItemActive : ''}`.trim();
-            return (
-              <Link key={item.href} href={item.href} className={navItemClass}>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className={styles.sidebarFooter}>
-          <button type="button" onClick={handleSignOut} className={styles.signOffButton} disabled={isSigningOut}>
-            {isSigningOut ? 'Signing off…' : 'Sign off'}
-          </button>
-        </div>
-      </aside>
+      <Sidebar navItems={navItems} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
-        <div className={styles.topRow}>
-          <div className={styles.alertWrapper}>
-            <div
-              className={styles.alert}
-              data-active={readyBadgeAlerts.length > 0}
-              onClick={readyBadgeAlerts.length > 0 ? () => handleStartSurvey() : undefined}
-            >
-              {readyBadgeAlerts.length > 0 ? (
-                <>
-                  <Image
-                    src="/assets/survey_alarm/survey_alarm_x_icon.png"
-                    alt="Survey reminder"
-                    className={styles.alertIcon}
-                    width={24}
-                    height={24}
-                  />
-                  <span className={styles.alertText}>
-                    {readyBadgeAlerts.length === 1
-                      ? `Complete feedback for ${readyBadgeAlerts[0]?.badgeName ?? 'your badge'} to finalize it.`
-                      : `You have ${readyBadgeAlerts.length} badges ready to finalize. Start the surveys to finish.`}
-                  </span>
-                </>
-              ) : (
-                <span className={styles.alertText}>Welcome, Student</span>
-              )}
+        <header className={styles.welcomeHeader}>
+          <h1 className={styles.welcomeTitle}>Welcome, {displayName || 'Professor'}</h1>
+          <p className={styles.welcomeSubtitle}>
+            {isLoadingRoles
+              ? 'Loading your courses…'
+              : showMyCourses
+                ? hasCreated
+                  ? `You have ${createdCourses.length} course${createdCourses.length === 1 ? '' : 's'}.`
+                  : 'You have no existing courses.'
+                : hasEnrolled
+                  ? `You are enrolled in ${enrolledCourseCards.length} course${enrolledCourseCards.length === 1 ? '' : 's'}.`
+                  : `You are assessing ${assessorEnrollments.length} course${assessorEnrollments.length === 1 ? '' : 's'}.`}
+          </p>
+        </header>
+
+        {readyBadgeAlerts.length > 0 ? (
+          <div className={styles.topRow}>
+            <div className={styles.alertWrapper}>
+              <div className={styles.alert} data-active="true" onClick={() => handleStartSurvey()}>
+                <Image
+                  src="/assets/survey_alarm/survey_alarm_x_icon.png"
+                  alt="Survey reminder"
+                  className={styles.alertIcon}
+                  width={24}
+                  height={24}
+                />
+                <span className={styles.alertText}>
+                  {readyBadgeAlerts.length === 1
+                    ? `Complete feedback for ${readyBadgeAlerts[0]?.badgeName ?? 'your badge'} to finalize it.`
+                    : `You have ${readyBadgeAlerts.length} badges ready to finalize. Start the surveys to finish.`}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
 
-        <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Up next</h2>
-          {isLoading ? (
-            <div className={styles.emptyState}>Loading lessons…</div>
-          ) : upNextLessons.length === 0 ? (
-            <div className={styles.emptyState}>No lessons ready to start.</div>
-          ) : (
-            <div className={styles.cardRow}>{upNextLessons.map(renderCard)}</div>
-          )}
+        {/* All three role sections are shown together on Home — the client validated this
+            combined professor/assessor/student view, so we intentionally do not role-gate them. */}
+        <section className={courseStyles.section}>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={courseStyles.sectionTitle}>Instructor Courses</h2>
+            <button
+              type="button"
+              className={styles.duplicateButton}
+              aria-label="Duplicate course"
+              onClick={() => {
+                setDuplicateError(null);
+                setIsDuplicateOpen(true);
+              }}
+            >
+              <svg className={styles.duplicateIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <rect x="8" y="8" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
+                <path d="M4 15.5V5a2 2 0 0 1 2-2h9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              </svg>
+              Duplicate Course
+            </button>
+          </div>
+
+          <div className={styles.myCoursesGrid} data-testid="created-courses-grid">
+            <AddCourseCard />
+            {createdCourses.map((course) => (
+              <CreatedCourseCard key={course.id} course={course} />
+            ))}
+          </div>
+
+          {isLoadingCreated ? <p className={courseStyles.statusMessage}>Loading created courses…</p> : null}
+
+          {!isLoadingCreated && createdError ? <p className={courseStyles.statusMessage}>{createdError}</p> : null}
         </section>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Pick up where you left off</h2>
-          {isLoading ? (
-            <div className={styles.emptyState}>Loading your progress…</div>
-          ) : continueLessons.length === 0 ? (
-            <div className={styles.emptyState}>There are no in-progress lessons right now.</div>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={courseStyles.sectionTitle}>My Enrolled Courses</h2>
+            <button
+              type="button"
+              className={styles.joinButton}
+              data-testid="join-course-card"
+              aria-label="Join a course as a student"
+              onClick={() => openJoinModal('student')}
+            >
+              <span className={styles.joinPlus} aria-hidden="true">
+                +
+              </span>
+              Join
+            </button>
+          </div>
+
+          {isLoadingEnrolled ? (
+            <div className={styles.emptyState}>Loading enrolled courses…</div>
+          ) : enrolledError ? (
+            <div className={styles.emptyState}>{enrolledError}</div>
           ) : (
-            <div className={styles.cardRow}>{continueLessons.map(renderCard)}</div>
+            <>
+              <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
+              {joinStatus && !isJoinModalOpen ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
+            </>
           )}
+        </section>
+
+        <section className={courseStyles.section}>
+          <div className={styles.sectionHeaderRow}>
+            <h2 className={courseStyles.sectionTitle}>Assessor Courses</h2>
+            <button
+              type="button"
+              className={styles.joinButton}
+              aria-label="Join a course as an assessor"
+              onClick={() => openJoinModal('assessor')}
+            >
+              <span className={styles.joinPlus} aria-hidden="true">
+                +
+              </span>
+              Join
+            </button>
+          </div>
+
+          <div className={styles.myCoursesGrid} data-testid="assessor-courses-grid">
+            {assessorEnrollments.map((enrollment) => (
+              <CreatedCourseCard
+                key={enrollment.id}
+                course={enrollment.course}
+                href={`/courses/${enrollment.course.id}?view=assessor`}
+              />
+            ))}
+          </div>
+
+          {isLoadingAssessorCourses ? <p className={courseStyles.statusMessage}>Loading assessor courses...</p> : null}
+
+          {!isLoadingAssessorCourses && assessorCoursesError ? (
+            <p className={courseStyles.statusMessage}>{assessorCoursesError}</p>
+          ) : null}
+
+          {!isLoadingAssessorCourses && !assessorCoursesError && assessorEnrollments.length === 0 ? (
+            <p className={courseStyles.statusMessage}>No assessor courses assigned yet.</p>
+          ) : null}
         </section>
       </main>
+
+      {showWelcomeModal ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Welcome">
+          <div className={styles.welcomeModal}>
+            <button
+              type="button"
+              className={styles.welcomeClose}
+              onClick={() => setIsWelcomeDismissed(true)}
+              aria-label="Close"
+            >
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true">
+                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+              </svg>
+            </button>
+
+            <h2 className={styles.welcomeModalTitle}>Welcome, {displayName || 'Professor'}</h2>
+            <Image src={gemAvatar} alt="" className={styles.welcomeGem} width={168} height={168} priority />
+            <p className={styles.welcomeText}>You have no existing courses yet. Create a course to get started.</p>
+            <Link href="/courses/new" className={styles.welcomeCreateButton}>
+              Create Course
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
+      {isDuplicateOpen ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Duplicate course">
+          <div className={styles.dupModal}>
+            <h2 className={styles.dupHeader}>Duplicate a course</h2>
+            <p className={styles.dupSubhead}>
+              Pick a course to copy. A new course is created with the same lessons and badges — students and progress
+              are not copied.
+            </p>
+
+            {duplicateError ? <p className={styles.dupError}>{duplicateError}</p> : null}
+
+            <div className={styles.dupList}>
+              {createdCourses.length === 0 ? (
+                <p className={styles.dupSubhead}>You haven&apos;t created any courses to duplicate yet.</p>
+              ) : (
+                createdCourses.map((course) => (
+                  <div key={course.id} className={styles.dupItem}>
+                    <span className={styles.dupItemTitle}>{course.title}</span>
+                    <button
+                      type="button"
+                      className={styles.dupItemButton}
+                      disabled={duplicatingId !== null}
+                      onClick={() => handleDuplicateCourse(course.id)}
+                    >
+                      {duplicatingId === course.id ? 'Duplicating…' : 'Duplicate'}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <button
+              type="button"
+              className={styles.dupClose}
+              onClick={() => setIsDuplicateOpen(false)}
+              disabled={duplicatingId !== null}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {isJoinModalOpen ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
+          <div className={styles.joinModal}>
+            <h2 id="join-modal-title" className={styles.joinModalTitle}>
+              {joinMode === 'assessor' ? 'Join as an assessor' : 'Join a course'}
+            </h2>
+            <p className={styles.joinModalHint}>
+              {joinMode === 'assessor'
+                ? 'Enter the assessor code your instructor shared. Your request is sent to the instructor for approval.'
+                : 'Enter the course code your instructor shared to enroll as a student.'}
+            </p>
+            <div className={styles.joinControls}>
+              <input
+                type="text"
+                className={styles.joinInput}
+                value={joinCode}
+                onChange={(event) => setJoinCode(event.target.value)}
+                placeholder={joinMode === 'assessor' ? 'Enter assessor code' : 'Enter course code'}
+                aria-label={joinMode === 'assessor' ? 'Assessor code' : 'Course code'}
+                disabled={isJoiningCourse}
+                autoFocus
+              />
+              <button type="button" className={styles.joinButton} onClick={handleJoinCourse} disabled={isJoiningCourse}>
+                {isJoiningCourse ? 'Joining...' : 'Join'}
+              </button>
+            </div>
+            {joinError ? <p className={styles.joinError}>{joinError}</p> : null}
+            {joinStatus ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
+            <button type="button" className={styles.joinCancel} disabled={isJoiningCourse} onClick={closeJoinModal}>
+              {joinStatus ? 'Done' : 'Cancel'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {showAssessmentAccessModal ? (
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Assessment access">
+          <div className={styles.accessModal}>
+            <h2 className={styles.accessTitle}>Assessment unavailable</h2>
+            <p className={styles.accessText}>
+              {assessmentAccessMessage ||
+                'You are not authorized to assess this badge, or the badge is not ready for assessment yet.'}
+            </p>
+            <button type="button" className={styles.accessButton} onClick={closeAssessmentAccessModal}>
+              Back to home
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {activeSurvey ? (
         <div className={styles.surveyOverlay} role="dialog" aria-modal="true">
@@ -463,17 +832,21 @@ function HomePageContent() {
             <button type="button" className={styles.surveyClose} onClick={closeSurveyModal}>
               Do this later
             </button>
+
             <h2 className={styles.surveyTitle}>Tell us about your experience.</h2>
             <p className={styles.surveyQuestion}>{activeSurvey.question}</p>
+
             <div className={styles.surveyFaces}>
               {[1, 2, 3, 4, 5].map((value) => {
                 const isSelected = surveyRating === value;
                 const buttonClass = [styles.surveyFace, isSelected ? styles.surveyFaceSelected : '']
                   .filter(Boolean)
                   .join(' ');
+
                 const imgClassNames = [styles.surveyFaceImage, isSelected ? styles.surveyFaceImageSelected : '']
                   .filter(Boolean)
                   .join(' ');
+
                 const iconSrc = isSelected ? FACE_IMAGES_SELECTED[value] : FACE_IMAGES[value];
 
                 return (
@@ -491,8 +864,19 @@ function HomePageContent() {
               })}
             </div>
 
-            <button type="button" className={styles.surveySubmit} onClick={handleSubmitSurvey}>
-              Submit
+            {surveyError ? (
+              <p className={styles.surveyError} role="alert">
+                {surveyError}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              className={styles.surveySubmit}
+              onClick={handleSubmitSurvey}
+              disabled={isSubmittingSurvey}
+            >
+              {isSubmittingSurvey ? 'Submitting…' : 'Submit'}
             </button>
           </div>
         </div>
@@ -501,10 +885,10 @@ function HomePageContent() {
   );
 }
 
-export default function HomePage() {
+export default function Page() {
   return (
     <Suspense fallback={null}>
-      <HomePageContent />
+      <HomeContent />
     </Suspense>
   );
 }

@@ -1,20 +1,21 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import HomePage from '../app/page';
 import BadgeWalletPage from '../app/badges/page';
-import BadgeFeedbackPage from '../app/badges/[badgeSlug]/feedback/page';
+import BadgeFeedbackPage from '@/app/badges/[badgeSlug]/feedback/page';
 import AnalyticsPage from '../app/analytics/page';
 import ProfilePage from '../app/profile/page';
 import GradesPage from '../app/grades/page';
 import SettingsPage from '../app/settings/page';
 import LessonDetailPage from '../app/lessons/[lessonId]/page';
-import AvatarEditorPage from '../app/edit_avatar/page';
 import InstructorQevDemoPage from '../app/instructor/qev-demo/page';
+import type { StudentData } from '../app/hooks/useStudentData';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
 const mockUsePathname = jest.fn(() => '/');
 let mockParams: Record<string, string> = {};
 let mockSearchParams = new URLSearchParams();
+const mockFetch = jest.fn();
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, push: mockPush }),
@@ -30,6 +31,8 @@ jest.mock('@clerk/nextjs', () => ({
   useUser: () => mockUseUser(),
   useAuth: () => mockUseAuth(),
   useClerk: () => mockUseClerk(),
+  // Passthrough: returns the wrapped action unchanged (no step-up UI in tests).
+  useReverification: (fn: (...args: unknown[]) => unknown) => fn,
 }));
 
 const mockUseStudentData = jest.fn();
@@ -68,9 +71,119 @@ beforeEach(() => {
     error: null,
     refresh: jest.fn(),
   });
+
+  mockFetch.mockReset();
+  mockFetch.mockImplementation(async (input: string | URL | Request) => {
+    const url = String(input);
+
+    if (url === '/api/courses/created?email=student%40example.edu') {
+      return {
+        ok: true,
+        json: async () => ({
+          user: { name: 'Student Demo', email: 'student@example.edu' },
+          count: 1,
+          courses: [
+            {
+              id: 'created-course-1',
+              title: 'Created Course 1',
+              description: null,
+              section: null,
+              sectionCount: 1,
+              createdAt: '2026-03-30T18:35:48.000Z',
+              lessons: [],
+              enrollments: [{ id: 'created-enrollment-1', role: 'INSTRUCTOR' }],
+            },
+          ],
+        }),
+      };
+    }
+
+    if (url === '/api/courses/enrolled?email=student%40example.edu') {
+      return {
+        ok: true,
+        json: async () => ({
+          user: { name: 'Student Demo', email: 'student@example.edu' },
+          count: 1,
+          enrollments: [
+            {
+              id: 'student-enrollment-1',
+              role: 'STUDENT',
+              course: {
+                id: 'course-1',
+                code: 'CHEM101',
+                section: 'K1',
+                title: 'Chem 101',
+                description: 'Basics',
+                contacts: [
+                  { id: 'c1', type: 'INSTRUCTOR', name: 'Prof A', email: 'prof@example.edu', avatarUrl: null },
+                ],
+                lessons: [{ thumbnailUrl: null, segments: [] }],
+              },
+            },
+          ],
+        }),
+      };
+    }
+
+    if (url === '/api/courses/mine') {
+      return {
+        ok: true,
+        json: async () => ({
+          user: { name: 'Student Demo', email: 'student@example.edu' },
+          created: {
+            count: 1,
+            courses: [
+              {
+                id: 'created-course-1',
+                title: 'Created Course 1',
+                description: null,
+                section: null,
+                sectionCount: 1,
+                createdAt: '2026-03-30T18:35:48.000Z',
+                lessons: [],
+                enrollments: [{ id: 'created-enrollment-1', role: 'INSTRUCTOR' }],
+              },
+            ],
+          },
+          enrolled: {
+            count: 1,
+            enrollments: [
+              {
+                id: 'student-enrollment-1',
+                role: 'STUDENT',
+                course: {
+                  id: 'course-1',
+                  code: 'CHEM101',
+                  section: 'K1',
+                  title: 'Chem 101',
+                  description: 'Basics',
+                  contacts: [
+                    { id: 'c1', type: 'INSTRUCTOR', name: 'Prof A', email: 'prof@example.edu', avatarUrl: null },
+                  ],
+                  lessons: [{ thumbnailUrl: null, segments: [] }],
+                },
+              },
+            ],
+          },
+          assessor: { count: 0, enrollments: [] },
+        }),
+      };
+    }
+
+    if (url.startsWith('/api/badges/export/')) {
+      return {
+        ok: true,
+        json: async () => ({ linkedInUrl: 'https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME' }),
+      };
+    }
+
+    throw new Error(`Unexpected fetch: ${url}`);
+  });
+
+  global.fetch = mockFetch as unknown as typeof fetch;
 });
 
-function createStudentData() {
+function createStudentData(): StudentData {
   return {
     student: {
       id: 'student-1',
@@ -121,6 +234,7 @@ function createStudentData() {
           percentComplete: 0,
           segments: [],
           checkpoints: [],
+          badgeRequirements: [],
           skills: [],
           lastGradePercent: null,
           lastGradePassed: null,
@@ -146,6 +260,7 @@ function createStudentData() {
           percentComplete: 50,
           segments: [],
           checkpoints: [],
+          badgeRequirements: [],
           skills: [],
           lastGradePercent: null,
           lastGradePassed: null,
@@ -210,6 +325,7 @@ function createStudentData() {
           requirements: [{ summary: 'Req', lessonSlug: null, lessonTitle: null }],
         },
       ],
+      notStarted: [],
     },
     surveys: {
       lesson: [],
@@ -228,23 +344,39 @@ function createStudentData() {
 }
 
 describe('Home page', () => {
-  it('redirects to sign-in when not authenticated', () => {
+  it('redirects to splash when not authenticated', () => {
     mockUseUser.mockReturnValue({ isLoaded: true, isSignedIn: false, user: null });
     render(<HomePage />);
-    expect(mockReplace).toHaveBeenCalledWith('/sign-in');
+    expect(mockReplace).toHaveBeenCalledWith('/splash');
   });
 
-  it('renders lesson cards and surfaces survey modal when deep-linked', () => {
+  it('renders merged course sections and surfaces survey modal when deep-linked', async () => {
     mockSearchParams = new URLSearchParams({ surveyBadge: 'final-badge' });
     render(<HomePage />);
 
-    expect(screen.getByText(/Up next/i)).toBeInTheDocument();
-    expect(screen.getByText('Lesson 1')).toBeInTheDocument();
-    expect(screen.getByText(/Pick up where you left off/i)).toBeInTheDocument();
-    expect(screen.getByText('Lesson 2')).toBeInTheDocument();
+    expect(await screen.findByText(/Instructor Courses/i)).toBeInTheDocument();
+    expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
+    expect(screen.getByText(/My Enrolled Courses/i)).toBeInTheDocument();
+    expect(await screen.findByText('Chem 101')).toBeInTheDocument();
 
     expect(screen.getByText(/Finish your survey/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Submit/i })).toBeInTheDocument();
+  });
+
+  it('shows an assessment access modal from QR redirects and clears the query on close', async () => {
+    mockSearchParams = new URLSearchParams({
+      assessmentAccess: 'denied',
+      assessmentMessage: 'You do not have permission to assess this badge.',
+    });
+
+    render(<HomePage />);
+
+    expect(await screen.findByText(/Assessment unavailable/i)).toBeInTheDocument();
+    expect(screen.getByText(/You do not have permission to assess this badge/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Back to home/i }));
+
+    expect(mockReplace).toHaveBeenCalledWith('/', { scroll: false });
   });
 });
 
@@ -298,19 +430,21 @@ describe('Analytics page', () => {
 });
 
 describe('Profile page', () => {
-  it('masks sensitive info after timeout and shows toggle button', () => {
+  it('masks sensitive info after timeout and shows the demographic dropdown toggle', () => {
     jest.useFakeTimers();
     render(<ProfilePage />);
 
-    expect(screen.getByRole('button', { name: /Show BUID/i })).toBeInTheDocument();
-    expect(screen.getAllByText('XXXXXXX').length).toBeGreaterThan(0);
+    // Sensitive BUID is masked by default and revealing demographics is gated
+    // behind the "Demographic Info" dropdown (which requires re-auth to open).
+    expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
+    expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);
 
     act(() => {
       jest.advanceTimersByTime(10 * 60 * 1000 + 50);
     });
 
-    expect(screen.getAllByText('XXXXXXX').length).toBeGreaterThan(0);
-    expect(screen.getByRole('button', { name: /Show BUID/i })).toBeInTheDocument();
+    expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);
+    expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
     jest.useRealTimers();
   });
 
@@ -369,7 +503,7 @@ describe('Lesson detail page', () => {
             title: 'Checkpoint 1',
             description: null,
             label: 'Check point',
-            meta: null,
+            meta: JSON.stringify({ points: 5, segmentLabel: 'Segment 1 Starts 00:00:00' }),
             questionCount: 2,
             segmentId: 'seg-1',
             timeOffsetSeconds: 30,
@@ -377,6 +511,7 @@ describe('Lesson detail page', () => {
             questions: [],
           },
         ],
+        badgeRequirements: [{ badgeId: 'b2', badgeName: 'Assessment Badge', badgeSlug: 'assessment-badge' }],
         skills: [],
         lastGradePercent: null,
         lastGradePassed: null,
@@ -394,20 +529,8 @@ describe('Lesson detail page', () => {
     expect(screen.getByText(/Lesson 3/i)).toBeInTheDocument();
     expect(screen.getByText(/Part 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Checkpoint/i)).toBeInTheDocument();
-  });
-});
-
-describe('Avatar editor page', () => {
-  it('allows step progression and accessory selection', () => {
-    render(<AvatarEditorPage />);
-
-    fireEvent.click(screen.getByText(/Ruby/i));
-    fireEvent.click(screen.getByText(/Next/i));
-    expect(screen.getByText(/Select a face/i)).toBeInTheDocument();
-    fireEvent.click(screen.getByText(/Next/i));
-    expect(screen.getByText(/Pick a fun hat/i)).toBeInTheDocument();
-    expect(screen.getByText(/Leaf Sprout/i)).toBeInTheDocument();
-    expect(screen.getByText(/final flourish/i)).toBeInTheDocument();
+    expect(screen.getByText('2 questions')).toBeInTheDocument();
+    expect(screen.queryByText(/segmentLabel/)).not.toBeInTheDocument();
   });
 });
 

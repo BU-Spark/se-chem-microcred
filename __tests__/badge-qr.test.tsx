@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import BadgeWalletPage from '../app/badges/page';
 
 const mockReplace = jest.fn();
@@ -29,11 +29,13 @@ jest.mock('../app/hooks/useStudentData', () => ({
 type MockImageProps = {
   src: string | { src: string };
   alt: string;
+  priority?: boolean;
 } & Record<string, unknown>;
 
 jest.mock('next/image', () => {
   const MockNextImage = (props: MockImageProps) => {
-    const { src, alt, ...rest } = props;
+    const { src, alt, priority, ...rest } = props;
+    void priority;
     const resolvedSrc = typeof src === 'string' ? src : src?.src || '';
     // eslint-disable-next-line @next/next/no-img-element
     return <img src={resolvedSrc} alt={alt} {...rest} />;
@@ -44,6 +46,10 @@ jest.mock('next/image', () => {
 
 beforeEach(() => {
   jest.clearAllMocks();
+  global.fetch = jest.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({ code: 'ABCD-2345', expiresAt: '2026-06-30T12:30:00.000Z' }),
+  }) as unknown as typeof fetch;
   mockUseUser.mockReturnValue({
     isLoaded: true,
     isSignedIn: true,
@@ -105,13 +111,13 @@ function createStudentData() {
 }
 
 describe('Badge Wallet QR modal', () => {
-  it('renders QR image from internal API when showing code', () => {
+  it('renders QR image and assessment code from internal APIs when showing code', async () => {
     render(<BadgeWalletPage />);
 
     // Expand the "Ready to be Assessed" section
-    const expandButtons = screen.getAllByLabelText(/Expand section/i);
-    if (expandButtons.length) {
-      fireEvent.click(expandButtons[0]);
+    const assessmentToggle = document.querySelector('button[aria-controls="assessment-badges"]') as HTMLButtonElement;
+    if (assessmentToggle.getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(assessmentToggle);
     }
 
     // Open the badge modal
@@ -122,6 +128,17 @@ describe('Badge Wallet QR modal', () => {
 
     const qrImage = screen.getByAltText(/Assessment Badge QR code/i) as HTMLImageElement;
     expect(qrImage.src).toContain('/api/qr?size=360');
-    expect(qrImage.src).toContain('badge%3Abadge-assess-1');
+    expect(qrImage.src).toContain(encodeURIComponent('/qr/assessment'));
+    expect(qrImage.src).toContain('courseId%3Dcourse-1');
+    expect(qrImage.src).toContain('studentId%3Dstudent-1');
+    expect(qrImage.src).toContain('badgeId%3Dbadge-assess-1');
+    expect(await screen.findByText('ABCD-2345')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/assessment-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId: 'course-1', badgeId: 'badge-assess-1' }),
+      });
+    });
   });
 });

@@ -1,34 +1,15 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useRouter, useParams, usePathname } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 import finishLogo from '../../../public/assets/lesson/lesson_preview/finish_logo.svg';
 import backArrow from '../../../public/assets/lesson/lesson_preview/back_arrow.svg';
-
-const NAV = [
-  { href: '/', label: 'Home' },
-  { href: '/profile', label: 'Profile' },
-  { href: '/analytics', label: 'My Analytics' },
-  { href: '/badges', label: 'Badge Wallet' },
-  { href: '/grades', label: 'Grades' },
-  { href: '/settings', label: 'Settings' },
-];
-
-function initialsFromName(name?: string | null) {
-  if (!name) return 'ST';
-  const parts = name.trim().split(/\s+/);
-  return (
-    parts
-      .slice(0, 2)
-      .map((p) => p[0]?.toUpperCase() ?? '')
-      .join('') || 'ST'
-  );
-}
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
@@ -38,24 +19,53 @@ function extractYouTubeId(url?: string | null) {
   return candidate && candidate.length === 11 ? candidate : null;
 }
 
-export default function LessonDetailPage() {
+function formatQuestionCount(count?: number | null) {
+  const safeCount = Math.max(0, Math.floor(count ?? 0));
+  return `${safeCount} question${safeCount === 1 ? '' : 's'}`;
+}
+
+function LessonDetailContent() {
   const router = useRouter();
   const params = useParams<{ lessonId: string }>();
-  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const courseId = searchParams.get('courseId');
 
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
-  const { data: studentData, isLoading } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null);
-
+  const { data: studentData, isLoading } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null, courseId);
+  const [isSigningOut, setIsSigningOut] = useState(false);
   // Redirect only after hooks have run
   const signedOut = isLoaded && !isSignedIn;
   useEffect(() => {
-    if (signedOut) router.replace('/sign-in');
-  }, [signedOut, router]);
+    if (signedOut && !isSigningOut) router.replace('/sign-in');
+  }, [signedOut, isSigningOut, router]);
 
-  const displayName = studentData?.student.name || user?.fullName || 'Student Demo';
+  const displayName = studentData?.student.name || '';
 
   const lessonRecord = studentData?.lessons.catalog.find((e) => e.slug === params.lessonId);
+
+  const handleSignOut = async () => {
+    if (isSigningOut) {
+      return;
+    }
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      router.replace('/splash');
+    } catch (error) {
+      console.error('Failed to sign out', error);
+      setIsSigningOut(false);
+    }
+  };
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
+      router.back();
+      return;
+    }
+
+    router.push('/');
+  };
 
   /**
    * Build one timeline item per checkpoint.
@@ -141,8 +151,8 @@ export default function LessonDetailPage() {
         id: cp.id ?? String(idx),
         title,
         duration: durationText,
-        cpLabel: cp.label || 'Check point',
-        cpMeta: cp.meta || `${cp.questionCount ?? 0} question${(cp.questionCount ?? 0) === 1 ? '' : 's'}`,
+        cpLabel: 'Checkpoint',
+        cpMeta: formatQuestionCount(cp.questions?.length || cp.questionCount),
         img,
       };
     });
@@ -185,54 +195,18 @@ export default function LessonDetailPage() {
   return (
     <div className="page">
       {/* Sidebar */}
-      <aside className="sidebar">
-        <div className="profile">
-          <div className="avatar">{initialsFromName(displayName)}</div>
-          <div className="name">{displayName}</div>
-        </div>
-
-        <nav className="navList" aria-label="Main">
-          {NAV.map((item) => {
-            const active =
-              item.href === '/' ? pathname.startsWith('/lessons') || pathname === '/' : pathname === item.href;
-            const cls = `navItem${active ? ' navItemActive' : ''}`;
-            return (
-              <Link key={item.href} href={item.href} className={cls}>
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="sidebarFooter">
-          <button
-            className="signOffButton"
-            type="button"
-            onClick={async () => {
-              try {
-                await signOut();
-                router.replace('/sign-in');
-              } catch (error) {
-                console.error('Failed to sign out', error);
-              }
-            }}
-          >
-            Sign off
-          </button>
-          <div className="brandFooter">checkd.</div>
-        </div>
-      </aside>
+      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       {/* Main */}
       <main className="main">
         <div className={styles.root}>
           <header className={styles.header}>
-            <Link href="/" className={styles.backLink}>
+            <button type="button" className={styles.backLink} onClick={handleBack}>
               <span className={styles.backLinkContent}>
                 <span className={styles.backText}>Back</span>
                 <Image src={backArrow} alt="Back" className={styles.backArrow} width={52} height={12} />
               </span>
-            </Link>
+            </button>
           </header>
 
           <h1 className={styles.lessonTitle}>{title}</h1>
@@ -279,7 +253,7 @@ export default function LessonDetailPage() {
 
                         <div className={styles.timelineConnectorBlock}>
                           <div className={styles.timelineCheckpointLabel}>
-                            <div>Checkpoint</div>
+                            <div>{item.cpLabel}</div>
                             <div className={styles.timelineCheckpointMeta}>{item.cpMeta}</div>
                           </div>
                           <div className={styles.timelineConnector}>
@@ -349,7 +323,14 @@ export default function LessonDetailPage() {
               </section>
 
               <div className={styles.actionsRow}>
-                <Link href={`/lessons/${lessonRecord.slug}/video`} className={styles.primaryButton}>
+                <Link
+                  href={
+                    courseId
+                      ? `/lessons/${lessonRecord.slug}/video?courseId=${encodeURIComponent(courseId)}`
+                      : `/lessons/${lessonRecord.slug}/video`
+                  }
+                  className={styles.primaryButton}
+                >
                   Start Lesson
                 </Link>
               </div>
@@ -369,5 +350,13 @@ export default function LessonDetailPage() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function LessonDetailPage() {
+  return (
+    <Suspense fallback={null}>
+      <LessonDetailContent />
+    </Suspense>
   );
 }

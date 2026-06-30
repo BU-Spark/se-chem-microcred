@@ -1,8 +1,10 @@
 export const runtime = 'nodejs';
 
+import { BadgeStatus } from '@prisma/client';
 import { NextResponse } from 'next/server';
-import { currentUser } from '@clerk/nextjs/server';
 import QRCode from 'qrcode';
+import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
+import { syncLessonBadgesForStudent } from '@/lib/badgeProgress';
 import prisma from '../../../lib/prisma';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -16,6 +18,7 @@ const rateLimitStore: Map<string, RateLimitEntry> =
 type StudentBadgePayload = {
   studentId: string;
   badgeId: string;
+  courseId?: string;
 };
 
 function clampSize(size: number | null) {
@@ -73,24 +76,79 @@ function parseStudentBadgePayload(raw: string | null): StudentBadgePayload | nul
   return { studentId: map.student, badgeId: map.badge };
 }
 
-async function authorizeStudentBadge(payload: StudentBadgePayload) {
-  const clerkUser = await currentUser();
-  if (!clerkUser || !clerkUser.emailAddresses?.[0]) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+function parseAssessmentQrUrl(raw: string | null, request: Request): StudentBadgePayload | null {
+  if (!raw) return null;
+
+  try {
+    const url = new URL(raw, request.url);
+    if (url.origin !== new URL(request.url).origin || url.pathname !== '/qr/assessment') {
+      return null;
+    }
+
+    const courseId = url.searchParams.get('courseId')?.trim();
+    const studentId = url.searchParams.get('studentId')?.trim();
+    const badgeId = url.searchParams.get('badgeId')?.trim();
+
+    if (!courseId || !studentId || !badgeId) {
+      return null;
+    }
+
+    return { courseId, studentId, badgeId };
+  } catch {
+    return null;
   }
+}
 
-  const email = clerkUser.emailAddresses[0].emailAddress.toLowerCase();
-  const student = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-
+async function authorizeStudentBadge(payload: StudentBadgePayload) {
+  const student = await ensureCurrentUser();
   if (!student) {
-    return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   if (student.id !== payload.studentId) {
     return NextResponse.json({ error: 'You can only generate QR codes for your own badges.' }, { status: 403 });
+  }
+
+  if (payload.courseId) {
+    const courseBadge = await prisma.course.findFirst({
+      where: {
+        id: payload.courseId,
+        enrollments: { some: { studentId: payload.studentId } },
+        lessons: {
+          some: {
+            badgeRequirements: {
+              some: { badgeId: payload.badgeId },
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        lessons: {
+          where: {
+            badgeRequirements: {
+              some: { badgeId: payload.badgeId },
+            },
+          },
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!courseBadge) {
+      return NextResponse.json(
+        { error: 'Badge is not available for this student in the requested course.' },
+        { status: 403 }
+      );
+    }
+
+    if (courseBadge.lessons.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        for (const lesson of courseBadge.lessons) {
+          await syncLessonBadgesForStudent(tx, { studentId: payload.studentId, lessonId: lesson.id });
+        }
+      });
+    }
   }
 
   const ownsBadge = await prisma.studentBadge.findUnique({
@@ -100,11 +158,15 @@ async function authorizeStudentBadge(payload: StudentBadgePayload) {
         badgeId: payload.badgeId,
       },
     },
-    select: { id: true },
+    select: { id: true, status: true },
   });
 
   if (!ownsBadge) {
     return NextResponse.json({ error: 'Badge is not assigned to this student.' }, { status: 403 });
+  }
+
+  if (payload.courseId && ownsBadge.status !== BadgeStatus.READY_FOR_ASSESSMENT) {
+    return NextResponse.json({ error: 'Badge is not ready for assessment.' }, { status: 409 });
   }
 
   return null;
@@ -126,7 +188,7 @@ async function resolveRequestContext(request: Request) {
   const sizeParam = Number.parseInt(url.searchParams.get('size') ?? '', 10);
   const size = clampSize(Number.isFinite(sizeParam) ? sizeParam : null);
 
-  const payload = parseStudentBadgePayload(data);
+  const payload = parseAssessmentQrUrl(data, request) ?? parseStudentBadgePayload(data);
   if (!payload) {
     return {
       response: NextResponse.json(

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 type LessonStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 type SegmentStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
-type BadgeStatus = 'COMPLETED' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'LEARNING';
+type BadgeStatus = 'COMPLETED' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'LEARNING' | 'NOT_STARTED';
 
 export interface StudentData {
   student: {
@@ -54,6 +54,7 @@ export interface StudentData {
     readyForAssessment: BadgeRecord[];
     readyForFinalization: BadgeRecord[];
     learning: BadgeRecord[];
+    notStarted: BadgeRecord[];
   };
   surveys: {
     lesson: Array<{
@@ -129,6 +130,11 @@ export interface LessonRecord {
       acceptedRange: { min: number; max: number } | null;
     }>;
   }>;
+  badgeRequirements: Array<{
+    badgeId: string;
+    badgeName: string;
+    badgeSlug: string;
+  }>;
   skills: string[];
   lastGradePercent: number | null;
   lastGradePassed: boolean | null;
@@ -160,7 +166,7 @@ interface StudentApiResponse {
   surveys: StudentData['surveys'];
 }
 
-export function useStudentData(email?: string | null) {
+export function useStudentData(email?: string | null, courseId?: string | null) {
   const [data, setData] = useState<StudentData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -180,7 +186,12 @@ export function useStudentData(email?: string | null) {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 15000);
 
-      const response = await fetch(`/api/demo/student?email=${encodeURIComponent(email)}`, {
+      const params = new URLSearchParams({ email });
+      if (courseId) {
+        params.set('courseId', courseId);
+      }
+
+      const response = await fetch(`/api/demo/student?${params.toString()}`, {
         method: 'GET',
         signal: controller.signal,
         headers: {
@@ -203,7 +214,7 @@ export function useStudentData(email?: string | null) {
     } finally {
       setIsLoading(false);
     }
-  }, [email]);
+  }, [email, courseId]);
 
   useEffect(() => {
     void fetchData();

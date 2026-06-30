@@ -8,7 +8,7 @@ const updateSpy = jest.fn();
 
 jest.mock('../lib/prisma', () => {
   const lessonProgress = { id: 'lp-1', status: 'IN_PROGRESS', percentComplete: 0, completedAt: null };
-  let txChain = Promise.resolve();
+  let txChain: Promise<unknown> = Promise.resolve();
   return {
     __esModule: true,
     default: {
@@ -17,11 +17,25 @@ jest.mock('../lib/prisma', () => {
           const tx = {
             surveyPrompt: {
               findFirst: jest.fn().mockResolvedValue({ id: 'prompt-1', question: 'Q?' }),
+              findMany: jest.fn().mockResolvedValue([{ id: 'prompt-1', lessonId: 'lesson-1' }]),
               create: jest.fn(),
             },
             lessonProgress: {
-              findFirst: jest.fn().mockResolvedValue({ ...lessonProgress }),
-              create: jest.fn().mockResolvedValue({ ...lessonProgress }),
+              findMany: jest
+                .fn()
+                .mockResolvedValue([{ lessonId: 'lesson-1', status: 'COMPLETED', percentComplete: 100 }]),
+              upsert: jest
+                .fn()
+                .mockImplementation(
+                  async (args: {
+                    create?: Partial<typeof lessonProgress>;
+                    update?: Partial<typeof lessonProgress>;
+                  }) => {
+                    // Existing row path: apply the update payload to the shared row.
+                    Object.assign(lessonProgress, args.update ?? {});
+                    return { ...lessonProgress };
+                  }
+                ),
               update: jest.fn().mockImplementation(async (args: { data: Partial<typeof lessonProgress> }) => {
                 Object.assign(lessonProgress, args.data);
                 return { ...lessonProgress };
@@ -29,6 +43,7 @@ jest.mock('../lib/prisma', () => {
             },
             surveyResponse: {
               findFirst: jest.fn().mockResolvedValue(null),
+              findMany: jest.fn().mockResolvedValue([{ promptId: 'prompt-1' }]),
               update: jest.fn(),
               create: jest.fn(),
             },
@@ -39,10 +54,17 @@ jest.mock('../lib/prisma', () => {
               findMany: jest.fn().mockResolvedValue([{ checkpointId: 'cp1' }]),
             },
             badgeRequirement: {
-              findFirst: jest.fn().mockResolvedValue({ badgeId: 'badge-1' }),
+              findMany: jest.fn().mockResolvedValue([
+                {
+                  badge: {
+                    id: 'badge-1',
+                    requirements: [{ lessonId: 'lesson-1' }],
+                  },
+                },
+              ]),
             },
             studentBadge: {
-              findUnique: jest.fn().mockResolvedValue({ id: 'sb-1', status: badgeState.status }),
+              upsert: jest.fn().mockImplementation(async () => ({ id: 'sb-1', status: badgeState.status })),
               update: jest.fn().mockImplementation(async () => {
                 badgeState.status = 'READY_FOR_ASSESSMENT';
                 updateSpy();
@@ -59,6 +81,12 @@ jest.mock('../lib/prisma', () => {
       },
       lesson: {
         findUnique: jest.fn().mockResolvedValue({ id: 'lesson-1', title: 'Lesson' }),
+      },
+      // surveyPrompt lookup is hoisted out of the transaction, so it is now
+      // resolved on the top-level prisma client.
+      surveyPrompt: {
+        findFirst: jest.fn().mockResolvedValue({ id: 'prompt-1', question: 'Q?' }),
+        create: jest.fn(),
       },
     },
   };

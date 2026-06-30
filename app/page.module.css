@@ -17,15 +17,22 @@
    Sidebar (square corners)
    ========================= */
 .sidebar {
-  width: 240px;
-  flex: 0 0 240px;
-  min-width: 240px;
+  width: 256px;
+  flex: 0 0 256px;
+  min-width: 256px;
   min-height: 100vh;
   height: 100vh;
   position: sticky;
   top: 0;
 
-  background: #1f5fab;
+  /* Scroll internally when the nav is taller than the viewport (short screens /
+     zoomed in) so every item stays reachable instead of being clipped. */
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+
+  background: #2e6aa9;
   border-radius: 0;
   /* Square corners */
   color: #f8fbff;
@@ -40,6 +47,19 @@
   /* Remove card-style shadow */
 }
 
+.sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 .profile {
   display: flex;
   flex-direction: column;
@@ -49,37 +69,53 @@
 }
 
 .avatar {
-  width: 84px;
-  height: 84px;
+  width: 140px;
+  height: 140px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
+  background: #ffffff;
+  overflow: hidden;
   display: grid;
   place-items: center;
   font-size: 1.75rem;
   font-weight: 600;
   text-transform: uppercase;
+  color: #2e6aa9;
+}
+
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
 }
 
 .name {
-  font-weight: 600;
-  font-size: 1.1rem;
+  font-family: 'Lato', sans-serif;
+  font-weight: 400;
+  font-style: italic;
+  font-size: 1.35rem;
 }
 
 .navList {
   display: grid;
-  gap: 0.8rem;
-  font-size: 0.95rem;
+  gap: 1.6rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.35rem;
+  margin-top: 1.25rem;
 }
 
 .navItem {
-  padding: 0.55rem 0.85rem;
-  border-radius: 0.75rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.6rem;
   transition: background-color 0.2s ease;
 }
 
-.navItemActive,
+.navItemActive {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 .navItem:hover {
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .brandFooter {
@@ -102,7 +138,9 @@
   color: #ffffff;
   font-weight: 600;
   cursor: pointer;
-  transition: filter 0.2s ease, background-color 0.2s ease;
+  transition:
+    filter 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .signOffButton:hover {
@@ -126,11 +164,11 @@
   box-shadow: none;
   min-height: 100vh;
 
-  padding: 2rem 2rem 3rem;
+  padding: 2.75rem 3rem 3rem;
   /* Primary content padding */
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: 2.75rem;
 }
 
 .topRow {
@@ -178,7 +216,6 @@
   align-items: center;
 }
 
-
 .alert[data-active='false'] {
   background: transparent;
   border: none;
@@ -192,7 +229,6 @@
   object-fit: contain;
   display: block;
 }
-
 
 .brandMark {
   font-weight: 700;
@@ -239,6 +275,113 @@
   color: #4b5563;
 }
 
+.joinControls {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.joinInput {
+  width: 100%;
+  min-height: 3.25rem;
+  border: 2px solid #cfd8e3;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  font: inherit;
+  color: #111827;
+  background: #ffffff;
+}
+
+.joinInput:disabled {
+  opacity: 0.65;
+}
+
+.joinButton {
+  min-height: 3.25rem;
+  padding: 0.75rem 1.35rem;
+  border: none;
+  border-radius: 12px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.joinButton:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.sectionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.joinPlus {
+  font-size: 1.3rem;
+  line-height: 1;
+  font-weight: 700;
+}
+
+.joinError,
+.joinStatus {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.joinError {
+  color: #b42318;
+}
+
+.joinStatus {
+  color: #1b6b3a;
+}
+
+.joinModal {
+  width: min(520px, 92%);
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 2.25rem;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.joinModalTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.joinModalHint {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  color: #4b5563;
+}
+
+.joinCancel {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.joinCancel:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .card {
   background: transparent;
   border: none;
@@ -251,7 +394,6 @@
   align-items: flex-start;
   /* text aligned with image left edge */
 }
-
 
 .cardMedia {
   width: 100%;
@@ -283,7 +425,6 @@
   object-fit: cover;
   object-position: 0% center;
 }
-
 
 .cardTitle {
   font-family: 'Lato', sans-serif;
@@ -323,7 +464,7 @@
   height: 59px;
   /* Figma height */
 
-  background: #2E6AA9;
+  background: #2e6aa9;
   /* Figma button color */
   border-radius: 19px;
   /* Figma border radius */
@@ -353,6 +494,412 @@
 
 .secondaryAction {
   background: #3c83d6;
+}
+
+.createCourseCard {
+  display: flex;
+  flex-direction: column;
+  width: 391px;
+  height: 458px;
+  border: 2px solid #2e6aa9;
+  text-decoration: none;
+  background: white;
+  overflow: hidden;
+}
+
+.createCourseTop {
+  flex: 1;
+  background: #d9d9d9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.createCoursePlus {
+  font-size: 96px;
+  color: white;
+  font-weight: 300;
+  line-height: 1;
+}
+
+.createCourseBottom {
+  height: 64px;
+  border-top: 2px solid #2e6aa9;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 22px;
+  color: black;
+  background: white;
+}
+
+/* =========================
+   Welcome header + brand (Figma)
+   ========================= */
+.welcomeHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  /* leave clearance for the absolutely-positioned global checkd logo (top:32 right:48) */
+  padding-right: 180px;
+}
+
+.welcomeTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 3rem;
+  font-weight: 700;
+  font-style: italic;
+  line-height: 1.05;
+  color: #000000;
+}
+
+.welcomeSubtitle {
+  margin: 0.4rem 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  color: #000000;
+}
+
+/* =========================
+   Add-course tile (Figma: plain gray square, no border)
+   ========================= */
+/* Home course grid — wider cards to match the Figma 391px tile */
+.myCoursesGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 360px));
+  gap: 1.75rem;
+  align-items: start;
+  justify-content: start;
+  max-width: none;
+}
+
+.addTile {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  text-decoration: none;
+  color: inherit;
+  width: 100%;
+}
+
+.addTileButton {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+}
+
+.addTileMedia {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: #d9d9d9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 0.15s ease;
+}
+
+.addTile:hover .addTileMedia {
+  filter: brightness(0.97);
+}
+
+.addTileButton:hover .addTileMedia {
+  filter: brightness(0.97);
+}
+
+.addTilePlus {
+  font-size: clamp(4rem, 10vw, 5.75rem);
+  font-weight: 300;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.addTileLabel {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 2rem;
+  font-weight: 400;
+  line-height: 1.1;
+  color: #000000;
+}
+
+/* =========================
+   Inline "Duplicate Course" action — sits in the My Courses header, styled to
+   match the Join button (was previously a fixed bottom-right floating action).
+   ========================= */
+.duplicateButton {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.5rem;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(31, 95, 171, 0.32);
+  transition:
+    filter 0.15s ease,
+    transform 0.15s ease;
+  z-index: 40;
+}
+
+.duplicateButton:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.duplicateIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/*======================
+  Flaoting Join Button
+======================*/
+.joinButton {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.5rem;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 500;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(31, 95, 171, 0.32);
+  transition:
+    filter 0.15s ease,
+    transform 0.15s ease;
+  z-index: 40;
+}
+
+.joinButton:hover {
+  filter: brightness(1.05);
+  transform: translateY(-1px);
+}
+
+.joinIcon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* =========================
+   Welcome empty-state modal (Figma node 649:1537)
+   ========================= */
+.welcomeModal {
+  position: relative;
+  width: min(560px, 92%);
+  background: #ffffff;
+  border: 4px solid #d9d9d9;
+  border-radius: 40px;
+  padding: 3rem 3.25rem 2.75rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 1.5rem;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.25);
+}
+
+.welcomeClose {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.75rem;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #111111;
+}
+
+.welcomeModalTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.welcomeGem {
+  width: 168px;
+  height: 168px;
+  object-fit: contain;
+}
+
+.welcomeText {
+  margin: 0;
+  max-width: 30ch;
+  font-size: 1.15rem;
+  line-height: 1.4;
+  color: #1a1a1a;
+}
+
+.welcomeCreateButton {
+  margin-top: 0.5rem;
+  padding: 0.8rem 1.9rem;
+  border-radius: 16px;
+  border: none;
+  background: #3a6ea5;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.welcomeCreateButton:hover {
+  filter: brightness(1.05);
+}
+
+/* =========================
+   Duplicate-course picker modal
+   ========================= */
+.dupModal {
+  position: relative;
+  width: min(520px, 92%);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 2.25rem 2.25rem 2rem;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.dupHeader {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.dupSubhead {
+  margin: -0.75rem 0 0;
+  font-size: 0.95rem;
+  color: #5f6671;
+}
+
+.dupList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dupItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #e3e6ea;
+  border-radius: 12px;
+}
+
+.dupItemTitle {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #1a1a1a;
+}
+
+.dupItemButton {
+  flex-shrink: 0;
+  padding: 0.5rem 1.1rem;
+  border-radius: 10px;
+  border: none;
+  background: #3a6ea5;
+  color: #ffffff;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.dupItemButton:hover {
+  filter: brightness(1.05);
+}
+
+.dupItemButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dupError {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #b42318;
+}
+
+.dupClose {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.accessModal {
+  width: min(480px, 92%);
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow: 0 45px 60px rgba(15, 23, 42, 0.35);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  text-align: center;
+}
+
+.accessTitle {
+  margin: 0;
+  color: #111827;
+  font-size: 1.45rem;
+  font-weight: 700;
+}
+
+.accessText {
+  margin: 0;
+  color: #4b5563;
+  line-height: 1.55;
+}
+
+.accessButton {
+  align-self: center;
+  margin-top: 0.25rem;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 999px;
+  background: #1f5fab;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
 }
 
 /* =========================
@@ -432,7 +979,6 @@
   display: block;
 }
 
-
 /* For the slightly_happy icon: source is yellow -> force it to blue in default state */
 .surveyFaceImageForceBlue {
   filter: none;
@@ -442,7 +988,6 @@
 .surveyFaceImageSelected {
   filter: none;
 }
-
 
 .surveySubmit {
   align-self: flex-end;
@@ -458,6 +1003,21 @@
 
 .surveySubmit:hover {
   filter: brightness(0.95);
+}
+
+.surveySubmit:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.3);
+  opacity: 0.65;
+}
+
+.surveyError {
+  align-self: flex-end;
+  margin: 0;
+  color: #c0392b;
+  font-size: 0.9rem;
+  text-align: right;
+  max-width: 100%;
 }
 
 /* =========================
@@ -501,5 +1061,9 @@
 
   .brandMark {
     align-self: flex-start;
+  }
+
+  .joinControls {
+    grid-template-columns: 1fr;
   }
 }

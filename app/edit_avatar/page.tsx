@@ -209,7 +209,7 @@ const accessoryOptions: Record<AvatarOption['id'], AccessoryOption[]> = avatarOp
 
 function ArrowIcon({ direction }: { direction: 'left' | 'right' }) {
   return (
-    <svg className={styles.arrowIcon} viewBox="0 0 24 24" fill="none" stroke="#1f5fab" strokeWidth={2}>
+    <svg className={styles.arrowIcon} viewBox="0 0 24 24" fill="none" stroke="#2e6aa9" strokeWidth={2}>
       {direction === 'left' ? (
         <path d="M14.5 5 8.5 12l6 7" strokeLinecap="round" strokeLinejoin="round" />
       ) : (
@@ -430,48 +430,20 @@ export default function EditAvatarPage() {
     setSelectedAccessories((prev) => ({ ...prev, [selectedAvatar]: options[nextIndex].id }));
   };
 
-  const hintMessage = (() => {
-    if (step === 'base') {
-      return selectedAvatar
-        ? 'Great choice! Continue to personalize your avatar.'
-        : 'Select an avatar to enable the next step.';
-    }
-    if (step === 'face') {
-      return 'Use the arrows to try on different expressions.';
-    }
-    return 'Give your avatar a final flourish before saving.';
-  })();
-
   const copy = {
-    base: {
-      title: 'Choose an avatar',
-      subtitle: 'Pick the gem that feels most like you to continue customizing.',
-    },
-    face: {
-      title: 'Select a face',
-      subtitle: 'Match your mood with a custom expression.',
-    },
-    accessory: {
-      title: 'Pick a fun hat!',
-      subtitle: 'Add a finishing touch to show off your personality.',
-    },
+    base: { title: 'Choose an avatar' },
+    face: { title: 'Select a face' },
+    accessory: { title: 'Pick a fun hat!' },
   }[step];
+
+  const baseLabel = avatarOptions.find((option) => option.id === selectedAvatar)?.label ?? '';
 
   return (
     <div className={styles.page}>
       <div className={styles.backdropPattern} aria-hidden="true" />
       <div className={styles.modal}>
-        <div className={styles.stepIndicator}>
-          {steps.map((_, index) => {
-            const dotClass = [styles.stepIndicatorDot, index <= stepIndex ? styles.stepIndicatorDotActive : '']
-              .filter(Boolean)
-              .join(' ');
-            return <span key={index} className={dotClass} aria-hidden="true" />;
-          })}
-        </div>
         <div className={styles.titleBlock}>
           <h1 className={styles.title}>{copy.title}</h1>
-          <p className={styles.subtitle}>{copy.subtitle}</p>
         </div>
 
         {step === 'base' && (
@@ -488,14 +460,16 @@ export default function EditAvatarPage() {
                   className={buttonClass}
                   onClick={() => setSelectedAvatar(option.id)}
                 >
-                  <Image
-                    src={option.image}
-                    alt={`${option.label} avatar`}
-                    width={140}
-                    height={140}
-                    className={styles.avatarPreview}
-                  />
-                  <span className={styles.avatarLabel}>{option.label}</span>
+                  <span className={styles.avatarPreviewRing}>
+                    <Image
+                      src={option.image}
+                      alt={`${option.label} avatar`}
+                      width={192}
+                      height={192}
+                      className={styles.avatarPreview}
+                    />
+                  </span>
+                  <span className={isSelected ? styles.avatarLabelSelected : styles.avatarLabel}>{option.label}</span>
                 </button>
               );
             })}
@@ -553,10 +527,7 @@ export default function EditAvatarPage() {
                 <ArrowIcon direction="right" />
               </button>
             </div>
-            <div>
-              <div className={styles.optionLabel}>{faceData.selected.label}</div>
-              <div className={styles.optionTagline}>{faceData.selected.tagline}</div>
-            </div>
+            <div className={styles.optionLabel}>{baseLabel}</div>
           </div>
         )}
 
@@ -615,14 +586,9 @@ export default function EditAvatarPage() {
                 <ArrowIcon direction="right" />
               </button>
             </div>
-            <div>
-              <div className={styles.optionLabel}>{accessoryData.selected.label}</div>
-              <div className={styles.optionTagline}>{accessoryData.selected.tagline}</div>
-            </div>
+            <div className={styles.optionLabel}>{baseLabel}</div>
           </div>
         )}
-
-        <p className={styles.selectionHint}>{hintMessage}</p>
 
         <div className={styles.footer}>
           {step === 'base' ? (

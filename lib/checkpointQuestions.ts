@@ -6,6 +6,16 @@ type ShortAnswerOptions = {
   type?: string;
   expectedAnswer?: number;
   tolerancePercent?: number;
+  acceptedRange?: {
+    min?: number;
+    max?: number;
+  };
+};
+
+type MultipleChoiceOptions = {
+  type?: string;
+  options?: unknown[];
+  correctIndices?: unknown[];
 };
 
 export type NormalizedCheckpointQuestion = {
@@ -14,6 +24,7 @@ export type NormalizedCheckpointQuestion = {
   type: QuestionType;
   options: string[] | Record<string, unknown>;
   correctIndex: number | null;
+  correctIndices: number[];
   expectedAnswer: number | null;
   tolerancePercent: number;
   acceptedRange: { min: number; max: number } | null;
@@ -45,6 +56,28 @@ function coerceShortAnswerOptions(value: Prisma.JsonValue): ShortAnswerOptions |
       typeof maybeOptions.tolerancePercent === 'number'
         ? maybeOptions.tolerancePercent
         : Number(maybeOptions.tolerancePercent),
+    acceptedRange:
+      maybeOptions.acceptedRange && typeof maybeOptions.acceptedRange === 'object'
+        ? (maybeOptions.acceptedRange as ShortAnswerOptions['acceptedRange'])
+        : undefined,
+  };
+}
+
+function coerceMultipleChoiceOptions(value: Prisma.JsonValue): MultipleChoiceOptions | null {
+  if (!value || Array.isArray(value) || typeof value !== 'object') {
+    return null;
+  }
+
+  const maybeOptions = value as Record<string, unknown>;
+  const type = String(maybeOptions.type ?? maybeOptions.questionType ?? '').toLowerCase();
+  if (type !== 'multiplechoice' && type !== 'multiple_choice' && type !== 'multiple-choice') {
+    return null;
+  }
+
+  return {
+    type: 'multipleChoice',
+    options: Array.isArray(maybeOptions.options) ? maybeOptions.options : [],
+    correctIndices: Array.isArray(maybeOptions.correctIndices) ? maybeOptions.correctIndices : [],
   };
 }
 
@@ -70,7 +103,13 @@ export function normalizeCheckpointQuestion(question: RawCheckpointQuestion): No
     const tolerancePercentValue = Number.isFinite(shortAnswer.tolerancePercent ?? NaN)
       ? Math.max(0, Number(shortAnswer.tolerancePercent))
       : 0;
-    const acceptedRange = computeAcceptedRange(expectedAnswer, tolerancePercentValue);
+    const rangeMin = Number(shortAnswer.acceptedRange?.min);
+    const rangeMax = Number(shortAnswer.acceptedRange?.max);
+    const explicitRange =
+      Number.isFinite(rangeMin) && Number.isFinite(rangeMax)
+        ? { min: Math.min(rangeMin, rangeMax), max: Math.max(rangeMin, rangeMax) }
+        : null;
+    const acceptedRange = explicitRange ?? computeAcceptedRange(expectedAnswer, tolerancePercentValue);
 
     return {
       id: question.id,
@@ -78,15 +117,37 @@ export function normalizeCheckpointQuestion(question: RawCheckpointQuestion): No
       type: 'shortAnswer',
       options: [],
       correctIndex: null,
+      correctIndices: [],
       expectedAnswer,
       tolerancePercent: tolerancePercentValue,
       acceptedRange,
     };
   }
 
-  const optionsArray = Array.isArray(question.options) ? question.options.map((option) => String(option)) : [];
+  const multipleChoice = coerceMultipleChoiceOptions(question.options);
+  const optionsArray = multipleChoice
+    ? (multipleChoice.options ?? []).map((option) => String(option))
+    : Array.isArray(question.options)
+      ? question.options.map((option) => String(option))
+      : [];
   const ci = question.correctIndex ?? null;
-  const correctIndex = ci != null && Number.isInteger(ci) && ci >= 0 && ci < optionsArray.length ? ci : null;
+  const normalizedCorrectIndices = multipleChoice
+    ? Array.from(
+        new Set(
+          (multipleChoice.correctIndices ?? [])
+            .map((index) => Number(index))
+            .filter((index) => Number.isInteger(index) && index >= 0 && index < optionsArray.length)
+        )
+      ).sort((left, right) => left - right)
+    : [];
+  const fallbackCorrectIndex = ci != null && Number.isInteger(ci) && ci >= 0 && ci < optionsArray.length ? ci : null;
+  const correctIndices =
+    normalizedCorrectIndices.length > 0
+      ? normalizedCorrectIndices
+      : fallbackCorrectIndex != null
+        ? [fallbackCorrectIndex]
+        : [];
+  const correctIndex = correctIndices[0] ?? null;
 
   return {
     id: question.id,
@@ -94,6 +155,7 @@ export function normalizeCheckpointQuestion(question: RawCheckpointQuestion): No
     type: 'multipleChoice',
     options: optionsArray,
     correctIndex,
+    correctIndices,
     expectedAnswer: null,
     tolerancePercent: 0,
     acceptedRange: null,
@@ -122,5 +184,13 @@ export function isAnswerWithinTolerance(expected: number, received: number, tole
   if (!range) {
     return false;
   }
+  return received >= range.min && received <= range.max;
+}
+
+export function isAnswerWithinAcceptedRange(range: { min: number; max: number } | null, received: number) {
+  if (!range) {
+    return false;
+  }
+
   return received >= range.min && received <= range.max;
 }

@@ -1,0 +1,521 @@
+.page {
+  display: flex;
+  min-height: calc(100vh - 80px);
+  background: #ffffff;
+}
+
+.main {
+  flex: 1;
+  min-height: 100vh;
+  padding: 2rem 2.5rem 4rem;
+  background: #ffffff;
+}
+
+.content {
+  width: 100%;
+  max-width: 1170px;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.pageTitle {
+  margin: 0;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.backLink,
+.inlineLink {
+  width: fit-content;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: #2e6aa9;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.statusBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.statusMessage {
+  margin: 0;
+  color: #556070;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+}
+
+/* ---------- Hero (badge circle + description) ---------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: 353px minmax(0, 1fr);
+  gap: 3rem;
+  align-items: start;
+  margin-bottom: 2.5rem;
+}
+
+.badgeCircle {
+  width: 100%;
+  max-width: 353px;
+  aspect-ratio: 1 / 1;
+  border-radius: 999px;
+  background: #2e6aa9;
+}
+
+.heroCopy {
+  padding-top: 0.5rem;
+}
+
+.descriptionLabel {
+  margin: 0;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.descriptionText {
+  margin: 1rem 0 0;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.4;
+}
+
+/* ---------- Card shell ---------- */
+
+.card {
+  border: 4px solid #d9d9d9;
+  border-radius: 40px;
+  background: #ffffff;
+  padding: 2.25rem 2.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.cardTitle {
+  margin: 0;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.showingFor {
+  margin: 0.4rem 0 0;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.showingFor strong {
+  font-weight: 700;
+}
+
+.exportButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  border: none;
+  background: transparent;
+  color: #000000;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+}
+
+.checkpointCount {
+  margin: 0.5rem 0 0;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  white-space: nowrap;
+}
+
+/* ---------- Student progress body ---------- */
+
+.progressBody {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.6fr) auto minmax(0, 1.4fr);
+  gap: 2.5rem;
+  align-items: center;
+}
+
+.statColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.bigStat strong {
+  display: block;
+  color: #2e6aa9;
+  font-family: 'Lato', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bigStat span {
+  display: block;
+  margin-top: 0.5rem;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.divider {
+  width: 1px;
+  align-self: stretch;
+  background: #d9d9d9;
+}
+
+.chartColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.topCharts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2.5rem;
+  align-items: center;
+}
+
+/* Completion ring */
+.completionRing {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+.completionRingInner {
+  position: absolute;
+  inset: 18px;
+  border-radius: 999px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Bar breakdown */
+.barBreakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.barLabel {
+  margin: 0 0 0.4rem;
+  color: #000000;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+}
+
+.barTrackRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.barTrack {
+  position: relative;
+  flex: 1;
+  height: 16px;
+  background: #d9d9d9;
+  overflow: hidden;
+}
+
+.barFill {
+  height: 100%;
+}
+
+.barPercent {
+  color: #000000;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* Ring indicators row */
+.ringRow {
+  display: flex;
+  gap: 4rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.ringIndicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.ring {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 999px;
+}
+
+.ringInner {
+  position: absolute;
+  inset: 9px;
+  border-radius: 999px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Keep the number and % baseline-aligned as one group, then center the group
+   in both axes so the value sits dead-center in the ring. */
+.ringValueGroup {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+}
+
+.ringValue {
+  color: #2e6aa9;
+  font-family: 'Lato', sans-serif;
+  font-size: 36px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.ringPercent {
+  color: #2e6aa9;
+  font-family: 'Lato', sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.ringCaption {
+  margin: 0;
+  color: #000000;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  text-align: center;
+}
+
+/* ---------- Assessment details body ---------- */
+
+.assessmentBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 0.7fr);
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.videoColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.videoScreen {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #3a4250 0%, #191919 100%);
+  overflow: hidden;
+}
+
+.videoPlaceholder {
+  color: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.videoMeta {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.videoTitle {
+  margin: 0;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+}
+
+.videoLength {
+  margin: 0.35rem 0 0;
+  color: #000000;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+}
+
+.videoLength strong {
+  font-weight: 700;
+}
+
+.editButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: none;
+  background: transparent;
+  color: #000000;
+  font-family: 'Open Sans', sans-serif;
+  font-style: italic;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0;
+}
+
+/* Checkpoint timeline */
+.timelineColumn {
+  border-left: 1px solid #d9d9d9;
+  padding-left: 1.75rem;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.timelineItem {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.85rem;
+}
+
+.timelineDot {
+  width: 14px;
+  height: 14px;
+  margin-top: 0.35rem;
+  border-radius: 999px;
+  background: #2e6aa9;
+  flex: 0 0 auto;
+}
+
+.timelineSegment {
+  margin: 0;
+  color: #2e6aa9;
+  font-family: 'Lato', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.timelineTitle {
+  margin: 0.2rem 0 0;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.timelineQuestion {
+  margin: 0.25rem 0 0;
+  color: #354150;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.timelinePoints {
+  margin: 0.3rem 0 0;
+  color: #607080;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+}
+
+@media (max-width: 1100px) {
+  .progressBody {
+    grid-template-columns: 1fr;
+  }
+
+  .divider {
+    display: none;
+  }
+
+  .topCharts {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .assessmentBody {
+    grid-template-columns: 1fr;
+  }
+
+  .timelineColumn {
+    border-left: none;
+    border-top: 1px solid #d9d9d9;
+    padding-left: 0;
+    padding-top: 1.5rem;
+  }
+}
+
+@media (max-width: 800px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .main {
+    min-height: auto;
+    padding: 1.25rem 1.25rem 2.5rem;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .badgeCircle {
+    width: 200px;
+  }
+
+  .pageTitle,
+  .cardTitle {
+    font-size: 36px;
+  }
+}

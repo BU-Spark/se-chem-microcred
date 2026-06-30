@@ -3,6 +3,7 @@ import { LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../../lib/prisma';
 import { computeLessonGrade } from '../../../../../lib/lessonGrading';
+import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
 
 type RouteContext = {
   params: Promise<{
@@ -33,20 +34,25 @@ export async function POST(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   }
 
-  const lesson = await prisma.lesson.findUnique({
-    where: { id: lessonId },
-    include: {
-      checkpoints: {
-        select: { id: true },
+  // The lesson lookup (for passingPercent + checkpoint ids) and the grade
+  // computation both depend only on lessonId/userId, not on each other, so run
+  // them concurrently instead of as two serial Accelerate round-trips.
+  const [lesson, grade] = await Promise.all([
+    prisma.lesson.findUnique({
+      where: { id: lessonId },
+      include: {
+        checkpoints: {
+          select: { id: true },
+        },
       },
-    },
-  });
+    }),
+    computeLessonGrade(prisma, { lessonId, userId: user.id }),
+  ]);
 
   if (!lesson) {
     return NextResponse.json({ error: 'Lesson not found.' }, { status: 404 });
   }
 
-  const grade = await computeLessonGrade(prisma, { lessonId, userId: user.id });
   const passingPercent = lesson.passingPercent ?? 0;
   const passed = grade.percent >= passingPercent;
   const now = new Date();
@@ -110,6 +116,8 @@ export async function POST(_request: Request, context: RouteContext) {
         },
       });
     }
+
+    await syncLessonBadgesForStudent(tx, { studentId: user.id, lessonId });
   });
 
   return NextResponse.json({

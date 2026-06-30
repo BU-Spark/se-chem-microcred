@@ -1,0 +1,464 @@
+.page {
+  display: flex;
+  min-height: calc(100vh - 80px);
+  background: #ffffff;
+  /* Base body font so text/table cells inherit Open Sans instead of the
+     global Outfit/Arial default. Headings/labels/buttons override to Lato. */
+  font-family: 'Open Sans', sans-serif;
+}
+
+.main {
+  flex: 1;
+  min-height: 100vh;
+  padding: 2rem 1.8rem 1.9rem;
+  background: #ffffff;
+}
+
+.content {
+  width: 100%;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2e6aa9;
+  text-decoration: none;
+}
+
+.backLink:hover {
+  text-decoration: underline;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 1.35rem;
+  margin-bottom: 1.1rem;
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  margin: 0;
+  font-family: 'Lato', 'Open Sans', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  line-height: 1;
+  color: #000000;
+}
+
+.pageSubtitle {
+  margin: 0;
+  font-size: 1rem;
+  color: #303030;
+}
+
+.statusMessage {
+  margin: 0;
+  font-size: 1rem;
+  color: #5b6470;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.95rem;
+  margin-bottom: 0.95rem;
+  flex-wrap: wrap;
+}
+
+.searchField {
+  flex: 1 1 446px;
+  min-height: 57px;
+  border: 4px solid #d9d9d9;
+  border-radius: 28.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.72rem;
+  padding: 0 1rem 0 1.1rem;
+  color: #2e6aa9;
+  background: #ffffff;
+}
+
+.searchIcon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.searchInput {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  color: #222222;
+}
+
+.searchInput::placeholder {
+  color: #353535;
+}
+
+.filterButton {
+  border: none;
+  background: transparent;
+  color: #222222;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0.05rem;
+}
+
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.filtersLabel {
+  font-size: 0.95rem;
+  color: #2e2e2e;
+}
+
+.sectionFilters {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.95rem;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.filterPill {
+  min-height: 2.15rem;
+  padding: 0.35rem 0.95rem;
+  border-radius: 999px;
+  border: 2px solid #d7d7d7;
+  background: #ffffff;
+  color: #3b3b3b;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.filterPill:hover {
+  border-color: #2e6aa9;
+  color: #2e6aa9;
+}
+
+.filterPillActive,
+.filterPillActive:hover {
+  color: #ffffff;
+}
+
+.filterPillActive {
+  background: #2e6aa9;
+  border-color: #2e6aa9;
+  color: #ffffff;
+}
+
+.noFilters {
+  font-size: 0.92rem;
+  color: #6b7280;
+}
+
+.filterPanel {
+  margin-bottom: 0.95rem;
+  border: 4px solid #d9d9d9;
+  border-radius: 40px;
+  background: #ffffff;
+  padding: 1.25rem 1.35rem 1.2rem;
+}
+
+.filterPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.filterPanelTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.28rem;
+  font-weight: 700;
+  line-height: 1.05;
+  color: #111111;
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1rem 1.1rem;
+}
+
+.filterField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.filterFieldLabel {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.94rem;
+  font-weight: 600;
+  color: #232323;
+}
+
+.filterInput,
+.filterSelect {
+  min-height: 3rem;
+  border: 3px solid #d7d7d7;
+  border-radius: 1.05rem;
+  padding: 0.7rem 0.9rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.96rem;
+  color: #222222;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.16s ease;
+}
+
+.filterInput:focus,
+.filterSelect:focus {
+  border-color: #2e6aa9;
+}
+
+.filterActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.15rem;
+  flex-wrap: wrap;
+}
+
+.clearFiltersButton,
+.applyFiltersButton {
+  min-height: 3rem;
+  padding: 0.7rem 1.2rem;
+  border-radius: 1.05rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.94rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    filter 0.16s ease,
+    background-color 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.clearFiltersButton {
+  border: 3px solid #d7d7d7;
+  background: #ffffff;
+  color: #303030;
+}
+
+.applyFiltersButton {
+  border: none;
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
+.clearFiltersButton:hover,
+.applyFiltersButton:hover {
+  filter: brightness(1.03);
+}
+
+.tableCard {
+  border: 4px solid #d9d9d9;
+  border-radius: 40px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+/* Pending assessor requests (instructor view) */
+.pendingCard {
+  border: 4px solid #f0c33c;
+  border-radius: 28px;
+  background: #fffaf0;
+  padding: 1.25rem 1.65rem;
+  margin-bottom: 1.25rem;
+}
+
+.pendingTitle {
+  margin: 0 0 0.85rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #000000;
+}
+
+.pendingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pendingItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #ffffff;
+  border: 1px solid #e6dcc2;
+  border-radius: 16px;
+  padding: 0.75rem 1rem;
+  flex-wrap: wrap;
+}
+
+.pendingInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.pendingName {
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  color: #000000;
+}
+
+.pendingEmail {
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.pendingActions {
+  display: flex;
+  gap: 0.6rem;
+  flex-shrink: 0;
+}
+
+.approveButton,
+.declineButton {
+  border: none;
+  border-radius: 12px;
+  padding: 0.5rem 1.1rem;
+  font-family: 'Lato', sans-serif;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.approveButton {
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
+.declineButton {
+  background: #ffffff;
+  color: #b42318;
+  border: 1px solid #e2b8b2;
+}
+
+.approveButton:hover,
+.declineButton:hover {
+  filter: brightness(0.97);
+}
+
+.approveButton:disabled,
+.declineButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tableScroll {
+  max-height: calc(100vh - 12.4rem);
+  overflow: auto;
+  padding: 0.55rem 1.65rem 1rem;
+  scrollbar-width: thin;
+  scrollbar-color: #cfcfcf transparent;
+}
+
+.tableScroll::-webkit-scrollbar {
+  width: 10px;
+}
+
+.tableScroll::-webkit-scrollbar-thumb {
+  background: #d4d4d4;
+  border-radius: 999px;
+}
+
+.tableScroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  background: #ffffff;
+  z-index: 1;
+  border-bottom: 3px solid #dedede;
+  padding: 1rem 1rem 0.82rem;
+  text-align: left;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #202020;
+}
+
+.table tbody td {
+  padding: 0.72rem 1rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.98rem;
+  color: #202020;
+  white-space: nowrap;
+}
+
+.selectableRow {
+  cursor: pointer;
+}
+
+.selectableRow[data-selected='true'] td {
+  background: #c9db50;
+}
+
+.emptyCell {
+  padding: 1.4rem 1rem;
+  color: #6b7280;
+}
+
+@media (max-width: 900px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .main {
+    min-height: auto;
+    padding: 1rem;
+  }
+
+  .header {
+    gap: 0.5rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .tableScroll {
+    max-height: none;
+    padding: 0.35rem 0.9rem 0.9rem;
+  }
+
+  .filterActions {
+    justify-content: flex-start;
+  }
+}

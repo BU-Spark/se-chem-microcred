@@ -13,6 +13,11 @@ const nextConfig = {
       },
       {
         protocol: 'https',
+        hostname: 'i.ytimg.com',
+        pathname: '/vi/**',
+      },
+      {
+        protocol: 'https',
         hostname: 'dummyimage.com',
         pathname: '/**',
       },

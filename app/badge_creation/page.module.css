@@ -1,0 +1,1408 @@
+.page {
+  display: flex;
+  min-height: 100vh;
+  background: #f3f3f3;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.main {
+  flex: 1;
+  padding: 36px 42px 48px;
+}
+
+.pageShell {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.pageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.pageTitle {
+  font-family: 'Lato', sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: #000000;
+}
+
+.progressTrack {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin: 18px 60px 34px;
+}
+
+.progressTrack::before {
+  content: '';
+  position: absolute;
+  top: 14px;
+  left: 95px;
+  right: 95px;
+  height: 2px;
+  background: #2e6aa9;
+  z-index: 0;
+}
+
+.progressStep {
+  position: relative;
+  z-index: 1;
+  width: 190px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.progressDot {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #ffffff;
+  border: 2px solid #2e6aa9;
+  margin-bottom: 10px;
+}
+
+.progressDot[data-active='true'],
+.progressDot[data-complete='true'] {
+  background: #c7d63c;
+}
+
+.progressDotFill {
+  display: none;
+}
+
+.progressLabel {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  color: #222222;
+}
+
+.canvasCard,
+.editorCard,
+.reviewCard,
+.timelineRail {
+  background: #f7f7f7;
+  border: 3px solid #d0d0d0;
+  border-radius: 30px;
+}
+
+.canvasCard {
+  padding: 22px 26px 24px;
+  margin-bottom: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.cardEyebrow,
+.cardTitle,
+.panelTitle,
+.editorCardHeader h3,
+.reviewCardHeader h3,
+.videoInfoBlock h3,
+.reviewCard h4 {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.cardTitle {
+  margin-top: 10px;
+}
+
+.cardSubtitle,
+.noticeBanner,
+.errorText,
+.emptyState {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.noticeBanner {
+  border: 2px solid #2e6aa9;
+  border-radius: 19px;
+  background: #ffffff;
+  padding: 14px 18px;
+  color: #2e6aa9;
+}
+
+.errorText {
+  color: #b91c1c;
+}
+
+.fieldError {
+  margin: 0.3rem 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #b91c1c;
+}
+
+.fieldHelp {
+  margin: 0 0 0.6rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+  color: #4b5563;
+}
+
+/* Upload Lesson Video — single column matching Figma 571-2582 */
+.videoStepColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  max-width: 620px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.underlineFieldLabel {
+  display: block;
+  margin-bottom: 0.4rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #303030;
+}
+
+.videoTitleField {
+  display: flex;
+  flex-direction: column;
+}
+
+.videoTitleInput {
+  width: 100%;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #111111;
+  padding: 0;
+}
+
+.videoLengthField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.videoLengthLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #303030;
+}
+
+.videoLengthInput {
+  width: 9rem;
+  border: none;
+  border-bottom: 2px solid #d7d7d7;
+  outline: none;
+  background: transparent;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.96rem;
+  color: #222222;
+  padding: 0.25rem 0.1rem;
+}
+
+.videoLengthInput:focus {
+  border-bottom-color: #2e6aa9;
+}
+
+.videoPosterLarge {
+  width: 100%;
+  max-width: 460px;
+  aspect-ratio: 16 / 11;
+  border-radius: 8px;
+  background: #1f2937 center / cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e5e7eb;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+}
+
+.rubricLineInput {
+  flex: 1;
+  resize: none;
+  border: none;
+  border-bottom: 2px solid #e2e2e2;
+  outline: none;
+  background: transparent;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: #202020;
+  padding: 0.3rem 0.1rem;
+}
+
+.rubricLineInput:focus {
+  border-bottom-color: #2e6aa9;
+}
+
+.rubricLineInput::placeholder {
+  font-style: italic;
+  color: #9aa1ab;
+}
+
+.feedbackBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.feedbackToggleRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  color: #232323;
+}
+
+.badgeInfoLayout,
+.videoInputPanel,
+.videoPreviewPanel,
+.checkpointMain,
+.reviewStack,
+.rubricList,
+.reviewCard,
+.editorCard,
+.rubricCriterionCard {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.badgeInfoLayout {
+  max-width: 920px;
+}
+
+.badgeInfoField,
+.fieldBlock,
+.fieldStack,
+.dateField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sectionLabel,
+.fieldLabel,
+.fieldStack,
+.dateField {
+  font-family: 'Lato', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.underlineInput {
+  width: 486px;
+  max-width: 100%;
+  border: none;
+  border-bottom: 1px solid #000000;
+  background: transparent;
+  outline: none;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  padding: 0 0 8px;
+  color: #000000;
+}
+
+.underlineInput::placeholder {
+  color: #000000;
+  opacity: 1;
+  font-family: 'Open Sans', sans-serif;
+  font-style: italic;
+}
+
+.descriptionInput,
+.textField,
+.textAreaCompact,
+.longTextArea,
+.selectField,
+.dateField input {
+  width: 100%;
+  border: 2px solid #d0d0d0;
+  border-radius: 19px;
+  background: #ffffff;
+  color: #000000;
+  font: inherit;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  padding: 12px 14px;
+}
+
+.descriptionInput,
+.textAreaCompact {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.longTextArea {
+  min-height: 220px;
+  resize: vertical;
+}
+
+.selectField {
+  max-width: 280px;
+}
+
+.descriptionInput:focus,
+.textField:focus,
+.textAreaCompact:focus,
+.longTextArea:focus,
+.selectField:focus,
+.dateField input:focus,
+.underlineInput:focus {
+  outline: none;
+  border-color: #2e6aa9;
+}
+
+.availabilityRow,
+.availabilityInputs,
+.navigationRow,
+.editorCardHeader,
+.reviewCardHeader,
+.optionRow,
+.timelineHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.availabilityRow,
+.availabilityInputs {
+  flex-wrap: wrap;
+}
+
+.availabilityPill {
+  min-width: 194px;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+}
+
+.availabilityPill strong {
+  font-family: 'Lato', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.compactToggleRow,
+.toggleRow {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #333333;
+}
+
+.toggleButton {
+  width: 56px;
+  height: 32px;
+  border: none;
+  border-radius: 999px;
+  font-family: 'Lato', sans-serif;
+  background: #d9d9d9;
+  position: relative;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.toggleButton span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: #ffffff;
+  transition: left 0.2s ease;
+}
+
+.toggleButton[data-active='true'] {
+  background: #2e6aa9;
+}
+
+.toggleButton[data-active='true'] span {
+  left: 27px;
+}
+
+.videoStepLayout,
+.checkpointLayout,
+.rubricLayout,
+.feedbackGrid,
+.editorGrid,
+.shortAnswerGrid {
+  display: grid;
+  gap: 22px;
+}
+
+.videoStepLayout {
+  grid-template-columns: minmax(280px, 0.9fr) minmax(0, 1.1fr);
+}
+
+.checkpointLayout {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.rubricLayout {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.feedbackGrid,
+.editorGrid,
+.shortAnswerGrid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.fieldBlock,
+.editorCard,
+.reviewCard,
+.timelineRail,
+.rubricCriterionCard,
+.reviewListItem {
+  padding: 18px 20px;
+}
+
+.videoInfoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: 'Open Sans', sans-serif;
+  color: #222222;
+}
+
+.videoPoster,
+.videoFrameShell {
+  position: relative;
+  border: 3px solid #d0d0d0;
+  border-radius: 30px;
+  background: #ffffff;
+  min-height: 320px;
+  overflow: hidden;
+}
+
+.videoPoster {
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #222222;
+  font-size: 16px;
+}
+
+.videoFrameShell {
+  min-height: 420px;
+}
+
+.videoFrame,
+.videoFallback {
+  width: 100%;
+  min-height: 420px;
+  height: 100%;
+  border: none;
+}
+
+.videoFallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  color: #222222;
+}
+
+.timelineRail {
+  align-self: start;
+}
+
+.timelineHeader {
+  justify-content: space-between;
+  font-family: 'Lato', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.timelineList,
+.checkpointEditorList,
+.questionEditorList,
+.optionList,
+.reviewList,
+.numberedRubricList,
+.gradingOptionsList {
+  display: grid;
+  gap: 14px;
+}
+
+.questionEditorCard {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid #d9e2ea;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.questionEditorHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.questionEditorHeader h3 {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.timelineList {
+  margin-top: 18px;
+}
+
+.timelineItem {
+  position: relative;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #222222;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+}
+
+.timelineSegment,
+.timelineCheckpointCopy {
+  color: #000000;
+}
+
+.timelineCheckpointMarker {
+  position: absolute;
+  top: 28px;
+  left: 0;
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  background: #c7d63c;
+}
+
+.timelineConnector {
+  position: absolute;
+  top: 42px;
+  left: 5px;
+  width: 2px;
+  height: calc(100% + 8px);
+  background: #2e6aa9;
+}
+
+/* Create Checkpoints — Figma 379-656 timeline rail (segment thumbnails +
+   checkpoint nodes joined by a vertical connector). */
+.cpRail {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-self: start;
+  padding: 6px 0;
+}
+
+.cpRailLine {
+  position: absolute;
+  top: 52px;
+  bottom: 52px;
+  right: 43px;
+  width: 2px;
+  background: #2e6aa9;
+  z-index: 0;
+}
+
+.cpRailGroup {
+  display: contents;
+}
+
+.cpSegmentRow,
+.cpCheckpointRow {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 88px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+.cpSegmentLabel,
+.cpCheckpointLabel {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: right;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #000000;
+}
+
+.cpSegmentThumb {
+  justify-self: center;
+  width: 84px;
+  height: 84px;
+  border: 2px solid #2e6aa9;
+  border-radius: 6px;
+  background-color: #1f2937;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+}
+
+.cpCheckpointNode {
+  justify-self: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 2px solid #2e6aa9;
+  border-radius: 999px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cpCheckpointNode:hover,
+.cpCheckpointNode:focus-visible {
+  background: #c7d63c;
+  outline: none;
+}
+
+.cpRailAdd {
+  margin-top: 14px;
+  align-self: center;
+  background: transparent;
+  border: 1px dashed #2e6aa9;
+  border-radius: 12px;
+  color: #2e6aa9;
+  font-family: 'Lato', sans-serif;
+  font-size: 14px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.cpRailAdd:hover {
+  background: rgba(46, 106, 169, 0.08);
+}
+
+.cpNodeStatic {
+  justify-self: center;
+  width: 24px;
+  height: 24px;
+  border: 2px solid #2e6aa9;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+/* Review — Figma 529-1708: read-only mirror of every step. */
+.reviewEdit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reviewCardHeader .reviewEdit {
+  border: none;
+  color: #000000;
+  font-style: italic;
+  font-size: 18px;
+}
+
+.reviewCardHeader .reviewEdit span {
+  color: #2e6aa9;
+  font-style: normal;
+}
+
+.reviewField {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reviewBadgeName {
+  margin: 0;
+  border-bottom: 1px solid #c9c9c9;
+  padding-bottom: 6px;
+  max-width: 360px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewFieldLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewMuted {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  font-style: italic;
+  color: #9aa1ab;
+}
+
+.reviewDescriptionBox {
+  border: 1px solid #000000;
+  border-radius: 15px;
+  padding: 16px 18px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.reviewSkillsRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.reviewChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.reviewChip {
+  background: #2e6aa9;
+  color: #ffffff;
+  border-radius: 23px;
+  padding: 10px 20px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+}
+
+.reviewSkillCount {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.reviewSkillCount strong {
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.reviewSkillCount span {
+  font-family: 'Open Sans', sans-serif;
+  font-style: italic;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewDates {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.reviewDate {
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  color: #000000;
+}
+
+.reviewDatesTo {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewVideoTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.reviewMeta {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewMeta strong {
+  font-weight: 700;
+}
+
+.reviewVideoPreview {
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  border-radius: 18px;
+  background-color: #d9d9d9;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+}
+
+.reviewOrderedList {
+  margin: 0;
+  padding-left: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  color: #000000;
+}
+
+.reviewGrading {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 8px;
+}
+
+.reviewSubheading {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  font-weight: 400;
+  color: #000000;
+}
+
+.reviewGradingCriterion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reviewGradingPrompt {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewGradingGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 8px;
+}
+
+.reviewGradingRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.reviewGradingOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.reviewFeedbackText {
+  border-bottom: 1px solid #c9c9c9;
+  padding-bottom: 2px;
+  flex: 1;
+}
+
+.checkpointEditor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Create Rubric — Figma 425-2278: two stacked full-width cards. */
+.rubricStack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.rubricOrderedList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rubricOrderedItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+}
+
+.rubricOrderedNumber {
+  padding-top: 8px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+}
+
+.rubricGhostRemove {
+  align-self: center;
+  background: transparent;
+  border: none;
+  color: #9aa1ab;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.rubricGhostRemove:hover {
+  color: #b91c1c;
+  text-decoration: underline;
+}
+
+.gradingList {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.gradingCriterion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e2e2e2;
+}
+
+.gradingPromptRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gradingPromptInput {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid transparent;
+  background: transparent;
+  outline: none;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+  padding: 4px 2px;
+}
+
+.gradingPromptInput:focus {
+  border-bottom-color: #2e6aa9;
+}
+
+.gradingPencil {
+  flex-shrink: 0;
+  cursor: pointer;
+  color: #2e6aa9;
+  font-size: 18px;
+  line-height: 1;
+  user-select: none;
+}
+
+.gradingOptionsGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-left: 8px;
+}
+
+.gradingOptionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: center;
+}
+
+.gradingOptionLeft,
+.gradingFeedbackCell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gradingCheckbox {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  border: 2px solid #d9d9d9;
+  border-radius: 3px;
+  background: transparent;
+}
+
+.gradingCheckboxFilled {
+  background: #2e6aa9;
+  border-color: #2e6aa9;
+}
+
+.gradingUnderlineInput {
+  flex: 1;
+  border: none;
+  border-bottom: 1px solid #c9c9c9;
+  background: transparent;
+  outline: none;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+  padding: 4px 2px;
+}
+
+.gradingUnderlineInput:focus {
+  border-bottom-color: #2e6aa9;
+}
+
+.gradingUnderlineInput::placeholder {
+  color: #9aa1ab;
+}
+
+.gradingFeedbackInput::placeholder {
+  font-style: italic;
+  color: #9aa1ab;
+}
+
+.gradingCriterionActions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-top: 2px;
+}
+
+.gradingAddItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: 'Open Sans', sans-serif;
+  font-style: italic;
+  font-size: 16px;
+  color: #000000;
+  padding: 0;
+}
+
+.addCriterionButton {
+  align-self: flex-start;
+  width: 56px;
+  height: 44px;
+  border: none;
+  border-radius: 14px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.addCriterionButton:hover {
+  filter: brightness(1.08);
+}
+
+.removeTextButton,
+.reviewCardHeader button,
+.backButton {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #000000;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 16px;
+  padding: 0 0 2px;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.optionRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.numberedRubricItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: start;
+}
+
+.rubricNumber {
+  padding-top: 12px;
+  font-family: 'Lato', sans-serif;
+  font-size: 20px;
+  color: #000000;
+}
+
+.inlineActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+}
+
+.reviewCard p,
+.reviewListItem {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #222222;
+}
+
+.reviewListItem {
+  border: 2px solid #d0d0d0;
+  border-radius: 19px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.navigationRow {
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.nextButton,
+.plusButton,
+.secondaryButton {
+  display: inline-block;
+  background: #2e6aa9;
+  color: #ffffff;
+  border: none;
+  border-radius: 19px;
+  font-family: 'Lato', sans-serif;
+  font-size: 20px;
+  font-weight: 400;
+  cursor: pointer;
+  width: fit-content;
+  height: auto;
+}
+
+.nextButton {
+  padding: 14px 35px;
+}
+
+.secondaryButton {
+  padding: 10px 20px;
+  font-size: 16px;
+  align-self: flex-start;
+}
+
+.plusButton {
+  width: 38px;
+  height: 38px;
+  font-size: 26px;
+  line-height: 1;
+}
+
+.nextButton:disabled,
+.backButton:disabled,
+.removeTextButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.successOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(10, 19, 33, 0.42);
+}
+
+.successModal {
+  position: relative;
+  width: min(520px, 100%);
+  border-radius: 30px;
+  background: #ffffff;
+  padding: 40px 44px 36px;
+  color: #000000;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.successCloseButton {
+  position: absolute;
+  top: 18px;
+  right: 20px;
+  border: none;
+  background: transparent;
+  color: #000000;
+  cursor: pointer;
+  font-family: 'Lato', sans-serif;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.successTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.successBadgeCircle {
+  width: 190px;
+  height: 190px;
+  border-radius: 999px;
+  background: #d9d9d9;
+  margin: 26px 0 22px;
+}
+
+.successBadgeName {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
+  color: #111111;
+}
+
+.successText {
+  margin: 14px 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  color: #333333;
+}
+
+.successButton {
+  display: inline-block;
+  margin-top: 26px;
+  padding: 12px 26px;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.successButton:hover {
+  filter: brightness(1.05);
+}
+
+@media (max-width: 1200px) {
+  .progressTrack {
+    margin-left: 0;
+    margin-right: 0;
+    gap: 16px;
+    overflow-x: auto;
+    padding-bottom: 8px;
+  }
+
+  .videoStepLayout,
+  .checkpointLayout,
+  .rubricLayout,
+  .feedbackGrid,
+  .editorGrid,
+  .shortAnswerGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .main {
+    padding: 24px 20px 32px;
+  }
+
+  .pageTitle {
+    font-size: 38px;
+  }
+
+  .canvasCard,
+  .editorCard,
+  .reviewCard,
+  .timelineRail {
+    border-radius: 24px;
+    padding: 18px;
+  }
+
+  .progressStep {
+    flex: 0 0 auto;
+    width: 140px;
+  }
+
+  .progressTrack::before {
+    left: 70px;
+    right: 70px;
+  }
+
+  .navigationRow {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .numberedRubricItem,
+  .optionRow {
+    grid-template-columns: 1fr;
+  }
+}

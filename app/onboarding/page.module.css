@@ -1,0 +1,267 @@
+.page {
+  min-height: 100vh;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 24px 64px;
+  gap: 8px;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.logo {
+  width: 280px;
+  height: auto;
+  object-fit: contain;
+}
+
+.welcome {
+  margin: 8px 0 28px;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: #000000;
+  text-align: center;
+}
+
+.card {
+  position: relative;
+  width: min(560px, 94%);
+  min-height: 320px;
+  background: #ffffff;
+  border: 4px solid #d9d9d9;
+  border-radius: 40px;
+  padding: 36px 44px 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardTitle {
+  margin: 0 0 24px;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #000000;
+}
+
+.cardSubtitle {
+  margin: -16px 0 20px;
+  font-size: 0.95rem;
+  color: #5f6671;
+}
+
+/* ----- Step 0: name fields ----- */
+.fieldList {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.underlineInput {
+  border: none;
+  border-bottom: 1px solid #000000;
+  background: transparent;
+  outline: none;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: #000000;
+  padding: 0 0 8px;
+}
+
+.underlineInput::placeholder {
+  color: #000000;
+  opacity: 0.85;
+  font-style: italic;
+}
+
+/* ----- Steps 1-2: questions ----- */
+.questionBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.questionBlock + .questionBlock {
+  margin-top: 24px;
+}
+
+.question {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.35;
+  color: #000000;
+}
+
+.checkList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.checkRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+.checkRow input {
+  width: 16px;
+  height: 16px;
+  accent-color: #2e6aa9;
+}
+
+.select {
+  align-self: flex-start;
+  min-width: 220px;
+  padding: 8px 12px;
+  border: 1px solid #c9ced6;
+  border-radius: 10px;
+  background: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  cursor: pointer;
+}
+
+/* ----- Step 3: avatars ----- */
+.avatarGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  justify-items: center;
+  padding: 8px 0 4px;
+}
+
+.avatarOption {
+  width: 116px;
+  height: 116px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #e3e6ea;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.avatarOption:hover {
+  transform: translateY(-2px);
+}
+
+.avatarOptionSelected {
+  border-color: #2e6aa9;
+  box-shadow: 0 0 0 3px rgba(46, 106, 169, 0.25);
+}
+
+.avatarImage {
+  width: 92px;
+  height: 92px;
+  object-fit: contain;
+}
+
+/* ----- Step 4: all set ----- */
+.allSet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 18px;
+  padding: 8px 0;
+}
+
+.allSetTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #000000;
+}
+
+.allSetAvatar {
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  border: 1px solid #2e6aa9;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.allSetName {
+  margin: 0;
+  font-size: 1rem;
+  color: #1a1a1a;
+}
+
+.letsGo {
+  margin-top: 8px;
+  padding: 10px 22px;
+  border: none;
+  border-radius: 16px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.letsGo:hover {
+  filter: brightness(1.05);
+}
+
+.letsGo:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ----- Footer nav ----- */
+.cardFooter {
+  margin-top: auto;
+  padding-top: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20px;
+}
+
+.backButton {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid #000000;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
+  padding: 0 0 2px;
+  cursor: pointer;
+}
+
+.nextButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 96px;
+  padding: 10px 26px;
+  border: none;
+  border-radius: 19px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+}
+
+.nextButton:hover {
+  filter: brightness(1.05);
+}
+
+.error {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.9rem;
+}

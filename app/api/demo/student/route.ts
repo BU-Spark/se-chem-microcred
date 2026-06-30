@@ -1,8 +1,45 @@
 import { NextResponse } from 'next/server';
-import { BadgeStatus, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
-import { currentUser } from '@clerk/nextjs/server';
+import {
+  BadgeStatus,
+  CourseContactType,
+  CourseRole,
+  EnrollmentStatus,
+  LessonStatus,
+  SegmentStatus,
+  SurveyContext,
+} from '@prisma/client';
 import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
+import { ensureCurrentUser } from '../../courses/lib/ensure-user';
+import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
+
+function avatarPathForBase(base?: string | null): string {
+  switch (base) {
+    case 'RUBY':
+      return '/edit_avatar/ruby.svg';
+    case 'EMERALD':
+      return '/edit_avatar/emerald.svg';
+    case 'AMETHYST':
+      return '/edit_avatar/amethyst.svg';
+    case 'SAPPHIRE':
+    default:
+      return '/edit_avatar/sapphire.svg';
+  }
+}
+
+// Converts a stored "First Last" name into the "Last, First" display format the designs use.
+// Names already containing a comma are assumed to be in the desired format and left as-is.
+function formatLastFirst(fullName?: string | null) {
+  if (!fullName) return null;
+  const trimmed = fullName.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes(',')) return trimmed;
+  const parts = trimmed.split(/\s+/);
+  if (parts.length === 1) return parts[0];
+  const last = parts[parts.length - 1];
+  const first = parts.slice(0, -1).join(' ');
+  return `${last}, ${first}`;
+}
 
 function groupBadgesByStatus(badges: Array<ReturnType<typeof formatBadge>>) {
   return badges.reduce(
@@ -134,6 +171,11 @@ function formatLesson({
       snapshotUrl: checkpoint.snapshotUrl,
       questions: checkpoint.questions.map((question) => normalizeCheckpointQuestion(question)),
     })),
+    badgeRequirements: lesson.badgeRequirements.map((requirement) => ({
+      badgeId: requirement.badge.id,
+      badgeName: requirement.badge.name,
+      badgeSlug: requirement.badge.slug,
+    })),
     skills: lesson.skills.map((skill) => skill.text),
     lastGradePercent: lastGradePercent ?? null,
     lastGradePassed: lastGradePassed ?? null,
@@ -152,7 +194,12 @@ async function fetchLessonProgress(studentId: string) {
 
 async function fetchLessons(courseId: string) {
   return prisma.lesson.findMany({
-    where: { courseId },
+    where: {
+      courseId,
+      badgeRequirements: {
+        some: {},
+      },
+    },
     include: {
       segments: {
         orderBy: { sortOrder: 'asc' },
@@ -168,90 +215,210 @@ async function fetchLessons(courseId: string) {
       skills: {
         orderBy: { sortOrder: 'asc' },
       },
+      badgeRequirements: {
+        include: {
+          badge: {
+            select: { id: true, name: true, slug: true },
+          },
+        },
+      },
     },
     orderBy: { sortOrder: 'asc' },
   });
 }
 
-export async function GET() {
-  const user = await currentUser();
+export async function GET(req: Request) {
+  // Resolve (and lazily provision on first sign-in) the signed-in user, then load
+  // the full record by id — avoids a second currentUser() call and an email re-query.
+  const provisioned = await ensureCurrentUser();
 
-  if (!user || !user.emailAddresses?.[0]) {
+  if (!provisioned) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const email = user.emailAddresses[0].emailAddress.toLowerCase();
+  // The signed-in user record and their first enrollment both depend only on
+  // provisioned.id (not on each other), so fetch them concurrently rather than
+  // adding two serial round-trips to Prisma Accelerate.
+  const requestedCourseId = new URL(req.url).searchParams.get('courseId')?.trim() || null;
 
-  const student = await prisma.user.findUnique({
-    where: { email },
-    include: {
-      avatar: true,
-      analytics: true,
-    },
-  });
+  const [student, enrollment] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: provisioned.id },
+      include: {
+        avatar: true,
+        analytics: true,
+      },
+    }),
+    prisma.enrollment.findFirst({
+      where: {
+        studentId: provisioned.id,
+        ...(requestedCourseId ? { courseId: requestedCourseId } : {}),
+        role: CourseRole.STUDENT,
+      },
+      include: {
+        sections: true,
+        course: {
+          include: {
+            contacts: {
+              orderBy: { type: 'asc' },
+            },
+          },
+        },
+      },
+    }),
+  ]);
 
   if (!student) {
     return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   }
 
-  const enrollment = await prisma.enrollment.findFirst({
-    where: { studentId: student.id },
-    include: {
-      course: {
-        include: {
-          contacts: {
-            orderBy: { type: 'asc' },
-          },
-        },
-      },
-    },
-  });
+  // The student's own section(s) for this course (e.g. "A1"). Stored on EnrollmentSection,
+  // NOT on Course.section (which is a legacy single-section field).
+  const studentSections = new Set((enrollment?.sections ?? []).map((s) => s.section));
+  const primarySection = enrollment?.sections[0]?.section ?? enrollment?.course.section ?? null;
 
-  const [lessonProgresses, lessons, studentBadges, passingCheckpointAttempts, surveyResponses, checkpointResponses] =
-    await Promise.all([
-      fetchLessonProgress(student.id),
-      enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
-      prisma.studentBadge.findMany({
-        where: { studentId: student.id },
-        include: {
-          badge: {
-            include: {
-              requirements: {
-                include: {
-                  lesson: {
-                    select: { slug: true, title: true },
-                  },
+  // Build the instructor + checker contact list from enrollments (the section-aware source
+  // of truth) rather than CourseContact (which has no section). The query is folded into the
+  // Promise.all below so it runs in parallel with the other reads instead of adding a serial
+  // round-trip to Prisma Accelerate.
+  const [
+    courseStaff,
+    courseBadges,
+    lessonProgresses,
+    lessons,
+    initialStudentBadges,
+    passingCheckpointAttempts,
+    surveyResponses,
+    checkpointResponses,
+  ] = await Promise.all([
+    enrollment
+      ? prisma.enrollment.findMany({
+          where: {
+            courseId: enrollment.courseId,
+            role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
+            // Exclude pending assessor requests — they aren't staff until approved.
+            status: EnrollmentStatus.ACTIVE,
+          },
+          include: {
+            sections: true,
+            student: { select: { id: true, name: true, email: true, avatar: { select: { base: true } } } },
+          },
+        })
+      : Promise.resolve([]),
+    // Every badge attached to this course (via a lesson's badge requirement),
+    // used to derive the "not yet started" group below.
+    enrollment
+      ? prisma.badge.findMany({
+          where: { requirements: { some: { lesson: { courseId: enrollment.courseId } } } },
+          select: { id: true, slug: true, name: true, description: true, category: true },
+        })
+      : Promise.resolve([]),
+    fetchLessonProgress(student.id),
+    enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
+    prisma.studentBadge.findMany({
+      where: { studentId: student.id },
+      include: {
+        badge: {
+          include: {
+            requirements: {
+              include: {
+                lesson: {
+                  select: { slug: true, title: true },
                 },
               },
             },
           },
         },
-      }),
-      prisma.checkpointAttempt.findMany({
-        where: {
-          userId: student.id,
-          isPassing: true,
+      },
+    }),
+    prisma.checkpointAttempt.findMany({
+      where: {
+        userId: student.id,
+        isPassing: true,
+      },
+      select: {
+        checkpointId: true,
+      },
+    }),
+    prisma.surveyResponse.findMany({
+      where: {
+        studentId: student.id,
+      },
+      select: {
+        promptId: true,
+      },
+    }),
+    prisma.checkpointResponse.findMany({
+      where: { studentId: student.id },
+      select: {
+        checkpointId: true,
+        questionId: true,
+      },
+    }),
+  ]);
+
+  const checkpointLessonIdsByCheckpointId = new Map(
+    lessons.flatMap((lesson) => lesson.checkpoints.map((checkpoint) => [checkpoint.id, lesson.id] as const))
+  );
+  const touchedLessonIds = new Set<string>(lessonProgresses.map((progress) => progress.lessonId));
+
+  for (const attempt of passingCheckpointAttempts) {
+    const lessonId = checkpointLessonIdsByCheckpointId.get(attempt.checkpointId);
+    if (lessonId) {
+      touchedLessonIds.add(lessonId);
+    }
+  }
+
+  for (const response of checkpointResponses) {
+    const lessonId = checkpointLessonIdsByCheckpointId.get(response.checkpointId);
+    if (lessonId) {
+      touchedLessonIds.add(lessonId);
+    }
+  }
+
+  let studentBadges = initialStudentBadges;
+
+  if (touchedLessonIds.size > 0) {
+    await prisma.$transaction(async (tx) => {
+      for (const lessonId of touchedLessonIds) {
+        await syncLessonBadgesForStudent(tx, { studentId: student.id, lessonId });
+      }
+    });
+
+    studentBadges = await prisma.studentBadge.findMany({
+      where: { studentId: student.id },
+      include: {
+        badge: {
+          include: {
+            requirements: {
+              include: {
+                lesson: {
+                  select: { slug: true, title: true },
+                },
+              },
+            },
+          },
         },
-        select: {
-          checkpointId: true,
-        },
-      }),
-      prisma.surveyResponse.findMany({
-        where: {
-          studentId: student.id,
-        },
-        select: {
-          promptId: true,
-        },
-      }),
-      prisma.checkpointResponse.findMany({
-        where: { studentId: student.id },
-        select: {
-          checkpointId: true,
-          questionId: true,
-        },
-      }),
-    ]);
+      },
+    });
+  }
+
+  const derivedContacts = courseStaff
+    .filter((staff) => {
+      if (staff.role === CourseRole.INSTRUCTOR) return true;
+      // CHECKER: show those sharing the student's section. If the student has no section
+      // assigned, or the checker is course-wide (no sections of their own), show them too.
+      if (studentSections.size === 0) return true;
+      if (staff.sections.length === 0) return true;
+      return staff.sections.some((s) => studentSections.has(s.section));
+    })
+    .map((staff) => ({
+      id: staff.id,
+      type: staff.role === CourseRole.INSTRUCTOR ? CourseContactType.INSTRUCTOR : CourseContactType.CHECKER,
+      name: formatLastFirst(staff.student.name) ?? staff.student.email ?? 'Unknown',
+      email: staff.student.email ?? '',
+      avatarUrl: avatarPathForBase(staff.student.avatar?.base),
+    }));
 
   const surveyPrompts = await prisma.surveyPrompt.findMany({
     where: {
@@ -286,9 +453,6 @@ export async function GET() {
   const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
   const surveyPromptIdsCompleted = new Set(surveyResponses.map((response) => response.promptId));
   const passingCheckpointIds = new Set(passingCheckpointAttempts.map((attempt) => attempt.checkpointId));
-  const checkpointsByLessonId = new Map<string, string[]>(
-    lessons.map((lesson) => [lesson.id, lesson.checkpoints.map((checkpoint) => checkpoint.id)])
-  );
   const answeredQuestionsByCheckpoint = checkpointResponses.reduce<Map<string, Set<string>>>((acc, response) => {
     if (!response.questionId) {
       return acc;
@@ -403,13 +567,7 @@ export async function GET() {
       if (!progress || progress.status !== LessonStatus.COMPLETED) {
         return false;
       }
-
-      const checkpointIds = checkpointsByLessonId.get(lessonId) ?? [];
-      if (checkpointIds.length === 0) {
-        return true;
-      }
-
-      return checkpointIds.every((checkpointId) => passingCheckpointIds.has(checkpointId));
+      return true;
     });
 
     let status = entry.status;
@@ -444,6 +602,22 @@ export async function GET() {
 
   const badgeGroups = groupBadgesByStatus(normalizedStudentBadges.map(formatBadge));
 
+  // "Not yet started" = course badges the student has no StudentBadge row for yet.
+  const studentBadgeIds = new Set(studentBadges.map((sb) => sb.badgeId));
+  const notStartedBadges = courseBadges
+    .filter((badge) => !studentBadgeIds.has(badge.id))
+    .map((badge) => ({
+      id: badge.id,
+      slug: badge.slug,
+      name: badge.name,
+      description: badge.description,
+      category: badge.category,
+      status: 'NOT_STARTED' as const,
+      awardedAt: null,
+      score: null,
+      requirements: [] as Array<{ summary: string | null; lessonSlug: string | null; lessonTitle: string | null }>,
+    }));
+
   const lessonSurveyPrompts = surveyPrompts
     .filter((prompt) => prompt.context === SurveyContext.LESSON)
     .map((prompt) => ({
@@ -451,6 +625,7 @@ export async function GET() {
       question: prompt.question,
       lessonSlug: prompt.lesson?.slug ?? null,
       lessonTitle: prompt.lesson?.title ?? null,
+      completed: surveyPromptIdsCompleted.has(prompt.id),
     }));
 
   const badgeSurveyPrompts = surveyPrompts
@@ -461,10 +636,24 @@ export async function GET() {
       badgeSlug: prompt.badge?.slug ?? null,
       badgeName: prompt.badge?.name ?? null,
       badgeId: prompt.badgeId ?? null,
+      completed: surveyPromptIdsCompleted.has(prompt.id),
     }));
 
+  // Only surface a badge survey once the student's badge is actually READY_FOR_FINALIZATION.
+  // The finalize route (POST /api/badges/[badgeId]/survey) rejects any other status with 409,
+  // so showing the survey earlier produced a prompt that could never be submitted — and thus
+  // never recorded as complete, causing it to keep reappearing.
+  const finalizationReadyBadgeIds = new Set(
+    normalizedStudentBadges
+      .filter((badge) => badge.status === BadgeStatus.READY_FOR_FINALIZATION)
+      .map((badge) => badge.badgeId)
+  );
+
   const pendingBadgeSurveys = badgeSurveyPrompts
-    .filter((prompt) => prompt.badgeId && !surveyPromptIdsCompleted.has(prompt.id))
+    .filter(
+      (prompt) =>
+        prompt.badgeId && finalizationReadyBadgeIds.has(prompt.badgeId) && !surveyPromptIdsCompleted.has(prompt.id)
+    )
     .map((prompt) => ({
       promptId: prompt.id,
       badgeId: prompt.badgeId as string,
@@ -496,16 +685,10 @@ export async function GET() {
       ? {
           id: enrollment.course.id,
           code: enrollment.course.code,
-          section: enrollment.course.section,
+          section: primarySection,
           title: enrollment.course.title,
           description: enrollment.course.description,
-          contacts: enrollment.course.contacts.map((contact) => ({
-            id: contact.id,
-            type: contact.type,
-            name: contact.name,
-            email: contact.email,
-            avatarUrl: contact.avatarUrl ?? null,
-          })),
+          contacts: derivedContacts,
         }
       : null,
     analytics: student.analytics
@@ -529,6 +712,7 @@ export async function GET() {
       readyForAssessment: badgeGroups[BadgeStatus.READY_FOR_ASSESSMENT],
       readyForFinalization: badgeGroups[BadgeStatus.READY_FOR_FINALIZATION],
       learning: badgeGroups[BadgeStatus.LEARNING],
+      notStarted: notStartedBadges,
     },
     surveys: {
       lesson: lessonSurveyPrompts,

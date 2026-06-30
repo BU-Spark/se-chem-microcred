@@ -9,7 +9,7 @@ datasource db {
 
 model User {
   id                  String               @id @default(cuid())
-  email               String               @unique
+  email               String?              @unique
   name                String?
   buid                String?              @unique
   gender              String?
@@ -26,8 +26,34 @@ model User {
   surveyResponses     SurveyResponse[]
   analytics           StudentAnalytics?
   checkpointAttempts  CheckpointAttempt[]
+  createdCourses      Course[]             @relation("CourseCreator")
+  createdBadges       Badge[]              @relation("BadgeCreator")
+  assessmentAttempts  AssessmentAttempt[]  @relation("AssessmentStudent")
+  assessmentsGiven    AssessmentAttempt[]  @relation("AssessmentAssessor")
+  receivedMessages    Message[]            @relation("MessageRecipient")
+  sentMessages        Message[]            @relation("MessageSender")
 
   @@map("Student")
+}
+
+model Message {
+  id          String    @id @default(cuid())
+  recipientId String
+  senderId    String?
+  courseId    String?
+  badgeId     String?
+  subject     String
+  body        String
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  recipient User    @relation("MessageRecipient", fields: [recipientId], references: [id])
+  sender    User?   @relation("MessageSender", fields: [senderId], references: [id])
+  course    Course? @relation(fields: [courseId], references: [id])
+  badge     Badge?  @relation(fields: [badgeId], references: [id])
+
+  @@index([recipientId, createdAt])
+  @@index([badgeId])
 }
 
 model AvatarSetting {
@@ -63,18 +89,37 @@ enum AvatarAccessory {
 }
 
 model Course {
-  id          String          @id @default(cuid())
-  code        String
-  section     String?
-  title       String
-  description String?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id           String   @id @default(cuid())
+  code         String?  @unique
+  assessorCode String?  @unique
+  title        String
+  section      String?
+  sectionCount Int
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  createdById String?
+  createdBy   User?   @relation("CourseCreator", fields: [createdById], references: [id])
+
   enrollments Enrollment[]
   lessons     Lesson[]
   contacts    CourseContact[]
+  settings    CourseSettings?
+  assessments AssessmentAttempt[]
+  messages    Message[]
+}
 
-  @@unique([code, section])
+model CourseSettings {
+  id                    String   @id @default(cuid())
+  courseId              String   @unique
+  allowCooldownOverride Boolean  @default(false)
+  allowAssessorMessages Boolean  @default(false)
+  allowCrossSectionView Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  course Course @relation(fields: [courseId], references: [id])
 }
 
 model CourseContact {
@@ -96,23 +141,44 @@ enum CourseContactType {
 }
 
 model Enrollment {
-  id        String     @id @default(cuid())
+  id        String           @id @default(cuid())
   studentId String
   courseId  String
-  role      CourseRole @default(STUDENT)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  role      CourseRole       @default(STUDENT)
+  status    EnrollmentStatus @default(ACTIVE)
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
 
-  student User   @relation(fields: [studentId], references: [id])
-  course  Course @relation(fields: [courseId], references: [id])
+  student  User                @relation(fields: [studentId], references: [id])
+  course   Course              @relation(fields: [courseId], references: [id])
+  sections EnrollmentSection[]
 
   @@unique([studentId, courseId])
+  @@index([courseId])
+  @@index([role, courseId])
+  @@index([courseId, role, status])
+}
+
+model EnrollmentSection {
+  id           String   @id @default(cuid())
+  enrollmentId String
+  section      String
+  createdAt    DateTime @default(now())
+
+  enrollment Enrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+
+  @@unique([enrollmentId, section])
 }
 
 enum CourseRole {
   STUDENT
   INSTRUCTOR
   CHECKER
+}
+
+enum EnrollmentStatus {
+  PENDING
+  ACTIVE
 }
 
 model Lesson {
@@ -136,6 +202,8 @@ model Lesson {
   badgeRequirements BadgeRequirement[] @relation("BadgeLessonRequirement")
   progress          LessonProgress[]
   surveys           SurveyPrompt[]
+
+  @@index([courseId])
 }
 
 model LessonSkill {
@@ -191,6 +259,7 @@ model LessonCheckpoint {
   attempts  CheckpointAttempt[]
 
   @@unique([lessonId, sortOrder])
+  @@index([segmentId])
 }
 
 model CheckpointQuestion {
@@ -210,23 +279,23 @@ model CheckpointQuestion {
 }
 
 model LessonProgress {
-  id              String       @id @default(cuid())
-  studentId       String
-  lessonId        String
-  status          LessonStatus @default(NOT_STARTED)
-  startedAt       DateTime?
-  completedAt     DateTime?
-  percentComplete Int          @default(0)
+  id               String       @id @default(cuid())
+  studentId        String
+  lessonId         String
+  status           LessonStatus @default(NOT_STARTED)
+  startedAt        DateTime?
+  completedAt      DateTime?
+  percentComplete  Int          @default(0)
   lastGradePercent Float?
   lastGradePassed  Boolean?
   lastGradedAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
-  student           User                 @relation(fields: [studentId], references: [id])
-  lesson            Lesson               @relation(fields: [lessonId], references: [id])
-  segments          SegmentProgress[]
-  responses         CheckpointResponse[]
+  student            User                 @relation(fields: [studentId], references: [id])
+  lesson             Lesson               @relation(fields: [lessonId], references: [id])
+  segments           SegmentProgress[]
+  responses          CheckpointResponse[]
   checkpointAttempts CheckpointAttempt[]
 
   @@unique([studentId, lessonId])
@@ -301,11 +370,24 @@ model Badge {
   name            String
   description     String?
   category        BadgeCategory?
+  createdById     String?
+  sourceBadgeId   String?
+  availableOn     DateTime?
+  closesOn        DateTime?
+  neverCloses     Boolean?
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
+  createdBy       User?              @relation("BadgeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  sourceBadge     Badge?             @relation("BadgeSource", fields: [sourceBadgeId], references: [id], onDelete: SetNull)
+  importedCopies  Badge[]            @relation("BadgeSource")
   requirements    BadgeRequirement[]
   studentProgress StudentBadge[]
   surveys         SurveyPrompt[]
+  assessments     AssessmentAttempt[]
+  messages        Message[]
+
+  @@index([createdById])
+  @@index([sourceBadgeId])
 }
 
 enum BadgeCategory {
@@ -325,6 +407,9 @@ model BadgeRequirement {
 
   badge  Badge   @relation(fields: [badgeId], references: [id])
   lesson Lesson? @relation("BadgeLessonRequirement", fields: [lessonId], references: [id])
+
+  @@index([badgeId])
+  @@index([lessonId])
 }
 
 model StudentBadge {
@@ -336,11 +421,16 @@ model StudentBadge {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   score     Int?
+  reassessmentLimit    Int?
+  cooldownDays         Int?
+  reassessmentRequired Boolean?
 
   student User  @relation(fields: [studentId], references: [id])
   badge   Badge @relation(fields: [badgeId], references: [id])
 
   @@unique([studentId, badgeId])
+  @@index([badgeId])
+  @@index([status, badgeId])
 }
 
 model StudentAnalytics {
@@ -357,6 +447,61 @@ model StudentAnalytics {
   updatedAt                DateTime @updatedAt
 
   student User @relation(fields: [studentId], references: [id])
+}
+
+model AssessmentAttempt {
+  id          String    @id @default(cuid())
+  courseId    String
+  badgeId     String
+  studentId   String
+  assessorId  String
+  passed      Boolean
+  score       Int?
+  feedback    String?
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  course    Course                       @relation(fields: [courseId], references: [id])
+  badge     Badge                        @relation(fields: [badgeId], references: [id])
+  student   User                         @relation("AssessmentStudent", fields: [studentId], references: [id])
+  assessor  User                         @relation("AssessmentAssessor", fields: [assessorId], references: [id])
+  responses AssessmentCriterionResponse[]
+
+  @@index([courseId, badgeId])
+  @@index([studentId, badgeId])
+  @@index([assessorId])
+  @@index([completedAt])
+}
+
+model AssessmentAccessCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  courseId  String
+  studentId String
+  badgeId   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([studentId, badgeId, courseId])
+}
+
+model AssessmentCriterionResponse {
+  id             String   @id @default(cuid())
+  attemptId      String
+  criterionKey   String
+  criterion      String
+  selectedOption String?
+  notes          String?
+  passed         Boolean?
+  sortOrder      Int
+  createdAt      DateTime @default(now())
+
+  attempt AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+
+  @@index([attemptId])
 }
 
 enum BadgeStatus {

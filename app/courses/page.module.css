@@ -1,0 +1,162 @@
+.page {
+  display: flex;
+  min-height: calc(100vh - 80px);
+  background: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.main {
+  flex: 1;
+  min-height: 100vh;
+  padding: 2.5rem 2.75rem 3rem;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.pageTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: clamp(2rem, 2.5vw, 2.75rem);
+  font-weight: 700;
+  line-height: 1.05;
+  color: #161616;
+}
+
+.pageSubtitle {
+  margin: 0.45rem 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  color: #5f6671;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.section + .section {
+  margin-top: 3rem;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #151515;
+}
+
+.courseGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 260px));
+  gap: 1.5rem;
+  align-items: start;
+  justify-content: start;
+  max-width: 980px;
+}
+
+.courseCard,
+.addCourseCard {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.courseMedia,
+.addCourseMedia {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: #d9d9d9;
+}
+
+.courseMedia {
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.05);
+}
+
+.addCourseMedia {
+  border: 4px solid #2E6AA9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.courseImage {
+  object-fit: cover;
+}
+
+.coursePlaceholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 45%), #d9d9d9;
+}
+
+.addCoursePlus {
+  font-family: 'Lato', sans-serif;
+  font-size: clamp(4rem, 10vw, 5.75rem);
+  font-weight: 300;
+  line-height: 1;
+  color: #ffffff;
+}
+
+.courseText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.addCourseText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.courseTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.7rem;
+  font-weight: 400;
+  line-height: 1.1;
+  color: #151515;
+}
+
+.courseMeta {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.35;
+  color: #606770;
+}
+
+.statusMessage {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #606770;
+}
+
+@media (max-width: 960px) {
+  .page {
+    flex-direction: column;
+  }
+
+  .main {
+    min-height: auto;
+    padding: 1.5rem 1.25rem 2rem;
+  }
+
+  .courseGrid {
+    max-width: none;
+  }
+}

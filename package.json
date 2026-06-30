@@ -2,17 +2,25 @@
   "name": "template-next-js",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20 <23",
+    "npm": ">=10"
+  },
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
+    "postinstall": "prisma generate",
+    "railway:build": "prisma generate && npm run build",
+    "railway:start": "npx prisma migrate deploy && npm run start",
     "lint": "eslint . --fix",
     "lint:debug": "eslint . --fix --debug",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "prepare": "husky",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:seed-user": "node prisma/seed-user.js"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.35.5",
@@ -24,7 +32,8 @@
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "svix": "^1.37.0"
+    "svix": "^1.37.0",
+    "swr": "^2.4.2"
   },
   "devDependencies": {
     "@eslint/compat": "^1.2.9",
