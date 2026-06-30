@@ -1,22 +1,22 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 /*
- * Additive playtest seed.
+ * Additive CHEM101 seed.
  *
- * Creates a self-contained "PLAYTEST" course with three users — one per role —
+ * Creates a self-contained "CHEM101" course with three users — one per role —
  * so you can sign in to Clerk and walk every flow (instructor / student /
  * assessor) end to end. It does NOT wipe the database: it only ever touches
- * the PLAYTEST course, badges whose slug starts with "pt-", and the three
+ * the CHEM101 course, seeded badges/lessons, and the three
  * test users below. Everything else in the (shared) DB is left untouched.
  *
  * Idempotent — safe to re-run. Users / course / enrollments are upserted
  * (their ids stay stable, so existing Clerk links keep working); the lesson
  * and badge content is torn down (scoped) and rebuilt fresh each run.
  *
- * Run with: npm run db:seed-playtest
+ * Run with: npm run db:seed
  *
- * The three emails use Clerk's `+clerk_test` subaddress, so on a Clerk dev
+ * The instructor email comes from SEEDED_DEMO_EMAIL when provided. The student
+ * and assessor use Clerk test emails.
  * instance you can sign each of them up with the fixed OTP 424242 — no real
- * inbox required. The email stored here must match the Clerk signup exactly.
  */
 
 // DATABASE_URL lives in .env.local (Next.js convention); load it so `node`
@@ -43,16 +43,19 @@ const prisma = new PrismaClient();
 // Tunables — edit the instructor email to your real address if you'd rather
 // be the instructor under an existing Clerk account.
 // ---------------------------------------------------------------------------
-const COURSE_CODE = 'PLAYTEST';
-const COURSE_SECTION = 'PT1';
-const SLUG_PREFIX = 'pt-';
-const pt = (slug) => `${SLUG_PREFIX}${slug}`;
+const COURSE_CODE = 'CHEM101';
+const ASSESSOR_CODE = 'CHEM101';
+const COURSE_SECTION = 'K1';
+const LEGACY_PLAYTEST_CODE = 'PLAYTEST';
+const LEGACY_SLUG_PREFIX = 'pt-';
+const seedSlug = (slug) => slug;
+const SEEDED_DEMO_EMAIL = process.env.SEEDED_DEMO_EMAIL?.trim().toLowerCase() || 'jacksoncg730+clerk_test@gmail.com';
 
 const PEOPLE = {
   instructor: {
-    email: 'jacksoncg730+clerk_test@gmail.com',
+    email: SEEDED_DEMO_EMAIL,
     name: 'Jackson (Instructor)',
-    buid: 'PT-INSTR',
+    buid: 'CHEM-INSTR',
     gender: 'Prefer not to say',
     raceEthnicity: 'Prefer not to say',
     parentalEducation: 'Prefer not to say',
@@ -61,7 +64,7 @@ const PEOPLE = {
   student: {
     email: 'student+clerk_test@bu.edu',
     name: 'Jane Student',
-    buid: 'PT-STUD',
+    buid: 'CHEM-STUD',
     gender: 'Female',
     raceEthnicity: 'White',
     parentalEducation: 'Masters degree',
@@ -70,7 +73,7 @@ const PEOPLE = {
   checker: {
     email: 'checker+clerk_test@bu.edu',
     name: 'Alex Checker',
-    buid: 'PT-CHKR',
+    buid: 'CHEM-CHKR',
     gender: 'Female',
     raceEthnicity: 'White',
     parentalEducation: 'Bachelors degree',
@@ -82,9 +85,7 @@ const placeholderLessonImage =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAZAAAAGQCAYAAABit0H5AAAACXBIWXMAAAsTAAALEwEAmpwYAAAF5ElEQVR4nO3cQW6bMBRAUT5t//9nnuJlsqS2HApRtf7CfJbFg4lQz+xX86IRERERERERERERGRP4gGrA7jw2cfZsv3xQNAOV6A3SxPg+wJprbV8MgRwBr4FUwPobnYz1UBBqefgdgPgC66P4U9AFbA+jJ0BjWZ/AVeAEObwfsBx8C3sB9gBnQ9V9gCtwPuwFjYOfgNrHg78Be0PhPwHp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYAt8D6sBc2Dn4DSw4O/AXtD4T8BqdDV32ALfA+rAXNg5+A0sODvwF7Q+E/AanQ1d9gC3wPqwFzYOfgNLDg78Be0PhPwGp0NXfYDtwK3wHzYGfgPLA6N8A6sNzM0aW90U/K6EFe87Qp9e3t54J/3ORERERERERERERkd/5ALAeGdKyv4AAAAASUVORK5CYII=';
 
 // ---------------------------------------------------------------------------
-// Content data — copied verbatim from prisma/seed.js's seedDemo(). The base
-// slugs here are namespaced with `pt-` only at write time (see pt()), so these
-// arrays stay identical to the demo source while the DB rows can't collide.
+// Content data for the canonical CHEM101 course.
 // ---------------------------------------------------------------------------
 const lessonSeeds = [
   {
@@ -626,18 +627,19 @@ async function upsertPeople() {
 
 async function ensureCourse(instructor) {
   let course = await prisma.course.findFirst({
-    where: { code: COURSE_CODE, createdById: instructor.id },
+    where: { code: COURSE_CODE },
   });
 
   if (!course) {
     course = await prisma.course.create({
       data: {
         code: COURSE_CODE,
+        assessorCode: ASSESSOR_CODE,
         section: COURSE_SECTION,
-        title: 'Playtest: Lab Safety Foundations',
-        sectionCount: 1,
+        title: 'Chem 101: Safety Foundations',
+        sectionCount: 2,
         description:
-          'Self-contained playtest course (mirrors the CHEM101 demo) for walking the student, assessor, and instructor flows end to end.',
+          'Introductory laboratory safety course covering flame safety, waste handling, and ventilation best practices.',
         createdById: instructor.id,
         settings: {
           create: {
@@ -649,6 +651,19 @@ async function ensureCourse(instructor) {
       },
     });
   } else {
+    course = await prisma.course.update({
+      where: { id: course.id },
+      data: {
+        assessorCode: ASSESSOR_CODE,
+        section: COURSE_SECTION,
+        title: 'Chem 101: Safety Foundations',
+        sectionCount: 2,
+        description:
+          'Introductory laboratory safety course covering flame safety, waste handling, and ventilation best practices.',
+        createdById: instructor.id,
+      },
+    });
+
     await prisma.courseSettings.upsert({
       where: { courseId: course.id },
       update: {
@@ -679,17 +694,26 @@ async function ensureEnrollments(course, people) {
     const sections = role === CourseRole.INSTRUCTOR ? [] : [{ section: COURSE_SECTION }];
     await prisma.enrollment.upsert({
       where: { studentId_courseId: { studentId: user.id, courseId: course.id } },
-      update: { role, sections: { deleteMany: {}, create: sections } },
-      create: { studentId: user.id, courseId: course.id, role, sections: { create: sections } },
+      update: { role, status: 'ACTIVE', sections: { deleteMany: {}, create: sections } },
+      create: { studentId: user.id, courseId: course.id, role, status: 'ACTIVE', sections: { create: sections } },
     });
   }
 }
 
+async function pruneSeedCourseEnrollments(course, people) {
+  const seededUserIds = Object.values(people).map((user) => user.id);
+  await prisma.enrollment.deleteMany({
+    where: {
+      courseId: course.id,
+      studentId: { notIn: seededUserIds },
+    },
+  });
+}
+
 /**
- * Scoped teardown — deletes ONLY the playtest content graph so the rebuild
+ * Scoped teardown deletes only the seeded content graph so the rebuild
  * below starts clean. There are no cascade rules on this graph, so children
- * are removed before parents. Nothing outside the PLAYTEST course / `pt-`
- * badges is touched.
+ * are removed before parents.
  */
 async function teardownContent(course, badgeIds) {
   const lessons = await prisma.lesson.findMany({
@@ -747,6 +771,38 @@ async function teardownContent(course, badgeIds) {
   await prisma.lesson.deleteMany({ where: { id: { in: lessonIds } } });
 }
 
+async function seededBadgeIdsForCourse(courseId, extraSlugWhere = []) {
+  const requirements = await prisma.badgeRequirement.findMany({
+    where: { lesson: { is: { courseId } } },
+    select: { badgeId: true },
+  });
+  const badges = await prisma.badge.findMany({
+    where: {
+      OR: [{ id: { in: requirements.map((requirement) => requirement.badgeId) } }, ...extraSlugWhere],
+    },
+    select: { id: true },
+  });
+
+  return badges.map((badge) => badge.id);
+}
+
+async function cleanupLegacyPlaytestCourse() {
+  const legacyCourse = await prisma.course.findFirst({
+    where: { code: LEGACY_PLAYTEST_CODE },
+    select: { id: true },
+  });
+
+  if (!legacyCourse) return;
+
+  const legacyBadgeIds = await seededBadgeIdsForCourse(legacyCourse.id, [{ slug: { startsWith: LEGACY_SLUG_PREFIX } }]);
+  await teardownContent(legacyCourse, legacyBadgeIds);
+  await prisma.message.deleteMany({ where: { courseId: legacyCourse.id } });
+  await prisma.courseContact.deleteMany({ where: { courseId: legacyCourse.id } });
+  await prisma.enrollment.deleteMany({ where: { courseId: legacyCourse.id } });
+  await prisma.courseSettings.deleteMany({ where: { courseId: legacyCourse.id } });
+  await prisma.course.delete({ where: { id: legacyCourse.id } });
+}
+
 async function buildLessons(course) {
   const lessonBySlug = new Map();
 
@@ -754,7 +810,7 @@ async function buildLessons(course) {
     const lesson = await prisma.lesson.create({
       data: {
         courseId: course.id,
-        slug: pt(lessonSeed.slug),
+        slug: seedSlug(lessonSeed.slug),
         title: lessonSeed.title,
         summary: lessonSeed.summary,
         description: lessonSeed.description,
@@ -907,7 +963,7 @@ async function buildBadges(student, lessonBySlug) {
   for (const badgeSeed of badgeSeeds) {
     const badge = await prisma.badge.create({
       data: {
-        slug: pt(badgeSeed.slug),
+        slug: seedSlug(badgeSeed.slug),
         name: badgeSeed.name,
         description: badgeSeed.description,
         category: badgeSeed.category,
@@ -1044,20 +1100,20 @@ async function ensureAnalytics(people) {
 }
 
 async function main() {
-  console.log('Seeding additive PLAYTEST data (no existing data is wiped)...');
+  console.log('Seeding additive CHEM101 demo data...');
 
   const people = await upsertPeople();
+  await cleanupLegacyPlaytestCourse();
   const course = await ensureCourse(people.instructor);
   await ensureEnrollments(course, people);
+  await pruneSeedCourseEnrollments(course, people);
 
-  const existingBadges = await prisma.badge.findMany({
-    where: { slug: { startsWith: SLUG_PREFIX } },
-    select: { id: true },
-  });
-  await teardownContent(
-    course,
-    existingBadges.map((b) => b.id)
-  );
+  const seededBadgeSlugs = badgeSeeds.map((badge) => seedSlug(badge.slug));
+  const existingBadgeIds = await seededBadgeIdsForCourse(course.id, [
+    { slug: { in: seededBadgeSlugs } },
+    { slug: { startsWith: LEGACY_SLUG_PREFIX } },
+  ]);
+  await teardownContent(course, existingBadgeIds);
 
   const lessonBySlug = await buildLessons(course);
   await buildLessonProgress(people.student, lessonBySlug);
@@ -1066,8 +1122,9 @@ async function main() {
   await buildSurveys(people.student, lessonBySlug, badgeBySlug);
   await ensureAnalytics(people);
 
-  console.log('\nPLAYTEST seed complete.');
+  console.log('\nCHEM101 seed complete.');
   console.log(`  Course: ${course.title} (${COURSE_CODE} ${COURSE_SECTION})  id=${course.id}`);
+  console.log(`  Shared course code: ${COURSE_CODE}`);
   console.log('  Sign in to Clerk with these emails (dev OTP 424242):');
   console.log(`    INSTRUCTOR  ${people.instructor.email}  id=${people.instructor.id}`);
   console.log(`    STUDENT     ${people.student.email}  id=${people.student.id}`);
@@ -1076,7 +1133,7 @@ async function main() {
 
 main()
   .catch((error) => {
-    console.error('Playtest seed failed:', error);
+    console.error('CHEM101 seed failed:', error);
     process.exit(1);
   })
   .finally(() => prisma.$disconnect());

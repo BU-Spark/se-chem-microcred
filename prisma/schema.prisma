@@ -475,6 +475,19 @@ model AssessmentAttempt {
   @@index([completedAt])
 }
 
+model AssessmentAccessCode {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  courseId  String
+  studentId String
+  badgeId   String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+  @@index([studentId, badgeId, courseId])
+}
+
 model AssessmentCriterionResponse {
   id             String   @id @default(cuid())
   attemptId      String

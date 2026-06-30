@@ -553,6 +553,36 @@
   color: #333333;
 }
 
+.assessmentCodeField {
+  width: 100%;
+  margin-top: 1.2rem;
+  display: grid;
+  gap: 0.45rem;
+  text-align: left;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.assessmentCodeField input {
+  min-height: 3rem;
+  border: 1px solid #c8d4e0;
+  border-radius: 0.8rem;
+  padding: 0.75rem 0.95rem;
+  font: 700 1.2rem 'Lato', system-ui, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #111827;
+  background: #ffffff;
+}
+
+.assessmentCodeField input:focus {
+  border-color: #0066a6;
+  box-shadow: 0 0 0 3px rgba(0, 102, 166, 0.14);
+  outline: none;
+}
+
 .modalActions {
   display: flex;
   gap: 0.8rem;

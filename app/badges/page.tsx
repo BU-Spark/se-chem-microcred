@@ -102,6 +102,8 @@ export default function BadgeWalletPage() {
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<PopoverAnchor | null>(null);
   const [qrBadge, setQrBadge] = useState<BadgeRecord | null>(null);
+  const [assessmentCode, setAssessmentCode] = useState<string | null>(null);
+  const [assessmentCodeError, setAssessmentCodeError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
 
@@ -178,6 +180,42 @@ export default function BadgeWalletPage() {
   const qrAssessmentUrl = qrBadge
     ? buildAssessmentQrUrl(studentData?.course?.id, studentData?.student.id, qrBadge.id)
     : null;
+
+  useEffect(() => {
+    if (!qrBadge || !studentData?.course?.id) {
+      setAssessmentCode(null);
+      setAssessmentCodeError(null);
+      return;
+    }
+
+    let isCancelled = false;
+    setAssessmentCode(null);
+    setAssessmentCodeError(null);
+
+    fetch('/api/assessment-codes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId: studentData.course.id, badgeId: qrBadge.id }),
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.error ?? 'Unable to create assessment code.');
+        }
+        if (!isCancelled) {
+          setAssessmentCode(typeof payload.code === 'string' ? payload.code : null);
+        }
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          setAssessmentCodeError(error instanceof Error ? error.message : 'Unable to create assessment code.');
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [qrBadge, studentData?.course?.id]);
 
   if (!isLoaded || !isSignedIn) return null;
 
@@ -540,6 +578,11 @@ export default function BadgeWalletPage() {
                     </p>
                   )}
                   <div className={styles.qrCaption}>{qrBadge.name} Skill Check</div>
+                  <div className={styles.assessmentCodeBox}>
+                    <span className={styles.assessmentCodeLabel}>Assessment code</span>
+                    <strong className={styles.assessmentCodeValue}>{assessmentCode ?? 'Generating...'}</strong>
+                    {assessmentCodeError ? <p className={styles.assessmentCodeError}>{assessmentCodeError}</p> : null}
+                  </div>
                   <p>
                     Show your assessor this QR code to complete the in-person assessment. Don&apos;t forget to bring
                     your student ID for verification.

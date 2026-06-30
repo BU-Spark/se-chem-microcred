@@ -295,6 +295,8 @@ export function LessonVideoPage({
   const [lessonSurveyError, setLessonSurveyError] = useState<string | null>(null);
   const [lessonSurveyCompleted, setLessonSurveyCompleted] = useState(effectiveLessonSurvey?.completed ?? false);
   const [showLessonQr, setShowLessonQr] = useState(false);
+  const [assessmentCode, setAssessmentCode] = useState<string | null>(null);
+  const [assessmentCodeError, setAssessmentCodeError] = useState<string | null>(null);
 
   const suppressCheckpointIdRef = useRef<string | null>(null);
   const scheduleCheckpointSuppression = useCallback((checkpointId: string, ms = 8000) => {
@@ -407,6 +409,42 @@ export function LessonVideoPage({
   const lessonQrImageSrc = lessonAssessmentQrUrl
     ? `/api/qr?size=360&data=${encodeURIComponent(lessonAssessmentQrUrl)}`
     : null;
+
+  useEffect(() => {
+    if (!showLessonQr || !courseId || !assessmentBadge?.badgeId) {
+      setAssessmentCode(null);
+      setAssessmentCodeError(null);
+      return;
+    }
+
+    let isCancelled = false;
+    setAssessmentCode(null);
+    setAssessmentCodeError(null);
+
+    fetch('/api/assessment-codes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ courseId, badgeId: assessmentBadge.badgeId }),
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.error ?? 'Unable to create assessment code.');
+        }
+        if (!isCancelled) {
+          setAssessmentCode(typeof payload.code === 'string' ? payload.code : null);
+        }
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          setAssessmentCodeError(error instanceof Error ? error.message : 'Unable to create assessment code.');
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [assessmentBadge?.badgeId, courseId, showLessonQr]);
 
   const resolveMaxSeekableTime = useCallback(() => {
     const limit = furthestTimeRef.current;
@@ -1689,6 +1727,11 @@ export function LessonVideoPage({
             ) : (
               <p className={styles.modalError}>We could not build the assessment QR code for this lesson.</p>
             )}
+            <div className={styles.assessmentCodeBox}>
+              <span className={styles.assessmentCodeLabel}>Assessment code</span>
+              <strong className={styles.assessmentCodeValue}>{assessmentCode ?? 'Generating...'}</strong>
+              {assessmentCodeError ? <p className={styles.assessmentCodeError}>{assessmentCodeError}</p> : null}
+            </div>
             <p className={styles.modalDescription}>
               Have your assessor scan this code to open the assessment for this student and badge.
             </p>

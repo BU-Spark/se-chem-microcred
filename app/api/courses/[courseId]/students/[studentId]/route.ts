@@ -62,9 +62,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     const enrollment = course.enrollments.find((entry) => entry.student.id === studentId);
     const viewerEnrollment = course.enrollments.find((entry) => entry.student.id === user.id);
     const isCourseCreator = course.createdById === user.id;
-    const viewerRole = isCourseCreator ? 'INSTRUCTOR' : viewerEnrollment?.role;
+    const viewerRole = isCourseCreator || viewerEnrollment?.status === 'ACTIVE' ? viewerEnrollment?.role : undefined;
+    const effectiveViewerRole = isCourseCreator ? 'INSTRUCTOR' : viewerRole;
 
-    if (!enrollment || !viewerRole || viewerRole === 'STUDENT') {
+    if (!enrollment || !effectiveViewerRole || effectiveViewerRole === 'STUDENT') {
       return NextResponse.json(
         {
           error: 'Member not found in this course or you do not have permission to view it.',
@@ -73,7 +74,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       );
     }
 
-    if (viewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
+    if (effectiveViewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
       const viewerSections = new Set(viewerEnrollment?.sections.map((assignment) => assignment.section) ?? []);
       const memberSections = enrollment.sections.map((assignment) => assignment.section);
       const canViewSection =

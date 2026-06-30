@@ -276,6 +276,9 @@ export default function CreatedCourseDetailPage() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [reminderBadge, setReminderBadge] = useState<{ id: string; name: string } | null>(null);
   const [badgePendingUnassign, setBadgePendingUnassign] = useState<{ id: string; name: string } | null>(null);
+  const [isAssessmentCodeOpen, setIsAssessmentCodeOpen] = useState(false);
+  const [assessmentCodeInput, setAssessmentCodeInput] = useState('');
+  const [assessmentCodeError, setAssessmentCodeError] = useState('');
   // MVP test-cleanup affordance (remove before handoff).
   const [isDeleting, setIsDeleting] = useState(false);
   const [isImportPanelOpen, setIsImportPanelOpen] = useState(false);
@@ -335,6 +338,28 @@ export default function CreatedCourseDetailPage() {
     if (isDeleting) return;
     setBadgePendingUnassign(badge);
   };
+
+  const openAssessmentCodeModal = () => {
+    setAssessmentCodeInput('');
+    setAssessmentCodeError('');
+    setIsAssessmentCodeOpen(true);
+  };
+
+  const closeAssessmentCodeModal = () => {
+    setIsAssessmentCodeOpen(false);
+    setAssessmentCodeInput('');
+    setAssessmentCodeError('');
+  };
+
+  const submitAssessmentCode = useCallback(() => {
+    const code = assessmentCodeInput.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+    if (!code) {
+      setAssessmentCodeError('Enter an assessment code.');
+      return;
+    }
+
+    router.push(`/qr/assessment-code?code=${encodeURIComponent(code)}`);
+  }, [assessmentCodeInput, router]);
 
   const confirmUnassignBadge = async () => {
     if (!data?.course || !badgePendingUnassign || isDeleting) return;
@@ -554,6 +579,11 @@ export default function CreatedCourseDetailPage() {
                       <Link href={`/roster?courseId=${course.id}&role=STUDENT`} className={styles.primaryButton}>
                         {canAssess ? 'View Students to Assess' : 'View Student Roster'}
                       </Link>
+                      {canAssess ? (
+                        <button type="button" className={styles.primaryButton} onClick={openAssessmentCodeModal}>
+                          Assess Student
+                        </button>
+                      ) : null}
                     </div>
                   ) : null}
                 </div>
@@ -740,6 +770,52 @@ export default function CreatedCourseDetailPage() {
           badgeName={reminderBadge.name}
           onClose={() => setReminderBadge(null)}
         />
+      ) : null}
+
+      {isAssessmentCodeOpen ? (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Assess student by code">
+          <div className={styles.confirmModal}>
+            <button
+              type="button"
+              className={styles.modalCloseButton}
+              onClick={closeAssessmentCodeModal}
+              aria-label="Close assessment code dialog"
+            >
+              ×
+            </button>
+
+            <h2 className={styles.modalTitle}>Assess student</h2>
+            <p className={styles.modalText}>Enter the assessment code shown under the student&apos;s QR code.</p>
+            <label className={styles.assessmentCodeField}>
+              <span>Assessment code</span>
+              <input
+                value={assessmentCodeInput}
+                onChange={(event) => {
+                  setAssessmentCodeInput(event.target.value);
+                  setAssessmentCodeError('');
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    submitAssessmentCode();
+                  }
+                }}
+                placeholder="ABCD-1234"
+                autoCapitalize="characters"
+                autoFocus
+              />
+            </label>
+            {assessmentCodeError ? <p className={styles.errorText}>{assessmentCodeError}</p> : null}
+
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.secondaryButton} onClick={closeAssessmentCodeModal}>
+                Cancel
+              </button>
+              <button type="button" className={styles.confirmButton} onClick={submitAssessmentCode}>
+                Continue
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
 
       {badgePendingUnassign ? (

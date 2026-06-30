@@ -1,4 +1,4 @@
-import { BadgeStatus, CourseRole } from '@prisma/client';
+import { BadgeStatus, CourseRole, EnrollmentStatus } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
@@ -33,6 +33,7 @@ type AssessmentQrCourse = {
   settings: { allowCrossSectionView: boolean } | null;
   enrollments: Array<{
     role: CourseRole;
+    status: EnrollmentStatus;
     sections: Array<{ section: string }>;
     student: {
       id: string;
@@ -45,23 +46,25 @@ function canAssessQrCourse(course: AssessmentQrCourse, assessorId: string, stude
   const targetEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === studentId);
   const assessorEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === assessorId);
   const isCourseCreator = course.createdById === assessorId;
-  const assessorRole = isCourseCreator ? CourseRole.INSTRUCTOR : assessorEnrollment?.role;
+  const assessorRole =
+    isCourseCreator || assessorEnrollment?.status === EnrollmentStatus.ACTIVE ? assessorEnrollment?.role : undefined;
+  const effectiveAssessorRole = isCourseCreator ? CourseRole.INSTRUCTOR : assessorRole;
 
-  if (!targetEnrollment || targetEnrollment.role !== CourseRole.STUDENT || !assessorRole) {
+  if (!targetEnrollment || targetEnrollment.role !== CourseRole.STUDENT || !effectiveAssessorRole) {
     return false;
   }
 
-  if (assessorRole === CourseRole.STUDENT) {
+  if (effectiveAssessorRole === CourseRole.STUDENT) {
     return false;
   }
 
-  if (assessorRole === CourseRole.CHECKER && !course.settings?.allowCrossSectionView) {
+  if (effectiveAssessorRole === CourseRole.CHECKER && !course.settings?.allowCrossSectionView) {
     const assessorSections = new Set(assessorEnrollment?.sections.map((assignment) => assignment.section) ?? []);
     const studentSections = targetEnrollment.sections.map((assignment) => assignment.section);
     return studentSections.length === 0 || studentSections.some((section) => assessorSections.has(section));
   }
 
-  return assessorRole === CourseRole.INSTRUCTOR || assessorRole === CourseRole.CHECKER;
+  return effectiveAssessorRole === CourseRole.INSTRUCTOR || effectiveAssessorRole === CourseRole.CHECKER;
 }
 
 export async function GET(request: Request) {
@@ -116,6 +119,7 @@ export async function GET(request: Request) {
             some: {
               studentId: assessor.id,
               role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
+              status: EnrollmentStatus.ACTIVE,
             },
           },
         },
@@ -130,6 +134,7 @@ export async function GET(request: Request) {
         },
         select: {
           role: true,
+          status: true,
           sections: {
             orderBy: { section: 'asc' },
             select: { section: true },

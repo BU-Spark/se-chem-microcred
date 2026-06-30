@@ -29,12 +29,14 @@ function requestFor(params = 'courseId=course-1&studentId=student-1&badgeId=badg
 
 function courseWith({
   assessorRole = 'INSTRUCTOR',
+  assessorStatus = 'ACTIVE',
   badgeStatus = 'READY_FOR_ASSESSMENT',
   allowCrossSectionView = false,
   assessorSections = ['A1'],
   studentSections = ['A1'],
 }: {
   assessorRole?: 'INSTRUCTOR' | 'CHECKER' | 'STUDENT';
+  assessorStatus?: 'ACTIVE' | 'PENDING';
   badgeStatus?: string;
   allowCrossSectionView?: boolean;
   assessorSections?: string[];
@@ -46,6 +48,7 @@ function courseWith({
     enrollments: [
       {
         role: 'STUDENT',
+        status: 'ACTIVE',
         sections: studentSections.map((section) => ({ section })),
         student: {
           id: 'student-1',
@@ -54,6 +57,7 @@ function courseWith({
       },
       {
         role: assessorRole,
+        status: assessorStatus,
         sections: assessorSections.map((section) => ({ section })),
         student: {
           id: 'assessor-1',
@@ -99,6 +103,15 @@ describe('assessment QR resolver', () => {
     const res = await GET(requestFor());
 
     expect(res.status).toBe(307);
+  });
+
+  it('rejects a checker whose assessor request is still pending', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(courseWith({ assessorRole: 'CHECKER', assessorStatus: 'PENDING' }));
+
+    const res = await GET(requestFor());
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toContain('/?assessmentAccess=denied');
   });
 
   it('rejects badges that are not ready for assessment', async () => {

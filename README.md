@@ -6,7 +6,7 @@ A Next.js 15 (App Router) application that prototypes the student-facing micro-c
 
 - **Framework:** Next.js 15 with TypeScript, App Router, and CSS Modules.
 - **Auth:** Clerk (`ClerkProvider` in `app/layout.tsx`, Sign In/Sign Up routes under `app/(auth)`); all student routes redirect to `/sign-in` when the session is missing.
-- **Data:** Prisma models seeded with demo course, student, badges, lessons, checkpoints, surveys, and analytics (see `prisma/schema.prisma` and `prisma/seed.js`). `useStudentData` fetches the signed-in student via `/api/demo/student`.
+- **Data:** Prisma models seeded with a self-contained CHEM101 course, pre-enrolled student, assessor, instructor, badges, lessons, checkpoints, surveys, and analytics (see `prisma/schema.prisma` and `prisma/seed.js`). `useStudentData` fetches the signed-in student via `/api/demo/student`.
 - **UI:** Global header + shared sidebar layout on student pages; per-page CSS modules under `app/**/page.module.css`.
 - **Testing & Quality:** Jest/RTL (`npm test`) and ESLint (`npm run lint`). Turbopack dev server via `npm run dev`.
 
@@ -18,7 +18,7 @@ A Next.js 15 (App Router) application that prototypes the student-facing micro-c
 
 - **App layer:** Next.js 15 App Router with a mix of Server Components and Client Components; shared layout (`app/layout.tsx`) provides Clerk context, header, and student sidebar framing.
 - **Authentication:** Clerk guards routes client-side with `useAuth`/`useUser`; middleware defers to page-level redirects; profile and sign-in/up flows live under `app/(auth)` and Clerk-hosted modals.
-- **Data & APIs:** Prisma + PostgreSQL schema (`prisma/schema.prisma`) with seed data (`prisma/seed.js`). Route handlers under `app/api/**` expose student data, badge export, surveys, lessons, and checkpoints, consumed via `useStudentData`.
+- **Data & APIs:** Prisma + PostgreSQL schema (`prisma/schema.prisma`) with CHEM101 seed data (`prisma/seed.js`). Route handlers under `app/api/**` expose student data, badge export, surveys, lessons, and checkpoints, consumed via `useStudentData`.
 - **Media integrations:** Lesson playback uses the YouTube Iframe API (lazy-loaded in `app/lessons/[lessonId]/video.tsx` and `app/components/VideoPlayer/YoutubePlayer.tsx`) and prefers YouTube-derived thumbnails for lessons/checkpoints when URLs are available.
 - **QR flows:** Badge assessment/finalization modals autogenerate QR codes client-side via `api.qrserver.com`, encoding the student + badge payload for in-person validation.
 - **State & UI data flow:** Pages fetch signed-in student context from `/api/demo/student`, normalize into badge/lesson/analytics shapes, and render with CSS Modules scoped per page; media assets served from `public/`.
@@ -44,23 +44,33 @@ Use the provided Prisma/PostgreSQL connection string; you do **not** need to cre
      DATABASE_URL="<provided Prisma PostgreSQL URL>"
      CLERK_SECRET_KEY="sk_test_or_live_from_clerk"
      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_or_live_from_clerk"
-     SEEDED_DEMO_EMAIL="your-clerk-email@example.com"
+     SEEDED_DEMO_EMAIL="your-instructor-clerk-email@example.com"
      ```
    - To get Clerk keys, create a free Clerk project at https://clerk.com/ and copy the Secret and Publishable keys. The DATABASE_URL should be the shared Prisma connection string supplied for the course.
-   - `SEEDED_DEMO_EMAIL` should match the Clerk email you want to use for the CHEM101 demo instructor/test account. Each developer can set this to their own email locally.
+   - `SEEDED_DEMO_EMAIL` controls the CHEM101 instructor account. If omitted, the seed uses `jacksoncg730+clerk_test@gmail.com`.
 
-4) Apply the database schema and seed demo data (runs against the provided DATABASE_URL)  
+4) Apply the database schema and seed CHEM101 data (runs against the provided DATABASE_URL)  
    ```bash
    npx prisma migrate dev --name init
    npm run db:seed
    ```
-   This creates tables and loads the CHEM101 demo student, lessons, badges, checkpoints, and surveys in the shared database.
+   This loads the CHEM101 course with the instructor, student, and assessor already enrolled. No one needs to join the course after signing in. The seed also removes the old PLAYTEST course if it exists.
+
+   CHEM101 Clerk/dev accounts:
+
+   | Role | Email | Course access |
+   |------|-------|---------------|
+   | Instructor | `SEEDED_DEMO_EMAIL`, or `jacksoncg730+clerk_test@gmail.com` if unset | owns CHEM101 |
+   | Student | `student+clerk_test@bu.edu` | enrolled as student |
+   | Assessor | `checker+clerk_test@bu.edu` | enrolled as active assessor |
+
+   The seed includes the full lesson/badge/checkpoint/survey dataset from the original demo seed under CHEM101.
 
 5) Run the dev server  
    ```bash
    npm run dev
    ```
-   Visit http://localhost:3000 and sign in with a Clerk user whose email matches `SEEDED_DEMO_EMAIL` if you want the seeded CHEM101 demo test access.
+   Visit http://localhost:3000 and sign in with one of the CHEM101 accounts above. On a Clerk development instance, create each account once through `/sign-up` and use Clerk's fixed test verification code `424242`.
 
 6) (Optional) Validate tooling  
    - Lint: `npm run lint`  
@@ -107,7 +117,7 @@ All student pages share the sidebar nav (Home, Profile, My Analytics, Badge Wall
 ## Backend & Data Flow
 
 - **API routes:** Located in `app/api/**`. `/api/demo/student` resolves the signed-in user via Clerk, loads the student/course/badge/lesson graph from Prisma, and returns normalized shapes consumed by `useStudentData`. Additional endpoints cover badge export, surveys, lessons, checkpoints, uploads, and webhook stubs.
-- **Database:** PostgreSQL schema in `prisma/schema.prisma`. Seed script (`npm run db:seed`) populates a CHEM101 course, demo student, instructors/checkers, lessons with segments/checkpoints/questions, badges, and survey prompts.
+- **Database:** PostgreSQL schema in `prisma/schema.prisma`. Seed script (`npm run db:seed`) populates the CHEM101 course, pre-enrolled student/instructor/assessor accounts, lessons with segments/checkpoints/questions, badges, survey prompts, and analytics.
 - **Auth enforcement:** Most client pages guard with Clerk hooks; middleware currently defers to the pages for redirect logic.
 
 ## Testing & Quality

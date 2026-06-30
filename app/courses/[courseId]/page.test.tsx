@@ -5,6 +5,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import CreatedCourseDetailPage from './page';
 
 const mockReplace = jest.fn();
+const mockPush = jest.fn();
 const mockUsePathname = jest.fn();
 const mockUseSearchParams = jest.fn();
 const mockUseUser = jest.fn();
@@ -14,7 +15,7 @@ const mockFetch = jest.fn();
 let mockParams: Record<string, string> = { courseId: 'course-1' };
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: mockReplace }),
+  useRouter: () => ({ replace: mockReplace, push: mockPush }),
   usePathname: () => mockUsePathname(),
   useParams: () => mockParams,
   useSearchParams: () => mockUseSearchParams(),
@@ -355,6 +356,15 @@ describe('Created course detail page', () => {
       'href',
       '/roster?courseId=course-1&role=STUDENT'
     );
+    fireEvent.click(screen.getByRole('button', { name: 'Assess Student' }));
+    expect(screen.getByRole('dialog', { name: 'Assess student by code' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByText('Enter an assessment code.')).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Assessment code'), { target: { value: 'abcd-2345' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(mockPush).toHaveBeenCalledWith('/qr/assessment-code?code=ABCD2345');
     expect(screen.queryByRole('link', { name: 'View Assessor Roster' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Edit Course' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();

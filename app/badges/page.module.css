@@ -431,6 +431,36 @@
   align-self: flex-start;
 }
 
+.assessmentCodeBox {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  background: #f8fafc;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.assessmentCodeLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #4b5563;
+}
+
+.assessmentCodeValue {
+  font-family: 'Lato', sans-serif;
+  font-size: 1.65rem;
+  letter-spacing: 0.08em;
+  color: #111827;
+}
+
+.assessmentCodeError {
+  margin: 0;
+  color: #b42318;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+}
+
 .qrCodeBox p {
   font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;

@@ -13,13 +13,6 @@ import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
 
-const SEEDED_DEMO_EMAIL = process.env.SEEDED_DEMO_EMAIL?.trim().toLowerCase() || null;
-const SEEDED_DEMO_COURSE_CODE = 'CHEM101';
-
-function isSeededDemoUser(email?: string | null) {
-  return Boolean(SEEDED_DEMO_EMAIL) && email?.toLowerCase() === SEEDED_DEMO_EMAIL;
-}
-
 function avatarPathForBase(base?: string | null): string {
   switch (base) {
     case 'RUBY':
@@ -260,10 +253,7 @@ export async function GET(req: Request) {
       where: {
         studentId: provisioned.id,
         ...(requestedCourseId ? { courseId: requestedCourseId } : {}),
-        OR: [
-          { role: CourseRole.STUDENT },
-          ...(isSeededDemoUser(provisioned.email) ? [{ course: { code: SEEDED_DEMO_COURSE_CODE } }] : []),
-        ],
+        role: CourseRole.STUDENT,
       },
       include: {
         sections: true,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BadgeStatus } from '@prisma/client';
+import { BadgeStatus, EnrollmentStatus } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
@@ -178,6 +178,7 @@ type AccessCourse<P> = {
   settings: { allowCrossSectionView: boolean } | null;
   enrollments: Array<{
     role: string;
+    status: string;
     sections: Array<{ section: string }>;
     student: { id: string; badgeProgress: P[] };
   }>;
@@ -199,13 +200,15 @@ function resolveBadgeAccess<P>(
   const targetEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === studentId);
   const viewerEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === userId);
   const isCourseCreator = course.createdById === userId;
-  const viewerRole = isCourseCreator ? 'INSTRUCTOR' : viewerEnrollment?.role;
+  const viewerRole =
+    isCourseCreator || viewerEnrollment?.status === EnrollmentStatus.ACTIVE ? viewerEnrollment?.role : undefined;
+  const effectiveViewerRole = isCourseCreator ? 'INSTRUCTOR' : viewerRole;
 
-  if (!targetEnrollment || !viewerRole || viewerRole === 'STUDENT') {
+  if (!targetEnrollment || !effectiveViewerRole || effectiveViewerRole === 'STUDENT') {
     return denied;
   }
 
-  if (viewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
+  if (effectiveViewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
     const viewerSections = new Set(viewerEnrollment?.sections.map((assignment) => assignment.section) ?? []);
     const memberSections = targetEnrollment.sections.map((assignment) => assignment.section);
     const canViewSection = memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
@@ -245,6 +248,7 @@ export async function GET(
               some: {
                 studentId: user.id,
                 role: { in: ['INSTRUCTOR', 'CHECKER'] },
+                status: EnrollmentStatus.ACTIVE,
               },
             },
           },
@@ -339,6 +343,7 @@ export async function GET(
           },
           select: {
             role: true,
+            status: true,
             sections: {
               orderBy: {
                 section: 'asc',
@@ -621,6 +626,7 @@ export async function POST(
               some: {
                 studentId: user.id,
                 role: { in: ['INSTRUCTOR', 'CHECKER'] },
+                status: EnrollmentStatus.ACTIVE,
               },
             },
           },
@@ -649,6 +655,7 @@ export async function POST(
           },
           select: {
             role: true,
+            status: true,
             sections: {
               orderBy: { section: 'asc' },
               select: { section: true },
@@ -835,6 +842,7 @@ export async function PATCH(
               some: {
                 studentId: user.id,
                 role: { in: ['INSTRUCTOR', 'CHECKER'] },
+                status: EnrollmentStatus.ACTIVE,
               },
             },
           },
@@ -854,6 +862,7 @@ export async function PATCH(
           },
           select: {
             role: true,
+            status: true,
             sections: {
               orderBy: { section: 'asc' },
               select: { section: true },
