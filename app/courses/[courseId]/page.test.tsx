@@ -486,7 +486,9 @@ describe('Created course detail page', () => {
     fireEvent.change(screen.getByLabelText('Badge library'), {
       target: { value: 'badge-template-1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Add to Course' }));
+    // Two-step popup: pick the badge, advance to availability, then finish.
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish' }));
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/course-1/badges/import', {
@@ -498,7 +500,9 @@ describe('Created course detail page', () => {
         body: JSON.stringify({ badgeId: 'badge-template-1', availableOn: null, closesOn: null, neverCloses: true }),
       });
     });
-    expect(await screen.findByText('Badge imported successfully.')).toBeInTheDocument();
+    // The confirmation step renders after a successful import.
+    expect(await screen.findByRole('heading', { name: 'Badge imported' })).toBeInTheDocument();
+    expect(await screen.findByText('The badge has been added to this course.')).toBeInTheDocument();
     expect(await screen.findByText('Bunsen Burner')).toBeInTheDocument();
   });
 });

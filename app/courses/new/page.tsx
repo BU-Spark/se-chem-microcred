@@ -155,7 +155,9 @@ export default function CourseNewPage() {
   const isEditMode = Boolean(editCourseId);
 
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [currentStep, setCurrentStep] = useState(0);
+  // In edit mode, land directly on the Review step (the last step) so editing an
+  // existing course opens on the review screen rather than walking the wizard from step 0.
+  const [currentStep, setCurrentStep] = useState(isEditMode ? steps.length - 1 : 0);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
   const [loadError, setLoadError] = useState('');

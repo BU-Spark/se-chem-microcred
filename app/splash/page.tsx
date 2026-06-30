@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import checkedLogo from '../../public/assets/checked_logo.png';
+import splashHero from '../../public/assets/splash-hero.gif';
 import styles from './splash.module.css';
 
 const jakarta = Plus_Jakarta_Sans({
@@ -69,49 +70,15 @@ export default function SplashPage() {
         </div>
 
         <div className={styles.badgeStage}>
-          <div className={styles.ringOuter} />
-          <div className={styles.ringInner} />
-          <div className={styles.badge}>
-            <svg
-              width="46"
-              height="46"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="#82b13f"
-              strokeWidth="2.4"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 6 9 17l-5-5" />
-            </svg>
-            <div className={styles.badgeLabel}>CERTIFIED</div>
-            <div className={styles.badgeSub}>Skill verified</div>
-          </div>
-
-          <div className={`${styles.floatCard} ${styles.floatCardTop}`}>
-            <div className={styles.floatIconGrade}>A+</div>
-            <div className={styles.floatText}>
-              Passing grade
-              <br />
-              <span className={styles.floatTextSub}>+1 new badge</span>
-            </div>
-          </div>
-
-          <div className={`${styles.floatCard} ${styles.floatCardBottom}`}>
-            <div className={styles.floatIconScan}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.4">
-                <rect x="4" y="4" width="6" height="6" />
-                <rect x="14" y="4" width="6" height="6" />
-                <rect x="4" y="14" width="6" height="6" />
-                <rect x="14" y="14" width="6" height="6" />
-              </svg>
-            </div>
-            <div className={styles.floatText}>
-              Scan to verify
-              <br />
-              <span className={styles.floatTextSub}>in-person assessment</span>
-            </div>
-          </div>
+          <Image
+            src={splashHero}
+            alt="Animated preview of earning a verified skill badge"
+            className={styles.heroGif}
+            priority
+            unoptimized
+            height={540}
+            width={1080}
+          />
         </div>
       </section>
 

@@ -644,8 +644,21 @@ export async function GET(req: Request) {
       completed: surveyPromptIdsCompleted.has(prompt.id),
     }));
 
+  // Only surface a badge survey once the student's badge is actually READY_FOR_FINALIZATION.
+  // The finalize route (POST /api/badges/[badgeId]/survey) rejects any other status with 409,
+  // so showing the survey earlier produced a prompt that could never be submitted — and thus
+  // never recorded as complete, causing it to keep reappearing.
+  const finalizationReadyBadgeIds = new Set(
+    normalizedStudentBadges
+      .filter((badge) => badge.status === BadgeStatus.READY_FOR_FINALIZATION)
+      .map((badge) => badge.badgeId)
+  );
+
   const pendingBadgeSurveys = badgeSurveyPrompts
-    .filter((prompt) => prompt.badgeId && !surveyPromptIdsCompleted.has(prompt.id))
+    .filter(
+      (prompt) =>
+        prompt.badgeId && finalizationReadyBadgeIds.has(prompt.badgeId) && !surveyPromptIdsCompleted.has(prompt.id)
+    )
     .map((prompt) => ({
       promptId: prompt.id,
       badgeId: prompt.badgeId as string,

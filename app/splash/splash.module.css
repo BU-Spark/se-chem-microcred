@@ -5,15 +5,6 @@
    stacks the hero and process cards for small screens.
    ========================================================= */
 
-@keyframes ring {
-  0% {
-    transform: rotate(0);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 @keyframes pulseDot {
   0%,
   100% {
@@ -173,106 +164,10 @@
   height: 430px;
 }
 
-.ringOuter {
-  position: absolute;
-  width: 300px;
-  height: 300px;
-  border: 2px dashed #cdddf0;
-  border-radius: 50%;
-  animation: ring 38s linear infinite;
-}
-
-.ringInner {
-  position: absolute;
-  width: 210px;
-  height: 210px;
-  border: 2px dashed #dce8f6;
-  border-radius: 50%;
-  animation: ring 26s linear infinite reverse;
-}
-
-.badge {
-  position: relative;
-  width: 188px;
-  height: 188px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 32% 28%, #3f68ad, #2f5596 70%);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  box-shadow: 0 26px 60px -18px rgba(47, 85, 150, 0.6);
-}
-
-.badgeLabel {
-  font-weight: 800;
-  font-size: 15px;
-  margin-top: 10px;
-  letter-spacing: 0.02em;
-}
-
-.badgeSub {
-  font-size: 11px;
-  opacity: 0.7;
-  font-weight: 600;
-}
-
-.floatCard {
-  position: absolute;
-  background: #fff;
-  border: 1px solid #eaeef4;
-  border-radius: 13px;
-  padding: 12px 15px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  box-shadow: 0 14px 30px -14px rgba(31, 42, 58, 0.3);
-}
-
-.floatCardTop {
-  top: 34px;
-  right: 18px;
-}
-
-.floatCardBottom {
-  bottom: 40px;
-  left: 8px;
-}
-
-.floatIconGrade {
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  background: #eef7e6;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #82b13f;
-  font-weight: 800;
-  font-size: 14px;
-}
-
-.floatIconScan {
-  width: 30px;
-  height: 30px;
-  border-radius: 7px;
-  background: #2f5596;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.floatText {
-  font-size: 12px;
-  font-weight: 700;
-  color: #1f2a3a;
-  line-height: 1.2;
-}
-
-.floatTextSub {
-  color: #7c8aa0;
-  font-weight: 600;
+.heroGif {
+  width: 100%;
+  height: auto;
+  max-width: 480px;
 }
 
 /* ---------- How it works ---------- */
