@@ -588,30 +588,48 @@ const badgeSeeds = [
 async function upsertPeople() {
   const result = {};
   for (const [key, person] of Object.entries(PEOPLE)) {
-    const user = await prisma.user.upsert({
-      where: { email: person.email },
-      update: {
-        name: person.name,
-        buid: person.buid,
-        gender: person.gender,
-        raceEthnicity: person.raceEthnicity,
-        parentalEducation: person.parentalEducation,
-        pellGrantQualified: person.pellGrantQualified,
-      },
-      create: {
-        email: person.email,
-        name: person.name,
-        buid: person.buid,
-        gender: person.gender,
-        raceEthnicity: person.raceEthnicity,
-        parentalEducation: person.parentalEducation,
-        pellGrantQualified: person.pellGrantQualified,
+    const existingUsers = await prisma.user.findMany({
+      where: {
+        OR: [{ email: person.email }, { buid: person.buid }],
       },
     });
+    const userByEmail = existingUsers.find((user) => user.email === person.email);
+    const userByBuid = existingUsers.find((user) => user.buid === person.buid);
+    const existingUser = userByEmail ?? userByBuid;
+    const buidBelongsToAnotherUser = Boolean(userByEmail && userByBuid && userByEmail.id !== userByBuid.id);
+    const userData = {
+      email: person.email,
+      name: person.name,
+      gender: person.gender,
+      raceEthnicity: person.raceEthnicity,
+      parentalEducation: person.parentalEducation,
+      pellGrantQualified: person.pellGrantQualified,
+      ...(buidBelongsToAnotherUser ? {} : { buid: person.buid }),
+    };
+
+    if (buidBelongsToAnotherUser) {
+      console.warn(
+        `[seed] ${key}: email ${person.email} and BUID ${person.buid} belong to different users; ` +
+          `keeping existing email user ${userByEmail.id} and leaving BUID owner ${userByBuid.id} unchanged.`
+      );
+    }
+
+    const user = existingUser
+      ? await prisma.user.update({
+          where: { id: existingUser.id },
+          data: userData,
+        })
+      : await prisma.user.create({
+          data: { ...userData, buid: person.buid },
+        });
 
     await prisma.avatarSetting.upsert({
       where: { studentId: user.id },
-      update: {},
+      update: {
+        base: AvatarBase.SAPPHIRE,
+        face: AvatarFace.SMILE,
+        accessory: AvatarAccessory.LEAF,
+      },
       create: {
         studentId: user.id,
         base: AvatarBase.SAPPHIRE,
