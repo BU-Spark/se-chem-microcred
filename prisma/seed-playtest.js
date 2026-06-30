@@ -49,12 +49,12 @@ const COURSE_SECTION = 'K1';
 const LEGACY_PLAYTEST_CODE = 'PLAYTEST';
 const LEGACY_SLUG_PREFIX = 'pt-';
 const seedSlug = (slug) => slug;
-const SEEDED_DEMO_EMAIL = process.env.SEEDED_DEMO_EMAIL?.trim().toLowerCase() || 'jacksoncg730+clerk_test@gmail.com';
+const SEEDED_DEMO_EMAIL = process.env.SEEDED_DEMO_EMAIL?.trim().toLowerCase() || 'instructor+clerk_test@gmail.com';
 
 const PEOPLE = {
   instructor: {
     email: SEEDED_DEMO_EMAIL,
-    name: 'Jackson (Instructor)',
+    name: 'Instructor(Spark!)',
     buid: 'CHEM-INSTR',
     gender: 'Prefer not to say',
     raceEthnicity: 'Prefer not to say',
