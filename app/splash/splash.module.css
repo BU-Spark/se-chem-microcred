@@ -1,0 +1,297 @@
+/* =========================================================
+   Splash / landing page
+   Recreated from the Claude Design handoff (Splash.dc.html).
+   Desktop layout matches the mock 1:1; a <900px breakpoint
+   stacks the hero and process cards for small screens.
+   ========================================================= */
+
+@keyframes pulseDot {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.page {
+  color: #1f2a3a;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #f6f9fd 0%, #ffffff 46%);
+}
+
+/* ---------- Header ---------- */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26px 56px;
+  max-width: 1240px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.logo {
+  display: block;
+  height: 32px;
+  width: auto;
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.navLogin {
+  color: #52617a;
+  text-decoration: none;
+  padding: 9px 16px;
+  border-radius: 8px;
+}
+
+.navSignup {
+  color: #fff;
+  background: #2f5596;
+  text-decoration: none;
+  padding: 9px 18px;
+  border-radius: 9px;
+}
+
+/* ---------- Hero ---------- */
+.hero {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1.05fr 0.95fr;
+  gap: 48px;
+  align-items: center;
+  max-width: 1240px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 40px 56px 64px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #eef4fb;
+  border: 1px solid #dce8f6;
+  color: #2f5596;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  margin-bottom: 26px;
+}
+
+.pillDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #82b13f;
+  display: inline-block;
+  animation: pulseDot 1.8s ease-in-out infinite;
+}
+
+.heroTitle {
+  font-size: 56px;
+  line-height: 1.04;
+  letter-spacing: -0.03em;
+  font-weight: 800;
+  color: #1f2a3a;
+  margin-bottom: 22px;
+}
+
+.heroTitleAccent {
+  color: #2f5596;
+}
+
+.heroText {
+  font-size: 19px;
+  line-height: 1.6;
+  color: #52617a;
+  max-width: 480px;
+  margin-bottom: 34px;
+}
+
+.heroActions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+/* Primary CTA (shared by hero + process section) */
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: #2f5596;
+  color: #fff;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 15px 30px;
+  border-radius: 11px;
+  box-shadow: 0 10px 26px -8px rgba(47, 85, 150, 0.55);
+}
+
+.ctaArrow {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.ctaSecondary {
+  color: #2f5596;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 14px 6px;
+}
+
+/* ---------- Hero badge cluster ---------- */
+.badgeStage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 430px;
+}
+
+.heroGif {
+  width: 100%;
+  height: auto;
+  max-width: 480px;
+}
+
+/* ---------- How it works ---------- */
+.how {
+  background: #f6f9fd;
+  border-top: 1px solid #eef2f7;
+  padding: 78px 56px 92px;
+}
+
+.howInner {
+  max-width: 1140px;
+  margin: 0 auto;
+}
+
+.howHeading {
+  text-align: center;
+  margin-bottom: 54px;
+}
+
+.howEyebrow {
+  color: #82b13f;
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.howTitle {
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #2f5596;
+}
+
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e8eef6;
+  border-radius: 20px;
+  padding: 34px 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 18px 40px -28px rgba(31, 42, 58, 0.4);
+}
+
+.cardIcon {
+  width: 74px;
+  height: 74px;
+  border-radius: 18px;
+  background: #eef4fb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2f5596;
+  margin-bottom: 20px;
+}
+
+.cardNumber {
+  font-size: 30px;
+  font-weight: 800;
+  color: #82b13f;
+  letter-spacing: 0.02em;
+  margin-bottom: 12px;
+}
+
+.cardTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2a3a;
+  margin-bottom: 10px;
+}
+
+.cardText {
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: #6b798f;
+}
+
+.howFooter {
+  text-align: center;
+  margin-top: 54px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .header {
+    padding: 22px 24px;
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 24px 24px 48px;
+  }
+
+  .heroTitle {
+    font-size: 40px;
+  }
+
+  .heroText {
+    font-size: 17px;
+  }
+
+  .badgeStage {
+    height: 360px;
+  }
+
+  .how {
+    padding: 56px 24px 64px;
+  }
+
+  .howTitle {
+    font-size: 32px;
+  }
+
+  .cardGrid {
+    grid-template-columns: 1fr;
+  }
+}

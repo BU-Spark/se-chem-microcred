@@ -633,13 +633,11 @@
 }
 
 /* =========================
-   Floating "Duplicate Course" action (Figma)
+   Inline "Duplicate Course" action — sits in the My Courses header, styled to
+   match the Join button (was previously a fixed bottom-right floating action).
    ========================= */
 .duplicateButton {
-  position: fixed;
-  right: 2.5rem;
-  bottom: 2.5rem;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.6rem;
   padding: 0.85rem 1.5rem;
@@ -1005,6 +1003,21 @@
 
 .surveySubmit:hover {
   filter: brightness(0.95);
+}
+
+.surveySubmit:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.3);
+  opacity: 0.65;
+}
+
+.surveyError {
+  align-self: flex-end;
+  margin: 0;
+  color: #c0392b;
+  font-size: 0.9rem;
+  text-align: right;
+  max-width: 100%;
 }
 
 /* =========================

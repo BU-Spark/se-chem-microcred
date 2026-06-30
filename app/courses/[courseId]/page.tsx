@@ -8,6 +8,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 
 import { LessonReminderModal } from './LessonReminderModal';
 import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
+import { useFocusTrap } from '@/app/hooks/useFocusTrap';
 import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
 import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
 import rubyAvatar from '@/public/edit_avatar/ruby.svg';
@@ -287,20 +288,23 @@ export default function CreatedCourseDetailPage() {
   const [isLoadingBadgeLibrary, setIsLoadingBadgeLibrary] = useState(false);
   const [isImportingBadge, setIsImportingBadge] = useState(false);
   const [badgeImportError, setBadgeImportError] = useState('');
-  const [badgeImportStatus, setBadgeImportStatus] = useState('');
   const [importAvailableOn, setImportAvailableOn] = useState('');
   const [importClosesOn, setImportClosesOn] = useState('');
   const [importNeverCloses, setImportNeverCloses] = useState(true);
+  // The import flow is a two-step popup: 'select' (pick a badge) -> 'schedule'
+  // (pick availability) -> 'confirm' (success notice that auto-closes).
+  const [importStep, setImportStep] = useState<'select' | 'schedule' | 'confirm'>('select');
+  const [confirmCountdown, setConfirmCountdown] = useState(3);
 
   const courseId = resolveCourseId(params?.courseId);
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
   const { data, isLoading, error, refresh } = useCreatedCourseDetail(courseId, email);
 
   useEffect(() => {
-    if (isLoaded && !isSignedIn) {
+    if (isLoaded && !isSignedIn && !isSigningOut) {
       router.replace('/sign-in');
     }
-  }, [isLoaded, isSignedIn, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -308,14 +312,14 @@ export default function CreatedCourseDetailPage() {
     setIsSigningOut(true);
     try {
       await signOut();
-      router.replace('/sign-in');
+      router.replace('/splash');
     } catch (err) {
       console.error('Failed to sign out', err);
       setIsSigningOut(false);
     }
   };
 
-  // MVP test-cleanup handler — remove before handoff.
+  // MVP test-cleanup handlers — delete a whole test course or a test badge.
   // Remove these (and the buttons that call them) before handoff.
   const handleDeleteCourse = async () => {
     if (!data?.course || isDeleting) return;
@@ -332,11 +336,6 @@ export default function CreatedCourseDetailPage() {
       setIsDeleting(false);
       window.alert(err instanceof Error ? err.message : 'Failed to delete course.');
     }
-  };
-
-  const requestUnassignBadge = (badge: { id: string; name: string }) => {
-    if (isDeleting) return;
-    setBadgePendingUnassign(badge);
   };
 
   const openAssessmentCodeModal = () => {
@@ -361,6 +360,11 @@ export default function CreatedCourseDetailPage() {
     router.push(`/qr/assessment-code?code=${encodeURIComponent(code)}`);
   }, [assessmentCodeInput, router]);
 
+  const requestUnassignBadge = (badge: { id: string; name: string }) => {
+    if (isDeleting) return;
+    setBadgePendingUnassign(badge);
+  };
+
   const confirmUnassignBadge = async () => {
     if (!data?.course || !badgePendingUnassign || isDeleting) return;
     setIsDeleting(true);
@@ -375,6 +379,24 @@ export default function CreatedCourseDetailPage() {
       await refresh();
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Failed to unassign badge.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handleDeleteBadge = async (badge: { id: string; name: string }) => {
+    if (isDeleting) return;
+    if (!window.confirm(`Delete the badge "${badge.name}"? This removes it everywhere and cannot be undone.`)) {
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/badges/${encodeURIComponent(badge.id)}`, { method: 'DELETE' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Failed to delete badge.');
+      await refresh();
+    } catch (err) {
+      window.alert(err instanceof Error ? err.message : 'Failed to delete badge.');
     } finally {
       setIsDeleting(false);
     }
@@ -469,20 +491,51 @@ export default function CreatedCourseDetailPage() {
 
   const openImportPanel = () => {
     setIsImportPanelOpen(true);
-    setBadgeImportStatus('');
+    setImportStep('select');
     setBadgeImportError('');
+    setSelectedImportBadgeId('');
     setImportAvailableOn('');
     setImportClosesOn('');
     setImportNeverCloses(true);
     void loadBadgeLibrary();
   };
 
+  const closeImportModal = useCallback(() => {
+    setIsImportPanelOpen(false);
+    setImportStep('select');
+    setSelectedImportBadgeId('');
+    setImportAvailableOn('');
+    setImportClosesOn('');
+    setImportNeverCloses(true);
+    setBadgeImportError('');
+  }, []);
+
+  const importModalRef = useFocusTrap<HTMLDivElement>(isImportPanelOpen, closeImportModal);
+
+  // Auto-dismiss the confirmation step after a short, visible countdown. The
+  // interval drives the on-screen notice; the timeout performs the actual close.
+  useEffect(() => {
+    if (!isImportPanelOpen || importStep !== 'confirm') return;
+
+    setConfirmCountdown(3);
+    const interval = setInterval(() => {
+      setConfirmCountdown((prev) => Math.max(prev - 1, 0));
+    }, 1000);
+    const timeout = setTimeout(() => {
+      closeImportModal();
+    }, 3000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [isImportPanelOpen, importStep, closeImportModal]);
+
   const importSelectedBadge = async () => {
     if (!course?.id || !selectedImportBadgeId) return;
 
     setIsImportingBadge(true);
     setBadgeImportError('');
-    setBadgeImportStatus('');
 
     try {
       const response = await fetch(`/api/courses/${encodeURIComponent(course.id)}/badges/import`, {
@@ -506,8 +559,7 @@ export default function CreatedCourseDetailPage() {
         throw new Error(payload.error ?? 'Unable to import badge.');
       }
 
-      setBadgeImportStatus('Badge imported successfully.');
-      setSelectedImportBadgeId('');
+      setImportStep('confirm');
       await refresh();
       await loadBadgeLibrary();
     } catch (err) {
@@ -666,6 +718,15 @@ export default function CreatedCourseDetailPage() {
                               >
                                 Unassign badge
                               </button>
+                              {/* MVP test-cleanup button — remove before handoff. */}
+                              <button
+                                type="button"
+                                className={styles.badgeDeleteButton}
+                                onClick={() => handleDeleteBadge({ id: badge.id, name: badge.name })}
+                                disabled={isDeleting}
+                              >
+                                Delete badge
+                              </button>
                             </>
                           ) : (
                             <MessageIcon />
@@ -683,78 +744,9 @@ export default function CreatedCourseDetailPage() {
                     <button type="button" className={styles.primaryButton} onClick={openImportPanel}>
                       Import Existing Badge
                     </button>
-                  </div>
-                ) : null}
-
-                {isInstructor && isImportPanelOpen ? (
-                  <div className={styles.importPanel}>
-                    <div className={styles.importPanelHeader}>
-                      <div>
-                        <h3 className={styles.importTitle}>Import Existing Badge</h3>
-                        <p className={styles.importSubtitle}>Add a reusable badge to this course.</p>
-                      </div>
-                      <button
-                        type="button"
-                        className={styles.secondaryButton}
-                        onClick={() => {
-                          setIsImportPanelOpen(false);
-                          setBadgeImportError('');
-                          setBadgeImportStatus('');
-                        }}
-                      >
-                        Close
-                      </button>
-                    </div>
-
-                    {isLoadingBadgeLibrary ? <p className={styles.statusMessage}>Loading badge library...</p> : null}
-                    {badgeImportError ? <p className={styles.errorText}>{badgeImportError}</p> : null}
-                    {badgeImportStatus ? <p className={styles.successText}>{badgeImportStatus}</p> : null}
-
-                    {!isLoadingBadgeLibrary ? (
-                      <div className={styles.importControls}>
-                        <label className={styles.importField}>
-                          <span>Badge library</span>
-                          <select
-                            value={selectedImportBadgeId}
-                            onChange={(event) => setSelectedImportBadgeId(event.target.value)}
-                          >
-                            <option value="">Select a badge</option>
-                            {importableBadges.map((badge) => (
-                              <option key={badge.id} value={badge.id}>
-                                {badge.name}
-                              </option>
-                            ))}
-                          </select>
-                        </label>
-                        {selectedImportBadgeId ? (
-                          <>
-                            <div className={styles.importField}>
-                              <span>Content Availability</span>
-                              <RangeCalendar
-                                availableOn={importAvailableOn}
-                                closesOn={importClosesOn}
-                                neverCloses={importNeverCloses}
-                                onAvailableOnChange={setImportAvailableOn}
-                                onClosesOnChange={setImportClosesOn}
-                                onNeverClosesChange={setImportNeverCloses}
-                              />
-                            </div>
-                            <button
-                              type="button"
-                              className={styles.primaryButton}
-                              onClick={importSelectedBadge}
-                              disabled={isImportingBadge}
-                            >
-                              {isImportingBadge ? 'Importing...' : 'Add to Course'}
-                            </button>
-                          </>
-                        ) : null}
-                      </div>
-                    ) : null}
-
-                    {!isLoadingBadgeLibrary && importableBadges.length === 0 ? (
-                      <p className={styles.emptyMessage}>No reusable badges are available to import.</p>
-                    ) : null}
+                    <Link href={`/badge_creation?courseId=${course.id}`} className={styles.primaryButton}>
+                      Create Badge
+                    </Link>
                   </div>
                 ) : null}
               </section>
@@ -772,6 +764,138 @@ export default function CreatedCourseDetailPage() {
         />
       ) : null}
 
+      {isInstructor && isImportPanelOpen ? (
+        <div className={styles.importOverlay} onClick={closeImportModal}>
+          <div
+            ref={importModalRef}
+            className={styles.importModal}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Import existing badge"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className={styles.importCloseButton}
+              onClick={closeImportModal}
+              aria-label="Close import"
+            >
+              ×
+            </button>
+
+            {importStep === 'confirm' ? (
+              <div className={styles.importConfirm}>
+                <div className={styles.importConfirmIcon} aria-hidden="true">
+                  ✓
+                </div>
+                <h3 className={styles.importTitle}>Badge imported</h3>
+                <p className={styles.importSubtitle}>The badge has been added to this course.</p>
+                <p className={styles.importCountdown}>
+                  Closing automatically in {confirmCountdown} second{confirmCountdown === 1 ? '' : 's'}…
+                </p>
+                <button type="button" className={styles.primaryButton} onClick={closeImportModal}>
+                  Done
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className={styles.importModalHeader}>
+                  <h3 className={styles.importTitle}>Import Existing Badge</h3>
+                  <p className={styles.importSubtitle}>
+                    {importStep === 'select'
+                      ? 'Choose a reusable badge to add to this course.'
+                      : 'Set when this badge’s content is available, then finish.'}
+                  </p>
+                </div>
+
+                <ol className={styles.importSteps}>
+                  <li className={importStep === 'select' ? styles.importStepActive : styles.importStepMuted}>
+                    1. Select badge
+                  </li>
+                  <li className={importStep === 'schedule' ? styles.importStepActive : styles.importStepMuted}>
+                    2. Availability
+                  </li>
+                </ol>
+
+                {badgeImportError ? <p className={styles.errorText}>{badgeImportError}</p> : null}
+
+                {importStep === 'select' ? (
+                  <>
+                    {isLoadingBadgeLibrary ? (
+                      <p className={styles.statusMessage}>Loading badge library…</p>
+                    ) : importableBadges.length === 0 ? (
+                      <p className={styles.emptyMessage}>No reusable badges are available to import.</p>
+                    ) : (
+                      <label className={styles.importField}>
+                        <span>Badge library</span>
+                        <select
+                          value={selectedImportBadgeId}
+                          onChange={(event) => setSelectedImportBadgeId(event.target.value)}
+                        >
+                          <option value="">Select a badge</option>
+                          {importableBadges.map((badge) => (
+                            <option key={badge.id} value={badge.id}>
+                              {badge.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
+
+                    <div className={styles.importModalActions}>
+                      <button type="button" className={styles.secondaryButton} onClick={closeImportModal}>
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.primaryButton}
+                        onClick={() => setImportStep('schedule')}
+                        disabled={!selectedImportBadgeId}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className={styles.importField}>
+                      <span>Content Availability</span>
+                      <RangeCalendar
+                        availableOn={importAvailableOn}
+                        closesOn={importClosesOn}
+                        neverCloses={importNeverCloses}
+                        onAvailableOnChange={setImportAvailableOn}
+                        onClosesOnChange={setImportClosesOn}
+                        onNeverClosesChange={setImportNeverCloses}
+                      />
+                    </div>
+
+                    <div className={styles.importModalActions}>
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={() => setImportStep('select')}
+                        disabled={isImportingBadge}
+                      >
+                        Back
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.primaryButton}
+                        onClick={importSelectedBadge}
+                        disabled={isImportingBadge}
+                      >
+                        {isImportingBadge ? 'Importing…' : 'Finish'}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+
       {isAssessmentCodeOpen ? (
         <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Assess student by code">
           <div className={styles.confirmModal}>
@@ -781,7 +905,7 @@ export default function CreatedCourseDetailPage() {
               onClick={closeAssessmentCodeModal}
               aria-label="Close assessment code dialog"
             >
-              ×
+              x
             </button>
 
             <h2 className={styles.modalTitle}>Assess student</h2>
@@ -833,7 +957,7 @@ export default function CreatedCourseDetailPage() {
               aria-label="Close unassign confirmation"
               disabled={isDeleting}
             >
-              ×
+              x
             </button>
 
             <h2 className={styles.modalTitle}>Unassign badge?</h2>

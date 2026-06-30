@@ -226,8 +226,11 @@ describe('Created course detail page', () => {
       '/roster?courseId=course-1&role=CHECKER'
     );
     expect(screen.getByRole('link', { name: 'Edit Course' })).toHaveAttribute('href', '/courses/new?courseId=course-1');
-    expect(screen.queryByRole('button', { name: 'Delete badge' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Delete badge' })).toHaveLength(2);
+    expect(screen.getByRole('link', { name: 'Create Badge' })).toHaveAttribute(
+      'href',
+      '/badge_creation?courseId=course-1'
+    );
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Unassign badge' })[0]);
     expect(screen.getByRole('dialog', { name: 'Unassign Waste Handling Badge' })).toBeInTheDocument();
@@ -508,7 +511,9 @@ describe('Created course detail page', () => {
     fireEvent.change(screen.getByLabelText('Badge library'), {
       target: { value: 'badge-template-1' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Add to Course' }));
+    // Two-step popup: pick the badge, advance to availability, then finish.
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Finish' }));
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/course-1/badges/import', {
@@ -520,7 +525,9 @@ describe('Created course detail page', () => {
         body: JSON.stringify({ badgeId: 'badge-template-1', availableOn: null, closesOn: null, neverCloses: true }),
       });
     });
-    expect(await screen.findByText('Badge imported successfully.')).toBeInTheDocument();
+    // The confirmation step renders after a successful import.
+    expect(await screen.findByRole('heading', { name: 'Badge imported' })).toBeInTheDocument();
+    expect(await screen.findByText('The badge has been added to this course.')).toBeInTheDocument();
     expect(await screen.findByText('Bunsen Burner')).toBeInTheDocument();
   });
 });

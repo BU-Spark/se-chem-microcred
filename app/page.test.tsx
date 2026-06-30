@@ -234,7 +234,7 @@ describe('Home Page', () => {
     renderHome();
 
     expect(screen.getByText('Student Demo')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'My Courses' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Instructor Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Assessor Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Enrolled Courses' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
@@ -282,6 +282,18 @@ describe('Home Page', () => {
     expect(createdGrid.firstElementChild).toHaveAttribute('data-testid', 'add-course-card');
     expect(screen.getAllByTestId('course-card')).toHaveLength(3);
     expect(screen.getAllByTestId('enrolled-course-card')).toHaveLength(2);
+
+    // #17: the Duplicate Course action renders inline in the Instructor Courses header.
+    expect(screen.getByRole('button', { name: 'Duplicate course' })).toBeInTheDocument();
+
+    // #19: sections render in order Instructor Courses -> My Enrolled Courses -> Assessor Courses.
+    const instructorCoursesHeading = screen.getByRole('heading', { name: 'Instructor Courses' });
+    const enrolledHeading = screen.getByRole('heading', { name: 'My Enrolled Courses' });
+    const assessorHeading = screen.getByRole('heading', { name: 'Assessor Courses' });
+    expect(
+      instructorCoursesHeading.compareDocumentPosition(enrolledHeading) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+    expect(enrolledHeading.compareDocumentPosition(assessorHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('highlights the active navigation item based on the current pathname', async () => {
@@ -330,7 +342,7 @@ describe('Home Page', () => {
     const { container } = renderHome();
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/sign-in');
+      expect(mockReplace).toHaveBeenCalledWith('/splash');
     });
     expect(container.firstChild).toBeNull();
   });
@@ -355,7 +367,7 @@ describe('Home Page', () => {
     expect(screen.getByRole('button', { name: 'Signing off…' })).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(mockReplace).toHaveBeenCalledWith('/sign-in');
+      expect(mockReplace).toHaveBeenCalledWith('/splash');
     });
   });
 

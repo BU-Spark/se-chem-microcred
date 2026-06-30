@@ -95,9 +95,13 @@ export default function RangeCalendar({
   const renderMonth = (year: number, month: number) => {
     const firstDay = new Date(year, month, 1).getDay();
     const daysInMonth = new Date(year, month + 1, 0).getDate();
+    // Always lay out a full 6-week grid (42 cells) so the calendar keeps a
+    // constant height whether a month spans 4, 5, or 6 week rows.
+    const TOTAL_CELLS = 42;
     const cells: Array<number | null> = [
       ...Array.from({ length: firstDay }, () => null),
       ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+      ...Array.from({ length: TOTAL_CELLS - firstDay - daysInMonth }, () => null),
     ];
 
     return (
