@@ -51,6 +51,8 @@ type ProgressSummary = {
 type AssessmentDetails = {
   displayText: string;
   videoTitle?: string | null;
+  youtubeUrl?: string | null;
+  videoLength?: string | null;
   rubricItems: Array<{ number: number; text: string }>;
   gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
   checkpoints: Array<{
@@ -61,6 +63,8 @@ type AssessmentDetails = {
     points?: number | string | null;
     time?: string | null;
     segmentLabel?: string | null;
+    questionCount?: number | null;
+    questionText?: string | null;
   }>;
 };
 
@@ -99,6 +103,14 @@ function resolveParam(value: string | string[] | undefined) {
   }
 
   return value ?? null;
+}
+
+function extractYouTubeId(url?: string | null) {
+  if (!url) return null;
+  const match =
+    url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/) ?? url.match(/[?&]v=([\w-]{11})/);
+  const candidate = match?.[1] ?? null;
+  return candidate && candidate.length === 11 ? candidate : null;
 }
 
 function useBadgeDetails(courseId?: string | null, badgeId?: string | null, email?: string | null) {
@@ -249,6 +261,8 @@ export default function CourseBadgeProgress() {
   })();
   const checkpointCount = assessment?.checkpoints.length ?? 0;
   const videoTitle = assessment?.videoTitle || badge?.lesson?.title || 'Lesson video';
+  const videoLength = assessment?.videoLength || 'Not recorded';
+  const youtubeId = extractYouTubeId(assessment?.youtubeUrl);
 
   return (
     <div className={styles.page}>
@@ -394,19 +408,24 @@ export default function CourseBadgeProgress() {
 
                 <div className={styles.assessmentBody}>
                   <div className={styles.videoColumn}>
-                    <div className={styles.videoScreen} aria-hidden="true">
-                      <div className={styles.videoControls}>
-                        <span className={styles.playIcon}>&#9654;</span>
-                        <div className={styles.videoScrubTrack}>
-                          <div className={styles.videoScrubFill} />
-                        </div>
+                    {youtubeId ? (
+                      <iframe
+                        className={styles.videoScreen}
+                        src={`https://www.youtube.com/embed/${youtubeId}`}
+                        title={videoTitle}
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                      />
+                    ) : (
+                      <div className={styles.videoScreen}>
+                        <div className={styles.videoPlaceholder}>No lesson video recorded.</div>
                       </div>
-                    </div>
+                    )}
                     <div className={styles.videoMeta}>
                       <div>
                         <p className={styles.videoTitle}>{videoTitle}</p>
                         <p className={styles.videoLength}>
-                          Length: <strong>00:20:00</strong>
+                          Length: <strong>{videoLength}</strong>
                         </p>
                       </div>
                       {isInstructor ? (
@@ -441,7 +460,9 @@ export default function CourseBadgeProgress() {
                                 {checkpoint.segmentLabel || `Segment ${index + 1}`}
                               </p>
                               <p className={styles.timelineTitle}>{checkpoint.title || `Checkpoint ${index + 1}`}</p>
-                              {checkpoint.question ? (
+                              {checkpoint.questionText ? (
+                                <p className={styles.timelineQuestion}>{checkpoint.questionText}</p>
+                              ) : checkpoint.question ? (
                                 <p className={styles.timelineQuestion}>{checkpoint.question}</p>
                               ) : null}
                               <p className={styles.timelinePoints}>

@@ -10,6 +10,8 @@ type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION
 type AssessmentSummary = {
   displayText: string;
   videoTitle?: string | null;
+  youtubeUrl?: string | null;
+  videoLength?: string | null;
   rubricItems: Array<{ number: number; text: string }>;
   gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
   checkpoints: Array<{
@@ -43,6 +45,8 @@ function parseRequirementSummary(summary?: string | null): AssessmentSummary {
     return {
       displayText: 'No assessment details recorded yet.',
       videoTitle: null,
+      youtubeUrl: null,
+      videoLength: null,
       rubricItems: [],
       gradingCriteria: [],
       checkpoints: [],
@@ -67,6 +71,9 @@ function parseRequirementSummary(summary?: string | null): AssessmentSummary {
     return {
       displayText: rubricItems[0]?.text ?? gradingCriteria[0]?.criterion ?? 'Assessment details recorded.',
       videoTitle: typeof parsed.videoTitle === 'string' && parsed.videoTitle.trim() ? parsed.videoTitle.trim() : null,
+      youtubeUrl: typeof parsed.youtubeUrl === 'string' && parsed.youtubeUrl.trim() ? parsed.youtubeUrl.trim() : null,
+      videoLength:
+        typeof parsed.videoLength === 'string' && parsed.videoLength.trim() ? parsed.videoLength.trim() : null,
       rubricItems,
       gradingCriteria,
       checkpoints,
@@ -75,11 +82,45 @@ function parseRequirementSummary(summary?: string | null): AssessmentSummary {
     return {
       displayText: summary,
       videoTitle: null,
+      youtubeUrl: null,
+      videoLength: null,
       rubricItems: [],
       gradingCriteria: [],
       checkpoints: [],
     };
   }
+}
+
+function formatTimestamp(seconds?: number | null) {
+  const safeSeconds = Math.max(0, Math.floor(seconds ?? 0));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return [hours, minutes, remainingSeconds].map((part) => String(part).padStart(2, '0')).join(':');
+}
+
+function formatDuration(seconds?: number | null) {
+  if (!seconds || seconds <= 0) return null;
+  return formatTimestamp(seconds);
+}
+
+function normalizeLessonCheckpoints(
+  lesson: NonNullable<Awaited<ReturnType<typeof fetchAccessibleBadgeDetail>>>['lessons'][number]
+) {
+  return (lesson.checkpoints ?? []).map((checkpoint, index) => {
+    const questionCount = checkpoint.questions?.length || checkpoint.questionCount;
+    return {
+      number: index + 1,
+      title: checkpoint.label?.trim() || 'Checkpoint',
+      question: checkpoint.questions[0]?.prompt ?? null,
+      questionType: null,
+      points: null,
+      time: formatTimestamp(checkpoint.timeOffsetSeconds),
+      segmentLabel: `Segment ${index + 1}`,
+      questionCount,
+      questionText: `${questionCount} question${questionCount === 1 ? '' : 's'}`,
+    };
+  });
 }
 
 function calculatePercent(count: number, total: number) {
@@ -134,7 +175,17 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     const badgeLesson = badge.lessons[0] ?? null;
     const requirement = badgeLesson?.badgeRequirements[0] ?? null;
     const badgeDetail = requirement?.badge;
-    const assessment = parseRequirementSummary(requirement?.summary);
+    const parsedAssessment = parseRequirementSummary(requirement?.summary);
+    const primarySegment =
+      badgeLesson?.segments?.find((segment) => segment.videoUrl) ?? badgeLesson?.segments?.[0] ?? null;
+    const lessonCheckpoints = badgeLesson ? normalizeLessonCheckpoints(badgeLesson) : [];
+    const assessment = {
+      ...parsedAssessment,
+      videoTitle: primarySegment?.title ?? parsedAssessment.videoTitle,
+      youtubeUrl: primarySegment?.videoUrl ?? parsedAssessment.youtubeUrl,
+      videoLength: formatDuration(primarySegment?.duration) ?? parsedAssessment.videoLength,
+      checkpoints: lessonCheckpoints.length > 0 ? lessonCheckpoints : parsedAssessment.checkpoints,
+    };
     const students = badge.enrollments.map((enrollment) => {
       const progress = enrollment.student.badgeProgress[0] ?? null;
       const status = (progress?.status ?? 'NOT_STARTED') as BadgeStatus | 'NOT_STARTED';

@@ -58,8 +58,38 @@ export async function fetchCreatedBadgeDetail(userId: string, courseId: string, 
         orderBy: { sortOrder: 'asc' },
         select: {
           id: true,
+          slug: true,
           title: true,
           sortOrder: true,
+          segments: {
+            orderBy: { sortOrder: 'asc' },
+            select: {
+              id: true,
+              title: true,
+              duration: true,
+              videoUrl: true,
+              thumbnailUrl: true,
+              sortOrder: true,
+            },
+          },
+          checkpoints: {
+            orderBy: { sortOrder: 'asc' },
+            select: {
+              id: true,
+              title: true,
+              label: true,
+              meta: true,
+              questionCount: true,
+              timeOffsetSeconds: true,
+              sortOrder: true,
+              questions: {
+                orderBy: { sortOrder: 'asc' },
+                select: {
+                  prompt: true,
+                },
+              },
+            },
+          },
           badgeRequirements: {
             where: { badgeId },
             select: {
@@ -303,8 +333,38 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
         orderBy: { sortOrder: 'asc' },
         select: {
           id: true,
+          slug: true,
           title: true,
           sortOrder: true,
+          segments: {
+            orderBy: { sortOrder: 'asc' },
+            select: {
+              id: true,
+              title: true,
+              duration: true,
+              videoUrl: true,
+              thumbnailUrl: true,
+              sortOrder: true,
+            },
+          },
+          checkpoints: {
+            orderBy: { sortOrder: 'asc' },
+            select: {
+              id: true,
+              title: true,
+              label: true,
+              meta: true,
+              questionCount: true,
+              timeOffsetSeconds: true,
+              sortOrder: true,
+              questions: {
+                orderBy: { sortOrder: 'asc' },
+                select: {
+                  prompt: true,
+                },
+              },
+            },
+          },
           badgeRequirements: {
             where: { badgeId },
             select: {

@@ -352,39 +352,19 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 11;
+  display: grid;
+  place-items: center;
+  border: 0;
   border-radius: 8px;
   background: linear-gradient(180deg, #3a4250 0%, #191919 100%);
   overflow: hidden;
 }
 
-.videoControls {
-  position: absolute;
-  left: 1.25rem;
-  right: 1.25rem;
-  bottom: 1.25rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.playIcon {
+.videoPlaceholder {
   color: #ffffff;
-  font-size: 14px;
-}
-
-.videoScrubTrack {
-  position: relative;
-  flex: 1;
-  height: 5px;
-  border-radius: 999px;
-  background: rgba(166, 166, 166, 0.81);
-  overflow: hidden;
-}
-
-.videoScrubFill {
-  position: absolute;
-  inset: 0 55% 0 0;
-  background: rgba(255, 255, 255, 0.78);
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .videoMeta {

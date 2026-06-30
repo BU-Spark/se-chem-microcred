@@ -84,13 +84,16 @@ describe('Course badge progress page', () => {
         assessment: {
           displayText: 'Use the burner safely.',
           videoTitle: 'Bunsen Burner Lesson',
+          youtubeUrl: 'https://www.youtube.com/watch?v=abc123def45',
+          videoLength: '00:20:00',
           rubricItems: [{ number: 1, text: 'Use the burner safely.' }],
           gradingCriteria: [{ number: 1, criterion: 'Technique', options: ['Needs support', 'Ready'] }],
           checkpoints: [
             {
               number: 1,
-              title: 'Checkpoint 1',
+              title: 'Checkpoint',
               question: 'What should students check first?',
+              questionText: '3 questions',
               points: 5,
               time: '00:01:00',
               segmentLabel: 'Segment 1 Starts 00:00:00',
@@ -148,9 +151,15 @@ describe('Course badge progress page', () => {
     expect(screen.getByText('Ready for assessment')).toBeInTheDocument();
     expect(screen.getByText('Got checkd on their first try')).toBeInTheDocument();
     expect(screen.getByText('Students who have completed this badge')).toBeInTheDocument();
-    expect(screen.getByText('What should students check first?')).toBeInTheDocument();
-    expect(screen.getByText('Checkpoint 1')).toBeInTheDocument();
+    expect(screen.getByText('3 questions')).toBeInTheDocument();
+    expect(screen.getByText('Checkpoint')).toBeInTheDocument();
     expect(screen.getByText('# of Checkpoints: 1')).toBeInTheDocument();
     expect(screen.getByText('Bunsen Burner Lesson')).toBeInTheDocument();
+    expect(screen.getByTitle('Bunsen Burner Lesson')).toHaveAttribute(
+      'src',
+      'https://www.youtube.com/embed/abc123def45'
+    );
+    expect(screen.getByText('Length:')).toBeInTheDocument();
+    expect(screen.getByText('00:20:00')).toBeInTheDocument();
   });
 });

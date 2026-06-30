@@ -69,6 +69,32 @@ describe('course badge detail API', () => {
           id: 'lesson-1',
           title: 'Bunsen Burner Lesson',
           sortOrder: 0,
+          segments: [
+            {
+              id: 'segment-1',
+              title: 'Burner safety video',
+              duration: 1200,
+              videoUrl: 'https://www.youtube.com/watch?v=abc123def45',
+              thumbnailUrl: null,
+              sortOrder: 0,
+            },
+          ],
+          checkpoints: [
+            {
+              id: 'checkpoint-1',
+              title: 'Burner Basics',
+              label: 'Checkpoint',
+              meta: '3 questions',
+              questionCount: 3,
+              timeOffsetSeconds: 60,
+              sortOrder: 0,
+              questions: [
+                { prompt: 'What should be checked first?' },
+                { prompt: 'What flame color is safest?' },
+                { prompt: 'What should you close first?' },
+              ],
+            },
+          ],
           badgeRequirements: [
             {
               id: 'requirement-1',
@@ -184,6 +210,15 @@ describe('course badge detail API', () => {
     );
     expect(body.assessment.rubricItems).toEqual([{ number: 1, text: 'Use the burner safely.' }]);
     expect(body.assessment.videoTitle).toBe('Burner safety video');
+    expect(body.assessment.youtubeUrl).toBe('https://www.youtube.com/watch?v=abc123def45');
+    expect(body.assessment.videoLength).toBe('00:20:00');
+    expect(body.assessment.checkpoints).toEqual([
+      expect.objectContaining({
+        title: 'Checkpoint',
+        questionText: '3 questions',
+        time: '00:01:00',
+      }),
+    ]);
     expect(body.students).toHaveLength(3);
     expect(body.students[2]).toEqual(expect.objectContaining({ status: 'NOT_STARTED', progress: null }));
   });
