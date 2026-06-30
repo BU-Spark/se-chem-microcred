@@ -47,7 +47,7 @@ Use the provided Prisma/PostgreSQL connection string; you do **not** need to cre
      SEEDED_DEMO_EMAIL="your-instructor-clerk-email@example.com"
      ```
    - To get Clerk keys, create a free Clerk project at https://clerk.com/ and copy the Secret and Publishable keys. The DATABASE_URL should be the shared Prisma connection string supplied for the course.
-   - `SEEDED_DEMO_EMAIL` controls the CHEM101 instructor account. If omitted, the seed uses `jacksoncg730+clerk_test@gmail.com`.
+   - `SEEDED_DEMO_EMAIL` controls the CHEM101 instructor account.
 
 4) Apply the database schema and seed CHEM101 data (runs against the provided DATABASE_URL)  
    ```bash
