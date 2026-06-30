@@ -76,8 +76,6 @@ export default function SplashPage() {
             className={styles.heroGif}
             priority
             unoptimized
-            height={540}
-            width={1080}
           />
         </div>
       </section>
