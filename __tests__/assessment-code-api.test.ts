@@ -1,17 +1,20 @@
 /** @jest-environment node */
 
-import { currentUser } from '@clerk/nextjs/server';
-
 import { POST } from '../app/api/assessment-codes/route';
 import { GET } from '../app/qr/assessment-code/route';
+import { ensureCurrentUser } from '../app/api/courses/lib/ensure-user';
+import { syncLessonBadgesForStudent } from '../lib/badgeProgress';
 import prisma from '../lib/prisma';
 
-jest.mock('@clerk/nextjs/server', () => ({
-  currentUser: jest.fn(),
+jest.mock('../app/api/courses/lib/ensure-user', () => ({
+  ensureCurrentUser: jest.fn(),
+}));
+
+jest.mock('../lib/badgeProgress', () => ({
+  syncLessonBadgesForStudent: jest.fn(),
 }));
 
 jest.mock('../lib/prisma', () => {
-  const user = { findUnique: jest.fn() };
   const studentBadge = { findUnique: jest.fn() };
   const course = { findFirst: jest.fn() };
   const assessmentAccessCode = {
@@ -21,15 +24,19 @@ jest.mock('../lib/prisma', () => {
     delete: jest.fn(),
     deleteMany: jest.fn(),
   };
+  const $transaction = jest.fn(async (callback: (tx: unknown) => unknown) => callback({}));
   return {
     __esModule: true,
-    default: { user, studentBadge, course, assessmentAccessCode },
+    default: { $transaction, studentBadge, course, assessmentAccessCode },
   };
 });
 
-const mockCurrentUser = currentUser as jest.MockedFunction<typeof currentUser>;
+const mockEnsureCurrentUser = ensureCurrentUser as jest.MockedFunction<typeof ensureCurrentUser>;
+const mockSyncLessonBadgesForStudent = syncLessonBadgesForStudent as jest.MockedFunction<
+  typeof syncLessonBadgesForStudent
+>;
 const mockPrisma = prisma as unknown as {
-  user: { findUnique: jest.Mock };
+  $transaction: jest.Mock;
   studentBadge: { findUnique: jest.Mock };
   course: { findFirst: jest.Mock };
   assessmentAccessCode: {
@@ -52,13 +59,16 @@ function postRequest(body: Record<string, unknown>) {
 describe('Assessment access codes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockCurrentUser.mockResolvedValue({
-      id: 'clerk-1',
-      emailAddresses: [{ emailAddress: 'student@example.edu' }],
-    } as Awaited<ReturnType<typeof currentUser>>);
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'student-1' });
+    mockEnsureCurrentUser.mockResolvedValue({
+      id: 'student-1',
+      email: 'student@example.edu',
+      name: 'Student Example',
+      buid: null,
+      avatar: null,
+    });
+    mockSyncLessonBadgesForStudent.mockResolvedValue({ readyForAssessment: false });
     mockPrisma.studentBadge.findUnique.mockResolvedValue({ status: 'READY_FOR_ASSESSMENT' });
-    mockPrisma.course.findFirst.mockResolvedValue({ id: 'course-1' });
+    mockPrisma.course.findFirst.mockResolvedValue({ id: 'course-1', lessons: [{ id: 'lesson-1' }] });
     mockPrisma.assessmentAccessCode.findFirst.mockResolvedValue(null);
     mockPrisma.assessmentAccessCode.deleteMany.mockResolvedValue({ count: 0 });
     mockPrisma.assessmentAccessCode.create.mockImplementation(({ data }) =>
@@ -88,6 +98,10 @@ describe('Assessment access codes', () => {
         }),
       })
     );
+    expect(mockSyncLessonBadgesForStudent).toHaveBeenCalledWith(expect.anything(), {
+      studentId: 'student-1',
+      lessonId: 'lesson-1',
+    });
   });
 
   it('reuses an unexpired code for the same student, course, and badge', async () => {
@@ -112,6 +126,27 @@ describe('Assessment access codes', () => {
 
     expect(response.status).toBe(409);
     expect(mockPrisma.assessmentAccessCode.create).not.toHaveBeenCalled();
+  });
+
+  it('syncs lesson badge progress before deciding readiness', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue({
+      id: 'course-1',
+      lessons: [{ id: 'lesson-1' }, { id: 'lesson-2' }],
+    });
+    mockPrisma.studentBadge.findUnique.mockResolvedValue({ status: 'READY_FOR_ASSESSMENT' });
+
+    const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1' }));
+
+    expect(response.status).toBe(200);
+    expect(mockSyncLessonBadgesForStudent).toHaveBeenCalledTimes(2);
+    expect(mockSyncLessonBadgesForStudent).toHaveBeenNthCalledWith(1, expect.anything(), {
+      studentId: 'student-1',
+      lessonId: 'lesson-1',
+    });
+    expect(mockSyncLessonBadgesForStudent).toHaveBeenNthCalledWith(2, expect.anything(), {
+      studentId: 'student-1',
+      lessonId: 'lesson-2',
+    });
   });
 
   it('redirects a typed code to the existing assessment route', async () => {

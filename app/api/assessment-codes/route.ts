@@ -1,8 +1,9 @@
 import { BadgeStatus, Prisma } from '@prisma/client';
-import { currentUser } from '@clerk/nextjs/server';
 import { randomInt } from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 
+import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
+import { syncLessonBadgesForStudent } from '@/lib/badgeProgress';
 import prisma from '@/lib/prisma';
 
 const CODE_TTL_MS = 30 * 60 * 1000;
@@ -66,10 +67,9 @@ async function createUniqueCode({
 
 export async function POST(req: NextRequest) {
   try {
-    const clerkUser = await currentUser();
-    const email = clerkUser?.emailAddresses?.[0]?.emailAddress?.trim().toLowerCase();
+    const student = await ensureCurrentUser();
 
-    if (!email) {
+    if (!student) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -81,13 +81,44 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Course id and badge id are required.' }, { status: 400 });
     }
 
-    const student = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true },
+    const courseBadge = await prisma.course.findFirst({
+      where: {
+        id: courseId,
+        enrollments: { some: { studentId: student.id } },
+        lessons: {
+          some: {
+            badgeRequirements: {
+              some: { badgeId },
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        lessons: {
+          where: {
+            badgeRequirements: {
+              some: { badgeId },
+            },
+          },
+          select: { id: true },
+        },
+      },
     });
 
-    if (!student) {
-      return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+    if (!courseBadge) {
+      return NextResponse.json(
+        { error: 'Badge is not available for this student in the requested course.' },
+        { status: 403 }
+      );
+    }
+
+    if (courseBadge.lessons.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        for (const lesson of courseBadge.lessons) {
+          await syncLessonBadgesForStudent(tx, { studentId: student.id, lessonId: lesson.id });
+        }
+      });
     }
 
     const studentBadge = await prisma.studentBadge.findUnique({
@@ -106,28 +137,6 @@ export async function POST(req: NextRequest) {
 
     if (studentBadge.status !== BadgeStatus.READY_FOR_ASSESSMENT) {
       return NextResponse.json({ error: 'Badge is not ready for assessment.' }, { status: 409 });
-    }
-
-    const courseBadge = await prisma.course.findFirst({
-      where: {
-        id: courseId,
-        enrollments: { some: { studentId: student.id } },
-        lessons: {
-          some: {
-            badgeRequirements: {
-              some: { badgeId },
-            },
-          },
-        },
-      },
-      select: { id: true },
-    });
-
-    if (!courseBadge) {
-      return NextResponse.json(
-        { error: 'Badge is not available for this student in the requested course.' },
-        { status: 403 }
-      );
     }
 
     const now = new Date();

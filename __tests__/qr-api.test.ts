@@ -1,11 +1,16 @@
 /** @jest-environment node */
 
 import { GET, HEAD } from '../app/api/qr/route';
-import { currentUser } from '@clerk/nextjs/server';
+import { ensureCurrentUser } from '../app/api/courses/lib/ensure-user';
+import { syncLessonBadgesForStudent } from '../lib/badgeProgress';
 import prisma from '../lib/prisma';
 
-jest.mock('@clerk/nextjs/server', () => ({
-  currentUser: jest.fn(),
+jest.mock('../app/api/courses/lib/ensure-user', () => ({
+  ensureCurrentUser: jest.fn(),
+}));
+
+jest.mock('../lib/badgeProgress', () => ({
+  syncLessonBadgesForStudent: jest.fn(),
 }));
 
 jest.mock('qrcode', () => {
@@ -18,12 +23,12 @@ jest.mock('qrcode', () => {
 });
 
 jest.mock('../lib/prisma', () => {
-  const user = { findUnique: jest.fn() };
   const studentBadge = { findUnique: jest.fn() };
   const course = { findFirst: jest.fn() };
+  const $transaction = jest.fn(async (callback: (tx: unknown) => unknown) => callback({}));
   return {
     __esModule: true,
-    default: { user, studentBadge, course },
+    default: { $transaction, studentBadge, course },
   };
 });
 
@@ -34,9 +39,12 @@ const expectResponse = (response: Response | undefined): Response => {
   return response as Response;
 };
 
-const mockCurrentUser = currentUser as jest.MockedFunction<typeof currentUser>;
+const mockEnsureCurrentUser = ensureCurrentUser as jest.MockedFunction<typeof ensureCurrentUser>;
+const mockSyncLessonBadgesForStudent = syncLessonBadgesForStudent as jest.MockedFunction<
+  typeof syncLessonBadgesForStudent
+>;
 const mockPrisma = prisma as unknown as {
-  user: { findUnique: jest.Mock };
+  $transaction: jest.Mock;
   studentBadge: { findUnique: jest.Mock };
   course: { findFirst: jest.Mock };
 };
@@ -50,13 +58,16 @@ describe('QR API', () => {
     jest.clearAllMocks();
     const store = (globalThis as { __qrRateLimit?: Map<string, unknown> }).__qrRateLimit;
     store?.clear?.();
-    mockCurrentUser.mockResolvedValue({
-      id: 'clerk-1',
-      emailAddresses: [{ emailAddress: 'student@example.edu' }],
-    } as Awaited<ReturnType<typeof currentUser>>);
-    mockPrisma.user.findUnique.mockResolvedValue({ id: studentId });
+    mockEnsureCurrentUser.mockResolvedValue({
+      id: studentId,
+      email: 'student@example.edu',
+      name: 'Student Example',
+      buid: null,
+      avatar: null,
+    });
+    mockSyncLessonBadgesForStudent.mockResolvedValue({ readyForAssessment: false });
     mockPrisma.studentBadge.findUnique.mockResolvedValue({ id: 'student-badge-1', status: 'READY_FOR_ASSESSMENT' });
-    mockPrisma.course.findFirst.mockResolvedValue({ id: 'course-1' });
+    mockPrisma.course.findFirst.mockResolvedValue({ id: 'course-1', lessons: [{ id: 'lesson-1' }] });
   });
 
   it('returns a PNG with content length when user owns the badge', async () => {
@@ -81,6 +92,10 @@ describe('QR API', () => {
         }),
       })
     );
+    expect(mockSyncLessonBadgesForStudent).toHaveBeenCalledWith(expect.anything(), {
+      studentId,
+      lessonId: 'lesson-1',
+    });
   });
 
   it('rejects assessment QR generation when the badge is not ready for assessment', async () => {
@@ -101,13 +116,19 @@ describe('QR API', () => {
   });
 
   it('returns 401 when not authenticated', async () => {
-    mockCurrentUser.mockResolvedValue(null);
+    mockEnsureCurrentUser.mockResolvedValue(null);
     const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(payload)}`)));
     expect(res.status).toBe(401);
   });
 
   it('rejects QR generation for a different student', async () => {
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'other-student' });
+    mockEnsureCurrentUser.mockResolvedValue({
+      id: 'other-student',
+      email: 'other@example.edu',
+      name: 'Other Student',
+      buid: null,
+      avatar: null,
+    });
     const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(payload)}`)));
     expect(res.status).toBe(403);
   });

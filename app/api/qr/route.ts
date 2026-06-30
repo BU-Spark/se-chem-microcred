@@ -2,8 +2,9 @@ export const runtime = 'nodejs';
 
 import { BadgeStatus } from '@prisma/client';
 import { NextResponse } from 'next/server';
-import { currentUser } from '@clerk/nextjs/server';
 import QRCode from 'qrcode';
+import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
+import { syncLessonBadgesForStudent } from '@/lib/badgeProgress';
 import prisma from '../../../lib/prisma';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -99,23 +100,55 @@ function parseAssessmentQrUrl(raw: string | null, request: Request): StudentBadg
 }
 
 async function authorizeStudentBadge(payload: StudentBadgePayload) {
-  const clerkUser = await currentUser();
-  if (!clerkUser || !clerkUser.emailAddresses?.[0]) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
-  const email = clerkUser.emailAddresses[0].emailAddress.toLowerCase();
-  const student = await prisma.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-
+  const student = await ensureCurrentUser();
   if (!student) {
-    return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   if (student.id !== payload.studentId) {
     return NextResponse.json({ error: 'You can only generate QR codes for your own badges.' }, { status: 403 });
+  }
+
+  if (payload.courseId) {
+    const courseBadge = await prisma.course.findFirst({
+      where: {
+        id: payload.courseId,
+        enrollments: { some: { studentId: payload.studentId } },
+        lessons: {
+          some: {
+            badgeRequirements: {
+              some: { badgeId: payload.badgeId },
+            },
+          },
+        },
+      },
+      select: {
+        id: true,
+        lessons: {
+          where: {
+            badgeRequirements: {
+              some: { badgeId: payload.badgeId },
+            },
+          },
+          select: { id: true },
+        },
+      },
+    });
+
+    if (!courseBadge) {
+      return NextResponse.json(
+        { error: 'Badge is not available for this student in the requested course.' },
+        { status: 403 }
+      );
+    }
+
+    if (courseBadge.lessons.length > 0) {
+      await prisma.$transaction(async (tx) => {
+        for (const lesson of courseBadge.lessons) {
+          await syncLessonBadgesForStudent(tx, { studentId: payload.studentId, lessonId: lesson.id });
+        }
+      });
+    }
   }
 
   const ownsBadge = await prisma.studentBadge.findUnique({
@@ -132,32 +165,8 @@ async function authorizeStudentBadge(payload: StudentBadgePayload) {
     return NextResponse.json({ error: 'Badge is not assigned to this student.' }, { status: 403 });
   }
 
-  if (payload.courseId) {
-    if (ownsBadge.status !== BadgeStatus.READY_FOR_ASSESSMENT) {
-      return NextResponse.json({ error: 'Badge is not ready for assessment.' }, { status: 409 });
-    }
-
-    const courseBadge = await prisma.course.findFirst({
-      where: {
-        id: payload.courseId,
-        enrollments: { some: { studentId: payload.studentId } },
-        lessons: {
-          some: {
-            badgeRequirements: {
-              some: { badgeId: payload.badgeId },
-            },
-          },
-        },
-      },
-      select: { id: true },
-    });
-
-    if (!courseBadge) {
-      return NextResponse.json(
-        { error: 'Badge is not available for this student in the requested course.' },
-        { status: 403 }
-      );
-    }
+  if (payload.courseId && ownsBadge.status !== BadgeStatus.READY_FOR_ASSESSMENT) {
+    return NextResponse.json({ error: 'Badge is not ready for assessment.' }, { status: 409 });
   }
 
   return null;
