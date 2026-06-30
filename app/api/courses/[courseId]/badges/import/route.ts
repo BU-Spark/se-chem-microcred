@@ -5,10 +5,9 @@ import { randomUUID } from 'crypto';
 
 import prisma from '@/lib/prisma';
 
-type CheckpointPayload = {
-  title?: string | null;
-  time?: string | null;
-  points?: number | string | null;
+type CheckpointQuestionPayload = {
+  id?: string | null;
+  prompt?: string | null;
   question?: string | null;
   questionType?: 'multipleChoice' | 'shortAnswer' | string | null;
   options?: string[] | null;
@@ -17,7 +16,17 @@ type CheckpointPayload = {
   numericAnswer?: string | number | null;
   numericRangeMin?: string | number | null;
   numericRangeMax?: string | number | null;
+  unit?: string | null;
+  incorrectFeedback?: string | null;
+  incorrectFeedbackEnabled?: boolean | null;
+};
+
+type CheckpointPayload = CheckpointQuestionPayload & {
+  title?: string | null;
+  time?: string | null;
+  points?: number | string | null;
   segmentLabel?: string | null;
+  questions?: CheckpointQuestionPayload[] | null;
 };
 
 type RequirementSummary = {
@@ -111,12 +120,12 @@ function normalizeOptions(options?: string[] | null) {
   return normalized.length > 0 ? normalized : ['Yes', 'No'];
 }
 
-function normalizeCorrectIndices(checkpoint: CheckpointPayload, optionCount: number) {
+function normalizeCorrectIndices(question: CheckpointQuestionPayload, optionCount: number) {
   const rawIndices =
-    Array.isArray(checkpoint.correctIndices) && checkpoint.correctIndices.length > 0
-      ? checkpoint.correctIndices
-      : checkpoint.correctIndex != null
-        ? [checkpoint.correctIndex]
+    Array.isArray(question.correctIndices) && question.correctIndices.length > 0
+      ? question.correctIndices
+      : question.correctIndex != null
+        ? [question.correctIndex]
         : [];
 
   return Array.from(
@@ -124,42 +133,65 @@ function normalizeCorrectIndices(checkpoint: CheckpointPayload, optionCount: num
   ).sort((left, right) => left - right);
 }
 
-function buildQuestionOptions(checkpoint: CheckpointPayload) {
-  const questionType = checkpoint.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice';
+function buildQuestionOptions(question: CheckpointQuestionPayload) {
+  const questionType = question.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice';
+  const unit = normalizeString(question.unit);
+  const incorrectFeedback = normalizeString(question.incorrectFeedback);
+  const feedbackEntry = incorrectFeedback ? { incorrectFeedback } : {};
 
   if (questionType === 'shortAnswer') {
-    const expectedAnswer = parseFiniteNumber(checkpoint.numericAnswer);
-    const rawMin = parseFiniteNumber(checkpoint.numericRangeMin);
-    const rawMax = parseFiniteNumber(checkpoint.numericRangeMax);
-    const acceptedRange =
+    const expectedAnswer = parseFiniteNumber(question.numericAnswer);
+    const rawMin = parseFiniteNumber(question.numericRangeMin);
+    const rawMax = parseFiniteNumber(question.numericRangeMax);
+    const baseRange =
       rawMin != null && rawMax != null
         ? {
             min: Math.min(rawMin, rawMax),
             max: Math.max(rawMin, rawMax),
           }
         : null;
+    const acceptedRange = baseRange ? (unit ? { ...baseRange, unit } : baseRange) : unit ? { unit } : null;
 
     return {
       options: {
         type: 'shortAnswer',
         expectedAnswer,
         acceptedRange,
+        ...feedbackEntry,
       },
       correctIndex: null,
     };
   }
 
-  const options = normalizeOptions(checkpoint.options);
-  const correctIndices = normalizeCorrectIndices(checkpoint, options.length);
+  const options = normalizeOptions(question.options);
+  const correctIndices = normalizeCorrectIndices(question, options.length);
 
   return {
     options: {
       type: 'multipleChoice',
       options,
       correctIndices: correctIndices.length > 0 ? correctIndices : [0],
+      ...feedbackEntry,
     },
     correctIndex: correctIndices[0] ?? 0,
   };
+}
+
+function getQuestionPrompt(question: CheckpointQuestionPayload) {
+  return normalizeString(question.question) ?? normalizeString(question.prompt);
+}
+
+function normalizeCheckpointQuestions(checkpoint: CheckpointPayload) {
+  const rawQuestions =
+    Array.isArray(checkpoint.questions) && checkpoint.questions.length > 0 ? checkpoint.questions : [checkpoint];
+
+  return rawQuestions
+    .map((question, questionIndex) => ({
+      sortOrder: questionIndex,
+      prompt: getQuestionPrompt(question),
+      questionOptions: buildQuestionOptions(question),
+    }))
+    .filter((question) => Boolean(question.prompt));
 }
 
 function parseRequirementSummary(summary?: string | null): RequirementSummary {
@@ -483,23 +515,20 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
           // Precompute each fallback checkpoint keyed by sortOrder (== index), batch-create,
           // read back ids via (lessonId, sortOrder), then batch questions.
           const checkpointPlans = (summary.checkpoints ?? []).map((checkpoint, checkpointIndex) => {
-            const prompt = normalizeString(checkpoint.question);
             const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
-            const questionOptions = buildQuestionOptions(checkpoint);
-            const questionCount = prompt ? 1 : 0;
+            const questions = normalizeCheckpointQuestions(checkpoint);
 
             return {
               sortOrder: checkpointIndex,
-              prompt,
-              questionOptions,
+              questions,
               data: {
                 lessonId: lesson.id,
                 segmentId: fallbackSegmentId,
                 sortOrder: checkpointIndex,
                 title,
                 label: 'Checkpoint',
-                meta: formatQuestionCount(questionCount),
-                questionCount,
+                meta: formatQuestionCount(questions.length),
+                questionCount: questions.length,
                 timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
               },
             };
@@ -516,15 +545,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             });
             const checkpointIdByOrder = new Map(createdCheckpoints.map((c) => [c.sortOrder, c.id]));
 
-            const questionData = checkpointPlans
-              .filter((plan) => plan.prompt)
-              .map((plan) => ({
+            const questionData = checkpointPlans.flatMap((plan) =>
+              plan.questions.map((question) => ({
                 checkpointId: checkpointIdByOrder.get(plan.sortOrder)!,
-                sortOrder: 0,
-                prompt: plan.prompt!,
-                options: plan.questionOptions.options,
-                correctIndex: plan.questionOptions.correctIndex,
-              }));
+                sortOrder: question.sortOrder,
+                prompt: question.prompt!,
+                options: question.questionOptions.options,
+                correctIndex: question.questionOptions.correctIndex,
+              }))
+            );
 
             if (questionData.length > 0) {
               await tx.checkpointQuestion.createMany({ data: questionData });

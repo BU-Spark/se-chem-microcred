@@ -91,6 +91,17 @@ function formatBadge(studentBadge: {
   };
 }
 
+function parseRequirementYoutubeUrl(summary?: string | null) {
+  if (!summary) return null;
+
+  try {
+    const parsed = JSON.parse(summary) as { youtubeUrl?: unknown };
+    return typeof parsed.youtubeUrl === 'string' && parsed.youtubeUrl.trim() ? parsed.youtubeUrl.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 function formatLesson({
   lesson,
   progress,
@@ -175,6 +186,7 @@ function formatLesson({
       badgeId: requirement.badge.id,
       badgeName: requirement.badge.name,
       badgeSlug: requirement.badge.slug,
+      youtubeUrl: parseRequirementYoutubeUrl(requirement.summary),
     })),
     skills: lesson.skills.map((skill) => skill.text),
     lastGradePercent: lastGradePercent ?? null,

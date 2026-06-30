@@ -227,10 +227,7 @@ describe('Created course detail page', () => {
     );
     expect(screen.getByRole('link', { name: 'Edit Course' })).toHaveAttribute('href', '/courses/new?courseId=course-1');
     expect(screen.queryByRole('button', { name: 'Delete badge' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Create Badge' })).toHaveAttribute(
-      'href',
-      '/badge_creation?courseId=course-1'
-    );
+    expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
 
     fireEvent.click(screen.getAllByRole('button', { name: 'Unassign badge' })[0]);
     expect(screen.getByRole('dialog', { name: 'Unassign Waste Handling Badge' })).toBeInTheDocument();

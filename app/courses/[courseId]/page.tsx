@@ -717,9 +717,6 @@ export default function CreatedCourseDetailPage() {
                     <button type="button" className={styles.primaryButton} onClick={openImportPanel}>
                       Import Existing Badge
                     </button>
-                    <Link href={`/badge_creation?courseId=${course.id}`} className={styles.primaryButton}>
-                      Create Badge
-                    </Link>
                   </div>
                 ) : null}
               </section>

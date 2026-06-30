@@ -1,4 +1,4 @@
-import { buildVideoThumbnail, formatDisplayDate } from '../lib/badge-helpers';
+import { buildVideoThumbnail } from '../lib/badge-helpers';
 import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 
@@ -48,17 +48,6 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
           <div className={styles.reviewSkillCount}>
             <strong>{draft.skills.length}/5</strong>
             <span>skills added</span>
-          </div>
-        </div>
-
-        <div className={styles.reviewField}>
-          <span className={styles.reviewFieldLabel}>Content Available:</span>
-          <div className={styles.reviewDates}>
-            <span className={styles.reviewDate}>{formatDisplayDate(draft.availableOn)}</span>
-            <span className={styles.reviewDatesTo}>to</span>
-            <span className={styles.reviewDate}>
-              {draft.neverCloses ? 'Never closes' : formatDisplayDate(draft.closesOn)}
-            </span>
           </div>
         </div>
       </section>

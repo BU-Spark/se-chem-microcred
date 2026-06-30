@@ -56,6 +56,7 @@ function buildLesson(overrides: Partial<LessonRecord> = {}): LessonRecord {
             prompt: 'Question?',
             options: ['A', 'B'],
             correctIndex: 0,
+            correctIndices: [0],
             type: 'multipleChoice',
             expectedAnswer: null,
             tolerancePercent: 0,

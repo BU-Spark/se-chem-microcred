@@ -124,6 +124,7 @@ export interface LessonRecord {
       prompt: string;
       options: string[] | Record<string, unknown>;
       correctIndex: number | null;
+      correctIndices: number[];
       type: 'multipleChoice' | 'shortAnswer';
       expectedAnswer: number | null;
       tolerancePercent: number;
@@ -134,6 +135,7 @@ export interface LessonRecord {
     badgeId: string;
     badgeName: string;
     badgeSlug: string;
+    youtubeUrl?: string | null;
   }>;
   skills: string[];
   lastGradePercent: number | null;

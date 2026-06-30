@@ -30,7 +30,7 @@ type RangeStyleVars = CSSProperties & {
 type QuestionType = 'multipleChoice' | 'shortAnswer';
 
 type SelectedAnswerState =
-  | { kind: 'multipleChoice'; selectedIndex: number }
+  | { kind: 'multipleChoice'; selectedIndices: number[] }
   | { kind: 'shortAnswer'; raw: string; value: number | null; hasError: boolean };
 
 type YouTubePlayer = {
@@ -84,8 +84,10 @@ interface AttemptSummary {
     prompt: string;
     options: string[] | Record<string, unknown>;
     selectedIndex: number | null;
+    selectedIndices?: number[];
     numericAnswer: number | null;
     correctIndex: number | null;
+    correctIndices?: number[];
     expectedAnswer: number | null;
     tolerancePercent: number;
     acceptedRange: { min: number; max: number } | null;
@@ -159,7 +161,8 @@ function extractYouTubeId(url?: string | null) {
     return null;
   }
   const match =
-    url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([\w-]{11})/) ?? url.match(/[?&]v=([\w-]{11})/);
+    url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/) ??
+    url.match(/[?&]v=([\w-]{11})/);
   const candidate = match?.[1] ?? null;
   return candidate && candidate.length === 11 ? candidate : null;
 }
@@ -861,12 +864,26 @@ export function LessonVideoPage({
     }
   }, [clearHideTimer, modalState, scheduleHide]);
 
-  const handleChoiceSelect = useCallback((questionId: string, answerIndex: number) => {
-    setSelectedAnswers((prev) => ({
-      ...prev,
-      [questionId]: { kind: 'multipleChoice', selectedIndex: answerIndex },
-    }));
-  }, []);
+  const handleChoiceSelect = useCallback(
+    (question: LessonRecord['checkpoints'][number]['questions'][number], answerIndex: number) => {
+      const supportsMultiple = (question.correctIndices ?? []).length > 1;
+      setSelectedAnswers((prev) => {
+        const current = prev[question.id];
+        const currentIndices = current?.kind === 'multipleChoice' ? current.selectedIndices : [];
+        const selectedIndices = supportsMultiple
+          ? currentIndices.includes(answerIndex)
+            ? currentIndices.filter((index) => index !== answerIndex)
+            : [...currentIndices, answerIndex].sort((left, right) => left - right)
+          : [answerIndex];
+
+        return {
+          ...prev,
+          [question.id]: { kind: 'multipleChoice', selectedIndices },
+        };
+      });
+    },
+    []
+  );
 
   const handleShortAnswerChange = useCallback((questionId: string, rawValue: string) => {
     const trimmed = rawValue.trim();
@@ -996,7 +1013,8 @@ export function LessonVideoPage({
             const selected = selectedAnswers[question.id];
             return {
               questionId: question.id,
-              selectedIndex: selected?.kind === 'multipleChoice' ? selected.selectedIndex : null,
+              selectedIndex: selected?.kind === 'multipleChoice' ? (selected.selectedIndices[0] ?? null) : null,
+              selectedIndices: selected?.kind === 'multipleChoice' ? selected.selectedIndices : [],
               numericAnswer: selected?.kind === 'shortAnswer' ? selected.value : null,
             };
           }),
@@ -1204,7 +1222,7 @@ export function LessonVideoPage({
         if (currentQuestion.type === 'shortAnswer') {
           return selection.kind === 'shortAnswer' && selection.value != null && !selection.hasError;
         }
-        return selection.kind === 'multipleChoice';
+        return selection.kind === 'multipleChoice' && selection.selectedIndices.length > 0;
       })()
     : false;
   const isFinalQuestion = currentQuestion ? activeQuestionIndex === totalCheckpointQuestions - 1 : false;
@@ -1461,7 +1479,9 @@ export function LessonVideoPage({
                                 (option, optionIndex) => {
                                   const selection = selectedAnswers[currentQuestion.id];
                                   const isSelected =
-                                    selection?.kind === 'multipleChoice' && selection.selectedIndex === optionIndex;
+                                    selection?.kind === 'multipleChoice' &&
+                                    selection.selectedIndices.includes(optionIndex);
+                                  const supportsMultiple = (currentQuestion.correctIndices ?? []).length > 1;
                                   const className = [
                                     styles.controlButton,
                                     isSelected ? styles.controlButtonPrimary : styles.controlButtonSecondary,
@@ -1473,8 +1493,10 @@ export function LessonVideoPage({
                                       key={`${currentQuestion.id}-${optionIndex}`}
                                       type="button"
                                       className={className}
-                                      onClick={() => handleChoiceSelect(currentQuestion.id, optionIndex)}
+                                      onClick={() => handleChoiceSelect(currentQuestion, optionIndex)}
+                                      aria-pressed={isSelected}
                                     >
+                                      {supportsMultiple ? `${isSelected ? '✓ ' : ''}` : ''}
                                       {option}
                                     </button>
                                   );

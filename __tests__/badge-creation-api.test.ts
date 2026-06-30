@@ -13,8 +13,8 @@ const mockTx = {
   lesson: { create: jest.fn(), updateMany: jest.fn() },
   lessonSkill: { createMany: jest.fn(), deleteMany: jest.fn() },
   lessonSegment: { create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
-  lessonCheckpoint: { createMany: jest.fn(), findMany: jest.fn() },
-  checkpointQuestion: { createMany: jest.fn() },
+  lessonCheckpoint: { createMany: jest.fn(), findMany: jest.fn(), upsert: jest.fn() },
+  checkpointQuestion: { createMany: jest.fn(), upsert: jest.fn() },
   badgeRequirement: {
     create: jest.fn(),
     findFirst: jest.fn(),
@@ -106,7 +106,9 @@ describe('badge creation API', () => {
       { id: 'checkpoint-1', sortOrder: 0 },
       { id: 'checkpoint-2', sortOrder: 1 },
     ]);
+    mockPrisma.__tx.lessonCheckpoint.upsert.mockResolvedValue({ id: 'checkpoint-1' });
     mockPrisma.__tx.checkpointQuestion.createMany.mockResolvedValue({ count: 2 });
+    mockPrisma.__tx.checkpointQuestion.upsert.mockResolvedValue({ id: 'question-1' });
     mockPrisma.__tx.badgeRequirement.create.mockResolvedValue({ id: 'requirement-1' });
     mockPrisma.__tx.badge.update.mockResolvedValue({
       id: 'badge-1',
@@ -145,7 +147,7 @@ describe('badge creation API', () => {
       badgeName: 'Bunsen Burner',
       badgeDescription: 'Burner safety',
       category: 'EQUIPMENT',
-      youtubeUrl: 'https://www.youtube.com/watch?v=abc123',
+      youtubeUrl: 'https://www.youtube.com/shorts/abc123def45',
       videoTitle: 'Burner lesson',
       videoLength: '00:20:00',
       skills: ['Inspect setup', 'Control flame'],
@@ -225,6 +227,8 @@ describe('badge creation API', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           title: 'Burner lesson',
+          videoUrl: 'https://www.youtube.com/shorts/abc123def45',
+          thumbnailUrl: 'https://i.ytimg.com/vi/abc123def45/hqdefault.jpg',
         }),
       })
     );
@@ -465,5 +469,75 @@ describe('badge creation API', () => {
     expect(mockPrisma.__tx.lessonSkill.createMany).toHaveBeenCalledWith({
       data: [{ lessonId: 'lesson-1', sortOrder: 0, text: 'Updated skill' }],
     });
+  });
+
+  it('syncs edited checkpoint questions into lesson question rows', async () => {
+    const response = await patchBadge({
+      id: 'badge-1',
+      badgeName: 'Updated Badge',
+      badgeDescription: 'Updated description',
+      category: 'SAFETY',
+      checkpoints: [
+        {
+          title: 'Checkpoint 1',
+          time: '00:02:00',
+          questions: [
+            {
+              question: 'First question?',
+              questionType: 'multipleChoice',
+              options: ['One', 'Two'],
+              correctIndices: [0],
+            },
+            {
+              question: 'Second question?',
+              questionType: 'multipleChoice',
+              options: ['Red', 'Blue'],
+              correctIndices: [1],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockPrisma.__tx.lessonCheckpoint.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          lessonId_sortOrder: {
+            lessonId: 'lesson-1',
+            sortOrder: 0,
+          },
+        },
+        create: expect.objectContaining({
+          questionCount: 2,
+          meta: '2 questions',
+        }),
+        update: expect.objectContaining({
+          questionCount: 2,
+          meta: '2 questions',
+        }),
+      })
+    );
+    expect(mockPrisma.__tx.checkpointQuestion.upsert).toHaveBeenCalledTimes(2);
+    expect(mockPrisma.__tx.checkpointQuestion.upsert).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: {
+          checkpointId_sortOrder: {
+            checkpointId: 'checkpoint-1',
+            sortOrder: 1,
+          },
+        },
+        create: expect.objectContaining({
+          prompt: 'Second question?',
+          options: {
+            type: 'multipleChoice',
+            options: ['Red', 'Blue'],
+            correctIndices: [1],
+          },
+          correctIndex: 1,
+        }),
+      })
+    );
   });
 });

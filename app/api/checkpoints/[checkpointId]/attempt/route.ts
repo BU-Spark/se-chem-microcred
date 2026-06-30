@@ -16,6 +16,7 @@ interface AttemptRequestBody {
   answers?: Array<{
     questionId: string;
     selectedIndex: number | null;
+    selectedIndices?: number[] | null;
     numericAnswer?: number | string | null;
   }>;
 }
@@ -30,7 +31,21 @@ function evaluateAttempt(answers: AttemptRequestBody['answers'], questions: Norm
   return questions.map((question) => {
     const answer = answers?.find((item) => item.questionId === question.id);
     const selectedIndex = typeof answer?.selectedIndex === 'number' ? answer.selectedIndex : null;
+    const selectedIndices = Array.isArray(answer?.selectedIndices)
+      ? Array.from(
+          new Set(
+            answer.selectedIndices
+              .map((index) => Number(index))
+              .filter((index) => Number.isInteger(index) && index >= 0)
+          )
+        ).sort((left, right) => left - right)
+      : selectedIndex !== null
+        ? [selectedIndex]
+        : [];
     const numericAnswer = parseNumericAnswer(answer?.numericAnswer);
+    const isExactMultipleChoiceAnswer =
+      selectedIndices.length === question.correctIndices.length &&
+      question.correctIndices.every((correctIndex, index) => selectedIndices[index] === correctIndex);
 
     const isCorrect =
       question.type === 'shortAnswer'
@@ -38,15 +53,17 @@ function evaluateAttempt(answers: AttemptRequestBody['answers'], questions: Norm
           (isAnswerWithinAcceptedRange(question.acceptedRange, numericAnswer) ||
             (question.expectedAnswer != null &&
               isAnswerWithinTolerance(question.expectedAnswer, numericAnswer, question.tolerancePercent)))
-        : selectedIndex !== null && question.correctIndices.includes(selectedIndex);
+        : isExactMultipleChoiceAnswer;
     return {
       questionId: question.id,
       prompt: question.prompt,
       options: question.options,
       type: question.type,
-      selectedIndex: question.type === 'multipleChoice' ? selectedIndex : null,
+      selectedIndex: question.type === 'multipleChoice' ? (selectedIndices[0] ?? null) : null,
+      selectedIndices: question.type === 'multipleChoice' ? selectedIndices : [],
       numericAnswer: question.type === 'shortAnswer' ? numericAnswer : null,
       correctIndex: question.correctIndex ?? null,
+      correctIndices: question.correctIndices,
       expectedAnswer: question.expectedAnswer ?? null,
       tolerancePercent: question.tolerancePercent,
       acceptedRange: question.acceptedRange,
