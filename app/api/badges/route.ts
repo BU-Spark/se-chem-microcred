@@ -679,16 +679,17 @@ export async function PATCH(req: NextRequest) {
         },
       });
 
-      // Keep the per-badge content window consistent across the source badge
-      // and all its course copies (availability is shared, not per-copy).
+      // Keep the badge's shared fields consistent across the source badge and
+      // all its course copies — a badge can never have "two versions", so an
+      // edit to any family member must propagate to every other member
+      // regardless of which user created that particular course copy.
       const familyRootId = badge.sourceBadgeId ?? badge.id;
       await tx.badge.updateMany({
         where: {
           OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
           NOT: { id: badge.id },
-          createdById: editor.id,
         },
-        data: { availableOn, closesOn, neverCloses },
+        data: { name: badgeName, description: badgeDescription, category, availableOn, closesOn, neverCloses },
       });
 
       const firstRequirement = await tx.badgeRequirement.findFirst({
@@ -732,11 +733,12 @@ export async function PATCH(req: NextRequest) {
 
       // Sync the rest of the badge family's requirement summaries so course
       // copies don't keep a stale rubric/skills after a source-badge edit.
+      // Not scoped to editor.id: a course copy can be owned by a different
+      // instructor than whoever created (or is editing) the source badge.
       const otherFamilyBadges = await tx.badge.findMany({
         where: {
           OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
           NOT: { id: badge.id },
-          createdById: editor.id,
         },
         select: { id: true },
       });

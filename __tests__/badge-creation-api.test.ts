@@ -439,6 +439,19 @@ describe('badge creation API', () => {
         }),
       })
     );
+    expect(mockPrisma.__tx.badge.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [{ id: 'badge-1' }, { sourceBadgeId: 'badge-1' }],
+          NOT: { id: 'badge-1' },
+        },
+        data: expect.objectContaining({
+          name: 'Updated Badge',
+          description: 'Updated description',
+          category: 'SAFETY',
+        }),
+      })
+    );
     expect(mockPrisma.__tx.badgeRequirement.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'requirement-1' },
@@ -469,6 +482,43 @@ describe('badge creation API', () => {
     expect(mockPrisma.__tx.lessonSkill.createMany).toHaveBeenCalledWith({
       data: [{ lessonId: 'lesson-1', sortOrder: 0, text: 'Updated skill' }],
     });
+  });
+
+  it('syncs a course copy owned by a different instructor when the source badge is edited', async () => {
+    // badge-1 is the source badge being edited; course-copy-1 is a copy of it
+    // imported into another instructor's course (createdById differs from the editor).
+    mockPrisma.__tx.badge.findMany.mockResolvedValue([{ id: 'course-copy-1' }]);
+    mockPrisma.__tx.badgeRequirement.findMany.mockResolvedValue([{ lessonId: 'lesson-1' }, { lessonId: 'lesson-2' }]);
+
+    const response = await patchBadge({
+      id: 'badge-1',
+      badgeName: 'Updated Badge',
+      badgeDescription: 'Updated description',
+      category: 'SAFETY',
+    });
+
+    expect(response.status).toBe(200);
+    expect(mockPrisma.__tx.badge.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [{ id: 'badge-1' }, { sourceBadgeId: 'badge-1' }],
+          NOT: { id: 'badge-1' },
+        },
+      })
+    );
+    expect(mockPrisma.__tx.badge.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          OR: [{ id: 'badge-1' }, { sourceBadgeId: 'badge-1' }],
+          NOT: { id: 'badge-1' },
+        },
+      })
+    );
+    expect(mockPrisma.__tx.badgeRequirement.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { badgeId: { in: ['course-copy-1'] } },
+      })
+    );
   });
 
   it('syncs edited checkpoint questions into lesson question rows', async () => {
