@@ -296,17 +296,19 @@
   inset: 9px;
   border-radius: 999px;
   background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
 }
 
 /* Keep the number and % baseline-aligned as one group, then center the group
    in both axes so the value sits dead-center in the ring. */
 .ringValueGroup {
   display: inline-flex;
+  gap: 0.05em;
   align-items: baseline;
+  justify-content: center;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .ringValue {

@@ -28,6 +28,7 @@ type CourseContact = {
 type EnrollmentSummary = {
   id: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
+  status: 'PENDING' | 'ACTIVE';
   sections: string[];
   student: {
     id: string;
@@ -397,7 +398,13 @@ export default function CreatedCourseDetailPage() {
     [course]
   );
 
-  const checkers = useMemo(() => course?.contacts.filter((contact) => contact.type === 'CHECKER') ?? [], [course]);
+  const checkers = useMemo(
+    () =>
+      course?.enrollments
+        .filter((enrollment) => enrollment.role === 'CHECKER' && enrollment.status === 'ACTIVE')
+        .map((enrollment) => enrollment.student) ?? [],
+    [course]
+  );
 
   const assignedBadges = useMemo<AssignedBadge[]>(() => {
     if (!course) return [];
@@ -630,12 +637,7 @@ export default function CreatedCourseDetailPage() {
                   {checkers.length > 0 ? (
                     <div className={styles.checkerList}>
                       {checkers.map((checker) => (
-                        <PersonCard
-                          key={checker.id}
-                          name={checker.name}
-                          email={checker.email}
-                          avatarSrc={avatarFor(checker.avatarBase)}
-                        />
+                        <PersonCard key={checker.id} name={checker.name} email={checker.email} />
                       ))}
                     </div>
                   ) : (

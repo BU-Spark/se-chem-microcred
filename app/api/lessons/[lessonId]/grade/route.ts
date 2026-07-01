@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
+import { BadgeStatus, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../../lib/prisma';
 import { computeLessonGrade } from '../../../../../lib/lessonGrading';
@@ -114,6 +114,19 @@ export async function POST(_request: Request, context: RouteContext) {
           startedAt: null,
           completedAt: null,
         },
+      });
+
+      await tx.studentBadge.updateMany({
+        where: {
+          studentId: user.id,
+          status: BadgeStatus.READY_FOR_ASSESSMENT,
+          badge: {
+            requirements: {
+              some: { lessonId },
+            },
+          },
+        },
+        data: { status: BadgeStatus.LEARNING },
       });
     }
 

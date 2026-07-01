@@ -4,10 +4,17 @@ import { NextResponse } from 'next/server';
 import { POST } from '../app/api/lessons/[lessonId]/survey/route';
 
 const badgeState = { status: 'LEARNING' as 'LEARNING' | 'READY_FOR_ASSESSMENT' };
+const gradeState = { lastGradePassed: true as boolean | null };
 const updateSpy = jest.fn();
 
 jest.mock('../lib/prisma', () => {
-  const lessonProgress = { id: 'lp-1', status: 'IN_PROGRESS', percentComplete: 0, completedAt: null };
+  const lessonProgress = {
+    id: 'lp-1',
+    status: 'IN_PROGRESS',
+    percentComplete: 0,
+    completedAt: null as Date | null,
+    lastGradePassed: true as boolean | null,
+  };
   let txChain: Promise<unknown> = Promise.resolve();
   return {
     __esModule: true,
@@ -21,9 +28,14 @@ jest.mock('../lib/prisma', () => {
               create: jest.fn(),
             },
             lessonProgress: {
-              findMany: jest
-                .fn()
-                .mockResolvedValue([{ lessonId: 'lesson-1', status: 'COMPLETED', percentComplete: 100 }]),
+              findMany: jest.fn().mockImplementation(async () => [
+                {
+                  lessonId: 'lesson-1',
+                  status: 'COMPLETED',
+                  percentComplete: 100,
+                  lastGradePassed: gradeState.lastGradePassed,
+                },
+              ]),
               upsert: jest
                 .fn()
                 .mockImplementation(
@@ -102,6 +114,7 @@ const buildRequest = (body: unknown) =>
 describe('Lesson survey badge promotion concurrency', () => {
   beforeEach(() => {
     badgeState.status = 'LEARNING';
+    gradeState.lastGradePassed = true;
     updateSpy.mockClear();
   });
 
@@ -116,5 +129,17 @@ describe('Lesson survey badge promotion concurrency', () => {
     expect(res2).toBeInstanceOf(NextResponse);
     expect(updateSpy).toHaveBeenCalledTimes(1);
     expect(badgeState.status).toBe('READY_FOR_ASSESSMENT');
+  });
+
+  it('does not promote when the latest QEV grade did not pass', async () => {
+    gradeState.lastGradePassed = false;
+
+    const response = await POST(buildRequest({ email: 'student@example.edu', rating: 5, videoCompleted: true }), {
+      params: Promise.resolve({ lessonId: 'lesson-1' }),
+    });
+
+    expect(response).toBeInstanceOf(NextResponse);
+    expect(updateSpy).not.toHaveBeenCalled();
+    expect(badgeState.status).toBe('LEARNING');
   });
 });

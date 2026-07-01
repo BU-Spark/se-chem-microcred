@@ -25,7 +25,7 @@ async function isBadgeReadyForAssessment(tx: BadgeProgressClient, studentId: str
   const [lessonProgresses, lessonSurveyPrompts] = await Promise.all([
     tx.lessonProgress.findMany({
       where: { studentId, lessonId: { in: requirementLessonIds } },
-      select: { lessonId: true, status: true, percentComplete: true },
+      select: { lessonId: true, status: true, percentComplete: true, lastGradePassed: true },
     }),
     tx.surveyPrompt.findMany({
       where: {
@@ -61,7 +61,7 @@ async function isBadgeReadyForAssessment(tx: BadgeProgressClient, studentId: str
     const progress = progressByLessonId.get(lessonId);
     const lessonComplete = progress?.status === LessonStatus.COMPLETED || (progress?.percentComplete ?? 0) >= 100;
 
-    if (!lessonComplete) {
+    if (!lessonComplete || progress?.lastGradePassed !== true) {
       return false;
     }
 
