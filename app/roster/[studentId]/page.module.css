@@ -501,10 +501,12 @@
   position: absolute;
   inset: 0;
   display: flex;
+  gap: 0.05em;
   align-items: center;
   justify-content: center;
   font-family: 'Lato', 'Open Sans', Arial, sans-serif;
   color: #2e6aa9;
+  line-height: 1;
 }
 
 .progressRingNumber {
@@ -517,8 +519,6 @@
   font-size: 1.5rem;
   font-weight: 700;
   line-height: 1;
-  align-self: flex-start;
-  margin-top: 0.55rem;
 }
 
 .progressSummaryCaption {
