@@ -33,6 +33,12 @@ type SelectedAnswerState =
   | { kind: 'multipleChoice'; selectedIndices: number[] }
   | { kind: 'shortAnswer'; raw: string; value: number | null; hasError: boolean };
 
+export function getMultiAnswerSelectionCount(
+  question?: LessonRecord['checkpoints'][number]['questions'][number] | null
+) {
+  return question?.type === 'multipleChoice' ? (question.correctIndices ?? []).length : 0;
+}
+
 type YouTubePlayer = {
   playVideo(): void;
   pauseVideo(): void;
@@ -1213,6 +1219,7 @@ export function LessonVideoPage({
     totalCheckpointQuestions > 0 ? (currentCheckpointQuestions[activeQuestionIndex] ?? null) : null;
   const currentAnswer = currentQuestion ? (selectedAnswers[currentQuestion.id] ?? null) : null;
   const currentShortAnswerValue = currentAnswer?.kind === 'shortAnswer' ? currentAnswer.raw : '';
+  const multiAnswerSelectionCount = getMultiAnswerSelectionCount(currentQuestion);
   const canAdvance = currentQuestion
     ? (() => {
         const selection = selectedAnswers[currentQuestion.id];
@@ -1467,13 +1474,18 @@ export function LessonVideoPage({
                         <h2 className={styles.modalTitle}>{currentCheckpoint.title}</h2>
                         <p className={styles.modalDescription}>Answer each question to continue.</p>
                         <div className={styles.questionList}>
-                          <div style={{ fontWeight: 600, marginBottom: '0.35rem' }}>
-                            Question {activeQuestionIndex + 1} of {totalCheckpointQuestions}
+                          <div className={styles.questionHeading}>
+                            <span>
+                              Question {activeQuestionIndex + 1} of {totalCheckpointQuestions}
+                            </span>
+                            {multiAnswerSelectionCount > 1 ? (
+                              <span className={styles.multiAnswerHint}>Select {multiAnswerSelectionCount} answers</span>
+                            ) : null}
                           </div>
-                          <p style={{ marginBottom: '0.75rem', color: '#1f2937', fontWeight: 500 }}>
+                          <p className={styles.questionPrompt}>
                             {currentQuestion.prompt ?? 'Choose the correct answer.'}
                           </p>
-                          <div style={{ display: 'grid', gap: '0.5rem' }}>
+                          <div className={styles.answerOptions}>
                             {currentQuestion.type === 'multipleChoice' ? (
                               (Array.isArray(currentQuestion.options) ? currentQuestion.options : []).map(
                                 (option, optionIndex) => {

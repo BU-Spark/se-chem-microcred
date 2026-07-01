@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '@/lib/badgeProgress';
+import { getPublicOrigin } from '@/lib/requestOrigin';
 import prisma from '../../../lib/prisma';
 
 const RATE_LIMIT_WINDOW_MS = 60_000;
@@ -80,8 +81,9 @@ function parseAssessmentQrUrl(raw: string | null, request: Request): StudentBadg
   if (!raw) return null;
 
   try {
-    const url = new URL(raw, request.url);
-    if (url.origin !== new URL(request.url).origin || url.pathname !== '/qr/assessment') {
+    const publicOrigin = getPublicOrigin(request);
+    const url = new URL(raw, publicOrigin);
+    if (url.origin !== publicOrigin || url.pathname !== '/qr/assessment') {
       return null;
     }
 

@@ -287,23 +287,6 @@
   word-break: break-word;
 }
 
-.cardStubAction {
-  margin-top: auto;
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 0.5rem;
-}
-
-.editStub {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35rem;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 0.9rem;
-  font-style: italic;
-  color: #818181;
-}
-
 .badgesCard {
   padding: 1.25rem 1.8rem 1.1rem;
 }

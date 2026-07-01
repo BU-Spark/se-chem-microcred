@@ -98,6 +98,23 @@ describe('QR API', () => {
     });
   });
 
+  it('allows production assessment URLs when the server receives an internal proxy host', async () => {
+    const assessmentUrl = `https://spark-microcred-production.up.railway.app/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`;
+    const request = new Request(`http://localhost:8080/api/qr?data=${encodeURIComponent(assessmentUrl)}&size=180`, {
+      headers: {
+        host: 'localhost:8080',
+        'x-forwarded-host': 'spark-microcred-production.up.railway.app',
+        'x-forwarded-proto': 'https',
+        'x-forwarded-for': '127.0.0.3',
+      },
+    });
+
+    const res = expectResponse(await GET(request));
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/png');
+  });
+
   it('rejects assessment QR generation when the badge is not ready for assessment', async () => {
     mockPrisma.studentBadge.findUnique.mockResolvedValue({ id: 'student-badge-1', status: 'LEARNING' });
     const assessmentUrl = `http://localhost/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`;
