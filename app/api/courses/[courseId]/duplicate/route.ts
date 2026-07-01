@@ -12,9 +12,10 @@ function normalizeEmail(email?: string | null) {
 
 /**
  * Deep-copies a course the caller owns into a brand-new course owned by the caller.
- * Copies structure (settings, contacts, lessons + segments/checkpoints/questions/skills,
+ * Copies structure (settings, lessons + segments/checkpoints/questions/skills,
  * badges + requirements, survey prompts) but resets all state: no student/checker
- * enrollments, no progress, no attempts, no StudentBadges, no survey responses.
+ * enrollments, no checker contacts, no progress, no attempts, no StudentBadges,
+ * no survey responses.
  */
 export async function POST(_req: NextRequest, context: { params: Promise<{ courseId: string }> }) {
   try {
@@ -45,7 +46,6 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
           where: { id: courseId, createdById: creator.id },
           include: {
             settings: true,
-            contacts: true,
             lessons: {
               orderBy: { sortOrder: 'asc' },
               include: {
@@ -98,18 +98,6 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
             role: CourseRole.INSTRUCTOR,
           },
         });
-
-        if (source.contacts.length > 0) {
-          await tx.courseContact.createMany({
-            data: source.contacts.map((contact) => ({
-              courseId: newCourse.id,
-              type: contact.type,
-              name: contact.name,
-              email: contact.email,
-              avatarUrl: contact.avatarUrl,
-            })),
-          });
-        }
 
         // ---------------------------------------------------------------------
         // Deep-copy is rewritten to batch every entity type with createMany +

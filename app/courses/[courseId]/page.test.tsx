@@ -89,17 +89,10 @@ describe('Created course detail page', () => {
           },
           contacts: [
             {
-              id: 'checker-1',
+              id: 'stale-checker-contact',
               type: 'CHECKER',
-              name: 'Checker One',
-              email: 'checker1@bu.edu',
-              avatarUrl: null,
-            },
-            {
-              id: 'checker-2',
-              type: 'CHECKER',
-              name: 'Checker Two',
-              email: 'checker2@bu.edu',
+              name: 'David Xiao',
+              email: 'david.xiao@example.edu',
               avatarUrl: null,
             },
           ],
@@ -107,6 +100,7 @@ describe('Created course detail page', () => {
             {
               id: 'enrollment-1',
               role: 'INSTRUCTOR',
+              status: 'ACTIVE',
               sections: [],
               student: {
                 id: 'user-1',
@@ -118,6 +112,7 @@ describe('Created course detail page', () => {
             {
               id: 'enrollment-2',
               role: 'STUDENT',
+              status: 'ACTIVE',
               sections: ['1'],
               student: {
                 id: 'student-1',
@@ -129,12 +124,37 @@ describe('Created course detail page', () => {
             {
               id: 'enrollment-3',
               role: 'STUDENT',
+              status: 'ACTIVE',
               sections: ['2'],
               student: {
                 id: 'student-2',
                 name: 'Student Two',
                 email: 'student2@bu.edu',
                 buid: 'U3456789',
+              },
+            },
+            {
+              id: 'enrollment-4',
+              role: 'CHECKER',
+              status: 'ACTIVE',
+              sections: ['1'],
+              student: {
+                id: 'checker-1',
+                name: 'Checker One',
+                email: 'checker1@bu.edu',
+                buid: 'U4567890',
+              },
+            },
+            {
+              id: 'enrollment-5',
+              role: 'CHECKER',
+              status: 'ACTIVE',
+              sections: ['2'],
+              student: {
+                id: 'checker-2',
+                name: 'Checker Two',
+                email: 'checker2@bu.edu',
+                buid: 'U5678901',
               },
             },
           ],
@@ -213,6 +233,7 @@ describe('Created course detail page', () => {
     expect(screen.getByText('CHEM101')).toBeInTheDocument();
     expect(screen.getByText('One, Checker')).toBeInTheDocument();
     expect(screen.getByText('Two, Checker')).toBeInTheDocument();
+    expect(screen.queryByText('Xiao, David')).not.toBeInTheDocument();
     expect(screen.getByText('Assigned Badges')).toBeInTheDocument();
     expect(screen.getByText('Waste Handling')).toBeInTheDocument();
     expect(screen.getByText('Bunsen Burners')).toBeInTheDocument();
