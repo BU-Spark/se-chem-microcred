@@ -231,9 +231,11 @@ export default function BadgeWalletPage() {
     }
   };
 
-  // Bring a card to the front of the stack (no expand toggle).
+  // Credit-card-wallet behaviour: clicking a card raises it to the front AND
+  // opens its badge grid (chevron rotates down). The chevron still toggles closed.
   const handleCardActivate = (status: BadgeStatus) => {
     setFrontSection(status);
+    setOpenSection(status);
     setActiveBadgeId(null);
   };
 
@@ -397,7 +399,9 @@ export default function BadgeWalletPage() {
                     ) {
                       return;
                     }
-                    if (!isFront) handleCardActivate(section.status);
+                    // Raise + open on any card-chrome click (reopens a front card
+                    // the user had collapsed via the chevron).
+                    handleCardActivate(section.status);
                   }}
                 >
                   <div className={styles.sectionHeader}>
