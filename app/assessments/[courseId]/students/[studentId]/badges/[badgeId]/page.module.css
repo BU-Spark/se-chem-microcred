@@ -5,6 +5,23 @@
   font-family: 'Open Sans', sans-serif;
 }
 
+.topBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  border: none;
+  padding: 0;
+  margin: 0 0 1.25rem;
+  background: transparent;
+  color: #161616;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.98rem;
+  text-decoration: underline;
+  text-underline-offset: 0.35rem;
+  cursor: pointer;
+}
+
 .clearanceRow {
   display: inline-flex;
   align-items: center;

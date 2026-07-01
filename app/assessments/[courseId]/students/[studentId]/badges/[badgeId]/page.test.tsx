@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import AssessmentReadinessPage from './page';
 
 const mockReplace = jest.fn();
+const mockPush = jest.fn();
+const mockBack = jest.fn();
 const mockUseParams = jest.fn();
 const mockUsePathname = jest.fn();
 const mockUseUser = jest.fn();
@@ -10,7 +12,7 @@ const mockUseAuth = jest.fn();
 const mockFetch = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  useRouter: () => ({ replace: mockReplace }),
+  useRouter: () => ({ replace: mockReplace, push: mockPush, back: mockBack }),
   useParams: () => mockUseParams(),
   usePathname: () => mockUsePathname(),
 }));
@@ -161,5 +163,44 @@ describe('Assessment readiness page', () => {
     });
 
     expect(await screen.findByText('Assessment recorded. Badge is ready for finalization.')).toBeInTheDocument();
+    expect(mockPush).toHaveBeenCalledWith('/courses/course-1?view=assessor');
+  });
+
+  it('disables the assessment action once the badge has already been assessed', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return {
+          ok: true,
+          json: async () => createProfilePayload(),
+        } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return {
+          ok: true,
+          json: async () => ({
+            ...createBadgePayload(),
+            badge: {
+              ...createBadgePayload().badge,
+              status: 'READY_FOR_FINALIZATION',
+            },
+            progress: {
+              ...createBadgePayload().progress,
+              assessmentComplete: true,
+            },
+          }),
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    const action = await screen.findByRole('button', { name: 'Assessment complete' });
+    expect(action).toBeDisabled();
+    expect(screen.queryByRole('heading', { name: 'Assessor Grading' })).not.toBeInTheDocument();
   });
 });

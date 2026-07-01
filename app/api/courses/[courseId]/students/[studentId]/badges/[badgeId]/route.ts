@@ -730,6 +730,10 @@ export async function POST(
       return NextResponse.json({ error: 'Student has not completed the badge precheck.' }, { status: 409 });
     }
 
+    if (badgeProgress.status !== BadgeStatus.READY_FOR_ASSESSMENT) {
+      return NextResponse.json({ error: 'This badge has already been assessed.' }, { status: 409 });
+    }
+
     const completedAt = new Date();
     const nextStatus = body.passed ? BadgeStatus.READY_FOR_FINALIZATION : BadgeStatus.LEARNING;
 

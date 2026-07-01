@@ -232,12 +232,7 @@ export default function AssessmentReadinessPage() {
   const studentId = resolveParam(params?.studentId);
   const badgeId = resolveParam(params?.badgeId);
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
-  const { profile, badgeDetail, isLoading, error, refresh } = useAssessmentReadiness(
-    courseId,
-    studentId,
-    badgeId,
-    email
-  );
+  const { profile, badgeDetail, isLoading, error } = useAssessmentReadiness(courseId, studentId, badgeId, email);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
@@ -278,6 +273,8 @@ export default function AssessmentReadinessPage() {
   const instructor = profile?.course.createdBy ?? null;
   const sideContact = profile?.contacts.find((contact) => contact.type === 'INSTRUCTOR') ?? instructor;
   const canStartAssessment = badgeDetail?.progress.precheckComplete === true;
+  const assessmentComplete = badgeDetail?.progress.assessmentComplete === true;
+  const canStartNewAssessment = canStartAssessment && !assessmentComplete;
   const assessmentStatus = badgeDetail?.progress.assessmentComplete ? 'Complete' : 'Incomplete';
   const currentStep = badgeDetail?.progress.currentCheckpoint || (canStartAssessment ? 'Assessment' : 'Precheck');
   const displayName = user?.fullName || profile?.course.createdBy?.name || '';
@@ -365,9 +362,9 @@ export default function AssessmentReadinessPage() {
         throw new Error(payload.error ?? 'Unable to record assessment.');
       }
 
-      await refresh();
       setSubmitStatus(passed ? 'Assessment recorded. Badge is ready for finalization.' : 'Assessment recorded.');
       setIsAssessmentStarted(false);
+      router.push(`/courses/${courseId}?view=assessor`);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to record assessment.');
     } finally {
@@ -385,6 +382,10 @@ export default function AssessmentReadinessPage() {
 
       <main className={rosterStyles.main}>
         <div className={rosterStyles.content}>
+          <button type="button" className={styles.topBackLink} onClick={handleBack}>
+            <span aria-hidden="true">←</span> Back
+          </button>
+
           <header className={rosterStyles.header}>
             <h1 className={rosterStyles.pageTitle}>{badgeDetail?.badge.name ?? 'Assessment'}</h1>
           </header>
@@ -524,7 +525,7 @@ export default function AssessmentReadinessPage() {
                     </div>
                   ) : null}
 
-                  {canStartAssessment && isAssessmentStarted ? (
+                  {canStartNewAssessment && isAssessmentStarted ? (
                     <div className={styles.assessmentPanel}>
                       <div className={styles.assessmentPanelHeader}>
                         <h2>Assessor Grading</h2>
@@ -632,7 +633,7 @@ export default function AssessmentReadinessPage() {
                 <button
                   type="button"
                   className={styles.primaryButton}
-                  disabled={!canStartAssessment || isSubmitting}
+                  disabled={!canStartNewAssessment || isSubmitting}
                   onClick={() => {
                     if (!isAssessmentStarted) {
                       setIsAssessmentStarted(true);
@@ -642,7 +643,13 @@ export default function AssessmentReadinessPage() {
                     void submitAssessment();
                   }}
                 >
-                  {isAssessmentStarted ? (isSubmitting ? 'Recording...' : 'Submit Assessment') : 'Confirm and Start'}
+                  {assessmentComplete
+                    ? 'Assessment complete'
+                    : isAssessmentStarted
+                      ? isSubmitting
+                        ? 'Recording...'
+                        : 'Submit Assessment'
+                      : 'Confirm and Start'}
                 </button>
               </div>
             </>
