@@ -178,11 +178,12 @@ export default function BadgeWalletPage() {
   const activeBadge = allBadges.find((b) => b.id === activeBadgeId) ?? null;
 
   const qrAssessmentUrl = qrBadge
-    ? buildAssessmentQrUrl(studentData?.course?.id, studentData?.student.id, qrBadge.id)
+    ? buildAssessmentQrUrl(qrBadge.courseId ?? studentData?.course?.id, studentData?.student.id, qrBadge.id)
     : null;
+  const qrCourseId = qrBadge?.courseId ?? studentData?.course?.id ?? null;
 
   useEffect(() => {
-    if (!qrBadge || !studentData?.course?.id) {
+    if (!qrBadge || !qrCourseId) {
       setAssessmentCode(null);
       setAssessmentCodeError(null);
       return;
@@ -195,7 +196,7 @@ export default function BadgeWalletPage() {
     fetch('/api/assessment-codes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ courseId: studentData.course.id, badgeId: qrBadge.id }),
+      body: JSON.stringify({ courseId: qrCourseId, badgeId: qrBadge.id }),
     })
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
@@ -215,7 +216,7 @@ export default function BadgeWalletPage() {
     return () => {
       isCancelled = true;
     };
-  }, [qrBadge, studentData?.course?.id]);
+  }, [qrBadge, qrCourseId]);
 
   if (!isLoaded || !isSignedIn) return null;
 

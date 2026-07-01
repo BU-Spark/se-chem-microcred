@@ -83,7 +83,9 @@ function parseAssessmentQrUrl(raw: string | null, request: Request): StudentBadg
   try {
     const publicOrigin = getPublicOrigin(request);
     const url = new URL(raw, publicOrigin);
-    if (url.origin !== publicOrigin || url.pathname !== '/qr/assessment') {
+    const requestOrigin = new URL(request.url).origin;
+    const allowedOrigins = new Set([publicOrigin, requestOrigin]);
+    if (url.pathname !== '/qr/assessment' || !allowedOrigins.has(url.origin)) {
       return null;
     }
 
@@ -99,6 +101,16 @@ function parseAssessmentQrUrl(raw: string | null, request: Request): StudentBadg
   } catch {
     return null;
   }
+}
+
+function buildAssessmentQrData(payload: StudentBadgePayload, request: Request) {
+  if (!payload.courseId) return null;
+
+  const url = new URL('/qr/assessment', getPublicOrigin(request));
+  url.searchParams.set('courseId', payload.courseId);
+  url.searchParams.set('studentId', payload.studentId);
+  url.searchParams.set('badgeId', payload.badgeId);
+  return url.toString();
 }
 
 async function authorizeStudentBadge(payload: StudentBadgePayload) {
@@ -205,7 +217,7 @@ async function resolveRequestContext(request: Request) {
     return { response: authError };
   }
 
-  return { data: data as string, size };
+  return { data: buildAssessmentQrData(payload, request) ?? (data as string), size };
 }
 
 async function buildQrResponse(request: Request, includeBody: boolean) {

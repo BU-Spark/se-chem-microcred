@@ -94,6 +94,7 @@ function createStudentData() {
       readyForAssessment: [
         {
           id: 'badge-assess-1',
+          courseId: 'course-1',
           slug: 'assessment-badge',
           name: 'Assessment Badge',
           description: 'Needs in-person assessment',
@@ -138,6 +139,41 @@ describe('Badge Wallet QR modal', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ courseId: 'course-1', badgeId: 'badge-assess-1' }),
+      });
+    });
+  });
+
+  it('uses the badge-specific course id when the badge belongs to another enrollment', async () => {
+    const studentData = createStudentData();
+    studentData.badges.readyForAssessment[0] = {
+      ...studentData.badges.readyForAssessment[0],
+      courseId: 'course-2',
+    };
+    mockUseStudentData.mockReturnValue({
+      data: studentData,
+      isLoading: false,
+      error: null,
+      refresh: jest.fn(),
+    });
+
+    render(<BadgeWalletPage />);
+
+    const assessmentToggle = document.querySelector('button[aria-controls="assessment-badges"]') as HTMLButtonElement;
+    if (assessmentToggle.getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(assessmentToggle);
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: /Assessment/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Show Code/i }));
+
+    const qrImage = screen.getByAltText(/Assessment Badge QR code/i) as HTMLImageElement;
+    expect(qrImage.src).toContain('courseId%3Dcourse-2');
+    expect(qrImage.src).not.toContain('courseId%3Dcourse-1');
+    await waitFor(() => {
+      expect(global.fetch).toHaveBeenCalledWith('/api/assessment-codes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ courseId: 'course-2', badgeId: 'badge-assess-1' }),
       });
     });
   });

@@ -185,10 +185,6 @@ function formatTime(seconds: number | null | undefined) {
   return `${Math.floor(total / 60)}:${pad(total % 60)}`;
 }
 
-function mergeUniqueIds(...groups: string[][]) {
-  return Array.from(new Set(groups.flat()));
-}
-
 let youtubeApiPromise: Promise<YouTubeApi | null> | null = null;
 function loadYouTubeIframeApi() {
   if (typeof window === 'undefined') {
@@ -270,9 +266,12 @@ export function LessonVideoPage({
     () => [...lesson.checkpoints].sort((a, b) => a.timeOffsetSeconds - b.timeOffsetSeconds),
     [lesson.checkpoints]
   );
-  const initialCompletedIds = useMemo(() => lesson.completedCheckpointIds ?? [], [lesson.completedCheckpointIds]);
-  const initialEncounteredIds = useMemo(
-    () => mergeUniqueIds(lesson.completedCheckpointIds ?? [], lesson.answeredCheckpointIds ?? []),
+  // Checkpoints the student has already answered (whether they passed or not).
+  // Answering — right or wrong — retires a checkpoint: it won't be asked again
+  // and it counts toward reaching the end-of-lesson survey. Passing only affects
+  // the grade, which is computed server-side from the recorded attempts.
+  const initialAnsweredIds = useMemo(
+    () => Array.from(new Set([...(lesson.completedCheckpointIds ?? []), ...(lesson.answeredCheckpointIds ?? [])])),
     [lesson.answeredCheckpointIds, lesson.completedCheckpointIds]
   );
 
@@ -284,8 +283,7 @@ export function LessonVideoPage({
 
   const [modalState, setModalState] = useState<ModalState>('none');
   const [activeCheckpointId, setActiveCheckpointId] = useState<string | null>(null);
-  const [, setCompletedCheckpointIds] = useState<string[]>(initialCompletedIds);
-  const [encounteredCheckpointIds, setEncounteredCheckpointIds] = useState<string[]>(initialEncounteredIds);
+  const [answeredCheckpointIds, setAnsweredCheckpointIds] = useState<string[]>(initialAnsweredIds);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, SelectedAnswerState>>({});
   const [attemptSummary, setAttemptSummary] = useState<AttemptSummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -308,13 +306,10 @@ export function LessonVideoPage({
   const [assessmentCodeError, setAssessmentCodeError] = useState<string | null>(null);
 
   const suppressCheckpointIdRef = useRef<string | null>(null);
-  const scheduleCheckpointSuppression = useCallback((checkpointId: string, ms = 8000) => {
+  const suppressArmedRef = useRef(false);
+  const scheduleCheckpointSuppression = useCallback((checkpointId: string) => {
     suppressCheckpointIdRef.current = checkpointId;
-    window.setTimeout(() => {
-      if (suppressCheckpointIdRef.current === checkpointId) {
-        suppressCheckpointIdRef.current = null;
-      }
-    }, ms);
+    suppressArmedRef.current = false;
   }, []);
 
   const lastSeekRef = useRef<number | null>(resumeBaseTime);
@@ -376,12 +371,8 @@ export function LessonVideoPage({
   }, [lesson.id, studentEmail]);
 
   useEffect(() => {
-    setCompletedCheckpointIds(initialCompletedIds);
-  }, [initialCompletedIds]);
-
-  useEffect(() => {
-    setEncounteredCheckpointIds(initialEncounteredIds);
-  }, [initialEncounteredIds]);
+    setAnsweredCheckpointIds(initialAnsweredIds);
+  }, [initialAnsweredIds]);
 
   useEffect(() => {
     setFurthestTime(resumeBaseTime);
@@ -492,20 +483,20 @@ export function LessonVideoPage({
   }, [playerStatus]);
 
   const firstIncompleteCheckpoint = useMemo(
-    () => orderedCheckpoints.find((checkpoint) => !encounteredCheckpointIds.includes(checkpoint.id)) ?? null,
-    [orderedCheckpoints, encounteredCheckpointIds]
+    () => orderedCheckpoints.find((checkpoint) => !answeredCheckpointIds.includes(checkpoint.id)) ?? null,
+    [orderedCheckpoints, answeredCheckpointIds]
   );
 
-  const allCheckpointsEncountered = useMemo(
+  const allCheckpointsAnswered = useMemo(
     () =>
       orderedCheckpoints.length > 0 &&
-      orderedCheckpoints.every((checkpoint) => encounteredCheckpointIds.includes(checkpoint.id)),
-    [orderedCheckpoints, encounteredCheckpointIds]
+      orderedCheckpoints.every((checkpoint) => answeredCheckpointIds.includes(checkpoint.id)),
+    [orderedCheckpoints, answeredCheckpointIds]
   );
 
   const lessonReadyForSurvey = useMemo(
-    () => (orderedCheckpoints.length === 0 || allCheckpointsEncountered) && videoEnded,
-    [allCheckpointsEncountered, orderedCheckpoints.length, videoEnded]
+    () => (orderedCheckpoints.length === 0 || allCheckpointsAnswered) && videoEnded,
+    [allCheckpointsAnswered, orderedCheckpoints.length, videoEnded]
   );
 
   const currentCheckpoint = useMemo(() => {
@@ -562,7 +553,7 @@ export function LessonVideoPage({
 
   const timelineItems = useMemo(() => {
     return orderedCheckpoints.map((checkpoint, index) => {
-      const isCompleted = encounteredCheckpointIds.includes(checkpoint.id);
+      const isCompleted = answeredCheckpointIds.includes(checkpoint.id);
       const isActive =
         checkpoint.id === activeCheckpointId || (!isCompleted && firstIncompleteCheckpoint?.id === checkpoint.id);
       return {
@@ -572,7 +563,7 @@ export function LessonVideoPage({
         status: isCompleted ? 'completed' : isActive ? 'current' : 'pending',
       } as const;
     });
-  }, [orderedCheckpoints, encounteredCheckpointIds, activeCheckpointId, firstIncompleteCheckpoint, thumbnailCache]);
+  }, [orderedCheckpoints, answeredCheckpointIds, activeCheckpointId, firstIncompleteCheckpoint, thumbnailCache]);
 
   useEffect(() => {
     if (!primaryVideoUrl) {
@@ -649,7 +640,7 @@ export function LessonVideoPage({
       seekTo(checkpoint.timeOffsetSeconds, true, true);
 
       if (checkpoint.questions.length === 0) {
-        setCompletedCheckpointIds((prev) => (prev.includes(checkpoint.id) ? prev : [...prev, checkpoint.id]));
+        setAnsweredCheckpointIds((prev) => (prev.includes(checkpoint.id) ? prev : [...prev, checkpoint.id]));
         setActiveCheckpointId(null);
         setTimeout(() => {
           playerRef.current?.playVideo?.();
@@ -842,10 +833,26 @@ export function LessonVideoPage({
         }
 
         if (firstIncompleteCheckpoint && playing && modalState === 'none') {
-          if (suppressCheckpointIdRef.current === firstIncompleteCheckpoint.id) {
-            return;
-          }
           const trigger = firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD;
+          if (suppressCheckpointIdRef.current === firstIncompleteCheckpoint.id) {
+            // Suppression stays active until we observe playback actually land
+            // before the trigger point (proof the seek completed). Only then do
+            // we "arm" it so the next crossing re-opens the checkpoint. This is
+            // position-based rather than time-based so a short segment between
+            // the rewind point and the checkpoint can never be silently skipped.
+            if (!suppressArmedRef.current) {
+              if (time < trigger) {
+                suppressArmedRef.current = true;
+              }
+              return;
+            }
+            if (time >= trigger) {
+              suppressCheckpointIdRef.current = null;
+              suppressArmedRef.current = false;
+            } else {
+              return;
+            }
+          }
           if (time >= trigger) {
             updateFurthestTime(firstIncompleteCheckpoint.timeOffsetSeconds, true);
             seekTo(firstIncompleteCheckpoint.timeOffsetSeconds, true, true);
@@ -913,8 +920,7 @@ export function LessonVideoPage({
         setLessonAssessment(result);
       }
       gradingTriggeredRef.current = false;
-      setCompletedCheckpointIds([]);
-      setEncounteredCheckpointIds([]);
+      setAnsweredCheckpointIds([]);
       setSelectedAnswers({});
       setAttemptSummary(null);
       setActiveQuestionIndex(0);
@@ -982,7 +988,7 @@ export function LessonVideoPage({
       if (baseTime != null) {
         const targetTime = baseTime + resumeOffset;
         if (currentCheckpoint?.id) {
-          scheduleCheckpointSuppression(currentCheckpoint.id, 8000);
+          scheduleCheckpointSuppression(currentCheckpoint.id);
         }
         updateFurthestTime(targetTime, true);
         seekTo(targetTime, true, true);
@@ -1036,14 +1042,13 @@ export function LessonVideoPage({
       setAttemptSummary(payload);
 
       if (currentCheckpoint) {
-        scheduleCheckpointSuppression(currentCheckpoint.id, 120000);
+        scheduleCheckpointSuppression(currentCheckpoint.id);
       }
       const baseTime = currentCheckpoint.timeOffsetSeconds;
       lastCheckpointResumeRef.current = baseTime;
-      setCompletedCheckpointIds((prev) =>
-        prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
-      );
-      setEncounteredCheckpointIds((prev) =>
+      // Answering retires the checkpoint regardless of pass/fail — the student is
+      // not asked it again. Whether they passed only affects the server-side grade.
+      setAnsweredCheckpointIds((prev) =>
         prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
       );
       setModalState('result');
@@ -1097,7 +1102,7 @@ export function LessonVideoPage({
     setActiveQuestionIndex(0);
 
     if (currentCheckpoint && playerRef.current) {
-      scheduleCheckpointSuppression(currentCheckpoint.id, 8000);
+      scheduleCheckpointSuppression(currentCheckpoint.id);
       const rewindTime = getCheckpointStartTime(orderedCheckpoints, currentCheckpoint.id);
       seekTo(Math.max(rewindTime, 0), true);
       requestAnimationFrame(() => {
@@ -1293,8 +1298,7 @@ export function LessonVideoPage({
     }
     setFurthestTime(duration);
     furthestTimeRef.current = duration;
-    setCompletedCheckpointIds(orderedCheckpoints.map((cp) => cp.id));
-    setEncounteredCheckpointIds(orderedCheckpoints.map((cp) => cp.id));
+    setAnsweredCheckpointIds(orderedCheckpoints.map((cp) => cp.id));
     setActiveCheckpointId(null);
     setSelectedAnswers({});
     setAttemptSummary(null);
@@ -1366,7 +1370,7 @@ export function LessonVideoPage({
                   {duration > 0 &&
                     orderedCheckpoints.map((cp) => {
                       const leftPct = Math.min(100, Math.max(0, (cp.timeOffsetSeconds / duration) * 100));
-                      const done = encounteredCheckpointIds.includes(cp.id);
+                      const done = answeredCheckpointIds.includes(cp.id);
                       const curr = currentCheckpoint?.id === cp.id;
                       const cls = [styles.qevBreak, done ? styles.qevBreakDone : '', curr ? styles.qevBreakCurrent : '']
                         .filter(Boolean)
@@ -1567,7 +1571,11 @@ export function LessonVideoPage({
                     attemptSummary ? (
                       <>
                         <h2 className={styles.modalTitle}>Checkpoint summary</h2>
-                        <p className={styles.modalDescription}>Here’s how you did.</p>
+                        <p className={styles.modalDescription}>
+                          {attemptSummary.isPassing
+                            ? 'Nice work — you passed this checkpoint.'
+                            : 'Not quite. You can rewatch this section to review, or continue on.'}
+                        </p>
                         <ul className={styles.questionList}>
                           {attemptSummary.questions.map((question, index) => (
                             <li key={question.questionId}>
@@ -1579,13 +1587,15 @@ export function LessonVideoPage({
                           ))}
                         </ul>
                         <div className={styles.controlRow}>
-                          <button
-                            type="button"
-                            className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
-                            onClick={handleRewatch}
-                          >
-                            Rewatch section
-                          </button>
+                          {!attemptSummary.isPassing ? (
+                            <button
+                              type="button"
+                              className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
+                              onClick={handleRewatch}
+                            >
+                              Rewatch section
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             className={`${styles.controlButton} ${styles.controlButtonPrimary}`}
