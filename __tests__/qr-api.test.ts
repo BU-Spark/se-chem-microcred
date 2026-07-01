@@ -4,6 +4,7 @@ import { GET, HEAD } from '../app/api/qr/route';
 import { ensureCurrentUser } from '../app/api/courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../lib/badgeProgress';
 import prisma from '../lib/prisma';
+import QRCode from 'qrcode';
 
 jest.mock('../app/api/courses/lib/ensure-user', () => ({
   ensureCurrentUser: jest.fn(),
@@ -113,6 +114,34 @@ describe('QR API', () => {
 
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toBe('image/png');
+  });
+
+  it('rebuilds assessment QR data from the configured public app URL instead of the request payload origin', async () => {
+    const previousAppUrl = process.env.APP_URL;
+    process.env.APP_URL = 'https://spark-microcred-production.up.railway.app';
+    try {
+      const assessmentUrl = `http://localhost:8080/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`;
+      const request = new Request(`http://localhost:8080/api/qr?data=${encodeURIComponent(assessmentUrl)}&size=180`, {
+        headers: {
+          host: 'localhost:8080',
+          'x-forwarded-for': '127.0.0.4',
+        },
+      });
+
+      const res = expectResponse(await GET(request));
+
+      expect(res.status).toBe(200);
+      expect(QRCode.toBuffer).toHaveBeenCalledWith(
+        `https://spark-microcred-production.up.railway.app/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`,
+        expect.objectContaining({ width: 180 })
+      );
+    } finally {
+      if (previousAppUrl === undefined) {
+        delete process.env.APP_URL;
+      } else {
+        process.env.APP_URL = previousAppUrl;
+      }
+    }
   });
 
   it('rejects assessment QR generation when the badge is not ready for assessment', async () => {

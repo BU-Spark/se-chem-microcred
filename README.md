@@ -44,9 +44,11 @@ Use the provided Prisma/PostgreSQL connection string; you do **not** need to cre
      DATABASE_URL="<provided Prisma PostgreSQL URL>"
      CLERK_SECRET_KEY="sk_test_or_live_from_clerk"
      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_or_live_from_clerk"
+     NEXT_PUBLIC_APP_URL="https://spark-microcred-production.up.railway.app"
      SEEDED_DEMO_EMAIL="your-instructor-clerk-email@example.com"
      ```
    - To get Clerk keys, create a free Clerk project at https://clerk.com/ and copy the Secret and Publishable keys. The DATABASE_URL should be the shared Prisma connection string supplied for the course.
+   - `NEXT_PUBLIC_APP_URL` should be set in production so assessment QR codes and short-code redirects are built from the public app URL instead of an internal host such as `localhost:8080`. For local development, omit it or set it to your local app origin.
    - `SEEDED_DEMO_EMAIL` controls the CHEM101 instructor account.
 
 4) Apply the database schema and seed CHEM101 data (runs against the provided DATABASE_URL)  
@@ -137,7 +139,8 @@ All student pages share the sidebar nav (Home, Profile, My Analytics, Badge Wall
 ## Deployment
 
 - Deployment guidance is not finalized. Only the student-facing experience is complete; instructor-facing work is still in progress.
-- When deploying, target a managed Next.js host (e.g., Vercel/Render) and provide the same env vars as local: `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`.
+- When deploying to Railway, set `NEXT_PUBLIC_APP_URL` to the public production origin, for example `https://spark-microcred-production.up.railway.app`. This value is authoritative for assessment QR code generation and prevents generated assessment links from pointing at Railway's internal `localhost:8080` host.
+- When deploying, target a managed Next.js host (e.g., Railway/Vercel/Render) and provide the same env vars as local: `DATABASE_URL`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, and `NEXT_PUBLIC_APP_URL`.
 - Full production steps will be added once the complete experience is ready.
 
 ## Known Issues

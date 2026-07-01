@@ -7,17 +7,22 @@ function normalizeOrigin(value: string) {
   return new URL(withProtocol).origin;
 }
 
+export function getConfiguredPublicOrigin() {
+  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
+  return configuredOrigin ? normalizeOrigin(configuredOrigin) : null;
+}
+
 export function getPublicOrigin(request: Request) {
+  const configuredOrigin = getConfiguredPublicOrigin();
+  if (configuredOrigin) {
+    return configuredOrigin;
+  }
+
   const forwardedHost = firstHeaderValue(request.headers.get('x-forwarded-host'));
   const forwardedProto = firstHeaderValue(request.headers.get('x-forwarded-proto')) || 'https';
 
   if (forwardedHost) {
     return new URL(`${forwardedProto}://${forwardedHost}`).origin;
-  }
-
-  const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
-  if (configuredOrigin) {
-    return normalizeOrigin(configuredOrigin);
   }
 
   const host = request.headers.get('host')?.trim();

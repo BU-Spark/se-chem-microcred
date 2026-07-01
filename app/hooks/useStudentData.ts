@@ -145,6 +145,7 @@ export interface LessonRecord {
 
 export interface BadgeRecord {
   id: string;
+  courseId: string | null;
   slug: string;
   name: string;
   description: string | null;

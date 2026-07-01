@@ -70,12 +70,16 @@ function formatBadge(studentBadge: {
     requirements: Array<{
       lessonId: string | null;
       summary: string | null;
-      lesson: { slug: string; title: string } | null;
+      lesson: { courseId: string; slug: string; title: string } | null;
     }>;
   };
 }) {
+  const courseId = studentBadge.badge.requirements.find((requirement) => requirement.lesson?.courseId)?.lesson
+    ?.courseId;
+
   return {
     id: studentBadge.badge.id,
+    courseId: courseId ?? null,
     slug: studentBadge.badge.slug,
     name: studentBadge.badge.name,
     description: studentBadge.badge.description,
@@ -335,7 +339,7 @@ export async function GET(req: Request) {
             requirements: {
               include: {
                 lesson: {
-                  select: { slug: true, title: true },
+                  select: { courseId: true, slug: true, title: true },
                 },
               },
             },
@@ -405,7 +409,7 @@ export async function GET(req: Request) {
             requirements: {
               include: {
                 lesson: {
-                  select: { slug: true, title: true },
+                  select: { courseId: true, slug: true, title: true },
                 },
               },
             },
@@ -620,6 +624,7 @@ export async function GET(req: Request) {
     .filter((badge) => !studentBadgeIds.has(badge.id))
     .map((badge) => ({
       id: badge.id,
+      courseId: enrollment?.courseId ?? null,
       slug: badge.slug,
       name: badge.name,
       description: badge.description,
