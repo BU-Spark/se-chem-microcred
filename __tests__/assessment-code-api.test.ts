@@ -168,6 +168,31 @@ describe('Assessment access codes', () => {
     expect(mockPrisma.assessmentAccessCode.findUnique).toHaveBeenCalledWith({ where: { code: 'ABCD2345' } });
   });
 
+  it('uses forwarded production host when redirecting typed codes', async () => {
+    mockPrisma.assessmentAccessCode.findUnique.mockResolvedValue({
+      id: 'access-code-1',
+      code: 'ABCD2345',
+      courseId: 'course-1',
+      studentId: 'student-1',
+      badgeId: 'badge-1',
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+
+    const response = await GET(
+      new Request('http://localhost/qr/assessment-code?code=abcd-2345', {
+        headers: {
+          'x-forwarded-host': 'spark-microcred-production.up.railway.app',
+          'x-forwarded-proto': 'https',
+        },
+      })
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'https://spark-microcred-production.up.railway.app/qr/assessment?courseId=course-1&studentId=student-1&badgeId=badge-1'
+    );
+  });
+
   it('redirects expired typed codes to the home notice', async () => {
     mockPrisma.assessmentAccessCode.findUnique.mockResolvedValue({
       id: 'access-code-1',
