@@ -472,6 +472,32 @@
   gap: 1rem;
 }
 
+.questionHeading {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+  font-weight: 600;
+}
+
+.multiAnswerHint {
+  color: #2e6aa9;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.questionPrompt {
+  margin: 0 0 0.75rem;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.answerOptions {
+  display: grid;
+  gap: 0.5rem;
+}
+
 .questionList li {
   display: flex;
   align-items: center;
