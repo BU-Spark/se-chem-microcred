@@ -7,7 +7,6 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import editIcon from '@/public/assets/profile/edit.png';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
 import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
 import styles from './page.module.css';
@@ -618,13 +617,6 @@ export default function InstructorStudentProfilePage() {
                       <p className={styles.emptyState}>{emptyContactMessage}</p>
                     )}
                   </section>
-
-                  <div className={styles.cardStubAction}>
-                    <span className={styles.editStub}>
-                      Edit
-                      <Image src={editIcon} alt="" width={15} height={15} />
-                    </span>
-                  </div>
                 </aside>
               </section>
 
@@ -670,11 +662,7 @@ export default function InstructorStudentProfilePage() {
                       </div>
 
                       <div className={styles.badgesHeaderMeta}>
-                        <span className={styles.badgesHint}>Select a badge to edit</span>
-                        <span className={styles.editStub}>
-                          Edit
-                          <Image src={editIcon} alt="" width={15} height={15} />
-                        </span>
+                        <span className={styles.badgesHint}>Select a badge to view details</span>
                       </div>
                     </div>
 
