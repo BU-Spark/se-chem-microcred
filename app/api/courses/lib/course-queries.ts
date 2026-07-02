@@ -95,6 +95,18 @@ export async function fetchCreatedBadgeDetail(userId: string, courseId: string, 
                   slug: true,
                   category: true,
                   name: true,
+                  rubricGoal: {
+                    select: {
+                      id: true,
+                      name: true,
+                      totalPoints: true,
+                      passThreshold: true,
+                      subgoals: {
+                        orderBy: { sortOrder: 'asc' },
+                        select: { id: true, text: true, points: true, sortOrder: true },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -363,6 +375,18 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                   slug: true,
                   category: true,
                   name: true,
+                  rubricGoal: {
+                    select: {
+                      id: true,
+                      name: true,
+                      totalPoints: true,
+                      passThreshold: true,
+                      subgoals: {
+                        orderBy: { sortOrder: 'asc' },
+                        select: { id: true, text: true, points: true, sortOrder: true },
+                      },
+                    },
+                  },
                 },
               },
             },

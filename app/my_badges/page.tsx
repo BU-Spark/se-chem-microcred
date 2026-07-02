@@ -19,8 +19,6 @@ type BadgeCatalogItem = {
     id: string;
     summary: string | null;
     displayText: string;
-    rubricItems: Array<{ number: number; text: string }>;
-    gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
     lesson: {
       id: string;
       title: string;

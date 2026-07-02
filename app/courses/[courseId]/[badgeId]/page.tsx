@@ -53,8 +53,13 @@ type AssessmentDetails = {
   videoTitle?: string | null;
   youtubeUrl?: string | null;
   videoLength?: string | null;
-  rubricItems: Array<{ number: number; text: string }>;
-  gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
+  rubricGoal?: {
+    id: string;
+    name: string;
+    totalPoints: number;
+    passThreshold: number;
+    subgoals: Array<{ id: string; text: string; points: number; sortOrder: number }>;
+  } | null;
   checkpoints: Array<{
     number?: number;
     title?: string | null;

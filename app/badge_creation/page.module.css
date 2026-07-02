@@ -572,6 +572,7 @@
 .optionList,
 .reviewList,
 .numberedRubricList,
+/* LEGACY-RUBRIC: remove — styled the old options-based grading criteria UI. */
 .gradingOptionsList {
   display: grid;
   gap: 14px;
@@ -908,6 +909,8 @@
   color: #000000;
 }
 
+/* LEGACY-RUBRIC: remove .reviewGrading* (except .reviewGradingPrompt) and
+   .reviewFeedbackText — styled the old Instructor Grading review block. */
 .reviewGrading {
   display: flex;
   flex-direction: column;
@@ -1066,6 +1069,9 @@
   text-decoration: underline;
 }
 
+/* LEGACY-RUBRIC: remove .gradingList through .gradingAddItem (except
+   .gradingPromptRow/.gradingPromptInput/.gradingPencil, reused by the goal
+   card) — styled the old two-part rubric criteria editor. */
 .gradingList {
   display: flex;
   flex-direction: column;

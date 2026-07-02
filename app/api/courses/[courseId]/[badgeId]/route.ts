@@ -12,8 +12,6 @@ type AssessmentSummary = {
   videoTitle?: string | null;
   youtubeUrl?: string | null;
   videoLength?: string | null;
-  rubricItems: Array<{ number: number; text: string }>;
-  gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
   checkpoints: Array<{
     number?: number;
     title?: string | null;
@@ -47,36 +45,20 @@ function parseRequirementSummary(summary?: string | null): AssessmentSummary {
       videoTitle: null,
       youtubeUrl: null,
       videoLength: null,
-      rubricItems: [],
-      gradingCriteria: [],
       checkpoints: [],
     };
   }
 
   try {
     const parsed = JSON.parse(summary) as Partial<AssessmentSummary>;
-    const rubricItems = (parsed.rubricItems ?? [])
-      .map((item, index) => ({
-        number: item.number ?? index + 1,
-        text: item.text?.trim() ?? '',
-      }))
-      .filter((item) => item.text);
-    const gradingCriteria = (parsed.gradingCriteria ?? []).map((criterion, index) => ({
-      number: criterion.number ?? index + 1,
-      criterion: criterion.criterion?.trim() || null,
-      options: (criterion.options ?? []).map((option) => option.trim()).filter(Boolean),
-    }));
-    const checkpoints = parsed.checkpoints ?? [];
 
     return {
-      displayText: rubricItems[0]?.text ?? gradingCriteria[0]?.criterion ?? 'Assessment details recorded.',
+      displayText: 'Assessment details recorded.',
       videoTitle: typeof parsed.videoTitle === 'string' && parsed.videoTitle.trim() ? parsed.videoTitle.trim() : null,
       youtubeUrl: typeof parsed.youtubeUrl === 'string' && parsed.youtubeUrl.trim() ? parsed.youtubeUrl.trim() : null,
       videoLength:
         typeof parsed.videoLength === 'string' && parsed.videoLength.trim() ? parsed.videoLength.trim() : null,
-      rubricItems,
-      gradingCriteria,
-      checkpoints,
+      checkpoints: parsed.checkpoints ?? [],
     };
   } catch {
     return {
@@ -84,8 +66,6 @@ function parseRequirementSummary(summary?: string | null): AssessmentSummary {
       videoTitle: null,
       youtubeUrl: null,
       videoLength: null,
-      rubricItems: [],
-      gradingCriteria: [],
       checkpoints: [],
     };
   }
@@ -179,8 +159,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     const primarySegment =
       badgeLesson?.segments?.find((segment) => segment.videoUrl) ?? badgeLesson?.segments?.[0] ?? null;
     const lessonCheckpoints = badgeLesson ? normalizeLessonCheckpoints(badgeLesson) : [];
+    const rubricGoal = badgeDetail?.rubricGoal ?? null;
     const assessment = {
       ...parsedAssessment,
+      displayText: rubricGoal?.name ?? parsedAssessment.displayText,
+      rubricGoal,
       videoTitle: primarySegment?.title ?? parsedAssessment.videoTitle,
       youtubeUrl: primarySegment?.videoUrl ?? parsedAssessment.youtubeUrl,
       videoLength: formatDuration(primarySegment?.duration) ?? parsedAssessment.videoLength,
