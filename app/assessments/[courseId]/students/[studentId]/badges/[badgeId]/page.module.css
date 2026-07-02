@@ -135,7 +135,6 @@
   color: #ffffff;
 }
 
-.scoreField,
 .criteriaField {
   display: grid;
   gap: 0.4rem;
@@ -144,11 +143,72 @@
   color: #111111;
 }
 
-.scoreField {
-  max-width: 9rem;
+.scoreSummary {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: #111111;
 }
 
-.scoreField input,
+.thresholdMet {
+  color: #2f7d45;
+}
+
+.thresholdUnmet {
+  color: #a33d38;
+}
+
+.subgoalControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  white-space: nowrap;
+}
+
+.subgoalPoints {
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: #61758a;
+}
+
+/* Green/red pass slider: a switch whose track color carries the verdict. */
+.subgoalSliderOn,
+.subgoalSliderOff {
+  position: relative;
+  width: 3rem;
+  height: 1.6rem;
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 0.15s ease;
+}
+
+.subgoalSliderOff {
+  background: #c53a34;
+}
+
+.subgoalSliderOn {
+  background: #2f7d45;
+}
+
+.subgoalSliderKnob {
+  position: absolute;
+  top: 0.2rem;
+  left: 0.2rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.15s ease;
+}
+
+.subgoalSliderOn .subgoalSliderKnob {
+  transform: translateX(1.4rem);
+}
+
 .criteriaField select,
 .criteriaField textarea {
   width: 100%;
