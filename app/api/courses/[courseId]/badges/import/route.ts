@@ -297,6 +297,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             name: true,
             description: true,
             category: true,
+            rubricGoal: {
+              select: {
+                name: true,
+                totalPoints: true,
+                passThreshold: true,
+                subgoals: {
+                  orderBy: { sortOrder: 'asc' },
+                  select: { text: true, points: true, sortOrder: true },
+                },
+              },
+            },
             requirements: {
               orderBy: { createdAt: 'asc' },
               take: 1,
@@ -568,11 +579,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             summary:
               sourceRequirement?.summary ??
               JSON.stringify({
-                version: 1,
+                version: 3,
                 badgeName: sourceBadge.name,
                 lessonTitle: lesson.title,
-                rubricItems: [],
-                gradingCriteria: [],
                 checkpoints:
                   sourceLesson?.checkpoints.map((checkpoint, index) => ({
                     number: index + 1,
@@ -584,6 +593,26 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
           },
           select: { id: true },
         });
+
+        // The course copy gets its own rubric rows so assessments reference
+        // subgoals on the badge being assessed, mirroring POST /api/badges.
+        if (sourceBadge.rubricGoal) {
+          const importedGoal = await tx.rubricGoal.create({
+            data: {
+              badgeId: badge.id,
+              name: sourceBadge.rubricGoal.name,
+              totalPoints: sourceBadge.rubricGoal.totalPoints,
+              passThreshold: sourceBadge.rubricGoal.passThreshold,
+            },
+            select: { id: true },
+          });
+
+          if (sourceBadge.rubricGoal.subgoals.length > 0) {
+            await tx.rubricSubgoal.createMany({
+              data: sourceBadge.rubricGoal.subgoals.map((subgoal) => ({ ...subgoal, goalId: importedGoal.id })),
+            });
+          }
+        }
 
         await tx.surveyPrompt.create({
           data: {

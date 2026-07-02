@@ -62,10 +62,12 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ badg
     });
     const promptIds = prompts.map((prompt) => prompt.id);
 
-    // Children first, parents last. AssessmentCriterionResponse cascades with its
-    // attempt; SurveyPrompt/Message badge FKs are optional but removed explicitly.
+    // Children first, parents last. AssessmentSubgoalResponse cascades with its
+    // attempt (subgoal FK is SetNull) and RubricSubgoal cascades with its goal;
+    // SurveyPrompt/Message badge FKs are optional but removed explicitly.
     await prisma.$transaction([
       prisma.assessmentAttempt.deleteMany({ where: { badgeId: { in: badgeIds } } }),
+      prisma.rubricGoal.deleteMany({ where: { badgeId: { in: badgeIds } } }),
       prisma.studentBadge.deleteMany({ where: { badgeId: { in: badgeIds } } }),
       prisma.badgeRequirement.deleteMany({ where: { badgeId: { in: badgeIds } } }),
       prisma.surveyResponse.deleteMany({ where: { promptId: { in: promptIds } } }),
