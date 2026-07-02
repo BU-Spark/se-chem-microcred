@@ -313,6 +313,7 @@ export default function AssessmentReadinessPage() {
     setSubgoalDrafts((current) =>
       current.map((subgoal) => (subgoal.subgoalId === subgoalId ? { ...subgoal, ...patch } : subgoal))
     );
+    setPinnedPassed(null);
   };
 
   const rubric = badgeDetail?.assessment?.rubric ?? null;
