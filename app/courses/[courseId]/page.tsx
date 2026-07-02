@@ -7,7 +7,9 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import { LessonReminderModal } from './LessonReminderModal';
+import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
+import { youtubeUrlFromSummary } from '@/lib/video';
 import { useFocusTrap } from '@/app/hooks/useFocusTrap';
 import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
 import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
@@ -53,6 +55,7 @@ type CourseLesson = {
   summary: string;
   thumbnailUrl: string | null;
   sortOrder: number;
+  segments?: Array<{ videoUrl: string | null }>;
   badgeRequirements: Array<{
     id: string;
     summary: string | null;
@@ -93,6 +96,7 @@ type CourseDetailResponse = {
 type AssignedBadge = CourseBadge & {
   lessonCount: number;
   thumbnailUrl: string | null;
+  videoUrl: string | null;
 };
 
 type BadgeLibraryItem = {
@@ -418,14 +422,24 @@ export default function CreatedCourseDetailPage() {
         const badge = requirement.badge;
         const existing = badgeMap.get(badge.id);
 
+        // A badge's video URL lives in its requirement summary (like every other
+        // badge surface); fall back to the lesson's first segment.
+        const lessonVideoUrl = youtubeUrlFromSummary(requirement.summary) ?? lesson.segments?.[0]?.videoUrl ?? null;
+
         if (!existing) {
           badgeMap.set(badge.id, {
             ...badge,
             lessonCount: 0,
             thumbnailUrl: lesson.thumbnailUrl ?? null,
+            videoUrl: lessonVideoUrl,
           });
-        } else if (!existing.thumbnailUrl && lesson.thumbnailUrl) {
-          existing.thumbnailUrl = lesson.thumbnailUrl;
+        } else {
+          if (!existing.thumbnailUrl && lesson.thumbnailUrl) {
+            existing.thumbnailUrl = lesson.thumbnailUrl;
+          }
+          if (!existing.videoUrl && lessonVideoUrl) {
+            existing.videoUrl = lessonVideoUrl;
+          }
         }
 
         if (!lessonBadgeIds.has(badge.id)) {
@@ -673,15 +687,19 @@ export default function CreatedCourseDetailPage() {
                   <div className={styles.badgeGrid}>
                     {assignedBadges.map((badge) => {
                       // Use the bar-free 16:9 thumbnail so the round center-crop has no black letterboxing.
-                      const badgeImage = badge.thumbnailUrl?.replace('/hqdefault.jpg', '/mqdefault.jpg') ?? null;
+                      const fallbackImage = badge.thumbnailUrl?.replace('/hqdefault.jpg', '/mqdefault.jpg') ?? null;
                       return (
                         <div key={badge.id} className={styles.badgeItem}>
                           <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
-                            <div
-                              className={styles.badgeToken}
-                              style={badgeImage ? { backgroundImage: `url(${badgeImage})` } : undefined}
-                              aria-hidden="true"
-                            />
+                            <div className={styles.badgeToken}>
+                              <YoutubeThumbnail
+                                videoUrl={badge.videoUrl}
+                                fallbackThumbnailUrl={fallbackImage}
+                                quality="mqdefault"
+                                alt={`${badge.name.replace(/ Badge$/i, '')} thumbnail`}
+                                className={styles.badgeTokenImage}
+                              />
+                            </div>
                             <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
                           </Link>
                           {isInstructor ? (

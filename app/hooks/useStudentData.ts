@@ -153,6 +153,7 @@ export interface BadgeRecord {
   status: BadgeStatus;
   awardedAt: string | null;
   score: number | null;
+  youtubeUrl: string | null;
   requirements: Array<{
     summary: string | null;
     lessonSlug: string | null;

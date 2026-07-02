@@ -121,6 +121,8 @@
 }
 
 .badgeToken {
+  position: relative;
+  overflow: hidden;
   width: 100%;
   max-width: 219px;
   aspect-ratio: 1 / 1;
@@ -129,6 +131,10 @@
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease;
+}
+
+.badgeTokenImage {
+  object-fit: cover;
 }
 
 .badgeCard:hover .badgeToken,

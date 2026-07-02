@@ -486,6 +486,11 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
           summary: true,
           thumbnailUrl: true,
           sortOrder: true,
+          segments: {
+            orderBy: { sortOrder: 'asc' },
+            take: 1,
+            select: { videoUrl: true },
+          },
           badgeRequirements: {
             orderBy: { createdAt: 'asc' },
             select: {
@@ -553,6 +558,7 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
             orderBy: { createdAt: 'asc' },
             select: {
               id: true,
+              summary: true,
               badge: {
                 select: {
                   id: true,
@@ -664,6 +670,7 @@ export async function fetchCreatedCourseMemberDetail(userId: string, courseId: s
             orderBy: { createdAt: 'asc' },
             select: {
               id: true,
+              summary: true,
               badge: {
                 select: {
                   id: true,

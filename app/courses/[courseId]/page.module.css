@@ -316,6 +316,8 @@
 }
 
 .badgeToken {
+  position: relative;
+  overflow: hidden;
   width: 9.8rem;
   height: 9.8rem;
   flex: none;
@@ -324,6 +326,10 @@
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+}
+
+.badgeTokenImage {
+  object-fit: cover;
 }
 
 .badgeName {

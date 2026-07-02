@@ -7,6 +7,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 
 type BadgeStatus = 'completed' | 'assessment' | 'finalization' | 'learning';
 
@@ -335,6 +336,7 @@ export default function BadgeWalletPage() {
           aria-pressed={isActive}
         >
           <span className={styles.srOnly}>{badge.name.replace(/ Badge$/i, '')}</span>
+          <YoutubeThumbnail videoUrl={badge.youtubeUrl} alt="" className={styles.badgeTokenImage} />
         </button>
       );
     });

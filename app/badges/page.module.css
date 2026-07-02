@@ -206,6 +206,7 @@
 /* Solid filled circle badges */
 .badgeToken {
   position: relative;
+  overflow: hidden;
   width: 110px;
   height: 110px;
   border-radius: 50%;
@@ -215,6 +216,10 @@
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   z-index: 1;
+}
+
+.badgeTokenImage {
+  object-fit: cover;
 }
 
 .badgeTokenWhite {

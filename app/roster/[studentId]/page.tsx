@@ -7,6 +7,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
 import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
 import styles from './page.module.css';
@@ -28,6 +29,7 @@ type StudentProfileBadge = {
   status?: string;
   awardedAt?: string | null;
   score?: number | null;
+  youtubeUrl?: string | null;
 };
 
 type ProfileRole = 'STUDENT' | 'CHECKER' | 'INSTRUCTOR';
@@ -328,7 +330,13 @@ function BadgeGrid({
 
         const badgeMarkup = (
           <>
-            <div className={badgeBubbleClass} aria-hidden="true" />
+            <div className={badgeBubbleClass}>
+              <YoutubeThumbnail
+                videoUrl={badge.youtubeUrl}
+                alt={`${badge.name} thumbnail`}
+                className={styles.badgeBubbleImage}
+              />
+            </div>
             <p className={styles.badgeName}>{badge.name}</p>
           </>
         );

@@ -77,6 +77,10 @@ function formatBadge(studentBadge: {
   const courseId = studentBadge.badge.requirements.find((requirement) => requirement.lesson?.courseId)?.lesson
     ?.courseId;
 
+  const youtubeUrl = studentBadge.badge.requirements
+    .map((requirement) => parseRequirementYoutubeUrl(requirement.summary))
+    .find((url): url is string => Boolean(url));
+
   return {
     id: studentBadge.badge.id,
     courseId: courseId ?? null,
@@ -87,6 +91,7 @@ function formatBadge(studentBadge: {
     status: studentBadge.status,
     awardedAt: studentBadge.awardedAt?.toISOString() ?? null,
     score: studentBadge.score ?? null,
+    youtubeUrl: youtubeUrl ?? null,
     requirements: studentBadge.badge.requirements.map((requirement) => ({
       summary: requirement.summary,
       lessonSlug: requirement.lesson?.slug ?? null,

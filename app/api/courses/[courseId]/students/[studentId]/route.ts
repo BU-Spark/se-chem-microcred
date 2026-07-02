@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAccessibleCourseMemberDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { youtubeUrlFromSummary } from '@/lib/video';
 
 function normalizeEmail(email?: string | null) {
   const trimmed = email?.trim().toLowerCase();
@@ -11,19 +12,23 @@ function normalizeId(value?: string | null) {
   return trimmed ? trimmed : null;
 }
 
-function formatBadge(badge: {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  category: string | null;
-}) {
+function formatBadge(
+  badge: {
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    category: string | null;
+  },
+  summary?: string | null
+) {
   return {
     id: badge.id,
     slug: badge.slug,
     name: badge.name,
     description: badge.description,
     category: badge.category,
+    youtubeUrl: youtubeUrlFromSummary(summary),
   };
 }
 
@@ -91,21 +96,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     }
 
     const member = enrollment.student;
-    const courseBadges = new Map<
-      string,
-      {
-        id: string;
-        slug: string;
-        name: string;
-        description: string | null;
-        category: string | null;
-      }
-    >();
+    const courseBadges = new Map<string, ReturnType<typeof formatBadge>>();
 
     for (const lesson of course.lessons) {
       for (const requirement of lesson.badgeRequirements) {
         if (!courseBadges.has(requirement.badge.id)) {
-          courseBadges.set(requirement.badge.id, formatBadge(requirement.badge));
+          courseBadges.set(requirement.badge.id, formatBadge(requirement.badge, requirement.summary));
         }
       }
     }

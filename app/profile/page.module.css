@@ -383,11 +383,17 @@
 }
 
 .badgeCircle {
+  position: relative;
+  overflow: hidden;
   width: 160px;
   height: 160px;
   border-radius: 50%;
   background: #2e6aa9;
   flex-shrink: 0;
+}
+
+.badgeCircleImage {
+  object-fit: cover;
 }
 
 .badgeName {
