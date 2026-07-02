@@ -989,9 +989,57 @@
 
 .rubricOrderedItem {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   gap: 12px;
   align-items: start;
+}
+
+.rubricPointsInput {
+  width: 64px;
+  padding: 6px 8px;
+  border: 1px solid #d7dbe1;
+  border-radius: 6px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #000000;
+  text-align: center;
+}
+
+.rubricPointsInput:focus {
+  outline: none;
+  border-color: #4f7396;
+}
+
+.rubricPointsLabel {
+  align-self: center;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #61758a;
+}
+
+.rubricThresholdRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #000000;
+}
+
+.rubricThresholdWarning {
+  margin: 8px 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+.rubricTotalRow {
+  margin-top: 12px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #000000;
 }
 
 .rubricOrderedNumber {

@@ -8,7 +8,7 @@ import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
 import { DEFAULT_DRAFT, DRAFT_STORAGE_KEY, STEP_DEFINITIONS } from './types';
-import type { BadgeDraft, BadgesResponse, CheckpointDraft, CheckpointQuestionDraft, RubricCriterion } from './types';
+import type { BadgeDraft, BadgesResponse, CheckpointDraft, CheckpointQuestionDraft, RubricSubgoalDraft } from './types';
 import {
   badgeToDraft,
   buildVideoThumbnail,
@@ -120,8 +120,7 @@ export default function BadgeCreationPage() {
         ...parsed,
         checkpoints: hydratedCheckpoints ?? current.checkpoints,
         reassessmentResources: parsed.reassessmentResources ?? current.reassessmentResources,
-        rubricItems: parsed.rubricItems ?? current.rubricItems,
-        rubricCriteria: parsed.rubricCriteria ?? current.rubricCriteria,
+        rubricGoal: parsed.rubricGoal ?? current.rubricGoal,
       }));
     } catch {
       window.localStorage.removeItem(DRAFT_STORAGE_KEY);
@@ -371,120 +370,44 @@ export default function BadgeCreationPage() {
     mutateCheckpoints((checkpoints) => checkpoints.filter((checkpoint) => checkpoint.id !== checkpointId));
   };
 
-  const updateRubricCriterion = <K extends keyof RubricCriterion>(
-    criterionId: string,
-    field: K,
-    value: RubricCriterion[K]
-  ) => {
-    updateDraft(
-      'rubricCriteria',
-      draft.rubricCriteria.map((criterion) =>
-        criterion.id === criterionId ? { ...criterion, [field]: value } : criterion
-      )
-    );
+  const updateRubricGoalName = (name: string) => {
+    updateDraft('rubricGoal', { ...draft.rubricGoal, name });
   };
 
-  const updateRubricItem = (itemId: string, text: string) => {
-    updateDraft(
-      'rubricItems',
-      draft.rubricItems.map((item) => (item.id === itemId ? { ...item, text } : item))
-    );
+  const updateRubricGoalThreshold = (points: number) => {
+    updateDraft('rubricGoal', { ...draft.rubricGoal, passThreshold: points });
   };
 
-  const addRubricItem = () => {
-    updateDraft('rubricItems', [
-      ...draft.rubricItems,
-      {
-        id: `rubric-item-${Date.now()}`,
-        text: '',
-      },
-    ]);
+  const updateSubgoal = (subgoalId: string, patch: Partial<Omit<RubricSubgoalDraft, 'id'>>) => {
+    updateDraft('rubricGoal', {
+      ...draft.rubricGoal,
+      subgoals: draft.rubricGoal.subgoals.map((subgoal) =>
+        subgoal.id === subgoalId ? { ...subgoal, ...patch } : subgoal
+      ),
+    });
   };
 
-  const removeRubricItem = (itemId: string) => {
-    if (draft.rubricItems.length <= 1) return;
-
-    updateDraft(
-      'rubricItems',
-      draft.rubricItems.filter((item) => item.id !== itemId)
-    );
+  const addSubgoal = () => {
+    updateDraft('rubricGoal', {
+      ...draft.rubricGoal,
+      subgoals: [
+        ...draft.rubricGoal.subgoals,
+        {
+          id: `subgoal-${Date.now()}`,
+          text: '',
+          points: 1,
+        },
+      ],
+    });
   };
 
-  const addRubricCriterion = () => {
-    updateDraft('rubricCriteria', [
-      ...draft.rubricCriteria,
-      {
-        id: `criterion-${Date.now()}`,
-        prompt: '',
-        options: ['', '', ''],
-        optionFeedback: ['', '', ''],
-      },
-    ]);
-  };
+  const removeSubgoal = (subgoalId: string) => {
+    if (draft.rubricGoal.subgoals.length <= 1) return;
 
-  const removeRubricCriterion = (criterionId: string) => {
-    if (draft.rubricCriteria.length <= 1) return;
-
-    updateDraft(
-      'rubricCriteria',
-      draft.rubricCriteria.filter((criterion) => criterion.id !== criterionId)
-    );
-  };
-
-  const updateRubricCriterionOption = (criterionId: string, optionIndex: number, value: string) => {
-    updateDraft(
-      'rubricCriteria',
-      draft.rubricCriteria.map((criterion) => {
-        if (criterion.id !== criterionId) return criterion;
-
-        return {
-          ...criterion,
-          options: criterion.options.map((option, index) => (index === optionIndex ? value : option)),
-        };
-      })
-    );
-  };
-
-  // Prewritten feedback is kept index-aligned with `options`.
-  const updateRubricCriterionOptionFeedback = (criterionId: string, optionIndex: number, value: string) => {
-    updateDraft(
-      'rubricCriteria',
-      draft.rubricCriteria.map((criterion) => {
-        if (criterion.id !== criterionId) return criterion;
-
-        const optionFeedback = [...criterion.optionFeedback];
-        while (optionFeedback.length < criterion.options.length) optionFeedback.push('');
-        optionFeedback[optionIndex] = value;
-
-        return { ...criterion, optionFeedback };
-      })
-    );
-  };
-
-  const addRubricCriterionOption = (criterionId: string) => {
-    updateDraft(
-      'rubricCriteria',
-      draft.rubricCriteria.map((criterion) =>
-        criterion.id === criterionId
-          ? { ...criterion, options: [...criterion.options, ''], optionFeedback: [...criterion.optionFeedback, ''] }
-          : criterion
-      )
-    );
-  };
-
-  const removeRubricCriterionOption = (criterionId: string, optionIndex: number) => {
-    updateDraft(
-      'rubricCriteria',
-      draft.rubricCriteria.map((criterion) => {
-        if (criterion.id !== criterionId || criterion.options.length <= 1) return criterion;
-
-        return {
-          ...criterion,
-          options: criterion.options.filter((_, index) => index !== optionIndex),
-          optionFeedback: criterion.optionFeedback.filter((_, index) => index !== optionIndex),
-        };
-      })
-    );
+    updateDraft('rubricGoal', {
+      ...draft.rubricGoal,
+      subgoals: draft.rubricGoal.subgoals.filter((subgoal) => subgoal.id !== subgoalId),
+    });
   };
 
   const goToStep = (stepIndex: number) => {
@@ -624,16 +547,11 @@ export default function BadgeCreationPage() {
             {currentStep === 3 && (
               <RubricStep
                 draft={draft}
-                updateRubricItem={updateRubricItem}
-                addRubricItem={addRubricItem}
-                removeRubricItem={removeRubricItem}
-                updateRubricCriterion={updateRubricCriterion}
-                addRubricCriterion={addRubricCriterion}
-                removeRubricCriterion={removeRubricCriterion}
-                updateRubricCriterionOption={updateRubricCriterionOption}
-                updateRubricCriterionOptionFeedback={updateRubricCriterionOptionFeedback}
-                addRubricCriterionOption={addRubricCriterionOption}
-                removeRubricCriterionOption={removeRubricCriterionOption}
+                updateRubricGoalName={updateRubricGoalName}
+                updateRubricGoalThreshold={updateRubricGoalThreshold}
+                updateSubgoal={updateSubgoal}
+                addSubgoal={addSubgoal}
+                removeSubgoal={removeSubgoal}
               />
             )}
 

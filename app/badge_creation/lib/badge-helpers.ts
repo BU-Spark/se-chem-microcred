@@ -193,24 +193,19 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
   const requirement = badge.requirements[0];
   const lesson = requirement?.lesson ?? null;
   const segment = lesson?.segment ?? null;
-  const rubricItems = requirement?.rubricItems?.length
-    ? requirement.rubricItems.map((item) => ({
-        id: `rubric-item-${item.number}`,
-        text: item.text,
-      }))
-    : [{ id: 'rubric-item-1', text: requirement?.displayText ?? '' }];
-  const rubricCriteria = requirement?.gradingCriteria?.length
-    ? requirement.gradingCriteria.map((criterion) => {
-        const options = criterion.options.length ? criterion.options : ['', '', ''];
-        const feedback = criterion.optionFeedback ?? [];
-        return {
-          id: `criterion-${criterion.number}`,
-          prompt: criterion.criterion ?? '',
-          options,
-          optionFeedback: options.map((_, index) => feedback[index] ?? ''),
-        };
-      })
-    : DEFAULT_DRAFT.rubricCriteria;
+  const rubricGoal = badge.rubricGoal
+    ? {
+        name: badge.rubricGoal.name,
+        passThreshold: badge.rubricGoal.passThreshold,
+        subgoals: badge.rubricGoal.subgoals.length
+          ? badge.rubricGoal.subgoals.map((subgoal) => ({
+              id: subgoal.id,
+              text: subgoal.text,
+              points: subgoal.points,
+            }))
+          : DEFAULT_DRAFT.rubricGoal.subgoals,
+      }
+    : DEFAULT_DRAFT.rubricGoal;
 
   // Availability prefers the new per-badge columns; fall back to lesson.dueDate
   // for legacy badges created before those columns existed.
@@ -235,7 +230,6 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
     checkpoints: requirement?.checkpoints?.length
       ? requirement.checkpoints.map((checkpoint, index) => checkpointFromCatalog(checkpoint, index))
       : DEFAULT_DRAFT.checkpoints,
-    rubricItems,
-    rubricCriteria,
+    rubricGoal,
   };
 }

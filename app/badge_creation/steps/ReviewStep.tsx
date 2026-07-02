@@ -116,47 +116,25 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
           <EditButton onClick={() => goToStep(3)} />
         </div>
 
+        <p className={styles.reviewGradingPrompt}>
+          {draft.rubricGoal.name || <span className={styles.reviewMuted}>Untitled goal</span>}
+        </p>
+
         <ol className={styles.reviewOrderedList}>
-          {draft.rubricItems.map((item) => (
-            <li key={item.id}>{item.text || <span className={styles.reviewMuted}>Empty rubric item</span>}</li>
+          {draft.rubricGoal.subgoals.map((subgoal) => (
+            <li key={subgoal.id}>
+              {subgoal.text || <span className={styles.reviewMuted}>Empty subgoal</span>}{' '}
+              <strong>
+                ({subgoal.points} {subgoal.points === 1 ? 'point' : 'points'})
+              </strong>
+            </li>
           ))}
         </ol>
 
-        {draft.rubricCriteria.some(
-          (criterion) => criterion.prompt.trim() || criterion.options.some((o) => o.trim())
-        ) && (
-          <div className={styles.reviewGrading}>
-            <h4 className={styles.reviewSubheading}>Instructor Grading</h4>
-            {draft.rubricCriteria.map((criterion, criterionIndex) => (
-              <div key={criterion.id} className={styles.reviewGradingCriterion}>
-                <p className={styles.reviewGradingPrompt}>{criterion.prompt || `Criterion ${criterionIndex + 1}`}</p>
-                <div className={styles.reviewGradingGrid}>
-                  {criterion.options.map((option, optionIndex) => {
-                    const feedback = criterion.optionFeedback[optionIndex]?.trim();
-                    if (!option.trim() && !feedback) return null;
-                    return (
-                      <div key={`${criterion.id}-${optionIndex}`} className={styles.reviewGradingRow}>
-                        <div className={styles.reviewGradingOption}>
-                          <span className={styles.gradingCheckbox} aria-hidden="true" />
-                          <span>{option || <span className={styles.reviewMuted}>—</span>}</span>
-                        </div>
-                        <div className={styles.reviewGradingOption}>
-                          <span
-                            className={`${styles.gradingCheckbox} ${feedback ? styles.gradingCheckboxFilled : ''}`}
-                            aria-hidden="true"
-                          />
-                          <span className={styles.reviewFeedbackText}>
-                            {feedback || <span className={styles.reviewMuted}>No prewritten feedback</span>}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+        <p className={styles.reviewMeta}>
+          <strong>{draft.rubricGoal.subgoals.reduce((sum, subgoal) => sum + (subgoal.points || 0), 0)}</strong> points
+          possible, pass at <strong>{draft.rubricGoal.passThreshold}</strong>
+        </p>
       </section>
     </div>
   );
