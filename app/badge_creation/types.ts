@@ -31,17 +31,17 @@ export type CheckpointDraft = CheckpointQuestionDraft & {
   questions: CheckpointQuestionDraft[];
 };
 
-export type RubricCriterion = {
-  id: string;
-  prompt: string;
-  options: string[];
-  // Prewritten feedback paired 1:1 with `options` (same index). Blank => none.
-  optionFeedback: string[];
-};
-
-export type RubricItem = {
+export type RubricSubgoalDraft = {
   id: string;
   text: string;
+  points: number;
+};
+
+export type RubricGoalDraft = {
+  name: string;
+  // Points needed to pass; total points is derived from the subgoals.
+  passThreshold: number;
+  subgoals: RubricSubgoalDraft[];
 };
 
 export type BadgeDraft = {
@@ -61,9 +61,7 @@ export type BadgeDraft = {
   cooldownDays: number;
   reassessmentRequired: boolean;
   reassessmentResources: string[];
-  rubricOverview: string;
-  rubricItems: RubricItem[];
-  rubricCriteria: RubricCriterion[];
+  rubricGoal: RubricGoalDraft;
 };
 
 export type BadgeCatalogItem = {
@@ -74,16 +72,16 @@ export type BadgeCatalogItem = {
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
+  rubricGoal?: {
+    id: string;
+    name: string;
+    totalPoints: number;
+    passThreshold: number;
+    subgoals: Array<{ id: string; text: string; points: number; sortOrder: number }>;
+  } | null;
   requirements: Array<{
     displayText: string;
     skills?: string[];
-    rubricItems: Array<{ number: number; text: string }>;
-    gradingCriteria: Array<{
-      number: number;
-      criterion: string | null;
-      options: string[];
-      optionFeedback?: string[];
-    }>;
     checkpoints?: Array<
       Partial<CheckpointDraft> & {
         number?: number;
@@ -113,7 +111,7 @@ export type BadgesResponse = {
   badges: BadgeCatalogItem[];
 };
 
-export const DRAFT_STORAGE_KEY = 'badge_creation_draft_v2';
+export const DRAFT_STORAGE_KEY = 'badge_creation_draft_v3';
 export const DEFAULT_VIDEO_FALLBACK = 'Lesson video';
 
 export const STEP_DEFINITIONS: StepDefinition[] = [
@@ -140,19 +138,15 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   cooldownDays: 0,
   reassessmentRequired: false,
   reassessmentResources: [],
-  rubricOverview: '',
-  rubricItems: [
-    {
-      id: 'rubric-item-1',
-      text: '',
-    },
-  ],
-  rubricCriteria: [
-    {
-      id: 'criterion-1',
-      prompt: '',
-      options: ['', '', ''],
-      optionFeedback: ['', '', ''],
-    },
-  ],
+  rubricGoal: {
+    name: '',
+    passThreshold: 1,
+    subgoals: [
+      {
+        id: 'subgoal-1',
+        text: '',
+        points: 1,
+      },
+    ],
+  },
 };
