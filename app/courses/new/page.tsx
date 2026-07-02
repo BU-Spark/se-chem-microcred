@@ -344,7 +344,7 @@ export default function CourseNewPage() {
       setSubmitError('Course must have at least 1 section.');
       return;
     }
-
+    setSubmitError('');
     if (currentStep === steps.length - 1) {
       // Re-entrancy guard: ignore clicks while a save is already in flight.
       if (isSubmittingRef.current) return;
