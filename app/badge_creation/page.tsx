@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
@@ -559,14 +560,11 @@ export default function BadgeCreationPage() {
             {currentStep === 4 && <ReviewStep draft={draft} goToStep={goToStep} />}
 
             <div className={styles.navigationRow}>
-              <button
-                type="button"
-                className={styles.backButton}
+              <BackButton
+                inline
                 onClick={() => setCurrentStep((step) => Math.max(step - 1, 0))}
                 disabled={currentStep === 0}
-              >
-                Back
-              </button>
+              />
               <button
                 type="button"
                 className={styles.nextButton}

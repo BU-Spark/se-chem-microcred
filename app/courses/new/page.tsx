@@ -4,6 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import Sidebar, { SIDEBAR_NAV } from '../../_components/Sidebar';
+import BackButton from '../../_components/BackButton';
 import styles from './page.module.css';
 import Image from 'next/image';
 import { useStudentData } from '../../hooks/useStudentData';
@@ -1015,11 +1016,7 @@ export default function CourseNewPage() {
         )}
 
         <div className={styles.actions}>
-          {currentStep > 0 && (
-            <button type="button" className={styles.backButton} onClick={goBack}>
-              Back
-            </button>
-          )}
+          {currentStep > 0 && <BackButton inline onClick={goBack} />}
 
           <button
             type="button"

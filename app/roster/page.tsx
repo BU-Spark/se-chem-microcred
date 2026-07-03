@@ -1,11 +1,11 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
+import BackButton from '../_components/BackButton';
 import styles from './page.module.css';
 
 type EnrollmentSummary = {
@@ -378,11 +378,7 @@ export default function StudentRosterPage() {
 
       <main className={styles.main}>
         <div className={styles.content}>
-          {courseId ? (
-            <Link href={`/courses/${courseId}`} className={styles.backLink}>
-              <span aria-hidden="true">←</span> Back to course
-            </Link>
-          ) : null}
+          {courseId ? <BackButton href={`/courses/${courseId}`} /> : null}
 
           <header className={styles.header}>
             <h1 className={styles.pageTitle}>{rosterLabel} Roster</h1>

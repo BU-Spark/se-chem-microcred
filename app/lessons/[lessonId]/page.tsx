@@ -8,8 +8,8 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 import finishLogo from '../../../public/assets/lesson/lesson_preview/finish_logo.svg';
-import backArrow from '../../../public/assets/lesson/lesson_preview/back_arrow.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
 
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
@@ -201,12 +201,7 @@ function LessonDetailContent() {
       <main className="main">
         <div className={styles.root}>
           <header className={styles.header}>
-            <button type="button" className={styles.backLink} onClick={handleBack}>
-              <span className={styles.backLinkContent}>
-                <span className={styles.backText}>Back</span>
-                <Image src={backArrow} alt="Back" className={styles.backArrow} width={52} height={12} />
-              </span>
-            </button>
+            <BackButton onClick={handleBack} />
           </header>
 
           <h1 className={styles.lessonTitle}>{title}</h1>

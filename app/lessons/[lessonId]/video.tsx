@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { LessonRecord } from '../../hooks/useStudentData';
+import BackButton from '@/app/_components/BackButton';
 import styles from './video.module.css';
 import veryUnhappyFace from '../../../public/assets/survey_faces/very_unhappy.svg';
 import veryUnhappyFaceSelected from '../../../public/assets/survey_faces/very_unhappy_selected.svg';
@@ -1310,9 +1311,7 @@ export function LessonVideoPage({
   return (
     <div className={styles.page}>
       <div className={styles.content}>
-        <button type="button" className={styles.backButton} onClick={handleBackToLessonDetail}>
-          Back
-        </button>
+        <BackButton onClick={handleBackToLessonDetail} />
 
         <aside className={styles.timeline}>
           {timelineItems.map((item) => {
@@ -1652,9 +1651,7 @@ export function LessonVideoPage({
                         <button type="button" className={styles.modalSecondary} onClick={handleRestartAfterFailure}>
                           Restart now
                         </button>
-                        <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
-                          Back to dashboard
-                        </button>
+                        <BackButton inline label="Back to dashboard" onClick={handleGoHome} />
                       </div>
                     </>
                   ) : null}

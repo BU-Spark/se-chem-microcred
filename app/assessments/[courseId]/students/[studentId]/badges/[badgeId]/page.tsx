@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
 import rosterStyles from '@/app/roster/[studentId]/page.module.css';
 import styles from './page.module.css';
 
@@ -391,9 +392,7 @@ export default function AssessmentReadinessPage() {
 
       <main className={rosterStyles.main}>
         <div className={rosterStyles.content}>
-          <button type="button" className={styles.topBackLink} onClick={handleBack}>
-            <span aria-hidden="true">←</span> Back
-          </button>
+          <BackButton onClick={handleBack} />
 
           <header className={rosterStyles.header}>
             <h1 className={rosterStyles.pageTitle}>{badgeDetail?.badge.name ?? 'Assessment'}</h1>
@@ -625,9 +624,7 @@ export default function AssessmentReadinessPage() {
               </section>
 
               <div className={styles.actionRow}>
-                <button type="button" className={styles.backLink} onClick={handleBack}>
-                  Back
-                </button>
+                <BackButton onClick={handleBack} />
                 <button
                   type="button"
                   className={styles.primaryButton}
