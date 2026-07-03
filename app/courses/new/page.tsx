@@ -8,8 +8,19 @@ import styles from './page.module.css';
 import Image from 'next/image';
 import { useStudentData } from '../../hooks/useStudentData';
 import { CourseRole } from '@prisma/client';
+import CourseImagePicker from './components/CourseImagePicker';
+import CourseTileImage from '../../_components/CourseTileImage';
+import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
 
-const steps = ['Course Info', 'Upload Class Roster', 'Manage Assessor Configurations', 'Review'];
+const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Manage Assessor Configurations', 'Review'];
+
+// Named step indices so the wizard's conditionals and edit links stay readable
+// (and survive future reordering) rather than depending on bare numbers.
+const STEP_INFO = 0;
+const STEP_IMAGE = 1;
+const STEP_ROSTER = 2;
+const STEP_ASSESSOR = 3;
+const STEP_REVIEW = 4;
 
 type StudentRow = {
   lastName: string;
@@ -52,6 +63,9 @@ type EditableCourseResponse = {
     id: string;
     title: string;
     sectionCount: number;
+    iconName: string | null;
+    iconBgColor: string | null;
+    iconFgColor: string | null;
     settings: {
       allowCooldownOverride: boolean;
       allowAssessorMessages: boolean;
@@ -167,6 +181,11 @@ export default function CourseNewPage() {
   const [courseName, setCourseName] = useState('');
   const [sections, setSections] = useState('');
 
+  // course image (Iconify icon + background color)
+  const [iconName, setIconName] = useState<string | null>(null);
+  const [iconBgColor, setIconBgColor] = useState<string>(COURSE_COLORS[0]);
+  const [iconFgColor, setIconFgColor] = useState<string>(ICON_FG_LIGHT);
+
   // settings
   const [allowCooldownOverride, setAllowCooldownOverride] = useState(true);
   const [allowAssessorMessages, setAllowAssessorMessages] = useState(true);
@@ -241,6 +260,9 @@ export default function CourseNewPage() {
         setEditingCourseId(course.id);
         setCourseName(course.title ?? '');
         setSections(String(course.sectionCount ?? ''));
+        if (course.iconName) setIconName(course.iconName);
+        if (course.iconBgColor) setIconBgColor(course.iconBgColor);
+        if (course.iconFgColor) setIconFgColor(course.iconFgColor);
         setAllowCooldownOverride(course.settings?.allowCooldownOverride ?? false);
         setAllowAssessorMessages(course.settings?.allowAssessorMessages ?? false);
         setAllowCrossSectionView(course.settings?.allowCrossSectionView ?? false);
@@ -340,7 +362,7 @@ export default function CourseNewPage() {
   const hasAtLeastOneSection = () => Number(sections) >= 1;
 
   const goNext = async () => {
-    if (currentStep === 0 && !hasAtLeastOneSection()) {
+    if (currentStep === STEP_INFO && !hasAtLeastOneSection()) {
       setSubmitError('Course must have at least 1 section.');
       return;
     }
@@ -462,6 +484,9 @@ export default function CourseNewPage() {
       code: courseCode.trim().toUpperCase(),
       sectionCount: sections,
       title: courseName.trim(),
+      iconName,
+      iconBgColor,
+      iconFgColor,
       settings: {
         allowCooldownOverride,
         allowAssessorMessages,
@@ -656,7 +681,7 @@ export default function CourseNewPage() {
 
         {submitError && <p className={styles.errorText}>{submitError}</p>}
 
-        {currentStep === 0 && (
+        {currentStep === STEP_INFO && (
           <section className={styles.card}>
             <h2 className={styles.cardTitle}>Course information</h2>
 
@@ -690,7 +715,26 @@ export default function CourseNewPage() {
           </section>
         )}
 
-        {currentStep === 1 && (
+        {currentStep === STEP_IMAGE && (
+          <section className={styles.card}>
+            <h2 className={styles.cardTitle}>Course image</h2>
+            <p className={styles.cardSubtitle}>
+              Pick a background color and search for an icon to represent this course.
+            </p>
+
+            <CourseImagePicker
+              title={courseName}
+              iconName={iconName}
+              iconBgColor={iconBgColor}
+              iconFgColor={iconFgColor}
+              onIconNameChange={setIconName}
+              onBgColorChange={setIconBgColor}
+              onFgColorChange={setIconFgColor}
+            />
+          </section>
+        )}
+
+        {currentStep === STEP_ROSTER && (
           <>
             <div className={styles.uploadRow}>
               <button type="button" className={styles.uploadButton} onClick={() => openUploadWarning('student')}>
@@ -799,7 +843,7 @@ export default function CourseNewPage() {
           </>
         )}
 
-        {currentStep === 2 && (
+        {currentStep === STEP_ASSESSOR && (
           <>
             <div className={styles.topUploadBar}>
               <button type="button" className={styles.uploadButton} onClick={() => openUploadWarning('assessor')}>
@@ -921,12 +965,12 @@ export default function CourseNewPage() {
           </>
         )}
 
-        {currentStep === 3 && (
+        {currentStep === STEP_REVIEW && (
           <section className={styles.reviewCard}>
             <div className={styles.reviewSection}>
               <div className={styles.reviewHeaderRow}>
                 <h3 className={styles.reviewTitle}>Course Info</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(0)}>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_INFO)}>
                   <span className={styles.editLabel}>Edit</span>
                   <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
                 </button>
@@ -946,8 +990,32 @@ export default function CourseNewPage() {
 
             <div className={styles.reviewSection}>
               <div className={styles.reviewHeaderRow}>
+                <h3 className={styles.reviewTitle}>Course Image</h3>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_IMAGE)}>
+                  <span className={styles.editLabel}>Edit</span>
+                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
+                </button>
+              </div>
+
+              <div className={styles.reviewBody}>
+                <div className={styles.reviewImageTile}>
+                  <CourseTileImage
+                    iconName={iconName}
+                    iconBgColor={iconBgColor}
+                    iconFgColor={iconFgColor}
+                    title={courseName}
+                    fallback={<span className={styles.reviewCourseInfo}>No icon selected</span>}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.reviewDivider} />
+
+            <div className={styles.reviewSection}>
+              <div className={styles.reviewHeaderRow}>
                 <h3 className={styles.reviewTitle}>Student Roster</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(1)}>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ROSTER)}>
                   <span className={styles.editLabel}>Edit</span>
                   <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
                 </button>
@@ -955,7 +1023,7 @@ export default function CourseNewPage() {
 
               <div className={styles.reviewBody}>
                 <p className={styles.rosterRows}>{studentRows.length} students enrolled</p>
-                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(1)}>
+                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_ROSTER)}>
                   View Student Roster
                 </button>
               </div>
@@ -966,7 +1034,7 @@ export default function CourseNewPage() {
             <div className={styles.reviewSection}>
               <div className={styles.reviewHeaderRow}>
                 <h3 className={styles.reviewTitle}>Assessor Roster</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(2)}>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ASSESSOR)}>
                   <span className={styles.editLabel}>Edit</span>
                   <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
                 </button>
@@ -974,7 +1042,7 @@ export default function CourseNewPage() {
 
               <div className={styles.reviewBody}>
                 <p className={styles.rosterRows}>{assessorRows.length} assessors enrolled</p>
-                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(2)}>
+                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_ASSESSOR)}>
                   View Assessors
                 </button>
               </div>
@@ -985,7 +1053,7 @@ export default function CourseNewPage() {
             <div className={styles.reviewSection}>
               <div className={styles.reviewHeaderRow}>
                 <h3 className={styles.reviewTitle}>Assessor Configurations</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(2)}>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ASSESSOR)}>
                   <span className={styles.editLabel}>Edit</span>
                   <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
                 </button>

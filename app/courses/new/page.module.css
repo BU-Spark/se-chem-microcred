@@ -105,6 +105,26 @@
     color: #000000;
 }
 
+.cardSubtitle {
+    margin: -18px 0 28px;
+    font-family: 'Lato', sans-serif;
+    font-size: 15px;
+    color: #6b7280;
+}
+
+/* Small square preview of the chosen course image on the Review step. */
+.reviewImageTile {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    overflow: hidden;
+    border: 4px solid #2e6aa9;
+    background: #d9d9d9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
 .rosterTitle {
     margin: 0;
     font-family: 'Lato', sans-serif;

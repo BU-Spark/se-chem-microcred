@@ -24,6 +24,7 @@
   },
   "dependencies": {
     "@clerk/nextjs": "^6.35.5",
+    "@iconify/react": "^6.0.2",
     "@prisma/client": "^6.17.0",
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.25",
