@@ -27,9 +27,11 @@
 }
 
 .pageTitle {
+  margin: 0;
   font-family: 'Lato', sans-serif;
-  font-size: 2.8rem;
+  font-size: 48px;
   font-weight: 700;
+  line-height: 1.05;
   color: #000000;
 }
 
@@ -555,7 +557,7 @@
   }
 
   .pageTitle {
-    font-size: 2rem;
+    font-size: 38px;
   }
 
   .badgeGrid {

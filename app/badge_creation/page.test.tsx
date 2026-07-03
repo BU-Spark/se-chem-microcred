@@ -70,6 +70,28 @@ describe('Badge creation page', () => {
     expect(screen.queryByRole('button', { name: /Edit Checkpoint/i })).not.toBeInTheDocument();
   });
 
+  it('renumbers checkpoints after deleting one', async () => {
+    render(<BadgeCreationPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Add checkpoint/i }));
+    expect(screen.getByRole('dialog', { name: 'Checkpoint 1' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Add checkpoint/i }));
+    expect(screen.getByRole('dialog', { name: 'Checkpoint 2' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Checkpoint 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove checkpoint' }));
+
+    expect(screen.getByRole('button', { name: 'Edit Checkpoint 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Checkpoint 2' })).not.toBeInTheDocument();
+    expect(screen.getByText('Segment 1')).toBeInTheDocument();
+  });
+
   it('submits the badge draft to the badge creation API with the course id', async () => {
     render(<BadgeCreationPage />);
 

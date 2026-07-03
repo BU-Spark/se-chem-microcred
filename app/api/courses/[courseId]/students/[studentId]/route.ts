@@ -97,12 +97,25 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
 
     const member = enrollment.student;
     const courseBadges = new Map<string, ReturnType<typeof formatBadge>>();
+    const lessonStartedByBadgeId = new Map<string, boolean>();
 
     for (const lesson of course.lessons) {
+      const progress = lesson.progress[0] ?? null;
+      const lessonStarted =
+        Boolean(progress?.startedAt || progress?.completedAt) ||
+        progress?.status === 'IN_PROGRESS' ||
+        progress?.status === 'COMPLETED' ||
+        (progress?.percentComplete ?? 0) > 0;
+
       for (const requirement of lesson.badgeRequirements) {
         if (!courseBadges.has(requirement.badge.id)) {
           courseBadges.set(requirement.badge.id, formatBadge(requirement.badge, requirement.summary));
         }
+
+        lessonStartedByBadgeId.set(
+          requirement.badge.id,
+          (lessonStartedByBadgeId.get(requirement.badge.id) ?? false) || lessonStarted
+        );
       }
     }
 
@@ -152,6 +165,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         completed.push(badgeWithProgress);
       } else if (progress.status === 'READY_FOR_FINALIZATION') {
         readyForFinalization.push(badgeWithProgress);
+      } else if (progress.status === 'LEARNING' && !lessonStartedByBadgeId.get(badge.id)) {
+        notStarted.push(badge);
       } else {
         inProgress.push(badgeWithProgress);
       }
