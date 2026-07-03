@@ -6,12 +6,13 @@ const mockBack = jest.fn();
 const mockPush = jest.fn();
 const mockReplace = jest.fn();
 const mockUsePathname = jest.fn(() => '/badges/learning-badge/feedback');
+const mockSearchParams = jest.fn(() => new URLSearchParams('courseId=course-1'));
 
 jest.mock('next/navigation', () => ({
   useParams: () => ({ badgeSlug: 'learning-badge' }),
   useRouter: () => ({ back: mockBack, push: mockPush, replace: mockReplace }),
   usePathname: () => mockUsePathname(),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => mockSearchParams(),
 }));
 
 const mockUseUser = jest.fn();
@@ -24,7 +25,7 @@ jest.mock('@clerk/nextjs', () => ({
 
 const mockUseStudentData = jest.fn();
 jest.mock('../../../hooks/useStudentData', () => ({
-  useStudentData: () => mockUseStudentData(),
+  useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
 }));
 
 type MockImageProps = {
@@ -158,6 +159,11 @@ describe('Badge feedback page', () => {
     expect(screen.getAllByText('Needs work')).toHaveLength(2);
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Review Lesson/i })).toHaveAttribute(
+      'href',
+      '/lessons/lesson-1?courseId=course-1'
+    );
+    expect(mockUseStudentData).toHaveBeenCalledWith('student@example.edu', 'course-1');
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith('/api/badges/badge-1/feedback', { method: 'POST' });

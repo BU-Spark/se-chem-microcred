@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
@@ -185,12 +185,14 @@ export default function BadgeFeedbackPage() {
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedCourseId = searchParams.get('courseId')?.trim() || null;
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [feedbackDetail, setFeedbackDetail] = useState<FeedbackDetail | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [reviewedStatus, setReviewedStatus] = useState<BadgeRecord['status'] | null>(null);
   const [reviewRequestState, setReviewRequestState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
-  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
+  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress, requestedCourseId);
 
   const allBadges = useMemo<BadgeRecord[]>(() => {
     if (!studentData) {
@@ -364,6 +366,12 @@ export default function BadgeFeedbackPage() {
   }
 
   const lessonSlug = badge.requirements.find((req) => req.lessonSlug)?.lessonSlug;
+  const lessonCourseId = badge.courseId ?? studentData?.course?.id ?? requestedCourseId;
+  const lessonHref = lessonSlug
+    ? lessonCourseId
+      ? `/lessons/${lessonSlug}?courseId=${encodeURIComponent(lessonCourseId)}`
+      : `/lessons/${lessonSlug}`
+    : null;
   const displayedStatus = reviewedStatus ?? feedbackDetail?.badge.status ?? badge.status;
   const latestAttempt = feedbackDetail?.latestAttempt ?? null;
   const rubric = feedbackDetail?.rubric ?? null;
@@ -490,8 +498,8 @@ export default function BadgeFeedbackPage() {
                 </div>
               ))}
             </div>
-            {lessonSlug ? (
-              <Link href={`/lessons/${lessonSlug}`} className={styles.primaryButton}>
+            {lessonHref ? (
+              <Link href={lessonHref} className={styles.primaryButton}>
                 Review Lesson
               </Link>
             ) : null}

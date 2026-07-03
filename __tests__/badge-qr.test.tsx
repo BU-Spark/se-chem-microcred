@@ -212,6 +212,6 @@ describe('Badge Wallet QR modal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Learning/i }));
     fireEvent.click(screen.getByRole('button', { name: /Review Feedback/i }));
 
-    expect(mockPush).toHaveBeenCalledWith('/badges/learning-badge/feedback');
+    expect(mockPush).toHaveBeenCalledWith('/badges/learning-badge/feedback?courseId=course-1');
   });
 });
