@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import BadgeWalletPage from '../app/badges/page';
+import type { StudentData } from '../app/hooks/useStudentData';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
@@ -72,6 +73,30 @@ beforeEach(() => {
 });
 
 function createStudentData() {
+  // Typed against the real StudentData['badges'] shape so the empty arrays widen
+  // to BadgeRecord[] (rather than never[]) and individual tests can reassign them.
+  const badges: StudentData['badges'] = {
+    completed: [],
+    readyForAssessment: [
+      {
+        id: 'badge-assess-1',
+        courseId: 'course-1',
+        slug: 'assessment-badge',
+        name: 'Assessment Badge',
+        description: 'Needs in-person assessment',
+        category: 'Safety',
+        status: 'READY_FOR_ASSESSMENT',
+        awardedAt: null,
+        score: null,
+        youtubeUrl: null,
+        requirements: [],
+      },
+    ],
+    readyForFinalization: [],
+    learning: [],
+    notStarted: [],
+  };
+
   return {
     student: {
       id: 'student-1',
@@ -89,25 +114,7 @@ function createStudentData() {
     },
     course: { id: 'course-1', code: 'CHEM101', section: 'K1', title: 'Chem 101', description: 'Basics', contacts: [] },
     lessons: { upNext: [], inProgress: [], catalog: [] },
-    badges: {
-      completed: [],
-      readyForAssessment: [
-        {
-          id: 'badge-assess-1',
-          courseId: 'course-1',
-          slug: 'assessment-badge',
-          name: 'Assessment Badge',
-          description: 'Needs in-person assessment',
-          category: 'Safety',
-          status: 'READY_FOR_ASSESSMENT' as const,
-          awardedAt: null,
-          score: null,
-          requirements: [],
-        },
-      ],
-      readyForFinalization: [],
-      learning: [],
-    },
+    badges,
   };
 }
 
@@ -192,6 +199,7 @@ describe('Badge Wallet QR modal', () => {
         status: 'LEARNING' as const,
         awardedAt: null,
         score: 40,
+        youtubeUrl: null,
         requirements: [],
       },
     ];
