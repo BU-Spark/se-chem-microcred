@@ -75,6 +75,17 @@ function withMirroredFirstQuestion(checkpoint: CheckpointDraft, questions: Check
   };
 }
 
+function renumberCheckpoints(checkpoints: CheckpointDraft[]) {
+  return checkpoints.map((checkpoint, index) => {
+    const number = index + 1;
+    return {
+      ...checkpoint,
+      title: `Checkpoint ${number}`,
+      segmentLabel: `Segment ${number} Starts ${checkpoint.time}`,
+    };
+  });
+}
+
 export default function BadgeCreationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -367,7 +378,9 @@ export default function BadgeCreationPage() {
   };
 
   const removeCheckpoint = (checkpointId: string) => {
-    mutateCheckpoints((checkpoints) => checkpoints.filter((checkpoint) => checkpoint.id !== checkpointId));
+    mutateCheckpoints((checkpoints) =>
+      renumberCheckpoints(checkpoints.filter((checkpoint) => checkpoint.id !== checkpointId))
+    );
   };
 
   const updateRubricGoalName = (name: string) => {
