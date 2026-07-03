@@ -14,6 +14,7 @@ import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
 import rubyAvatar from '@/public/edit_avatar/ruby.svg';
 import sapphireAvatar from '@/public/edit_avatar/sapphire.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
 import styles from './page.module.css';
 
 type CourseContact = {
@@ -577,9 +578,7 @@ export default function CreatedCourseDetailPage() {
           {!isLoading && error ? (
             <div className={styles.statusBlock}>
               <p className={styles.statusMessage}>{error}</p>
-              <Link href="/" className={styles.inlineLink}>
-                Back to home
-              </Link>
+              <BackButton href="/" />
             </div>
           ) : null}
 

@@ -21,6 +21,7 @@ import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_
 import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
 import gemAvatar from '../public/edit_avatar/sapphire.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
 
 interface EnrolledCourseCardData {
   id: string;
@@ -819,9 +820,7 @@ function HomeContent() {
               {assessmentAccessMessage ||
                 'You are not authorized to assess this badge, or the badge is not ready for assessment yet.'}
             </p>
-            <button type="button" className={styles.accessButton} onClick={closeAssessmentAccessModal}>
-              Back to home
-            </button>
+            <BackButton inline label="Back to home" onClick={closeAssessmentAccessModal} />
           </div>
         </div>
       ) : null}

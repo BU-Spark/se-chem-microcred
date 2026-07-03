@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
+import BackButton from '../_components/BackButton';
 import styles from './page.module.css';
 
 type Step = 'base' | 'face' | 'accessory';
@@ -602,9 +603,7 @@ export default function EditAvatarPage() {
             </>
           ) : (
             <>
-              <button type="button" className={styles.cancelButton} onClick={handleBack}>
-                Back
-              </button>
+              <BackButton inline onClick={handleBack} />
               <button type="button" className={styles.nextButton} onClick={handleNext} disabled={nextDisabled}>
                 {nextLabel}
               </button>
