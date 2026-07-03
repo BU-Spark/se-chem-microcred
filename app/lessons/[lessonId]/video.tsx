@@ -1759,14 +1759,25 @@ export function LessonVideoPage({
             <h2 className={styles.modalTitle}>{assessmentBadge?.badgeName ?? 'Badge'} Skill Check</h2>
             {lessonQrImageSrc ? (
               <div className={styles.qrCodeFrame}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={lessonQrImageSrc}
-                  alt={`${assessmentBadge?.badgeName ?? 'Badge'} QR code`}
-                  className={styles.qrCodeImage}
-                  width={360}
-                  height={360}
-                />
+                <div className={styles.qrCodeCanvas}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={lessonQrImageSrc}
+                    alt={`${assessmentBadge?.badgeName ?? 'Badge'} QR code`}
+                    className={styles.qrCodeImage}
+                    width={360}
+                    height={360}
+                  />
+                  <div className={styles.qrCodeLogo}>
+                    <Image
+                      src="/assets/badge_wallet/QR/qr_logo.svg"
+                      alt="Checkd logo"
+                      width={74}
+                      height={74}
+                      className={styles.qrCodeLogoImage}
+                    />
+                  </div>
+                </div>
               </div>
             ) : (
               <p className={styles.modalError}>We could not build the assessment QR code for this lesson.</p>
