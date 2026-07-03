@@ -39,6 +39,29 @@ const expectResponse = (response: Response | undefined): Response => {
   expect(response).toBeDefined();
   return response as Response;
 };
+const TEST_PUBLIC_ORIGIN = 'https://spark-microcred.example';
+const TEST_PUBLIC_HOST = new URL(TEST_PUBLIC_ORIGIN).host;
+const originalPublicEnv = {
+  APP_URL: process.env.APP_URL,
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN,
+};
+
+function restorePublicEnv() {
+  for (const [key, value] of Object.entries(originalPublicEnv)) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+}
+
+function clearPublicEnv() {
+  delete process.env.APP_URL;
+  delete process.env.NEXT_PUBLIC_APP_URL;
+  delete process.env.RAILWAY_PUBLIC_DOMAIN;
+}
 
 const mockEnsureCurrentUser = ensureCurrentUser as jest.MockedFunction<typeof ensureCurrentUser>;
 const mockSyncLessonBadgesForStudent = syncLessonBadgesForStudent as jest.MockedFunction<
@@ -57,6 +80,7 @@ describe('QR API', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    clearPublicEnv();
     const store = (globalThis as { __qrRateLimit?: Map<string, unknown> }).__qrRateLimit;
     store?.clear?.();
     mockEnsureCurrentUser.mockResolvedValue({
@@ -69,6 +93,10 @@ describe('QR API', () => {
     mockSyncLessonBadgesForStudent.mockResolvedValue({ readyForAssessment: false });
     mockPrisma.studentBadge.findUnique.mockResolvedValue({ id: 'student-badge-1', status: 'READY_FOR_ASSESSMENT' });
     mockPrisma.course.findFirst.mockResolvedValue({ id: 'course-1', lessons: [{ id: 'lesson-1' }] });
+  });
+
+  afterEach(() => {
+    restorePublicEnv();
   });
 
   it('returns a PNG with content length when user owns the badge', async () => {
@@ -99,12 +127,12 @@ describe('QR API', () => {
     });
   });
 
-  it('allows production assessment URLs when the server receives an internal proxy host', async () => {
-    const assessmentUrl = `https://spark-microcred-production.up.railway.app/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`;
+  it('allows public assessment URLs when the server receives an internal proxy host', async () => {
+    const assessmentUrl = `${TEST_PUBLIC_ORIGIN}/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`;
     const request = new Request(`http://localhost:8080/api/qr?data=${encodeURIComponent(assessmentUrl)}&size=180`, {
       headers: {
         host: 'localhost:8080',
-        'x-forwarded-host': 'spark-microcred-production.up.railway.app',
+        'x-forwarded-host': TEST_PUBLIC_HOST,
         'x-forwarded-proto': 'https',
         'x-forwarded-for': '127.0.0.3',
       },
@@ -117,31 +145,22 @@ describe('QR API', () => {
   });
 
   it('rebuilds assessment QR data from the configured public app URL instead of the request payload origin', async () => {
-    const previousAppUrl = process.env.APP_URL;
-    process.env.APP_URL = 'https://spark-microcred-production.up.railway.app';
-    try {
-      const assessmentUrl = `http://localhost:8080/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`;
-      const request = new Request(`http://localhost:8080/api/qr?data=${encodeURIComponent(assessmentUrl)}&size=180`, {
-        headers: {
-          host: 'localhost:8080',
-          'x-forwarded-for': '127.0.0.4',
-        },
-      });
+    process.env.APP_URL = TEST_PUBLIC_ORIGIN;
+    const assessmentUrl = `http://localhost:8080/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`;
+    const request = new Request(`http://localhost:8080/api/qr?data=${encodeURIComponent(assessmentUrl)}&size=180`, {
+      headers: {
+        host: 'localhost:8080',
+        'x-forwarded-for': '127.0.0.4',
+      },
+    });
 
-      const res = expectResponse(await GET(request));
+    const res = expectResponse(await GET(request));
 
-      expect(res.status).toBe(200);
-      expect(QRCode.toBuffer).toHaveBeenCalledWith(
-        `https://spark-microcred-production.up.railway.app/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`,
-        expect.objectContaining({ width: 180 })
-      );
-    } finally {
-      if (previousAppUrl === undefined) {
-        delete process.env.APP_URL;
-      } else {
-        process.env.APP_URL = previousAppUrl;
-      }
-    }
+    expect(res.status).toBe(200);
+    expect(QRCode.toBuffer).toHaveBeenCalledWith(
+      `${TEST_PUBLIC_ORIGIN}/qr/assessment?courseId=course-1&studentId=${studentId}&badgeId=${badgeId}`,
+      expect.objectContaining({ width: 180 })
+    );
   });
 
   it('rejects assessment QR generation when the badge is not ready for assessment', async () => {

@@ -296,6 +296,39 @@ describe('Home Page', () => {
     expect(enrolledHeading.compareDocumentPosition(assessorHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('does not show a create-course modal when the user has no courses', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/mine') {
+        return {
+          ok: true,
+          json: async () => ({
+            user: { name: 'Student Demo', email: 'student@example.edu' },
+            created: { count: 0, courses: [] },
+            enrolled: { count: 0, enrollments: [] },
+            assessor: { count: 0, enrollments: [] },
+          }),
+        };
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    renderHome();
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/courses/mine', {
+        headers: { Accept: 'application/json' },
+        credentials: 'include',
+      });
+    });
+
+    expect(screen.getByRole('link', { name: 'Create a course' })).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Welcome' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Create Course')).not.toBeInTheDocument();
+  });
+
   it('highlights the active navigation item based on the current pathname', async () => {
     mockUsePathname.mockReturnValue('/profile');
 

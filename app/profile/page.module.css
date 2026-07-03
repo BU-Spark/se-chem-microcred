@@ -23,11 +23,12 @@
 }
 
 .pageTitle {
+  margin: 0;
   font-family: 'Lato', sans-serif;
   font-size: 48px;
   font-weight: 700;
   color: #000000;
-  line-height: 1.1;
+  line-height: 1.05;
 }
 
 .greeting {
@@ -454,7 +455,10 @@
     padding: 2rem 1.25rem 2.5rem;
   }
 
-  .pageTitle,
+  .pageTitle {
+    font-size: 38px;
+  }
+
   .badgesTitle {
     font-size: 2rem;
   }

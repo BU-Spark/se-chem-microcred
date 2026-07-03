@@ -47,6 +47,29 @@ const mockPrisma = prisma as unknown as {
     deleteMany: jest.Mock;
   };
 };
+const TEST_PUBLIC_ORIGIN = 'https://spark-microcred.example';
+const TEST_PUBLIC_HOST = new URL(TEST_PUBLIC_ORIGIN).host;
+const originalPublicEnv = {
+  APP_URL: process.env.APP_URL,
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN,
+};
+
+function restorePublicEnv() {
+  for (const [key, value] of Object.entries(originalPublicEnv)) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+}
+
+function clearPublicEnv() {
+  delete process.env.APP_URL;
+  delete process.env.NEXT_PUBLIC_APP_URL;
+  delete process.env.RAILWAY_PUBLIC_DOMAIN;
+}
 
 function postRequest(body: Record<string, unknown>) {
   return new Request('http://localhost/api/assessment-codes', {
@@ -59,6 +82,7 @@ function postRequest(body: Record<string, unknown>) {
 describe('Assessment access codes', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    clearPublicEnv();
     mockEnsureCurrentUser.mockResolvedValue({
       id: 'student-1',
       email: 'student@example.edu',
@@ -77,6 +101,10 @@ describe('Assessment access codes', () => {
         ...data,
       })
     );
+  });
+
+  afterEach(() => {
+    restorePublicEnv();
   });
 
   it('creates a reusable short code for a ready badge assessment', async () => {
@@ -168,7 +196,7 @@ describe('Assessment access codes', () => {
     expect(mockPrisma.assessmentAccessCode.findUnique).toHaveBeenCalledWith({ where: { code: 'ABCD2345' } });
   });
 
-  it('uses forwarded production host when redirecting typed codes', async () => {
+  it('uses forwarded public host when redirecting typed codes', async () => {
     mockPrisma.assessmentAccessCode.findUnique.mockResolvedValue({
       id: 'access-code-1',
       code: 'ABCD2345',
@@ -181,7 +209,7 @@ describe('Assessment access codes', () => {
     const response = await GET(
       new Request('http://localhost/qr/assessment-code?code=abcd-2345', {
         headers: {
-          'x-forwarded-host': 'spark-microcred-production.up.railway.app',
+          'x-forwarded-host': TEST_PUBLIC_HOST,
           'x-forwarded-proto': 'https',
         },
       })
@@ -189,42 +217,33 @@ describe('Assessment access codes', () => {
 
     expect(response.status).toBe(307);
     expect(response.headers.get('location')).toBe(
-      'https://spark-microcred-production.up.railway.app/qr/assessment?courseId=course-1&studentId=student-1&badgeId=badge-1'
+      `${TEST_PUBLIC_ORIGIN}/qr/assessment?courseId=course-1&studentId=student-1&badgeId=badge-1`
     );
   });
 
   it('uses the configured app URL instead of an internal localhost host when redirecting typed codes', async () => {
-    const previousAppUrl = process.env.APP_URL;
-    process.env.APP_URL = 'https://spark-microcred-production.up.railway.app';
-    try {
-      mockPrisma.assessmentAccessCode.findUnique.mockResolvedValue({
-        id: 'access-code-1',
-        code: 'ABCD2345',
-        courseId: 'course-1',
-        studentId: 'student-1',
-        badgeId: 'badge-1',
-        expiresAt: new Date(Date.now() + 60_000),
-      });
+    process.env.APP_URL = TEST_PUBLIC_ORIGIN;
+    mockPrisma.assessmentAccessCode.findUnique.mockResolvedValue({
+      id: 'access-code-1',
+      code: 'ABCD2345',
+      courseId: 'course-1',
+      studentId: 'student-1',
+      badgeId: 'badge-1',
+      expiresAt: new Date(Date.now() + 60_000),
+    });
 
-      const response = await GET(
-        new Request('http://localhost:8080/qr/assessment-code?code=abcd-2345', {
-          headers: {
-            host: 'localhost:8080',
-          },
-        })
-      );
+    const response = await GET(
+      new Request('http://localhost:8080/qr/assessment-code?code=abcd-2345', {
+        headers: {
+          host: 'localhost:8080',
+        },
+      })
+    );
 
-      expect(response.status).toBe(307);
-      expect(response.headers.get('location')).toBe(
-        'https://spark-microcred-production.up.railway.app/qr/assessment?courseId=course-1&studentId=student-1&badgeId=badge-1'
-      );
-    } finally {
-      if (previousAppUrl === undefined) {
-        delete process.env.APP_URL;
-      } else {
-        process.env.APP_URL = previousAppUrl;
-      }
-    }
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      `${TEST_PUBLIC_ORIGIN}/qr/assessment?courseId=course-1&studentId=student-1&badgeId=badge-1`
+    );
   });
 
   it('redirects expired typed codes to the home notice', async () => {
