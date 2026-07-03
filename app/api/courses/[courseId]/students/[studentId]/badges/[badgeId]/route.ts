@@ -103,7 +103,9 @@ function normalizeAssessmentPayload(value: unknown) {
   }
 
   const overrideFeedback =
-    body.override && typeof body.override === 'object' && typeof (body.override as { feedback?: unknown }).feedback === 'string'
+    body.override &&
+    typeof body.override === 'object' &&
+    typeof (body.override as { feedback?: unknown }).feedback === 'string'
       ? ((body.override as { feedback: string }).feedback ?? '').trim()
       : '';
 
@@ -427,8 +429,11 @@ export async function GET(
 
     const totalCheckpoints = flattenedCheckpoints.length;
     const completedCheckpoints = completedCheckpointIds.size;
-    const precheckComplete =
-      totalCheckpoints === 0 ? badgeProgress.status !== 'LEARNING' : completedCheckpoints === totalCheckpoints;
+    // Readiness is owned by the badge status, which the grade pipeline flips to
+    // READY_FOR_ASSESSMENT once the student clears the lesson's passingPercent.
+    // Don't re-derive a stricter "every checkpoint passing" (== 100%) rule here —
+    // completedCheckpoints/totalCheckpoints stay for the informational display only.
+    const precheckComplete = badgeProgress.status !== 'LEARNING';
     const latestPassingAssessment = [...assessmentAttempts].reverse().find((attempt) => attempt.passed);
     const latestAssessment = assessmentAttempts.at(-1) ?? null;
     const assessmentComplete =
@@ -661,31 +666,6 @@ export async function POST(
             },
           },
         },
-        lessons: {
-          where: {
-            badgeRequirements: {
-              some: {
-                badgeId,
-              },
-            },
-          },
-          select: {
-            checkpoints: {
-              select: {
-                id: true,
-                attempts: {
-                  where: {
-                    userId: studentId,
-                    isPassing: true,
-                  },
-                  select: {
-                    id: true,
-                  },
-                },
-              },
-            },
-          },
-        },
       },
     });
 
@@ -707,12 +687,10 @@ export async function POST(
       return NextResponse.json({ error: 'Badge progress was not found for this student.' }, { status: 404 });
     }
 
-    const checkpoints = course.lessons.flatMap((lesson) => lesson.checkpoints);
-    const precheckComplete =
-      checkpoints.length === 0 ||
-      checkpoints.every((checkpoint) => checkpoint.attempts.some((attempt) => Boolean(attempt.id)));
-
-    if (!precheckComplete || badgeProgress.status === BadgeStatus.LEARNING) {
+    // Precheck is owned by the badge status: the grade pipeline flips it out of
+    // LEARNING once the student clears the lesson's passingPercent. A still-LEARNING
+    // student hasn't passed the lesson yet.
+    if (badgeProgress.status === BadgeStatus.LEARNING) {
       return NextResponse.json({ error: 'Student has not completed the badge precheck.' }, { status: 409 });
     }
 

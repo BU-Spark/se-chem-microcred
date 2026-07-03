@@ -227,6 +227,9 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
     youtubeUrl: requirement?.youtubeUrl ?? segment?.videoUrl ?? '',
     videoTitle: requirement?.videoTitle ?? segment?.title ?? lesson?.title ?? '',
     videoLength: requirement?.videoLength ?? formatDurationInput(segment?.duration, lesson?.estimatedMinutes),
+    // Source badges have no lesson row, so the threshold lives in the requirement
+    // summary JSON; fall back to the lesson (course copies), then the default.
+    passingPercent: requirement?.passingPercent ?? lesson?.passingPercent ?? DEFAULT_DRAFT.passingPercent,
     checkpoints: requirement?.checkpoints?.length
       ? requirement.checkpoints.map((checkpoint, index) => checkpointFromCatalog(checkpoint, index))
       : DEFAULT_DRAFT.checkpoints,

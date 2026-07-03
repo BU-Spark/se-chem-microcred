@@ -72,6 +72,9 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
         <p className={styles.reviewMeta}>
           # of Checkpoints: <strong>{draft.checkpoints.length}</strong>
         </p>
+        <p className={styles.reviewMeta}>
+          Passing threshold: <strong>{draft.passingPercent}%</strong>
+        </p>
 
         <div className={styles.checkpointLayout}>
           <div className={styles.cpRail}>

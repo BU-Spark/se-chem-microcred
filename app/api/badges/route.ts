@@ -53,6 +53,7 @@ type CreateBadgePayload = {
   youtubeUrl?: string | null;
   videoTitle?: string | null;
   videoLength?: string | null;
+  passingPercent?: number | string | null;
   checkpoints?: CheckpointPayload[] | null;
   rubricGoal?: RubricGoalPayload | null;
 };
@@ -71,6 +72,7 @@ type UpdateBadgePayload = {
   youtubeUrl?: string | null;
   videoTitle?: string | null;
   videoLength?: string | null;
+  passingPercent?: number | string | null;
 };
 
 function normalizeString(value?: string | null) {
@@ -299,6 +301,15 @@ function normalizePoints(value: number | string | null | undefined, fallback: nu
   return Math.max(0, Math.round(parsed));
 }
 
+// Lesson passing threshold: percent of checkpoint questions a student must get
+// correct to pass the lesson. Clamped to 0–100, defaults to the schema default.
+const DEFAULT_PASSING_PERCENT = 70;
+function normalizePassingPercent(value: number | string | null | undefined) {
+  const parsed = typeof value === 'string' ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return DEFAULT_PASSING_PERCENT;
+  return Math.min(100, Math.max(0, Math.round(parsed)));
+}
+
 // The rubric is a single goal with point-weighted subgoals. Total points is
 // always derived from the subgoals; the pass threshold is clamped to it and
 // defaults to the full total (every point required) when omitted.
@@ -361,6 +372,7 @@ function buildRequirementSummary({
   youtubeUrl,
   videoTitle,
   videoLength,
+  passingPercent,
 }: {
   badgeName: string;
   lessonTitle?: string | null;
@@ -369,6 +381,7 @@ function buildRequirementSummary({
   youtubeUrl?: string | null;
   videoTitle?: string | null;
   videoLength?: string | null;
+  passingPercent?: number | null;
 }) {
   // The rubric lives in the RubricGoal/RubricSubgoal tables as of version 3;
   // the summary only carries the non-rubric payload.
@@ -377,12 +390,14 @@ function buildRequirementSummary({
     badgeName,
     lessonTitle: lessonTitle ?? null,
     skills,
-    // The lesson video round-trips through the summary JSON so the editor (which
-    // only ever loads the source badge — whose requirement has no lesson row)
-    // can rehydrate it. See badgeToDraft + the PATCH segment propagation.
+    // The lesson video and passing threshold round-trip through the summary JSON so
+    // the editor (which only ever loads the source badge — whose requirement has no
+    // lesson row) can rehydrate them, and so importing into a course carries them
+    // forward. See badgeToDraft, the import route, and the PATCH segment propagation.
     youtubeUrl: youtubeUrl ?? null,
     videoTitle: videoTitle ?? null,
     videoLength: videoLength ?? null,
+    passingPercent: passingPercent ?? null,
     checkpoints: checkpoints
       .map((checkpoint, index) => {
         const questions = normalizeCheckpointQuestions(checkpoint).map((question) => question.summary);
@@ -423,6 +438,7 @@ function parseRequirementSummary(summary?: string | null) {
       youtubeUrl: null as string | null,
       videoTitle: null as string | null,
       videoLength: null as string | null,
+      passingPercent: null as number | null,
     };
   }
 
@@ -433,6 +449,7 @@ function parseRequirementSummary(summary?: string | null) {
       youtubeUrl?: string | null;
       videoTitle?: string | null;
       videoLength?: string | null;
+      passingPercent?: number | null;
     };
 
     return {
@@ -442,6 +459,7 @@ function parseRequirementSummary(summary?: string | null) {
       youtubeUrl: normalizeString(parsed.youtubeUrl),
       videoTitle: normalizeString(parsed.videoTitle),
       videoLength: normalizeString(parsed.videoLength),
+      passingPercent: typeof parsed.passingPercent === 'number' ? parsed.passingPercent : null,
     };
   } catch {
     return {
@@ -451,6 +469,7 @@ function parseRequirementSummary(summary?: string | null) {
       youtubeUrl: null as string | null,
       videoTitle: null as string | null,
       videoLength: null as string | null,
+      passingPercent: null as number | null,
     };
   }
 }
@@ -516,6 +535,7 @@ export async function GET(req: NextRequest) {
                 description: true,
                 dueDate: true,
                 estimatedMinutes: true,
+                passingPercent: true,
                 segments: {
                   orderBy: { sortOrder: 'asc' },
                   take: 1,
@@ -572,6 +592,7 @@ export async function GET(req: NextRequest) {
               youtubeUrl: parsedSummary.youtubeUrl,
               videoTitle: parsedSummary.videoTitle,
               videoLength: parsedSummary.videoLength,
+              passingPercent: parsedSummary.passingPercent,
               lesson: requirement.lesson
                 ? {
                     id: requirement.lesson.id,
@@ -579,6 +600,7 @@ export async function GET(req: NextRequest) {
                     description: requirement.lesson.description,
                     dueDate: requirement.lesson.dueDate?.toISOString() ?? null,
                     estimatedMinutes: requirement.lesson.estimatedMinutes,
+                    passingPercent: requirement.lesson.passingPercent,
                     segment: requirement.lesson.segments?.[0]
                       ? {
                           title: requirement.lesson.segments?.[0]?.title ?? '',
@@ -637,6 +659,7 @@ export async function PATCH(req: NextRequest) {
     const videoTitle = normalizeString(body.videoTitle);
     const videoLength = normalizeString(body.videoLength);
     const videoDurationSeconds = parseTimeToSeconds(videoLength);
+    const passingPercent = normalizePassingPercent(body.passingPercent);
     const videoId = extractYouTubeId(youtubeUrl);
     const thumbnailUrl = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
 
@@ -705,6 +728,7 @@ export async function PATCH(req: NextRequest) {
         youtubeUrl,
         videoTitle,
         videoLength,
+        passingPercent,
       });
 
       if (firstRequirement) {
@@ -765,6 +789,7 @@ export async function PATCH(req: NextRequest) {
             where: { id: { in: lessonIds } },
             data: {
               title: badgeName,
+              passingPercent,
               estimatedMinutes: videoDurationSeconds ? Math.max(1, Math.round(videoDurationSeconds / 60)) : undefined,
             },
           });
@@ -925,6 +950,7 @@ export async function POST(req: NextRequest) {
     const checkpoints = body.checkpoints ?? [];
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
+    const passingPercent = normalizePassingPercent(body.passingPercent);
     // Per-badge content window (shared across students). neverCloses === true
     // means the badge never closes; closesOn is ignored and dueDate is null.
     const neverCloses = body.neverCloses ?? null;
@@ -989,6 +1015,7 @@ export async function POST(req: NextRequest) {
           youtubeUrl,
           videoTitle,
           videoLength: normalizeString(body.videoLength),
+          passingPercent,
         });
 
         const sourceBadge = await tx.badge.create({
@@ -1062,6 +1089,7 @@ export async function POST(req: NextRequest) {
               description: badgeDescription,
               thumbnailUrl,
               dueDate,
+              passingPercent,
               estimatedMinutes: videoDurationSeconds ? Math.max(1, Math.round(videoDurationSeconds / 60)) : null,
               sortOrder: (course.lessons[0]?.sortOrder ?? -1) + 1,
             },

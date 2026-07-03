@@ -33,6 +33,7 @@ type RequirementSummary = {
   lessonTitle?: string | null;
   skills?: string[];
   checkpoints?: CheckpointPayload[];
+  passingPercent?: number | null;
 };
 
 type ImportBadgePayload = {
@@ -421,7 +422,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             thumbnailUrl: sourceLesson?.thumbnailUrl ?? null,
             dueDate: closesOnDate,
             estimatedMinutes: sourceLesson?.estimatedMinutes ?? null,
-            passingPercent: sourceLesson?.passingPercent ?? 70,
+            passingPercent: sourceLesson?.passingPercent ?? summary.passingPercent ?? 70,
             sortOrder: (course.lessons[0]?.sortOrder ?? -1) + 1,
           },
           select: {

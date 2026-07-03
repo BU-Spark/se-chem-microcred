@@ -12,6 +12,7 @@ export default function CheckpointsStep({
   draft,
   videoId,
   videoThumbnail,
+  updatePassingPercent,
   addCheckpoint,
   removeCheckpoint,
   updateCheckpoint,
@@ -26,6 +27,7 @@ export default function CheckpointsStep({
   draft: BadgeDraft;
   videoId: string | null;
   videoThumbnail: string | null;
+  updatePassingPercent: (value: number) => void;
   addCheckpoint: (atSeconds?: number) => string;
   removeCheckpoint: (checkpointId: string) => void;
   updateCheckpoint: <K extends keyof CheckpointDraft>(
@@ -106,6 +108,22 @@ export default function CheckpointsStep({
       </div>
 
       <div className={styles.checkpointMain}>
+        <label className={styles.fieldStack}>
+          <span>Passing threshold (%)</span>
+          <input
+            className={styles.textField}
+            type="number"
+            min={0}
+            max={100}
+            step={1}
+            value={draft.passingPercent}
+            aria-label="Lesson passing threshold percent"
+            onChange={(event) =>
+              updatePassingPercent(Math.min(100, Math.max(0, Math.round(Number(event.target.value) || 0))))
+            }
+          />
+        </label>
+
         <VideoCheckpointPlayer
           videoId={videoId}
           title={draft.videoTitle || 'Lesson video'}

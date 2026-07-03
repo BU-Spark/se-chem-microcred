@@ -82,6 +82,14 @@ function courseFixture(badgeStatus: string) {
   };
 }
 
+// A student who cleared the lesson's passingPercent below 100% — their badge is
+// READY_FOR_ASSESSMENT but not every checkpoint has a fully-correct (isPassing) attempt.
+function subHundredCourseFixture(badgeStatus: string) {
+  const fixture = courseFixture(badgeStatus);
+  fixture.lessons = [{ checkpoints: [{ attempts: [] as Array<{ id: string }> }] }];
+  return fixture;
+}
+
 const rubricGoalFixture = {
   id: 'goal-1',
   name: 'Perform the experiment safely',
@@ -253,6 +261,50 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
         sortOrder: 2,
       })
     );
+  });
+
+  it('allows assessing a READY_FOR_ASSESSMENT student who passed the lesson below 100%', async () => {
+    // Regression: the assessor route used to require every checkpoint to have a
+    // passing (all-correct) attempt, blocking any pass under 100%. Readiness is
+    // now owned by the badge status, so a sub-100% pass is assessable.
+    mockPrisma.course.findFirst.mockResolvedValue(subHundredCourseFixture('READY_FOR_ASSESSMENT'));
+
+    const response = await POST(
+      assessmentRequest({
+        passed: true,
+        subgoals: [
+          { subgoalId: 'subgoal-1', passed: true },
+          { subgoalId: 'subgoal-2', passed: true },
+        ],
+        override: null,
+      }),
+      submitParams()
+    );
+
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.status).toBe('READY_FOR_FINALIZATION');
+    expect(mockPrisma.$transaction).toHaveBeenCalled();
+  });
+
+  it('rejects assessment while the badge is still LEARNING (precheck incomplete)', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(subHundredCourseFixture('LEARNING'));
+
+    const response = await POST(
+      assessmentRequest({
+        passed: true,
+        subgoals: [
+          { subgoalId: 'subgoal-1', passed: true },
+          { subgoalId: 'subgoal-2', passed: true },
+        ],
+        override: null,
+      }),
+      submitParams()
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({ error: 'Student has not completed the badge precheck.' });
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('rejects submissions that do not cover the rubric subgoals exactly', async () => {

@@ -339,6 +339,47 @@ describe('badge creation API', () => {
     );
   });
 
+  it('persists a custom passing threshold to the lesson row and the requirement summary', async () => {
+    mockPrisma.__tx.badge.create
+      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null, category: null })
+      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null, category: null });
+
+    const response = await postBadge({
+      courseId: 'course-1',
+      badgeName: 'Threshold Badge',
+      passingPercent: 55,
+      rubricGoal: { name: 'Goal', subgoals: [{ text: 'Does the thing', points: 1 }] },
+    });
+
+    expect(response.status).toBe(201);
+    // The lesson row (course copy) gets the chosen threshold instead of the schema default of 70.
+    expect(mockPrisma.__tx.lesson.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ passingPercent: 55 }) })
+    );
+    // The source badge has no lesson row, so the threshold must round-trip via the summary JSON.
+    const sourceSummary = JSON.parse(mockPrisma.__tx.badgeRequirement.create.mock.calls[0][0].data.summary);
+    expect(sourceSummary.passingPercent).toBe(55);
+  });
+
+  it('clamps and defaults the passing threshold server-side', async () => {
+    mockPrisma.__tx.badge.create
+      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null, category: null })
+      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null, category: null });
+
+    // Out-of-range value is clamped to 100; an omitted value would default to 70.
+    const response = await postBadge({
+      courseId: 'course-1',
+      badgeName: 'Threshold Badge',
+      passingPercent: 250,
+      rubricGoal: { name: 'Goal', subgoals: [{ text: 'Does the thing', points: 1 }] },
+    });
+
+    expect(response.status).toBe(201);
+    expect(mockPrisma.__tx.lesson.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ passingPercent: 100 }) })
+    );
+  });
+
   it('creates an independent badge when course id is missing', async () => {
     const response = await postBadge({
       badgeName: 'Independent Badge',
@@ -457,6 +498,7 @@ describe('badge creation API', () => {
       badgeDescription: 'Updated description',
       category: 'SAFETY',
       skills: ['Updated skill'],
+      passingPercent: 65,
       rubricGoal: {
         name: 'Updated goal',
         passThreshold: 2,
@@ -511,6 +553,8 @@ describe('badge creation API', () => {
     const updateCall = mockPrisma.__tx.badgeRequirement.update.mock.calls[0][0];
     const storedSummary = JSON.parse(updateCall.data.summary);
     expect(storedSummary.lessonTitle).toBe('Updated Badge');
+    // The edited threshold round-trips through the summary and updates the lesson row.
+    expect(storedSummary.passingPercent).toBe(65);
     // The rubric moved to the RubricGoal/RubricSubgoal tables in version 3.
     expect(storedSummary.version).toBe(3);
     expect(storedSummary.rubricItems).toBeUndefined();
@@ -533,6 +577,7 @@ describe('badge creation API', () => {
       expect.objectContaining({
         data: expect.objectContaining({
           title: 'Updated Badge',
+          passingPercent: 65,
         }),
       })
     );

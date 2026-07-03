@@ -531,6 +531,7 @@ export default function BadgeCreationPage() {
                 draft={draft}
                 videoId={videoId}
                 videoThumbnail={videoThumbnail}
+                updatePassingPercent={(value) => updateDraft('passingPercent', value)}
                 addCheckpoint={addCheckpoint}
                 removeCheckpoint={removeCheckpoint}
                 updateCheckpoint={updateCheckpoint}

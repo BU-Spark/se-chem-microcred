@@ -288,6 +288,7 @@ describe('badge import API', () => {
             badgeName: 'Library Badge',
             lessonTitle: 'Library Lesson',
             skills: ['Observe carefully'],
+            passingPercent: 55,
             checkpoints: [
               {
                 title: 'Checkpoint 1',
@@ -317,6 +318,10 @@ describe('badge import API', () => {
     const response = await importBadge({ badgeId: 'source-badge-1' });
 
     expect(response.status).toBe(201);
+    // No source lesson row, so the threshold must come from the summary JSON (not the 70 default).
+    expect(mockPrisma.__tx.lesson.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ passingPercent: 55 }) })
+    );
     expect(mockPrisma.__tx.lessonCheckpoint.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: [

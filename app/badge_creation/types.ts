@@ -56,6 +56,8 @@ export type BadgeDraft = {
   youtubeUrl: string;
   videoTitle: string;
   videoLength: string;
+  // Percent of checkpoint questions a student must answer correctly to pass the lesson.
+  passingPercent: number;
   checkpoints: CheckpointDraft[];
   reassessmentLimit: number;
   cooldownDays: number;
@@ -89,15 +91,18 @@ export type BadgeCatalogItem = {
         questions?: Array<Partial<CheckpointQuestionDraft> & { prompt?: string | null; correctIndex?: number | null }>;
       }
     >;
-    // Video stored in the requirement summary JSON (source badges have no lesson).
+    // Video + passing threshold stored in the requirement summary JSON (source
+    // badges have no lesson row, so these are the durable copy).
     youtubeUrl?: string | null;
     videoTitle?: string | null;
     videoLength?: string | null;
+    passingPercent?: number | null;
     lesson: {
       title: string;
       description: string | null;
       dueDate: string | null;
       estimatedMinutes: number | null;
+      passingPercent?: number | null;
       segment: {
         title: string;
         duration: number | null;
@@ -133,6 +138,7 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   youtubeUrl: '',
   videoTitle: '',
   videoLength: '',
+  passingPercent: 70,
   checkpoints: [],
   reassessmentLimit: 0,
   cooldownDays: 0,

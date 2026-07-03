@@ -292,7 +292,9 @@ describe('Course roster page', () => {
     render(<StudentRosterPage />);
 
     expect(await screen.findByRole('heading', { name: 'Assessor Roster' })).toBeInTheDocument();
-    expect(screen.getByText('Alex')).toBeInTheDocument();
+    // The heading derives from the role search param and renders before the fetched
+    // roster rows, so wait on a data-dependent cell to avoid racing the fetch.
+    expect(await screen.findByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('Checker')).toBeInTheDocument();
     expect(screen.getByText('checker@bu.edu')).toBeInTheDocument();
     expect(screen.getByText('B1, B2')).toBeInTheDocument();
