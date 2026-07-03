@@ -554,6 +554,19 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
       lessons: {
         orderBy: { sortOrder: 'asc' },
         select: {
+          id: true,
+          progress: {
+            where: {
+              studentId: memberId,
+            },
+            take: 1,
+            select: {
+              status: true,
+              startedAt: true,
+              completedAt: true,
+              percentComplete: true,
+            },
+          },
           badgeRequirements: {
             orderBy: { createdAt: 'asc' },
             select: {
@@ -666,6 +679,19 @@ export async function fetchCreatedCourseMemberDetail(userId: string, courseId: s
       lessons: {
         orderBy: { sortOrder: 'asc' },
         select: {
+          id: true,
+          progress: {
+            where: {
+              studentId: memberId,
+            },
+            take: 1,
+            select: {
+              status: true,
+              startedAt: true,
+              completedAt: true,
+              percentComplete: true,
+            },
+          },
           badgeRequirements: {
             orderBy: { createdAt: 'asc' },
             select: {

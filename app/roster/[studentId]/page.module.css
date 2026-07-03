@@ -345,7 +345,8 @@
   justify-content: center;
 }
 
-.badgeTokenButton {
+.badgeTokenButton,
+.badgeTokenStatic {
   padding: 0;
   border: none;
   background: transparent;
@@ -355,6 +356,9 @@
   gap: 0.45rem;
   font: inherit;
   color: inherit;
+}
+
+.badgeTokenButton {
   cursor: pointer;
 }
 
@@ -381,11 +385,6 @@
   box-shadow: 0 10px 22px rgba(46, 106, 169, 0.18);
 }
 
-.badgeBubblePending {
-  background: #ffffff;
-  border-color: #2e6aa9;
-}
-
 .badgeBubbleCompleted {
   background: #94bf66;
 }
@@ -402,7 +401,7 @@
 
 .accordionRow {
   width: fit-content;
-  margin-top: 1rem;
+  margin: 0 0 0.8rem;
   padding: 0;
   border: none;
   background: transparent;
@@ -411,12 +410,12 @@
   gap: 0.35rem;
   font-size: 0.98rem;
   font-weight: 600;
-  color: #262626;
+  color: #1f1f1f;
   cursor: pointer;
 }
 
 .accordionPanel {
-  margin-top: 0.8rem;
+  margin-top: 0;
 }
 
 .detailCard {
