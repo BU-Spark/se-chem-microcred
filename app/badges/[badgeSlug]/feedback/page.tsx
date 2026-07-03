@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
@@ -137,13 +137,62 @@ const BADGE_STATUS_LABEL: Record<string, string> = {
   COMPLETED: 'Completed',
 };
 
+type FeedbackDetail = {
+  badge: {
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    status: BadgeRecord['status'];
+    score: number | null;
+    awardedAt: string | null;
+  };
+  rubric: {
+    goalId: string;
+    goalName: string;
+    totalPoints: number;
+    passThreshold: number;
+    subgoals: Array<{
+      id: string;
+      text: string;
+      points: number;
+      sortOrder: number;
+    }>;
+  } | null;
+  latestAttempt: {
+    id: string;
+    passed: boolean;
+    score: number | null;
+    pointsEarned: number | null;
+    pointsPossible: number | null;
+    feedback: string | null;
+    completedAt: string | null;
+    assessorName: string | null;
+    responses: Array<{
+      id: string;
+      subgoalText: string;
+      points: number;
+      passed: boolean;
+      feedback: string | null;
+      isOverride: boolean;
+      sortOrder: number;
+    }>;
+  } | null;
+};
+
 export default function BadgeFeedbackPage() {
   const params = useParams<{ badgeSlug: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedCourseId = searchParams.get('courseId')?.trim() || null;
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
+  const [feedbackDetail, setFeedbackDetail] = useState<FeedbackDetail | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [reviewedStatus, setReviewedStatus] = useState<BadgeRecord['status'] | null>(null);
+  const [reviewRequestState, setReviewRequestState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
+  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress, requestedCourseId);
 
   const allBadges = useMemo<BadgeRecord[]>(() => {
     if (!studentData) {
@@ -182,6 +231,79 @@ export default function BadgeFeedbackPage() {
       router.replace('/badges');
     }
   }, [allBadges, isLoaded, isSignedIn, params.badgeSlug, router, studentData]);
+
+  useEffect(() => {
+    if (!badge) {
+      setFeedbackDetail(null);
+      setFeedbackError(null);
+      setReviewedStatus(null);
+      setReviewRequestState('idle');
+      return;
+    }
+
+    let isCancelled = false;
+    setFeedbackDetail(null);
+    setFeedbackError(null);
+    setReviewedStatus(null);
+    setReviewRequestState('idle');
+
+    fetch(`/api/badges/${badge.id}/feedback`)
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.error ?? 'Unable to load badge feedback.');
+        }
+        if (!isCancelled) {
+          setFeedbackDetail(payload as FeedbackDetail);
+        }
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          setFeedbackError(error instanceof Error ? error.message : 'Unable to load badge feedback.');
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [badge]);
+
+  useEffect(() => {
+    if (
+      !badge ||
+      !feedbackDetail ||
+      feedbackDetail.badge.status !== 'LEARNING' ||
+      feedbackDetail.latestAttempt?.passed !== false ||
+      reviewRequestState !== 'idle'
+    ) {
+      return;
+    }
+
+    let isCancelled = false;
+    setReviewRequestState('pending');
+
+    fetch(`/api/badges/${badge.id}/feedback`, { method: 'POST' })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          throw new Error(payload.error ?? 'Unable to mark feedback as reviewed.');
+        }
+        if (!isCancelled) {
+          setReviewedStatus(payload.status as BadgeRecord['status']);
+          setReviewRequestState('done');
+        }
+      })
+      .catch((error) => {
+        if (!isCancelled) {
+          setFeedbackError(error instanceof Error ? error.message : 'Unable to mark feedback as reviewed.');
+          setReviewRequestState('error');
+        }
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [badge, feedbackDetail, reviewRequestState]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -244,6 +366,16 @@ export default function BadgeFeedbackPage() {
   }
 
   const lessonSlug = badge.requirements.find((req) => req.lessonSlug)?.lessonSlug;
+  const lessonCourseId = badge.courseId ?? studentData?.course?.id ?? requestedCourseId;
+  const lessonHref = lessonSlug
+    ? lessonCourseId
+      ? `/lessons/${lessonSlug}?courseId=${encodeURIComponent(lessonCourseId)}`
+      : `/lessons/${lessonSlug}`
+    : null;
+  const displayedStatus = reviewedStatus ?? feedbackDetail?.badge.status ?? badge.status;
+  const latestAttempt = feedbackDetail?.latestAttempt ?? null;
+  const rubric = feedbackDetail?.rubric ?? null;
+  const responseByText = new Map(latestAttempt?.responses.map((response) => [response.subgoalText, response]) ?? []);
 
   return (
     <div className="page">
@@ -260,9 +392,79 @@ export default function BadgeFeedbackPage() {
 
           <div className={styles.badgeCard}>
             <h2>
-              Status: <span style={{ color: '#f3f27a' }}>{BADGE_STATUS_LABEL[badge.status] ?? 'Status'}</span>
+              Status: <span style={{ color: '#f3f27a' }}>{BADGE_STATUS_LABEL[displayedStatus] ?? 'Status'}</span>
             </h2>
             <p>{content.feedback}</p>
+            {reviewRequestState === 'pending' ? <p>Marking feedback reviewed...</p> : null}
+            {reviewRequestState === 'done' ? (
+              <p>Your feedback has been reviewed. This badge is ready for reassessment.</p>
+            ) : null}
+            {feedbackError ? <p>{feedbackError}</p> : null}
+          </div>
+
+          <div className={styles.section}>
+            <h3>Assessment Rubric</h3>
+            {latestAttempt ? (
+              <div className={styles.assessmentSummary}>
+                <span>Outcome: {latestAttempt.passed ? 'Passed' : 'Needs reassessment'}</span>
+                <span>
+                  Score:{' '}
+                  {latestAttempt.pointsEarned != null && latestAttempt.pointsPossible != null
+                    ? `${latestAttempt.pointsEarned}/${latestAttempt.pointsPossible}`
+                    : latestAttempt.score != null
+                      ? `${latestAttempt.score}%`
+                      : 'Not scored'}
+                </span>
+                {latestAttempt.assessorName ? <span>Assessor: {latestAttempt.assessorName}</span> : null}
+              </div>
+            ) : null}
+            {rubric ? (
+              <div className={styles.rubricTable} aria-label="Read-only assessment rubric">
+                <div className={styles.rubricHeader}>
+                  <strong>{rubric.goalName}</strong>
+                  <span>
+                    Passing threshold: {rubric.passThreshold}/{rubric.totalPoints}
+                  </span>
+                </div>
+                {rubric.subgoals.map((subgoal) => {
+                  const response = responseByText.get(subgoal.text);
+                  return (
+                    <div key={subgoal.id} className={styles.rubricRow}>
+                      <div>
+                        <strong>{subgoal.text}</strong>
+                        <p>
+                          {subgoal.points} {subgoal.points === 1 ? 'point' : 'points'}
+                        </p>
+                      </div>
+                      <div>
+                        <span className={response?.passed ? styles.rubricPassed : styles.rubricNeedsWork}>
+                          {response ? (response.passed ? 'Passed' : 'Needs work') : 'Not assessed'}
+                        </span>
+                        <p>{response?.feedback || 'No criterion feedback recorded.'}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+                {latestAttempt?.responses
+                  .filter((response) => response.isOverride)
+                  .map((response) => (
+                    <div key={response.id} className={styles.rubricRow}>
+                      <div>
+                        <strong>{response.subgoalText}</strong>
+                        <p>Assessor decision</p>
+                      </div>
+                      <div>
+                        <span className={response.passed ? styles.rubricPassed : styles.rubricNeedsWork}>
+                          {response.passed ? 'Passed' : 'Needs work'}
+                        </span>
+                        <p>{response.feedback || 'No override feedback recorded.'}</p>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            ) : (
+              <p>No rubric has been recorded for this badge yet.</p>
+            )}
           </div>
 
           {badge.status === 'READY_FOR_ASSESSMENT' ? (
@@ -296,8 +498,8 @@ export default function BadgeFeedbackPage() {
                 </div>
               ))}
             </div>
-            {lessonSlug ? (
-              <Link href={`/lessons/${lessonSlug}`} className={styles.primaryButton}>
+            {lessonHref ? (
+              <Link href={lessonHref} className={styles.primaryButton}>
                 Review Lesson
               </Link>
             ) : null}

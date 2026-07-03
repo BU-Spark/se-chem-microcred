@@ -257,7 +257,8 @@ export default function BadgeWalletPage() {
 
   const reviewFeedback = (badge: BadgeRecord) => {
     setActiveBadgeId(null);
-    router.push(`/badges/${badge.slug}/feedback`);
+    const courseParam = badge.courseId ? `?courseId=${encodeURIComponent(badge.courseId)}` : '';
+    router.push(`/badges/${badge.slug}/feedback${courseParam}`);
   };
 
   const exportBadgeToLinkedIn = async (badge: BadgeRecord) => {
