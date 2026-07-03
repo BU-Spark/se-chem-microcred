@@ -6,7 +6,6 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import BackButton from '@/app/_components/BackButton';
 
 function buildAvatarUrlFromAvatar(
   avatar?: { base: string; face: string; accessory: string | null } | null
@@ -47,7 +46,9 @@ function LessonVideoRouteContent() {
     return (
       <div style={{ padding: '2rem' }}>
         <p>We could not load your lesson data{error ? `: ${error}` : '.'}</p>
-        <BackButton onClick={handleBack} />
+        <button type="button" onClick={handleBack}>
+          Back to lessons
+        </button>
       </div>
     );
   }
@@ -58,7 +59,9 @@ function LessonVideoRouteContent() {
     return (
       <div style={{ padding: '2rem' }}>
         <p>We could not find a lesson that matches this page.</p>
-        <BackButton onClick={handleBack} />
+        <button type="button" onClick={handleBack}>
+          Back to lessons
+        </button>
       </div>
     );
   }
@@ -103,7 +106,9 @@ function LessonVideoRouteContent() {
     return (
       <div style={{ padding: '2rem' }}>
         <p>We could not determine your student email for this lesson.</p>
-        <BackButton onClick={handleBack} />
+        <button type="button" onClick={handleBack}>
+          Back to lessons
+        </button>
       </div>
     );
   }

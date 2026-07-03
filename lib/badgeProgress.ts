@@ -70,6 +70,16 @@ async function isBadgeReadyForAssessment(tx: BadgeProgressClient, studentId: str
   });
 }
 
+async function latestAssessmentFailed(tx: BadgeProgressClient, studentId: string, badgeId: string) {
+  const latestAttempt = await tx.assessmentAttempt.findFirst({
+    where: { studentId, badgeId },
+    orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
+    select: { passed: true },
+  });
+
+  return latestAttempt?.passed === false;
+}
+
 export async function syncLessonBadgesForStudent(
   tx: BadgeProgressClient,
   {
@@ -118,6 +128,10 @@ export async function syncLessonBadgesForStudent(
     });
 
     if (studentBadge.status !== BadgeStatus.LEARNING) {
+      continue;
+    }
+
+    if (await latestAssessmentFailed(tx, studentId, badge.id)) {
       continue;
     }
 

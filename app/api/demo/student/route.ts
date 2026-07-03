@@ -311,6 +311,7 @@ export async function GET(req: Request) {
     passingCheckpointAttempts,
     surveyResponses,
     checkpointResponses,
+    assessmentAttempts,
   ] = await Promise.all([
     enrollment
       ? prisma.enrollment.findMany({
@@ -374,6 +375,16 @@ export async function GET(req: Request) {
       select: {
         checkpointId: true,
         questionId: true,
+      },
+    }),
+    prisma.assessmentAttempt.findMany({
+      where: {
+        studentId: student.id,
+      },
+      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
+      select: {
+        badgeId: true,
+        passed: true,
       },
     }),
   ]);
@@ -472,6 +483,12 @@ export async function GET(req: Request) {
   }, new Map());
 
   const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
+  const latestAssessmentPassedByBadgeId = new Map<string, boolean>();
+  for (const attempt of assessmentAttempts) {
+    if (!latestAssessmentPassedByBadgeId.has(attempt.badgeId)) {
+      latestAssessmentPassedByBadgeId.set(attempt.badgeId, attempt.passed);
+    }
+  }
   const surveyPromptIdsCompleted = new Set(surveyResponses.map((response) => response.promptId));
   const passingCheckpointIds = new Set(passingCheckpointAttempts.map((attempt) => attempt.checkpointId));
   const answeredQuestionsByCheckpoint = checkpointResponses.reduce<Map<string, Set<string>>>((acc, response) => {
@@ -592,9 +609,12 @@ export async function GET(req: Request) {
     });
 
     let status = entry.status;
+    const latestAssessmentPassed = latestAssessmentPassedByBadgeId.get(entry.badgeId);
 
     if (status === BadgeStatus.LEARNING) {
-      if (hasInProgressRequirement) {
+      if (latestAssessmentPassed === false) {
+        status = BadgeStatus.LEARNING;
+      } else if (hasInProgressRequirement) {
         status = BadgeStatus.LEARNING;
       } else if (allRequirementsCompleted) {
         status = BadgeStatus.READY_FOR_ASSESSMENT;

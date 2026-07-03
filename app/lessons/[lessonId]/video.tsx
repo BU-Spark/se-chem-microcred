@@ -4,7 +4,6 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import type { LessonRecord } from '../../hooks/useStudentData';
-import BackButton from '@/app/_components/BackButton';
 import styles from './video.module.css';
 import veryUnhappyFace from '../../../public/assets/survey_faces/very_unhappy.svg';
 import veryUnhappyFaceSelected from '../../../public/assets/survey_faces/very_unhappy_selected.svg';
@@ -1311,7 +1310,19 @@ export function LessonVideoPage({
   return (
     <div className={styles.page}>
       <div className={styles.content}>
-        <BackButton onClick={handleBackToLessonDetail} />
+        <button type="button" className={styles.backButton} onClick={handleBackToLessonDetail}>
+          <svg className={styles.backIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M15 5l-7 7 7 7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span>Back</span>
+        </button>
 
         <aside className={styles.timeline}>
           {timelineItems.map((item) => {
@@ -1651,7 +1662,9 @@ export function LessonVideoPage({
                         <button type="button" className={styles.modalSecondary} onClick={handleRestartAfterFailure}>
                           Restart now
                         </button>
-                        <BackButton inline label="Back to dashboard" onClick={handleGoHome} />
+                        <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
+                          Back to dashboard
+                        </button>
                       </div>
                     </>
                   ) : null}

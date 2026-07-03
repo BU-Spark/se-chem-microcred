@@ -177,4 +177,41 @@ describe('Badge Wallet QR modal', () => {
       });
     });
   });
+
+  it('shows learning badges in Still Learning with a review feedback action', () => {
+    const studentData = createStudentData();
+    studentData.badges.readyForAssessment = [];
+    studentData.badges.learning = [
+      {
+        id: 'badge-learning-1',
+        courseId: 'course-1',
+        slug: 'learning-badge',
+        name: 'Learning Badge',
+        description: 'Needs feedback review',
+        category: 'Safety',
+        status: 'LEARNING' as const,
+        awardedAt: null,
+        score: 40,
+        requirements: [],
+      },
+    ];
+    mockUseStudentData.mockReturnValue({
+      data: studentData,
+      isLoading: false,
+      error: null,
+      refresh: jest.fn(),
+    });
+
+    render(<BadgeWalletPage />);
+
+    const learningToggle = document.querySelector('button[aria-controls="learning-badges"]') as HTMLButtonElement;
+    if (learningToggle.getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(learningToggle);
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: /Learning/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Review Feedback/i }));
+
+    expect(mockPush).toHaveBeenCalledWith('/badges/learning-badge/feedback');
+  });
 });
