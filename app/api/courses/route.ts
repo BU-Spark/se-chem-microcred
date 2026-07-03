@@ -10,6 +10,10 @@ type CreateOrUpdateCoursePayload = {
   sectionCount: number;
   description?: string | null;
 
+  iconName?: string | null;
+  iconBgColor?: string | null;
+  iconFgColor?: string | null;
+
   settings?: {
     allowCooldownOverride?: boolean;
     allowAssessorMessages?: boolean;
@@ -115,6 +119,9 @@ export async function POST(req: NextRequest) {
     const requestedCode = normalizeCourseCode(body.code);
     const title = normalizeString(body.title);
     const description = normalizeString(body.description);
+    const iconName = normalizeString(body.iconName);
+    const iconBgColor = normalizeString(body.iconBgColor);
+    const iconFgColor = normalizeString(body.iconFgColor);
     const sectionCount = Number(body.sectionCount);
 
     if (!title) {
@@ -239,6 +246,9 @@ export async function POST(req: NextRequest) {
               title,
               sectionCount,
               description,
+              iconName,
+              iconBgColor,
+              iconFgColor,
             },
             select: { id: true },
           });
@@ -295,6 +305,9 @@ export async function POST(req: NextRequest) {
               title,
               sectionCount,
               description,
+              iconName,
+              iconBgColor,
+              iconFgColor,
               createdById: creator.id,
               settings: {
                 create: {

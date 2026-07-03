@@ -96,6 +96,14 @@ model Course {
   section      String?
   sectionCount Int
   description  String?
+
+  // Instructor-chosen "course image": an Iconify icon name (e.g. "mdi:flask")
+  // rendered over a background color from a fixed palette. Null on courses
+  // created before this feature — those fall back to the lesson thumbnail.
+  iconName    String?
+  iconBgColor String?
+  iconFgColor String?
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

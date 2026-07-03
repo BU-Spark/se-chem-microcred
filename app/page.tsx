@@ -21,8 +21,10 @@ import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_
 import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import BackButton from '@/app/_components/BackButton';
+import CourseTileImage from '@/app/_components/CourseTileImage';
+import type { CourseImageFields } from '@/lib/courseImage';
 
-interface EnrolledCourseCardData {
+interface EnrolledCourseCardData extends CourseImageFields {
   id: string;
   title: string;
   image?: string;
@@ -39,7 +41,7 @@ type CoursePreviewLesson = {
   }>;
 };
 
-type CreatedCourse = {
+type CreatedCourse = CourseImageFields & {
   id: string;
   title: string;
   description: string | null;
@@ -54,7 +56,7 @@ type CreatedCourse = {
 type EnrolledCourse = {
   id: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-  course: {
+  course: CourseImageFields & {
     id: string;
     code: string;
     section: string | null;
@@ -177,17 +179,25 @@ function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: str
       aria-label={`Open ${course.title}`}
     >
       <div className={courseStyles.courseMedia}>
-        {thumbnailUrl ? (
-          <Image
-            src={thumbnailUrl}
-            alt={`${course.title} preview`}
-            fill
-            sizes="(max-width: 768px) 100vw, 240px"
-            className={courseStyles.courseImage}
-          />
-        ) : (
-          <div className={courseStyles.coursePlaceholder} aria-hidden="true" />
-        )}
+        <CourseTileImage
+          iconName={course.iconName}
+          iconBgColor={course.iconBgColor}
+          iconFgColor={course.iconFgColor}
+          title={course.title}
+          fallback={
+            thumbnailUrl ? (
+              <Image
+                src={thumbnailUrl}
+                alt={`${course.title} preview`}
+                fill
+                sizes="(max-width: 768px) 100vw, 240px"
+                className={courseStyles.courseImage}
+              />
+            ) : (
+              <div className={courseStyles.coursePlaceholder} aria-hidden="true" />
+            )
+          }
+        />
       </div>
 
       <div className={courseStyles.courseText}>
@@ -216,6 +226,9 @@ function enrollmentToCard(enrollment: EnrolledCourse): EnrolledCourseCardData {
     title: course.title,
     image: resolvePreviewImage(course.lessons[0]),
     href: `/course_dashboard?courseId=${course.id}`,
+    iconName: course.iconName,
+    iconBgColor: course.iconBgColor,
+    iconFgColor: course.iconFgColor,
   };
 }
 
@@ -534,18 +547,26 @@ function HomeContent() {
         aria-label={`Open ${course.title}`}
       >
         <div className={courseStyles.courseMedia}>
-          {isYouTubeThumb ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageSrc} alt={`${course.title} preview`} className={courseStyles.courseImage} />
-          ) : (
-            <Image
-              src={imageSrc}
-              alt={`${course.title} preview`}
-              fill
-              sizes="(max-width: 768px) 100vw, 240px"
-              className={courseStyles.courseImage}
-            />
-          )}
+          <CourseTileImage
+            iconName={course.iconName}
+            iconBgColor={course.iconBgColor}
+            iconFgColor={course.iconFgColor}
+            title={course.title}
+            fallback={
+              isYouTubeThumb ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageSrc} alt={`${course.title} preview`} className={courseStyles.courseImage} />
+              ) : (
+                <Image
+                  src={imageSrc}
+                  alt={`${course.title} preview`}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 240px"
+                  className={courseStyles.courseImage}
+                />
+              )
+            }
+          />
         </div>
 
         <div className={courseStyles.courseText}>
