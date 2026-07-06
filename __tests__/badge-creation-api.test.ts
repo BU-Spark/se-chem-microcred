@@ -25,7 +25,13 @@ const mockTx = {
   surveyPrompt: { create: jest.fn() },
   studentBadge: { createMany: jest.fn() },
   rubricGoal: { upsert: jest.fn(), deleteMany: jest.fn() },
-  rubricSubgoal: { createMany: jest.fn(), deleteMany: jest.fn() },
+  rubricSubgoal: {
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    createMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
 };
 
 const mockPrisma = {
@@ -127,6 +133,9 @@ describe('badge creation API', () => {
     mockPrisma.__tx.badge.findMany.mockResolvedValue([]);
     mockPrisma.__tx.rubricGoal.upsert.mockResolvedValue({ id: 'goal-1' });
     mockPrisma.__tx.rubricGoal.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.__tx.rubricSubgoal.findMany.mockResolvedValue([]);
+    mockPrisma.__tx.rubricSubgoal.create.mockResolvedValue({ id: 'subgoal-1' });
+    mockPrisma.__tx.rubricSubgoal.update.mockResolvedValue({ id: 'subgoal-1' });
     mockPrisma.__tx.rubricSubgoal.createMany.mockResolvedValue({ count: 1 });
     mockPrisma.__tx.rubricSubgoal.deleteMany.mockResolvedValue({ count: 0 });
   });
@@ -214,12 +223,22 @@ describe('badge creation API', () => {
         create: { badgeId: 'course-badge-1', name: 'Operate the burner safely', totalPoints: 4, passThreshold: 3 },
       })
     );
-    expect(mockPrisma.__tx.rubricSubgoal.createMany).toHaveBeenCalledWith({
-      data: [
-        { text: 'Safe setup', points: 2, sortOrder: 0, goalId: 'goal-1' },
-        { text: 'Safe shutdown', points: 2, sortOrder: 1, goalId: 'goal-1' },
-      ],
+    expect(mockPrisma.__tx.rubricSubgoal.findMany).toHaveBeenCalledWith({
+      where: { goalId: 'goal-1' },
+      select: { id: true, sortOrder: true },
     });
+    expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({ text: 'Safe setup', points: 2, sortOrder: 0, goalId: 'goal-1' }),
+      })
+    );
+    expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ text: 'Safe shutdown', points: 2, sortOrder: 1, goalId: 'goal-1' }),
+      })
+    );
     expect(mockPrisma.__tx.course.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'course-1', createdById: 'instructor-1' },
@@ -566,13 +585,22 @@ describe('badge creation API', () => {
         update: { name: 'Updated goal', totalPoints: 3, passThreshold: 2 },
       })
     );
-    expect(mockPrisma.__tx.rubricSubgoal.deleteMany).toHaveBeenCalledWith({ where: { goalId: 'goal-1' } });
-    expect(mockPrisma.__tx.rubricSubgoal.createMany).toHaveBeenCalledWith({
-      data: [
-        { text: 'First subgoal', points: 1, sortOrder: 0, goalId: 'goal-1' },
-        { text: 'Second subgoal', points: 2, sortOrder: 1, goalId: 'goal-1' },
-      ],
+    expect(mockPrisma.__tx.rubricSubgoal.findMany).toHaveBeenCalledWith({
+      where: { goalId: 'goal-1' },
+      select: { id: true, sortOrder: true },
     });
+    expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({ text: 'First subgoal', points: 1, sortOrder: 0, goalId: 'goal-1' }),
+      })
+    );
+    expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ text: 'Second subgoal', points: 2, sortOrder: 1, goalId: 'goal-1' }),
+      })
+    );
     expect(mockPrisma.__tx.lesson.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
