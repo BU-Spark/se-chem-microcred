@@ -99,6 +99,17 @@ function LessonVideoRouteContent() {
     );
   }
 
+  if (!lessonForVideo) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <p>We could not load the lesson video for this page.</p>
+        <button type="button" onClick={handleBack}>
+          Back to lessons
+        </button>
+      </div>
+    );
+  }
+
   const studentName = studentData.student.name || user?.fullName || 'Student Demo';
   const studentEmail = studentData.student.email || user?.primaryEmailAddress?.emailAddress;
   const studentAvatar = studentData.student.avatar || null;
