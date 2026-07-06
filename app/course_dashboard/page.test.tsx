@@ -89,7 +89,9 @@ describe('Course dashboard page', () => {
               estimatedMinutes: null,
               thumbnailUrl: null,
               segments: [],
-              badgeRequirements: [{ badgeId: 'b1', badgeName: 'Safety', badgeSlug: 'safety', youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ' }],
+              badgeRequirements: [
+                { badgeId: 'b1', badgeName: 'Safety', badgeSlug: 'safety', youtubeUrl: 'https://youtu.be/dQw4w9WgXcQ' },
+              ],
             },
           ],
           inProgress: [],
