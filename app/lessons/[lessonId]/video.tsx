@@ -545,7 +545,7 @@ export function LessonVideoPage({
   }, [modalState, currentCheckpointIndex, orderedCheckpoints, currentSegmentIndex]);
 
   const primaryVideoSegment = useMemo(
-    () => lesson.segments.find((segment) => !!segment.videoUrl) ?? lesson.segments[0] ?? null,
+    () => lesson.segments.find((segment) => !!segment.videoUrl) ?? null,
     [lesson.segments]
   );
   const youtubeId = useMemo(() => extractYouTubeId(primaryVideoSegment?.videoUrl), [primaryVideoSegment]);
