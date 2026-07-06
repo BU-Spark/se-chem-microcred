@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser, useClerk, useReverification } from '@clerk/nextjs';
+import { useAuth, useUser, useClerk } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import styles from './page.module.css';
@@ -42,16 +42,6 @@ function avatarAsset(base?: string | null) {
   }
 }
 
-function splitLastFirst(name?: string | null) {
-  if (!name) return { line1: 'Name not provided', line2: '' };
-
-  const parts = name.split(',').map((p) => p.trim());
-  if (parts.length === 1) {
-    return { line1: parts[0], line2: '' };
-  }
-  return { line1: parts[0], line2: parts[1] };
-}
-
 function formatCreatedDate(value?: string | null) {
   if (!value) return 'Not available';
   const date = new Date(value);
@@ -65,22 +55,6 @@ function formatCreatedDate(value?: string | null) {
 function pellLabel(value?: boolean | null) {
   if (value == null) return 'Not provided';
   return value ? 'Yes' : 'No';
-}
-
-type Contact = {
-  id: string;
-  name: string;
-  type: string;
-  email?: string | null;
-  avatarUrl?: string | null;
-};
-
-function getContactAvatarSrc(contact: Contact) {
-  if (contact.avatarUrl) {
-    return contact.avatarUrl;
-  }
-
-  return '/edit_avatar/sapphire.svg';
 }
 
 // 10 minutes
@@ -165,21 +139,21 @@ export default function ProfilePage() {
     }
   }, [sensitiveHidden]);
 
-  // Real step-up auth: useReverification wraps a call to a reverification-protected
-  // route. Clerk catches the reverification error, prompts the user to re-verify
-  // their credentials, and retries — so the reveal can't be bypassed by a confirm box.
-  const reverifiedReveal = useReverification(async () => {
+  // Session gate: verify the user still has an active Clerk session (a live
+  // session cookie) before unmasking. The reveal can't be bypassed client-side
+  // because the server re-checks the session on every call.
+  const verifyActiveSession = async () => {
     const response = await fetch('/api/profile/reverify', { method: 'POST' });
     if (!response.ok) {
-      throw new Error('Re-verification required');
+      throw new Error('No active session');
     }
-  });
+  };
 
-  // Returns true if sensitive info became visible. Fails closed: if the user
-  // cancels re-verification or it errors, sensitive data stays masked.
+  // Returns true if sensitive info became visible. Fails closed: if the session
+  // check errors (expired/missing session), sensitive data stays masked.
   const handleShowSensitive = async (): Promise<boolean> => {
     try {
-      await reverifiedReveal();
+      await verifyActiveSession();
       setSensitiveHidden(false);
       restartSensitiveTimer();
       return true;
@@ -317,9 +291,6 @@ export default function ProfilePage() {
     { label: 'Pell Grant Qualified?', value: pellGrantQualified },
   ];
 
-  const checkerContacts = studentData?.course?.contacts.filter((contact) => contact.type === 'CHECKER') ?? [];
-  const courseTitle = studentData?.course?.title ?? 'Course information not available';
-  const courseSection = studentData?.course?.section ?? 'Not provided';
   const avatarSrc = avatarAsset(studentData?.student.avatar?.base ?? cachedAvatarBase);
 
   const learningBadges = studentData?.badges.learning ?? [];
@@ -393,7 +364,7 @@ export default function ProfilePage() {
               </button>
             </div>
 
-            {/* RIGHT: demographic dropdown + course + checker */}
+            {/* RIGHT: demographic dropdown */}
             <aside className={styles.rightColumn}>
               {/* Demographic Info dropdown */}
               <div className={styles.demographicSection}>
@@ -423,50 +394,7 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Course Info */}
-              <div className={styles.courseSection}>
-                <h3 className={styles.courseInfoTitle}>Course Info:</h3>
-                <div className={styles.courseMeta}>
-                  {courseTitle}
-                  <br />
-                  Section: {courseSection}
-                </div>
-              </div>
-
-              {/* Checker */}
-              <div className={styles.courseSection}>
-                <h3 className={styles.checkerTitle}>Checker</h3>
-                <div className={styles.contactList}>
-                  {checkerContacts.length === 0 ? (
-                    <div className={styles.emptyState}>No checkers listed.</div>
-                  ) : (
-                    checkerContacts.map((contact) => {
-                      const { line1, line2 } = splitLastFirst(contact.name);
-                      return (
-                        <div key={contact.id} className={styles.contactItem}>
-                          <div className={styles.contactAvatar}>
-                            <Image src={getContactAvatarSrc(contact)} alt={contact.name} width={110} height={110} />
-                          </div>
-                          <div className={styles.contactInfo}>
-                            <span className={styles.contactName}>
-                              {line1}
-                              {line2 ? (
-                                <>
-                                  <br />
-                                  {line2}
-                                </>
-                              ) : null}
-                            </span>
-                            <span className={styles.contactEmail}>{contact.email}</span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Edit pencil for course/checker area -> demographic/edit handler */}
+              {/* Edit pencil for demographic area -> demographic/edit handler */}
               <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
                 <span className={styles.editPencilText}>Edit</span>
                 <Image src={editIcon} alt="" width={20} height={20} className={styles.editPencilIcon} />

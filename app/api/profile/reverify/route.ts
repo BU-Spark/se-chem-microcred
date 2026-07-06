@@ -1,20 +1,19 @@
-import { auth, reverificationErrorResponse } from '@clerk/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 
-// Step-up auth gate: requires the user to have recently re-verified their
-// credentials before sensitive profile data is revealed. The client calls this
-// via Clerk's `useReverification` hook, which catches the reverification error
-// response, shows the re-auth UI, and retries on success.
+// Session gate: keeps sensitive profile data behind lock and key by requiring a
+// valid, active Clerk session (a live session cookie) before revealing it.
+// The client calls this before unmasking; a 401/403 keeps the data hidden.
 export async function POST() {
   // `auth.protect()` returns 401/404 if there is no signed-in user at all.
   await auth.protect();
 
-  const { has } = await auth();
+  const { userId, sessionId } = await auth();
 
-  // If the user has not reverified within the strict window, return the
-  // reverification error so `useReverification` can prompt for step-up auth.
-  if (!has({ reverification: 'strict' })) {
-    return reverificationErrorResponse('strict');
+  // An authenticated user always resolves both from the session cookie; if
+  // either is missing the session isn't active, so keep the data locked.
+  if (!userId || !sessionId) {
+    return NextResponse.json({ error: 'No active session' }, { status: 403 });
   }
 
   return NextResponse.json({ ok: true });
