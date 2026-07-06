@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 type ProfileSummary = {
   displayName: string | null;
@@ -111,5 +111,21 @@ export function useDatabaseDisplayName(email?: string | null, enabled = true) {
     };
   }, [enabled, normalizedEmail]);
 
-  return { displayName: profile.displayName, avatarBase: profile.avatarBase };
+  // Optimistic update: paint a freshly-chosen avatar everywhere immediately and
+  // keep the caches warm, so the change doesn't wait on the background refetch.
+  const setAvatarBase = useCallback(
+    (avatarBase: string) => {
+      setProfile((prev) => {
+        const next = { ...prev, avatarBase };
+        if (normalizedEmail) {
+          profileCache.set(normalizedEmail, next);
+          writeStored(normalizedEmail, next);
+        }
+        return next;
+      });
+    },
+    [normalizedEmail]
+  );
+
+  return { displayName: profile.displayName, avatarBase: profile.avatarBase, setAvatarBase };
 }

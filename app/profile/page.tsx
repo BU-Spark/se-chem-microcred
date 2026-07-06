@@ -95,7 +95,7 @@ export default function ProfilePage() {
   const { data: studentData, refresh: refreshStudentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   // Cached avatar base (in-memory + localStorage) so the chosen avatar paints
   // immediately instead of flashing the default gem while studentData loads.
-  const { avatarBase: cachedAvatarBase } = useDatabaseDisplayNameContext();
+  const { avatarBase: cachedAvatarBase, setAvatarBase: setCachedAvatarBase } = useDatabaseDisplayNameContext();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // ---------- 1. Sensitive-data visibility ----------
@@ -135,6 +135,10 @@ export default function ProfilePage() {
 
   // 4. Character customization
   const [isEditAvatarOpen, setIsEditAvatarOpen] = useState(false);
+  // Paint the just-picked avatar immediately on save instead of waiting for the
+  // (slow) studentData refetch, so the change feels instant. The background
+  // refresh reconciles this with the DB value.
+  const [optimisticAvatarBase, setOptimisticAvatarBase] = useState<string | null>(null);
 
   // kick user to sign-in if not authenticated
   useEffect(() => {
@@ -320,7 +324,7 @@ export default function ProfilePage() {
   const checkerContacts = studentData?.course?.contacts.filter((contact) => contact.type === 'CHECKER') ?? [];
   const courseTitle = studentData?.course?.title ?? 'Course information not available';
   const courseSection = studentData?.course?.section ?? 'Not provided';
-  const avatarSrc = avatarAsset(studentData?.student.avatar?.base ?? cachedAvatarBase);
+  const avatarSrc = avatarAsset(optimisticAvatarBase ?? studentData?.student.avatar?.base ?? cachedAvatarBase);
 
   const learningBadges = studentData?.badges.learning ?? [];
   const completedBadges = studentData?.badges.completed ?? [];
@@ -703,7 +707,16 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-      {isEditAvatarOpen && <EditAvatarModal onClose={() => setIsEditAvatarOpen(false)} />}
+      {isEditAvatarOpen && (
+        <EditAvatarModal
+          onClose={() => setIsEditAvatarOpen(false)}
+          onSaved={(base) => {
+            setOptimisticAvatarBase(base);
+            setCachedAvatarBase(base);
+            refreshStudentData();
+          }}
+        />
+      )}
     </div>
   );
 }
