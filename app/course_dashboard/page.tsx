@@ -118,6 +118,14 @@ function resolveLessonImage(record: LessonRecord) {
     }
   }
 
+  // Badge videos live on the requirement summary, not the segment (see bug #14),
+  // so include them or badge-only lessons fall through to the ChemSkills dummy.
+  if (Array.isArray(record.badgeRequirements)) {
+    for (const req of record.badgeRequirements) {
+      candidateUrls.push(req?.youtubeUrl);
+    }
+  }
+
   for (const url of candidateUrls) {
     const id = extractYouTubeId(url);
     if (id) {

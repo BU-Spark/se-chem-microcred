@@ -90,6 +90,9 @@ function LessonDetailContent() {
 
     const checkpoints = lessonRecord.checkpoints ?? [];
     const segments = lessonRecord.segments ?? [];
+    // Badge videos live on the requirement summary, not a segment (see bug #14). Fall back to
+    // it so the timestamp-frame thumbnails below resolve instead of showing "Preview".
+    const badgeVideoUrl = lessonRecord.badgeRequirements?.find((req) => req.youtubeUrl)?.youtubeUrl ?? null;
     const segmentById = new Map<string, LessonRecord['segments'][number]>();
     segments.forEach((seg) => {
       if (seg.id) {
@@ -111,7 +114,7 @@ function LessonDetailContent() {
       if (cp.snapshotUrl) return cp.snapshotUrl;
       // Try the segment associated with this checkpoint.
       const seg = (cp.segmentId ? segmentById.get(cp.segmentId) : null) ?? segments[cpIndex] ?? segments[0] ?? null;
-      const youtubeId = extractYouTubeId(seg?.videoUrl ?? lessonRecord.segments?.[0]?.videoUrl ?? null);
+      const youtubeId = extractYouTubeId(seg?.videoUrl ?? lessonRecord.segments?.[0]?.videoUrl ?? badgeVideoUrl);
       if (youtubeId) {
         // YouTube exposes a few frame thumbnails: 0 (default), 1-3 midpoints. Map cp index to 1..3, clamp.
         const frame = Math.max(1, Math.min(3, cpIndex + 1));
@@ -174,7 +177,7 @@ function LessonDetailContent() {
         const extraSeg = segments[checkpoints.length] ?? segments.at(-1);
         const youtubeId =
           extractYouTubeId(extraSeg?.videoUrl ?? lessonRecord.segments?.[0]?.videoUrl ?? null) ??
-          extractYouTubeId(lessonRecord.segments?.at(-1)?.videoUrl ?? null);
+          extractYouTubeId(lessonRecord.segments?.at(-1)?.videoUrl ?? badgeVideoUrl);
         const img: string = checkpoints[checkpoints.length - 1]?.snapshotUrl
           ? checkpoints[checkpoints.length - 1].snapshotUrl!
           : youtubeId
