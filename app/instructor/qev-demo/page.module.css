@@ -159,6 +159,10 @@
 }
 
 @media (max-width: 640px) {
+  .pageTitle {
+    font-size: 38px;
+  }
+
   .formCard {
     padding: 1.75rem;
   }

@@ -355,11 +355,38 @@ async function syncBadgeRubricGoal(tx: Prisma.TransactionClient, badgeId: string
     select: { id: true },
   });
 
-  await tx.rubricSubgoal.deleteMany({ where: { goalId: savedGoal.id } });
+  // Fetch existing subgoals to determine what to update/create/delete
+  const existingSubgoals = await tx.rubricSubgoal.findMany({
+    where: { goalId: savedGoal.id },
+    select: { id: true, sortOrder: true },
+  });
 
-  if (goal.subgoals.length > 0) {
-    await tx.rubricSubgoal.createMany({
-      data: goal.subgoals.map((subgoal) => ({ ...subgoal, goalId: savedGoal.id })),
+  // Build a map of existing subgoals by sortOrder for quick lookup
+  const existingBySortOrder = new Map(existingSubgoals.map((sg) => [sg.sortOrder, sg.id]));
+
+  // Update or create subgoals based on sortOrder matching
+  for (const subgoal of goal.subgoals) {
+    const existingId = existingBySortOrder.get(subgoal.sortOrder);
+    if (existingId) {
+      // Update existing subgoal in place
+      await tx.rubricSubgoal.update({
+        where: { id: existingId },
+        data: { text: subgoal.text, points: subgoal.points, sortOrder: subgoal.sortOrder },
+      });
+      existingBySortOrder.delete(subgoal.sortOrder);
+    } else {
+      // Create new subgoal
+      await tx.rubricSubgoal.create({
+        data: { ...subgoal, goalId: savedGoal.id },
+      });
+    }
+  }
+
+  // Delete subgoals that are no longer present in the incoming rubric
+  const idsToDelete = Array.from(existingBySortOrder.values());
+  if (idsToDelete.length > 0) {
+    await tx.rubricSubgoal.deleteMany({
+      where: { id: { in: idsToDelete } },
     });
   }
 }

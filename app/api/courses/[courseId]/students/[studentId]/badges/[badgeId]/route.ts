@@ -502,26 +502,27 @@ export async function GET(
     );
 
     const gradingRows =
-      latestAssessment?.responses.map((response) => ({
-        id: response.id,
-        title: response.isOverride ? 'Assessor override' : response.subgoalText,
-        outcome:
-          response.feedback ||
-          (response.isOverride
-            ? response.passed
-              ? 'Passed by assessor decision'
-              : 'Failed by assessor decision'
-            : response.passed
-              ? `Passed (+${response.points} ${response.points === 1 ? 'pt' : 'pts'})`
-              : 'Not passed'),
-        passed: response.passed,
-      })) ??
-      (rubricGoal?.subgoals ?? []).map((subgoal) => ({
-        id: subgoal.id,
-        title: subgoal.text,
-        outcome: 'Not assessed yet',
-        passed: false,
-      }));
+      latestAssessment?.responses && latestAssessment.responses.length > 0
+        ? latestAssessment.responses.map((response) => ({
+            id: response.id,
+            title: response.isOverride ? 'Assessor override' : response.subgoalText,
+            outcome:
+              response.feedback ||
+              (response.isOverride
+                ? response.passed
+                  ? 'Passed by assessor decision'
+                  : 'Failed by assessor decision'
+                : response.passed
+                  ? `Passed (+${response.points} ${response.points === 1 ? 'pt' : 'pts'})`
+                  : 'Not passed'),
+            passed: response.passed,
+          }))
+        : (rubricGoal?.subgoals ?? []).map((subgoal) => ({
+            id: subgoal.id,
+            title: subgoal.text,
+            outcome: 'Not assessed yet',
+            passed: false,
+          }));
 
     return NextResponse.json(
       {

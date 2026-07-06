@@ -310,11 +310,13 @@ export default function AssessmentReadinessPage() {
     setSubmitError(null);
   }, [badgeDetail]);
 
-  const updateSubgoalDraft = (subgoalId: string, patch: Partial<SubgoalDraft>) => {
+  const updateSubgoalDraft = (subgoalId: string, patch: Partial<SubgoalDraft>, resetPin = true) => {
     setSubgoalDrafts((current) =>
       current.map((subgoal) => (subgoal.subgoalId === subgoalId ? { ...subgoal, ...patch } : subgoal))
     );
-    setPinnedPassed(null);
+    if (resetPin && 'passed' in patch) {
+      setPinnedPassed(null);
+    }
   };
 
   const rubric = badgeDetail?.assessment?.rubric ?? null;
@@ -596,7 +598,7 @@ export default function AssessmentReadinessPage() {
                               <textarea
                                 value={subgoal.feedback}
                                 onChange={(event) =>
-                                  updateSubgoalDraft(subgoal.subgoalId, { feedback: event.target.value })
+                                  updateSubgoalDraft(subgoal.subgoalId, { feedback: event.target.value }, false)
                                 }
                                 rows={2}
                               />

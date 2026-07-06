@@ -337,7 +337,14 @@ export default function BadgeWalletPage() {
           aria-pressed={isActive}
         >
           <span className={styles.srOnly}>{badge.name.replace(/ Badge$/i, '')}</span>
-          <YoutubeThumbnail videoUrl={badge.youtubeUrl} alt="" className={styles.badgeTokenImage} />
+          {badge.youtubeUrl ? (
+            <YoutubeThumbnail videoUrl={badge.youtubeUrl} alt="" className={styles.badgeTokenImage} />
+          ) : (
+            <div
+              className={styles.badgeTokenImage}
+              style={{ width: '100%', height: '100%', background: 'currentColor' }}
+            />
+          )}
         </button>
       );
     });
