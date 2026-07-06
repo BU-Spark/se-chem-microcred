@@ -24,6 +24,11 @@ export function GlobalHeader() {
     return null;
   }
 
+  // ❌ The auth pages render their own centered checkd logo (AuthShell)
+  if (segments[0] === 'sign-in' || segments[0] === 'sign-up') {
+    return null;
+  }
+
   // ✅ Everywhere else, render the original global header
   return (
     <header className="global-header">

@@ -1,9 +1,11 @@
 import { SignUp } from '@clerk/nextjs';
+import AuthShell from '../../AuthShell';
+import { authAppearance } from '../../authAppearance';
 
 export default function SignUpPage() {
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
-      <SignUp forceRedirectUrl="/onboarding" signInUrl="/sign-in" />
-    </div>
+    <AuthShell>
+      <SignUp forceRedirectUrl="/onboarding" signInUrl="/sign-in" appearance={authAppearance} />
+    </AuthShell>
   );
 }
