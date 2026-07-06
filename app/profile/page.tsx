@@ -69,7 +69,7 @@ export default function ProfilePage() {
   const { data: studentData, refresh: refreshStudentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   // Cached avatar base (in-memory + localStorage) so the chosen avatar paints
   // immediately instead of flashing the default gem while studentData loads.
-  const { avatarBase: cachedAvatarBase } = useDatabaseDisplayNameContext();
+  const { avatarBase: cachedAvatarBase, refresh: refreshDisplayName } = useDatabaseDisplayNameContext();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // ---------- 1. Sensitive-data visibility ----------
@@ -101,6 +101,7 @@ export default function ProfilePage() {
 
   // ---------- 3. Demographic edit modal ----------
   const [isDemographicModalOpen, setIsDemographicModalOpen] = useState(false);
+  const [draftName, setDraftName] = useState('');
   const [draftGender, setDraftGender] = useState('');
   const [draftRaceEthnicity, setDraftRaceEthnicity] = useState('');
   const [draftParentalEducation, setDraftParentalEducation] = useState('');
@@ -211,6 +212,7 @@ export default function ProfilePage() {
     const parentalEducation = studentData?.student.parentalEducation ?? 'Not provided';
     const pell = pellLabel(studentData?.student.pellGrantQualified);
 
+    setDraftName(studentData?.student.name ?? '');
     setDraftGender(gender);
     setDraftRaceEthnicity(raceEthnicity);
     setDraftParentalEducation(parentalEducation);
@@ -230,6 +232,7 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: studentData.student.email,
+          name: draftName.trim(),
           gender: draftGender,
           raceEthnicity: draftRaceEthnicity,
           parentalEducation: draftParentalEducation,
@@ -241,6 +244,9 @@ export default function ProfilePage() {
         throw new Error('Failed to save demographic info');
       }
       await refreshStudentData();
+      // Repaint the sidebar name/avatar (served from the display-name cache)
+      // with the freshly saved value instead of waiting for a full reload.
+      await refreshDisplayName();
       setIsDemographicModalOpen(false);
     } catch (err) {
       console.error('Failed to save demographic info', err);
@@ -521,9 +527,19 @@ export default function ProfilePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="demographic-modal-title" className={styles.demographicModalTitle}>
-              Edit demographic info
+              Edit profile info
             </h2>
-            <p className={styles.demographicModalHint}>Only demographic fields can be changed here.</p>
+            <p className={styles.demographicModalHint}>Update your name and demographic details.</p>
+
+            <label className={styles.demographicModalField}>
+              <span className={styles.demographicModalLabel}>Name</span>
+              <input
+                type="text"
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                placeholder="First Last"
+              />
+            </label>
 
             <label className={styles.demographicModalField}>
               <span className={styles.demographicModalLabel}>Gender</span>
@@ -569,7 +585,7 @@ export default function ProfilePage() {
                 type="button"
                 className={styles.demographicModalSave}
                 onClick={handleSaveDemographics}
-                disabled={isSavingDemographics}
+                disabled={isSavingDemographics || !draftName.trim()}
               >
                 {isSavingDemographics ? 'Saving…' : 'Save'}
               </button>

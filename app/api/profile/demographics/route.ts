@@ -4,6 +4,7 @@ import prisma from '../../../../lib/prisma';
 
 type DemographicsPayload = {
   email?: string;
+  name?: string | null;
   gender?: string | null;
   raceEthnicity?: string | null;
   parentalEducation?: string | null;
@@ -39,9 +40,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   }
 
+  // Name is optional in the payload; only touch it when the client sends it.
+  // Guard against clearing the name to an empty string (it would fall back to
+  // the generic "Student" label everywhere).
+  const name = typeof payload.name === 'string' ? payload.name.trim() : undefined;
+  if (name !== undefined && name.length === 0) {
+    return NextResponse.json({ error: 'Name cannot be empty.' }, { status: 400 });
+  }
+
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
+      ...(name !== undefined ? { name } : {}),
       gender: payload.gender ?? null,
       raceEthnicity: payload.raceEthnicity ?? null,
       parentalEducation: payload.parentalEducation ?? null,
@@ -49,6 +59,7 @@ export async function POST(request: Request) {
     },
     select: {
       id: true,
+      name: true,
       gender: true,
       raceEthnicity: true,
       parentalEducation: true,
