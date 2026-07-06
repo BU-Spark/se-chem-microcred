@@ -10,6 +10,7 @@ import styles from './page.module.css';
 import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import { useDatabaseDisplayNameContext } from '../_components/DatabaseDisplayNameProvider';
 
 function parseName(fullName?: string | null) {
@@ -491,7 +492,13 @@ export default function ProfilePage() {
               ) : (
                 learningBadges.map((badge) => (
                   <div key={badge.id} className={styles.badgeToken}>
-                    <div className={styles.badgeCircle} aria-hidden="true" />
+                    <div className={styles.badgeCircle}>
+                      <YoutubeThumbnail
+                        videoUrl={badge.youtubeUrl}
+                        alt={`${badge.name} thumbnail`}
+                        className={styles.badgeCircleImage}
+                      />
+                    </div>
                     <div className={styles.badgeName}>{badge.name}</div>
                   </div>
                 ))
@@ -518,7 +525,13 @@ export default function ProfilePage() {
                   ) : (
                     notStartedBadges.map((badge) => (
                       <div key={badge.id} className={styles.badgeToken}>
-                        <div className={styles.badgeCircle} aria-hidden="true" />
+                        <div className={styles.badgeCircle}>
+                          <YoutubeThumbnail
+                            videoUrl={badge.youtubeUrl}
+                            alt={`${badge.name} thumbnail`}
+                            className={styles.badgeCircleImage}
+                          />
+                        </div>
                         <div className={styles.badgeName}>{badge.name}</div>
                       </div>
                     ))
@@ -547,7 +560,13 @@ export default function ProfilePage() {
                   ) : (
                     completedBadges.map((badge) => (
                       <div key={badge.id} className={styles.badgeToken}>
-                        <div className={styles.badgeCircle} aria-hidden="true" />
+                        <div className={styles.badgeCircle}>
+                          <YoutubeThumbnail
+                            videoUrl={badge.youtubeUrl}
+                            alt={`${badge.name} thumbnail`}
+                            className={styles.badgeCircleImage}
+                          />
+                        </div>
                         <div className={styles.badgeName}>{badge.name}</div>
                       </div>
                     ))

@@ -29,16 +29,16 @@ type CheckpointPayload = CheckpointQuestionPayload & {
   questions?: CheckpointQuestionPayload[] | null;
 };
 
-type RubricCriterionPayload = {
-  id?: string;
-  prompt?: string | null;
-  options?: string[] | null;
-  optionFeedback?: string[] | null;
-};
-
-type RubricItemPayload = {
+type RubricSubgoalPayload = {
   id?: string;
   text?: string | null;
+  points?: number | string | null;
+};
+
+type RubricGoalPayload = {
+  name?: string | null;
+  passThreshold?: number | string | null;
+  subgoals?: RubricSubgoalPayload[] | null;
 };
 
 type CreateBadgePayload = {
@@ -53,11 +53,9 @@ type CreateBadgePayload = {
   youtubeUrl?: string | null;
   videoTitle?: string | null;
   videoLength?: string | null;
+  passingPercent?: number | string | null;
   checkpoints?: CheckpointPayload[] | null;
-  rubricOverview?: string | null;
-  rubricItems?: RubricItemPayload[] | null;
-  rubricCriteria?: RubricCriterionPayload[] | null;
-  gradingCriteria?: RubricCriterionPayload[] | null;
+  rubricGoal?: RubricGoalPayload | null;
 };
 
 type UpdateBadgePayload = {
@@ -69,14 +67,12 @@ type UpdateBadgePayload = {
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
-  rubricOverview?: string | null;
-  rubricItems?: RubricItemPayload[] | null;
-  rubricCriteria?: RubricCriterionPayload[] | null;
-  gradingCriteria?: RubricCriterionPayload[] | null;
+  rubricGoal?: RubricGoalPayload | null;
   checkpoints?: CheckpointPayload[] | null;
   youtubeUrl?: string | null;
   videoTitle?: string | null;
   videoLength?: string | null;
+  passingPercent?: number | string | null;
 };
 
 function normalizeString(value?: string | null) {
@@ -299,83 +295,136 @@ function normalizeCheckpointQuestions(checkpoint: CheckpointPayload) {
     .filter((question) => Boolean(question.prompt));
 }
 
-function normalizeRubricItems(items?: RubricItemPayload[] | null, overview?: string | null) {
-  const normalized = (items ?? [])
-    .map((item, index) => ({
-      number: index + 1,
-      text: normalizeString(item.text),
-    }))
-    .filter((item): item is { number: number; text: string } => Boolean(item.text));
-
-  if (normalized.length > 0) {
-    return normalized;
-  }
-
-  const fallback = normalizeString(overview);
-  return fallback ? [{ number: 1, text: fallback }] : [];
+function normalizePoints(value: number | string | null | undefined, fallback: number) {
+  const parsed = typeof value === 'string' ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.round(parsed));
 }
 
-// Pair each option with its prewritten feedback (same index), then drop pairs
-// whose option is blank so options/optionFeedback stay aligned.
-function pairOptionsWithFeedback(options?: string[] | null, optionFeedback?: string[] | null) {
-  const rawFeedback = optionFeedback ?? [];
-  const pairs = (options ?? [])
-    .map((option, optionIndex) => ({
-      option: normalizeString(option),
-      feedback: normalizeString(rawFeedback[optionIndex]),
+// Lesson passing threshold: percent of checkpoint questions a student must get
+// correct to pass the lesson. Clamped to 0–100, defaults to the schema default.
+const DEFAULT_PASSING_PERCENT = 70;
+function normalizePassingPercent(value: number | string | null | undefined) {
+  const parsed = typeof value === 'string' ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return DEFAULT_PASSING_PERCENT;
+  return Math.min(100, Math.max(0, Math.round(parsed)));
+}
+
+// The rubric is a single goal with point-weighted subgoals. Total points is
+// always derived from the subgoals; the pass threshold is clamped to it and
+// defaults to the full total (every point required) when omitted.
+function normalizeRubricGoal(goal?: RubricGoalPayload | null) {
+  const name = normalizeString(goal?.name);
+  const subgoals = (goal?.subgoals ?? [])
+    .map((subgoal) => ({
+      text: normalizeString(subgoal.text),
+      points: normalizePoints(subgoal.points, 1),
     }))
-    .filter((pair): pair is { option: string; feedback: string | null } => Boolean(pair.option));
+    .filter((subgoal): subgoal is { text: string; points: number } => Boolean(subgoal.text))
+    .map((subgoal, index) => ({ ...subgoal, sortOrder: index }));
+
+  if (!name && subgoals.length === 0) {
+    return null;
+  }
+
+  const totalPoints = subgoals.reduce((sum, subgoal) => sum + subgoal.points, 0);
+  const passThreshold = Math.min(totalPoints, normalizePoints(goal?.passThreshold, totalPoints));
 
   return {
-    options: pairs.map((pair) => pair.option),
-    optionFeedback: pairs.map((pair) => pair.feedback ?? ''),
+    name: name ?? 'Rubric goal',
+    totalPoints,
+    passThreshold,
+    subgoals,
   };
 }
 
-function normalizeGradingCriteria(criteria?: RubricCriterionPayload[] | null) {
-  return (criteria ?? [])
-    .map((criterion, index) => ({
-      number: index + 1,
-      criterion: normalizeString(criterion.prompt),
-      ...pairOptionsWithFeedback(criterion.options, criterion.optionFeedback),
-    }))
-    .filter((criterion) => Boolean(criterion.criterion) || criterion.options.length > 0);
+type NormalizedRubricGoal = ReturnType<typeof normalizeRubricGoal>;
+
+// Make a badge's rubric rows match `goal` (create, replace subgoals, or remove
+// entirely). Used for the source badge, its course copies, and family sync.
+async function syncBadgeRubricGoal(tx: Prisma.TransactionClient, badgeId: string, goal: NormalizedRubricGoal) {
+  if (!goal) {
+    await tx.rubricGoal.deleteMany({ where: { badgeId } });
+    return;
+  }
+
+  const savedGoal = await tx.rubricGoal.upsert({
+    where: { badgeId },
+    create: { badgeId, name: goal.name, totalPoints: goal.totalPoints, passThreshold: goal.passThreshold },
+    update: { name: goal.name, totalPoints: goal.totalPoints, passThreshold: goal.passThreshold },
+    select: { id: true },
+  });
+
+  // Fetch existing subgoals to determine what to update/create/delete
+  const existingSubgoals = await tx.rubricSubgoal.findMany({
+    where: { goalId: savedGoal.id },
+    select: { id: true, sortOrder: true },
+  });
+
+  // Build a map of existing subgoals by sortOrder for quick lookup
+  const existingBySortOrder = new Map(existingSubgoals.map((sg) => [sg.sortOrder, sg.id]));
+
+  // Update or create subgoals based on sortOrder matching
+  for (const subgoal of goal.subgoals) {
+    const existingId = existingBySortOrder.get(subgoal.sortOrder);
+    if (existingId) {
+      // Update existing subgoal in place
+      await tx.rubricSubgoal.update({
+        where: { id: existingId },
+        data: { text: subgoal.text, points: subgoal.points, sortOrder: subgoal.sortOrder },
+      });
+      existingBySortOrder.delete(subgoal.sortOrder);
+    } else {
+      // Create new subgoal
+      await tx.rubricSubgoal.create({
+        data: { ...subgoal, goalId: savedGoal.id },
+      });
+    }
+  }
+
+  // Delete subgoals that are no longer present in the incoming rubric
+  const idsToDelete = Array.from(existingBySortOrder.values());
+  if (idsToDelete.length > 0) {
+    await tx.rubricSubgoal.deleteMany({
+      where: { id: { in: idsToDelete } },
+    });
+  }
 }
 
 function buildRequirementSummary({
   badgeName,
   lessonTitle,
   skills,
-  rubricItems,
-  gradingCriteria,
   checkpoints,
   youtubeUrl,
   videoTitle,
   videoLength,
+  passingPercent,
 }: {
   badgeName: string;
   lessonTitle?: string | null;
   skills: string[];
-  rubricItems: Array<{ number: number; text: string }>;
-  gradingCriteria: Array<{ number: number; criterion: string | null; options: string[]; optionFeedback: string[] }>;
   checkpoints: CheckpointPayload[];
   youtubeUrl?: string | null;
   videoTitle?: string | null;
   videoLength?: string | null;
+  passingPercent?: number | null;
 }) {
+  // The rubric lives in the RubricGoal/RubricSubgoal tables as of version 3;
+  // the summary only carries the non-rubric payload.
   return JSON.stringify({
-    version: 2,
+    version: 3,
     badgeName,
     lessonTitle: lessonTitle ?? null,
     skills,
-    rubricItems,
-    gradingCriteria,
-    // The lesson video round-trips through the summary JSON so the editor (which
-    // only ever loads the source badge — whose requirement has no lesson row)
-    // can rehydrate it. See badgeToDraft + the PATCH segment propagation.
+    // The lesson video and passing threshold round-trip through the summary JSON so
+    // the editor (which only ever loads the source badge — whose requirement has no
+    // lesson row) can rehydrate them, and so importing into a course carries them
+    // forward. See badgeToDraft, the import route, and the PATCH segment propagation.
     youtubeUrl: youtubeUrl ?? null,
     videoTitle: videoTitle ?? null,
     videoLength: videoLength ?? null,
+    passingPercent: passingPercent ?? null,
     checkpoints: checkpoints
       .map((checkpoint, index) => {
         const questions = normalizeCheckpointQuestions(checkpoint).map((question) => question.summary);
@@ -412,62 +461,42 @@ function parseRequirementSummary(summary?: string | null) {
     return {
       displayText: 'Independent badge requirement',
       skills: [] as string[],
-      rubricItems: [] as Array<{ number: number; text: string }>,
-      gradingCriteria: [] as Array<{ number: number; criterion: string | null; options: string[] }>,
       checkpoints: [] as CheckpointPayload[],
       youtubeUrl: null as string | null,
       videoTitle: null as string | null,
       videoLength: null as string | null,
+      passingPercent: null as number | null,
     };
   }
 
   try {
     const parsed = JSON.parse(summary) as {
       skills?: string[];
-      rubricItems?: Array<{ number?: number; text?: string | null }>;
-      gradingCriteria?: Array<{
-        number?: number;
-        criterion?: string | null;
-        options?: string[];
-        optionFeedback?: string[];
-      }>;
       checkpoints?: CheckpointPayload[];
       youtubeUrl?: string | null;
       videoTitle?: string | null;
       videoLength?: string | null;
+      passingPercent?: number | null;
     };
-    const rubricItems = (parsed.rubricItems ?? [])
-      .map((item, index) => ({
-        number: item.number ?? index + 1,
-        text: normalizeString(item.text),
-      }))
-      .filter((item): item is { number: number; text: string } => Boolean(item.text));
-    const gradingCriteria = (parsed.gradingCriteria ?? []).map((criterion, index) => ({
-      number: criterion.number ?? index + 1,
-      criterion: normalizeString(criterion.criterion),
-      ...pairOptionsWithFeedback(criterion.options, criterion.optionFeedback),
-    }));
 
     return {
-      displayText: rubricItems[0]?.text ?? gradingCriteria[0]?.criterion ?? 'Independent badge requirement',
+      displayText: 'Independent badge requirement',
       skills: Array.isArray(parsed.skills) ? parsed.skills.filter((skill): skill is string => Boolean(skill)) : [],
-      rubricItems,
-      gradingCriteria,
       checkpoints: parsed.checkpoints ?? [],
       youtubeUrl: normalizeString(parsed.youtubeUrl),
       videoTitle: normalizeString(parsed.videoTitle),
       videoLength: normalizeString(parsed.videoLength),
+      passingPercent: typeof parsed.passingPercent === 'number' ? parsed.passingPercent : null,
     };
   } catch {
     return {
       displayText: summary,
       skills: [] as string[],
-      rubricItems: [] as Array<{ number: number; text: string }>,
-      gradingCriteria: [] as Array<{ number: number; criterion: string | null; options: string[] }>,
       checkpoints: [] as CheckpointPayload[],
       youtubeUrl: null as string | null,
       videoTitle: null as string | null,
       videoLength: null as string | null,
+      passingPercent: null as number | null,
     };
   }
 }
@@ -509,6 +538,18 @@ export async function GET(req: NextRequest) {
         closesOn: true,
         neverCloses: true,
         createdAt: true,
+        rubricGoal: {
+          select: {
+            id: true,
+            name: true,
+            totalPoints: true,
+            passThreshold: true,
+            subgoals: {
+              orderBy: { sortOrder: 'asc' },
+              select: { id: true, text: true, points: true, sortOrder: true },
+            },
+          },
+        },
         requirements: {
           orderBy: { createdAt: 'asc' },
           select: {
@@ -521,6 +562,7 @@ export async function GET(req: NextRequest) {
                 description: true,
                 dueDate: true,
                 estimatedMinutes: true,
+                passingPercent: true,
                 segments: {
                   orderBy: { sortOrder: 'asc' },
                   take: 1,
@@ -562,22 +604,22 @@ export async function GET(req: NextRequest) {
           neverCloses: badge.neverCloses ?? null,
           createdAt: badge.createdAt.toISOString(),
           assignedStudentCount: badge._count.studentProgress,
+          rubricGoal: badge.rubricGoal,
           requirements: badge.requirements.map((requirement) => {
             const parsedSummary = parseRequirementSummary(requirement.summary);
 
             return {
               id: requirement.id,
               summary: requirement.summary,
-              displayText: parsedSummary.displayText,
+              displayText: badge.rubricGoal?.name ?? parsedSummary.displayText,
               skills: parsedSummary.skills,
-              rubricItems: parsedSummary.rubricItems,
-              gradingCriteria: parsedSummary.gradingCriteria,
               checkpoints: parsedSummary.checkpoints,
               // Video lives in the summary JSON (the source badge has no lesson row);
               // expose it so badgeToDraft can rehydrate the editor's video field.
               youtubeUrl: parsedSummary.youtubeUrl,
               videoTitle: parsedSummary.videoTitle,
               videoLength: parsedSummary.videoLength,
+              passingPercent: parsedSummary.passingPercent,
               lesson: requirement.lesson
                 ? {
                     id: requirement.lesson.id,
@@ -585,6 +627,7 @@ export async function GET(req: NextRequest) {
                     description: requirement.lesson.description,
                     dueDate: requirement.lesson.dueDate?.toISOString() ?? null,
                     estimatedMinutes: requirement.lesson.estimatedMinutes,
+                    passingPercent: requirement.lesson.passingPercent,
                     segment: requirement.lesson.segments?.[0]
                       ? {
                           title: requirement.lesson.segments?.[0]?.title ?? '',
@@ -634,9 +677,7 @@ export async function PATCH(req: NextRequest) {
     const badgeDescription = normalizeString(body.badgeDescription);
     const category = normalizeCategory(body.category);
     const skills = normalizeSkills(body.skills);
-    const rubricOverview = normalizeString(body.rubricOverview);
-    const rubricItems = normalizeRubricItems(body.rubricItems, rubricOverview);
-    const gradingCriteria = normalizeGradingCriteria(body.gradingCriteria ?? body.rubricCriteria);
+    const rubricGoal = normalizeRubricGoal(body.rubricGoal);
     const checkpoints = body.checkpoints ?? [];
     const neverCloses = body.neverCloses ?? null;
     const availableOn = parseDate(body.availableOn);
@@ -645,6 +686,7 @@ export async function PATCH(req: NextRequest) {
     const videoTitle = normalizeString(body.videoTitle);
     const videoLength = normalizeString(body.videoLength);
     const videoDurationSeconds = parseTimeToSeconds(videoLength);
+    const passingPercent = normalizePassingPercent(body.passingPercent);
     const videoId = extractYouTubeId(youtubeUrl);
     const thumbnailUrl = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
 
@@ -709,12 +751,11 @@ export async function PATCH(req: NextRequest) {
         badgeName,
         lessonTitle: badgeName,
         skills,
-        rubricItems,
-        gradingCriteria,
         checkpoints,
         youtubeUrl,
         videoTitle,
         videoLength,
+        passingPercent,
       });
 
       if (firstRequirement) {
@@ -750,6 +791,12 @@ export async function PATCH(req: NextRequest) {
         });
       }
 
+      // Rubric rows are per-badge, so sync the goal + subgoals across every
+      // family member for the same "no two versions" guarantee as the summary.
+      for (const familyBadgeId of [badge.id, ...otherFamilyBadges.map((familyBadge) => familyBadge.id)]) {
+        await syncBadgeRubricGoal(tx, familyBadgeId, rubricGoal);
+      }
+
       // Keep course-copy lessons aligned with the badge title students see,
       // while the first segment stores the video-specific metadata.
       if (badgeName) {
@@ -769,6 +816,7 @@ export async function PATCH(req: NextRequest) {
             where: { id: { in: lessonIds } },
             data: {
               title: badgeName,
+              passingPercent,
               estimatedMinutes: videoDurationSeconds ? Math.max(1, Math.round(videoDurationSeconds / 60)) : undefined,
             },
           });
@@ -928,9 +976,8 @@ export async function POST(req: NextRequest) {
     const category = normalizeCategory(body.category);
     const checkpoints = body.checkpoints ?? [];
     const skills = normalizeSkills(body.skills);
-    const rubricOverview = normalizeString(body.rubricOverview);
-    const rubricItems = normalizeRubricItems(body.rubricItems, rubricOverview);
-    const gradingCriteria = normalizeGradingCriteria(body.gradingCriteria ?? body.rubricCriteria);
+    const rubricGoal = normalizeRubricGoal(body.rubricGoal);
+    const passingPercent = normalizePassingPercent(body.passingPercent);
     // Per-badge content window (shared across students). neverCloses === true
     // means the badge never closes; closesOn is ignored and dueDate is null.
     const neverCloses = body.neverCloses ?? null;
@@ -991,12 +1038,11 @@ export async function POST(req: NextRequest) {
           badgeName,
           lessonTitle: badgeName,
           skills,
-          rubricItems,
-          gradingCriteria,
           checkpoints,
           youtubeUrl,
           videoTitle,
           videoLength: normalizeString(body.videoLength),
+          passingPercent,
         });
 
         const sourceBadge = await tx.badge.create({
@@ -1029,6 +1075,8 @@ export async function POST(req: NextRequest) {
             id: true,
           },
         });
+
+        await syncBadgeRubricGoal(tx, sourceBadge.id, rubricGoal);
 
         let courseBadge: typeof sourceBadge | null = null;
         let lesson: { id: string; slug: string; title: string } | null = null;
@@ -1068,6 +1116,7 @@ export async function POST(req: NextRequest) {
               description: badgeDescription,
               thumbnailUrl,
               dueDate,
+              passingPercent,
               estimatedMinutes: videoDurationSeconds ? Math.max(1, Math.round(videoDurationSeconds / 60)) : null,
               sortOrder: (course.lessons[0]?.sortOrder ?? -1) + 1,
             },
@@ -1167,6 +1216,8 @@ export async function POST(req: NextRequest) {
               id: true,
             },
           });
+
+          await syncBadgeRubricGoal(tx, courseBadge.id, rubricGoal);
         }
 
         await tx.surveyPrompt.create({

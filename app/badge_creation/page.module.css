@@ -24,9 +24,11 @@
 }
 
 .pageTitle {
-  font-family: 'Lato', sans-serif;
+  margin: 0;
+  font-family: Lato, sans-serif;
   font-size: 48px;
   font-weight: 700;
+  line-height: 1.05;
   color: #000000;
 }
 
@@ -79,7 +81,7 @@
 }
 
 .progressLabel {
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 0.95rem;
   color: #222222;
 }
@@ -116,7 +118,7 @@
 .videoInfoBlock h3,
 .reviewCard h4 {
   margin: 0;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 24px;
   font-weight: 400;
   color: #000000;
@@ -200,7 +202,7 @@
   border: none;
   outline: none;
   background: transparent;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 1.6rem;
   font-weight: 700;
   color: #111111;
@@ -320,7 +322,7 @@
 .fieldLabel,
 .fieldStack,
 .dateField {
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 16px;
   color: #000000;
 }
@@ -420,7 +422,7 @@
 }
 
 .availabilityPill strong {
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 18px;
   font-weight: 600;
 }
@@ -440,7 +442,7 @@
   height: 32px;
   border: none;
   border-radius: 999px;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   background: #d9d9d9;
   position: relative;
   cursor: pointer;
@@ -561,7 +563,7 @@
 
 .timelineHeader {
   justify-content: space-between;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 16px;
   color: #000000;
 }
@@ -572,6 +574,7 @@
 .optionList,
 .reviewList,
 .numberedRubricList,
+/* LEGACY-RUBRIC: remove — styled the old options-based grading criteria UI. */
 .gradingOptionsList {
   display: grid;
   gap: 14px;
@@ -595,7 +598,7 @@
 
 .questionEditorHeader h3 {
   margin: 0;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 16px;
   color: #000000;
 }
@@ -722,7 +725,7 @@
   border: 1px dashed #2e6aa9;
   border-radius: 12px;
   color: #2e6aa9;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 14px;
   padding: 8px 14px;
   cursor: pointer;
@@ -830,7 +833,7 @@
 }
 
 .reviewSkillCount strong {
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 24px;
   font-weight: 400;
   color: #000000;
@@ -850,7 +853,7 @@
 }
 
 .reviewDate {
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 24px;
   color: #000000;
 }
@@ -863,7 +866,7 @@
 
 .reviewVideoTitle {
   margin: 0;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 24px;
   font-weight: 400;
   color: #000000;
@@ -908,6 +911,8 @@
   color: #000000;
 }
 
+/* LEGACY-RUBRIC: remove .reviewGrading* (except .reviewGradingPrompt) and
+   .reviewFeedbackText — styled the old Instructor Grading review block. */
 .reviewGrading {
   display: flex;
   flex-direction: column;
@@ -917,7 +922,7 @@
 
 .reviewSubheading {
   margin: 0;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 24px;
   font-weight: 400;
   color: #000000;
@@ -989,9 +994,57 @@
 
 .rubricOrderedItem {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   gap: 12px;
   align-items: start;
+}
+
+.rubricPointsInput {
+  width: 64px;
+  padding: 6px 8px;
+  border: 1px solid #d7dbe1;
+  border-radius: 6px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #000000;
+  text-align: center;
+}
+
+.rubricPointsInput:focus {
+  outline: none;
+  border-color: #4f7396;
+}
+
+.rubricPointsLabel {
+  align-self: center;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #61758a;
+}
+
+.rubricThresholdRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #000000;
+}
+
+.rubricThresholdWarning {
+  margin: 8px 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #b91c1c;
+}
+
+.rubricTotalRow {
+  margin-top: 12px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #000000;
 }
 
 .rubricOrderedNumber {
@@ -1018,6 +1071,9 @@
   text-decoration: underline;
 }
 
+/* LEGACY-RUBRIC: remove .gradingList through .gradingAddItem (except
+   .gradingPromptRow/.gradingPromptInput/.gradingPencil, reused by the goal
+   card) — styled the old two-part rubric criteria editor. */
 .gradingList {
   display: flex;
   flex-direction: column;
@@ -1152,7 +1208,7 @@
   border-radius: 14px;
   background: #2e6aa9;
   color: #ffffff;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 30px;
   font-weight: 700;
   line-height: 1;
@@ -1170,7 +1226,7 @@
   border: none;
   border-bottom: 1px solid #000000;
   color: #000000;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 16px;
   padding: 0 0 2px;
   cursor: pointer;
@@ -1191,7 +1247,7 @@
 
 .rubricNumber {
   padding-top: 12px;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 20px;
   color: #000000;
 }
@@ -1233,7 +1289,7 @@
   color: #ffffff;
   border: none;
   border-radius: 19px;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 20px;
   font-weight: 400;
   cursor: pointer;
@@ -1298,14 +1354,14 @@
   background: transparent;
   color: #000000;
   cursor: pointer;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 24px;
   line-height: 1;
 }
 
 .successTitle {
   margin: 0;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 28px;
   font-weight: 700;
 }
@@ -1340,7 +1396,7 @@
   border-radius: 19px;
   background: #2e6aa9;
   color: #ffffff;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
   font-size: 17px;
   font-weight: 600;
   text-decoration: none;

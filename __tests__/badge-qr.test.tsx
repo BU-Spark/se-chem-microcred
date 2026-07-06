@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import BadgeWalletPage from '../app/badges/page';
+import type { StudentData } from '../app/hooks/useStudentData';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
@@ -72,6 +73,30 @@ beforeEach(() => {
 });
 
 function createStudentData() {
+  // Typed against the real StudentData['badges'] shape so the empty arrays widen
+  // to BadgeRecord[] (rather than never[]) and individual tests can reassign them.
+  const badges: StudentData['badges'] = {
+    completed: [],
+    readyForAssessment: [
+      {
+        id: 'badge-assess-1',
+        courseId: 'course-1',
+        slug: 'assessment-badge',
+        name: 'Assessment Badge',
+        description: 'Needs in-person assessment',
+        category: 'Safety',
+        status: 'READY_FOR_ASSESSMENT',
+        awardedAt: null,
+        score: null,
+        youtubeUrl: null,
+        requirements: [],
+      },
+    ],
+    readyForFinalization: [],
+    learning: [],
+    notStarted: [],
+  };
+
   return {
     student: {
       id: 'student-1',
@@ -89,25 +114,7 @@ function createStudentData() {
     },
     course: { id: 'course-1', code: 'CHEM101', section: 'K1', title: 'Chem 101', description: 'Basics', contacts: [] },
     lessons: { upNext: [], inProgress: [], catalog: [] },
-    badges: {
-      completed: [],
-      readyForAssessment: [
-        {
-          id: 'badge-assess-1',
-          courseId: 'course-1',
-          slug: 'assessment-badge',
-          name: 'Assessment Badge',
-          description: 'Needs in-person assessment',
-          category: 'Safety',
-          status: 'READY_FOR_ASSESSMENT' as const,
-          awardedAt: null,
-          score: null,
-          requirements: [],
-        },
-      ],
-      readyForFinalization: [],
-      learning: [],
-    },
+    badges,
   };
 }
 
@@ -176,5 +183,43 @@ describe('Badge Wallet QR modal', () => {
         body: JSON.stringify({ courseId: 'course-2', badgeId: 'badge-assess-1' }),
       });
     });
+  });
+
+  it('shows learning badges in Still Learning with a review feedback action', () => {
+    const studentData = createStudentData();
+    studentData.badges.readyForAssessment = [];
+    studentData.badges.learning = [
+      {
+        id: 'badge-learning-1',
+        courseId: 'course-1',
+        slug: 'learning-badge',
+        name: 'Learning Badge',
+        description: 'Needs feedback review',
+        category: 'Safety',
+        status: 'LEARNING' as const,
+        awardedAt: null,
+        score: 40,
+        youtubeUrl: null,
+        requirements: [],
+      },
+    ];
+    mockUseStudentData.mockReturnValue({
+      data: studentData,
+      isLoading: false,
+      error: null,
+      refresh: jest.fn(),
+    });
+
+    render(<BadgeWalletPage />);
+
+    const learningToggle = document.querySelector('button[aria-controls="learning-badges"]') as HTMLButtonElement;
+    if (learningToggle.getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(learningToggle);
+    }
+
+    fireEvent.click(screen.getByRole('button', { name: /Learning/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Review Feedback/i }));
+
+    expect(mockPush).toHaveBeenCalledWith('/badges/learning-badge/feedback?courseId=course-1');
   });
 });

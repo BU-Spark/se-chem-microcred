@@ -277,6 +277,8 @@ function createStudentData(): StudentData {
         {
           id: 'b1',
           slug: 'bunsen-burner-badge',
+          courseId: null,
+          youtubeUrl: null,
           name: 'Bunsen Burner Badge',
           description: 'Complete badge',
           category: 'Safety',
@@ -290,6 +292,8 @@ function createStudentData(): StudentData {
         {
           id: 'b2',
           slug: 'assessment-badge',
+          courseId: null,
+          youtubeUrl: null,
           name: 'Assessment Badge',
           description: 'Needs in-person assessment',
           category: 'Safety',
@@ -303,6 +307,8 @@ function createStudentData(): StudentData {
         {
           id: 'b3',
           slug: 'final-badge',
+          courseId: null,
+          youtubeUrl: null,
           name: 'Finalize Badge',
           description: 'Needs survey',
           category: 'Safety',
@@ -316,6 +322,8 @@ function createStudentData(): StudentData {
         {
           id: 'b4',
           slug: 'learning-badge',
+          courseId: null,
+          youtubeUrl: null,
           name: 'Learning Badge',
           description: 'Still learning',
           category: 'Safety',

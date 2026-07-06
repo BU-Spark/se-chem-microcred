@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../../../hooks/useStudentData';
@@ -24,6 +24,41 @@ function LessonVideoRouteContent() {
   const { signOut } = useAuth();
   const { data: studentData, isLoading, error } = useStudentData(user?.primaryEmailAddress?.emailAddress, courseId);
   const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const lessonRecord = studentData?.lessons.catalog.find((entry) => entry.slug === (params.lessonId ?? '')) ?? null;
+  const summaryVideoUrl =
+    lessonRecord?.badgeRequirements.find((requirement) => requirement.youtubeUrl)?.youtubeUrl ?? null;
+  const lessonForVideo = useMemo(
+    () =>
+      lessonRecord && summaryVideoUrl && !lessonRecord.segments.some((segment) => segment.videoUrl)
+        ? {
+            ...lessonRecord,
+            segments: lessonRecord.segments.length
+              ? lessonRecord.segments.map((segment, index) =>
+                  index === 0
+                    ? {
+                        ...segment,
+                        videoUrl: summaryVideoUrl,
+                      }
+                    : segment
+                )
+              : [
+                  {
+                    id: `${lessonRecord.id}-video`,
+                    title: lessonRecord.title,
+                    summary: lessonRecord.summary,
+                    duration: null,
+                    videoUrl: summaryVideoUrl,
+                    muxPlaybackId: null,
+                    thumbnailUrl: lessonRecord.thumbnailUrl,
+                    status: 'NOT_STARTED' as const,
+                    checkpointIds: lessonRecord.checkpoints.map((checkpoint) => checkpoint.id),
+                  },
+                ],
+          }
+        : lessonRecord,
+    [lessonRecord, summaryVideoUrl]
+  );
 
   const handleBack = () => {
     if (window.history.length > 1) {
@@ -53,12 +88,21 @@ function LessonVideoRouteContent() {
     );
   }
 
-  const lessonRecord = studentData.lessons.catalog.find((entry) => entry.slug === (params.lessonId ?? ''));
-
   if (!lessonRecord) {
     return (
       <div style={{ padding: '2rem' }}>
         <p>We could not find a lesson that matches this page.</p>
+        <button type="button" onClick={handleBack}>
+          Back to lessons
+        </button>
+      </div>
+    );
+  }
+
+  if (!lessonForVideo) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <p>We could not load the lesson video for this page.</p>
         <button type="button" onClick={handleBack}>
           Back to lessons
         </button>
@@ -71,36 +115,6 @@ function LessonVideoRouteContent() {
   const studentAvatar = studentData.student.avatar || null;
   const avatarUrl = buildAvatarUrlFromAvatar(studentAvatar);
   const lessonSurvey = studentData.surveys.lesson.find((survey) => survey.lessonSlug === lessonRecord.slug) ?? null;
-  const summaryVideoUrl =
-    lessonRecord.badgeRequirements.find((requirement) => requirement.youtubeUrl)?.youtubeUrl ?? null;
-  const lessonForVideo =
-    summaryVideoUrl && !lessonRecord.segments.some((segment) => segment.videoUrl)
-      ? {
-          ...lessonRecord,
-          segments: lessonRecord.segments.length
-            ? lessonRecord.segments.map((segment, index) =>
-                index === 0
-                  ? {
-                      ...segment,
-                      videoUrl: summaryVideoUrl,
-                    }
-                  : segment
-              )
-            : [
-                {
-                  id: `${lessonRecord.id}-video`,
-                  title: lessonRecord.title,
-                  summary: lessonRecord.summary,
-                  duration: null,
-                  videoUrl: summaryVideoUrl,
-                  muxPlaybackId: null,
-                  thumbnailUrl: lessonRecord.thumbnailUrl,
-                  status: 'NOT_STARTED' as const,
-                  checkpointIds: lessonRecord.checkpoints.map((checkpoint) => checkpoint.id),
-                },
-              ],
-        }
-      : lessonRecord;
 
   if (!studentEmail) {
     return (

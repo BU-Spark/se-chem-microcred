@@ -7,6 +7,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 
 type BadgeStatus = 'completed' | 'assessment' | 'finalization' | 'learning';
 
@@ -232,9 +233,11 @@ export default function BadgeWalletPage() {
     }
   };
 
-  // Bring a card to the front of the stack (no expand toggle).
+  // Credit-card-wallet behaviour: clicking a card raises it to the front AND
+  // opens its badge grid (chevron rotates down). The chevron still toggles closed.
   const handleCardActivate = (status: BadgeStatus) => {
     setFrontSection(status);
+    setOpenSection(status);
     setActiveBadgeId(null);
   };
 
@@ -254,7 +257,8 @@ export default function BadgeWalletPage() {
 
   const reviewFeedback = (badge: BadgeRecord) => {
     setActiveBadgeId(null);
-    router.push(`/badges/${badge.slug}/feedback`);
+    const courseParam = badge.courseId ? `?courseId=${encodeURIComponent(badge.courseId)}` : '';
+    router.push(`/badges/${badge.slug}/feedback${courseParam}`);
   };
 
   const exportBadgeToLinkedIn = async (badge: BadgeRecord) => {
@@ -333,6 +337,14 @@ export default function BadgeWalletPage() {
           aria-pressed={isActive}
         >
           <span className={styles.srOnly}>{badge.name.replace(/ Badge$/i, '')}</span>
+          {badge.youtubeUrl ? (
+            <YoutubeThumbnail videoUrl={badge.youtubeUrl} alt="" className={styles.badgeTokenImage} />
+          ) : (
+            <div
+              className={styles.badgeTokenImage}
+              style={{ width: '100%', height: '100%', background: 'currentColor' }}
+            />
+          )}
         </button>
       );
     });
@@ -398,7 +410,9 @@ export default function BadgeWalletPage() {
                     ) {
                       return;
                     }
-                    if (!isFront) handleCardActivate(section.status);
+                    // Raise + open on any card-chrome click (reopens a front card
+                    // the user had collapsed via the chevron).
+                    handleCardActivate(section.status);
                   }}
                 >
                   <div className={styles.sectionHeader}>

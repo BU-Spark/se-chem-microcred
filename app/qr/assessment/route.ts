@@ -2,6 +2,7 @@ import { BadgeStatus, CourseRole, EnrollmentStatus } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { getPublicOrigin } from '@/lib/requestOrigin';
 
 function normalizeId(value: string | null) {
   const trimmed = value?.trim();
@@ -13,7 +14,7 @@ function assessmentUrl(request: Request, courseId: string, studentId: string, ba
     `/assessments/${encodeURIComponent(courseId)}/students/${encodeURIComponent(studentId)}/badges/${encodeURIComponent(
       badgeId
     )}`,
-    request.url
+    getPublicOrigin(request)
   );
 }
 
@@ -22,7 +23,7 @@ function redirectHomeWithAssessmentNotice(
   code: 'invalid' | 'denied' | 'not-ready',
   message = 'You do not have permission to assess this badge.'
 ) {
-  const redirectUrl = new URL('/', request.url);
+  const redirectUrl = new URL('/', getPublicOrigin(request));
   redirectUrl.searchParams.set('assessmentAccess', code);
   redirectUrl.searchParams.set('assessmentMessage', message);
   return NextResponse.redirect(redirectUrl);
@@ -85,7 +86,7 @@ export async function GET(request: Request) {
   const email = clerkUser?.emailAddresses?.[0]?.emailAddress?.trim().toLowerCase();
 
   if (!email) {
-    const signInUrl = new URL('/sign-in', request.url);
+    const signInUrl = new URL('/sign-in', getPublicOrigin(request));
     signInUrl.searchParams.set('redirect_url', url.pathname + url.search);
     return NextResponse.redirect(signInUrl);
   }

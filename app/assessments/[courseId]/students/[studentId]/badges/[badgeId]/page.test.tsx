@@ -74,15 +74,26 @@ function createBadgePayload() {
       completedCheckpoints: 2,
     },
     assessment: {
-      criteria: [
-        {
-          id: 'criterion-1',
-          criterionKey: 'criterion-1',
-          criterion: 'Adjust the burner to get a tight and blue flame.',
-          options: ['Did adjust the flame properly', 'Attempted but did not succeed'],
-          sortOrder: 0,
-        },
-      ],
+      rubric: {
+        goalId: 'goal-1',
+        goalName: 'Safe burner operation',
+        totalPoints: 5,
+        passThreshold: 3,
+        subgoals: [
+          {
+            id: 'subgoal-1',
+            text: 'Adjust the burner to get a tight and blue flame.',
+            points: 3,
+            sortOrder: 0,
+          },
+          {
+            id: 'subgoal-2',
+            text: 'Shut the burner down safely.',
+            points: 2,
+            sortOrder: 1,
+          },
+        ],
+      },
     },
   };
 }
@@ -145,10 +156,19 @@ describe('Assessment readiness page', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
 
-    expect(screen.getByRole('heading', { name: 'Assessor Grading' })).toBeInTheDocument();
-    expect(screen.getByText('Adjust the burner to get a tight and blue flame.')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Safe burner operation' })).toBeInTheDocument();
+    expect(screen.getByText(/Adjust the burner to get a tight and blue flame\./)).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Overall feedback'), {
+    // Sliders default to red/failed: 0 of 5 points, below the threshold of 3.
+    expect(screen.getByText('0 / 5')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Subgoal 1 failed' })).toBeInTheDocument();
+
+    // Passing the 3-point subgoal reaches the threshold and the live score updates.
+    fireEvent.click(screen.getByRole('switch', { name: 'Subgoal 1 failed' }));
+    expect(screen.getByText('3 / 5')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Subgoal 1 passed' })).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText('Assessor override'), {
       target: { value: 'Student demonstrated safe burner operation.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Submit Assessment' }));
@@ -162,8 +182,54 @@ describe('Assessment readiness page', () => {
       );
     });
 
+    const postCall = mockFetch.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'POST');
+    const postBody = JSON.parse((postCall?.[1] as RequestInit).body as string);
+    expect(postBody).toEqual({
+      passed: true,
+      subgoals: [
+        { subgoalId: 'subgoal-1', passed: true, feedback: '' },
+        { subgoalId: 'subgoal-2', passed: false, feedback: '' },
+      ],
+      override: { feedback: 'Student demonstrated safe burner operation.' },
+    });
+
     expect(await screen.findByText('Assessment recorded. Badge is ready for finalization.')).toBeInTheDocument();
     expect(mockPush).toHaveBeenCalledWith('/courses/course-1?view=assessor');
+  });
+
+  it('blocks flipping the suggested outcome without override feedback', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createBadgePayload() } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+
+    // 0 / 5 points suggests "Needs reassessment"; pinning Pass without an
+    // override justification must be rejected client-side.
+    fireEvent.click(screen.getByRole('button', { name: 'Pass' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Assessment' }));
+
+    expect(
+      await screen.findByText(
+        'You are overriding the score-suggested outcome — describe what you observed in the assessor override field.'
+      )
+    ).toBeInTheDocument();
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu',
+      expect.objectContaining({ method: 'POST' })
+    );
   });
 
   it('disables the assessment action once the badge has already been assessed', async () => {
@@ -201,6 +267,6 @@ describe('Assessment readiness page', () => {
 
     const action = await screen.findByRole('button', { name: 'Assessment complete' });
     expect(action).toBeDisabled();
-    expect(screen.queryByRole('heading', { name: 'Assessor Grading' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Safe burner operation' })).not.toBeInTheDocument();
   });
 });

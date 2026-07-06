@@ -96,6 +96,14 @@ model Course {
   section      String?
   sectionCount Int
   description  String?
+
+  // Instructor-chosen "course image": an Iconify icon name (e.g. "mdi:flask")
+  // rendered over a background color from a fixed palette. Null on courses
+  // created before this feature — those fall back to the lesson thumbnail.
+  iconName    String?
+  iconBgColor String?
+  iconFgColor String?
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -385,9 +393,38 @@ model Badge {
   surveys         SurveyPrompt[]
   assessments     AssessmentAttempt[]
   messages        Message[]
+  rubricGoal      RubricGoal?
 
   @@index([createdById])
   @@index([sourceBadgeId])
+}
+
+model RubricGoal {
+  id            String   @id @default(cuid())
+  badgeId       String   @unique
+  name          String
+  totalPoints   Int      @default(0)
+  passThreshold Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  badge    Badge           @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  subgoals RubricSubgoal[]
+}
+
+model RubricSubgoal {
+  id        String   @id @default(cuid())
+  goalId    String
+  text      String
+  points    Int      @default(1)
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  goal      RubricGoal                  @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  responses AssessmentSubgoalResponse[]
+
+  @@unique([goalId, sortOrder])
 }
 
 enum BadgeCategory {
@@ -455,19 +492,21 @@ model AssessmentAttempt {
   badgeId     String
   studentId   String
   assessorId  String
-  passed      Boolean
-  score       Int?
-  feedback    String?
-  startedAt   DateTime  @default(now())
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  passed         Boolean
+  score          Int?
+  pointsEarned   Int?
+  pointsPossible Int?
+  feedback       String?
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  course    Course                       @relation(fields: [courseId], references: [id])
-  badge     Badge                        @relation(fields: [badgeId], references: [id])
-  student   User                         @relation("AssessmentStudent", fields: [studentId], references: [id])
-  assessor  User                         @relation("AssessmentAssessor", fields: [assessorId], references: [id])
-  responses AssessmentCriterionResponse[]
+  course    Course                      @relation(fields: [courseId], references: [id])
+  badge     Badge                       @relation(fields: [badgeId], references: [id])
+  student   User                        @relation("AssessmentStudent", fields: [studentId], references: [id])
+  assessor  User                        @relation("AssessmentAssessor", fields: [assessorId], references: [id])
+  responses AssessmentSubgoalResponse[]
 
   @@index([courseId, badgeId])
   @@index([studentId, badgeId])
@@ -488,18 +527,20 @@ model AssessmentAccessCode {
   @@index([studentId, badgeId, courseId])
 }
 
-model AssessmentCriterionResponse {
-  id             String   @id @default(cuid())
-  attemptId      String
-  criterionKey   String
-  criterion      String
-  selectedOption String?
-  notes          String?
-  passed         Boolean?
-  sortOrder      Int
-  createdAt      DateTime @default(now())
+model AssessmentSubgoalResponse {
+  id          String   @id @default(cuid())
+  attemptId   String
+  subgoalId   String?
+  subgoalText String
+  points      Int      @default(0)
+  passed      Boolean
+  feedback    String?
+  isOverride  Boolean  @default(false)
+  sortOrder   Int
+  createdAt   DateTime @default(now())
 
   attempt AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  subgoal RubricSubgoal?    @relation(fields: [subgoalId], references: [id], onDelete: SetNull)
 
   @@index([attemptId])
 }

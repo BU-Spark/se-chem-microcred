@@ -7,6 +7,7 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
 import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
 import styles from './page.module.css';
@@ -28,6 +29,7 @@ type StudentProfileBadge = {
   status?: string;
   awardedAt?: string | null;
   score?: number | null;
+  youtubeUrl?: string | null;
 };
 
 type ProfileRole = 'STUDENT' | 'CHECKER' | 'INSTRUCTOR';
@@ -321,14 +323,19 @@ function BadgeGrid({
       {badges.map((badge) => {
         const badgeBubbleClass = [
           styles.badgeBubble,
-          tone === 'pending' ? styles.badgeBubblePending : '',
           tone === 'completed' ? styles.badgeBubbleCompleted : '',
           isInteractive ? styles.badgeBubbleInteractive : '',
         ].join(' ');
 
         const badgeMarkup = (
           <>
-            <div className={badgeBubbleClass} aria-hidden="true" />
+            <div className={badgeBubbleClass}>
+              <YoutubeThumbnail
+                videoUrl={badge.youtubeUrl}
+                alt={`${badge.name} thumbnail`}
+                className={styles.badgeBubbleImage}
+              />
+            </div>
             <p className={styles.badgeName}>{badge.name}</p>
           </>
         );
@@ -340,7 +347,7 @@ function BadgeGrid({
                 {badgeMarkup}
               </button>
             ) : (
-              badgeMarkup
+              <div className={styles.badgeTokenStatic}>{badgeMarkup}</div>
             )}
           </div>
         );
@@ -680,35 +687,47 @@ export default function InstructorStudentProfilePage() {
                       />
                     </section>
 
-                    <button
-                      type="button"
-                      className={styles.accordionRow}
-                      onClick={() => setIsNotStartedOpen((current) => !current)}
-                    >
-                      <span>Not yet started</span>
-                      <Chevron isOpen={isNotStartedOpen} />
-                    </button>
+                    <section className={styles.badgeSection}>
+                      <button
+                        type="button"
+                        className={styles.accordionRow}
+                        onClick={() => setIsNotStartedOpen((current) => !current)}
+                        aria-expanded={isNotStartedOpen}
+                        aria-controls="not-started-badges"
+                      >
+                        <span>Not yet started</span>
+                        <Chevron isOpen={isNotStartedOpen} />
+                      </button>
 
-                    {isNotStartedOpen ? (
-                      <div className={styles.accordionPanel}>
-                        <BadgeGrid badges={data.badges.notStarted} tone="pending" />
-                      </div>
-                    ) : null}
+                      {isNotStartedOpen ? (
+                        <div id="not-started-badges" className={styles.accordionPanel}>
+                          <BadgeGrid badges={data.badges.notStarted} tone="pending" />
+                        </div>
+                      ) : null}
+                    </section>
 
-                    <button
-                      type="button"
-                      className={styles.accordionRow}
-                      onClick={() => setIsCompletedOpen((current) => !current)}
-                    >
-                      <span>Completed</span>
-                      <Chevron isOpen={isCompletedOpen} />
-                    </button>
+                    <section className={styles.badgeSection}>
+                      <button
+                        type="button"
+                        className={styles.accordionRow}
+                        onClick={() => setIsCompletedOpen((current) => !current)}
+                        aria-expanded={isCompletedOpen}
+                        aria-controls="completed-badges"
+                      >
+                        <span>Completed</span>
+                        <Chevron isOpen={isCompletedOpen} />
+                      </button>
 
-                    {isCompletedOpen ? (
-                      <div className={styles.accordionPanel}>
-                        <BadgeGrid badges={data.badges.completed} tone="completed" onSelectBadge={handleBadgeSelect} />
-                      </div>
-                    ) : null}
+                      {isCompletedOpen ? (
+                        <div id="completed-badges" className={styles.accordionPanel}>
+                          <BadgeGrid
+                            badges={data.badges.completed}
+                            tone="completed"
+                            onSelectBadge={handleBadgeSelect}
+                          />
+                        </div>
+                      ) : null}
+                    </section>
                   </section>
                 )
               ) : null}

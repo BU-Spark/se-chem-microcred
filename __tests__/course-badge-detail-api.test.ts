@@ -100,8 +100,6 @@ describe('course badge detail API', () => {
               id: 'requirement-1',
               summary: JSON.stringify({
                 videoTitle: 'Burner safety video',
-                rubricItems: [{ number: 1, text: 'Use the burner safely.' }],
-                gradingCriteria: [{ number: 1, criterion: 'Technique', options: ['Needs support', 'Ready'] }],
                 checkpoints: [
                   {
                     number: 1,
@@ -118,6 +116,13 @@ describe('course badge detail API', () => {
                 name: 'Bunsen Burner Badge',
                 description: 'Burner safety',
                 category: 'EQUIPMENT',
+                rubricGoal: {
+                  id: 'goal-1',
+                  name: 'Use the burner safely.',
+                  totalPoints: 5,
+                  passThreshold: 4,
+                  subgoals: [{ id: 'subgoal-1', text: 'Lights burner correctly', points: 5, sortOrder: 0 }],
+                },
               },
             },
           ],
@@ -208,7 +213,15 @@ describe('course badge detail API', () => {
         averageScore: 92,
       })
     );
-    expect(body.assessment.rubricItems).toEqual([{ number: 1, text: 'Use the burner safely.' }]);
+    expect(body.assessment.displayText).toBe('Use the burner safely.');
+    expect(body.assessment.rubricGoal).toEqual(
+      expect.objectContaining({
+        name: 'Use the burner safely.',
+        totalPoints: 5,
+        passThreshold: 4,
+        subgoals: [expect.objectContaining({ text: 'Lights burner correctly', points: 5 })],
+      })
+    );
     expect(body.assessment.videoTitle).toBe('Burner safety video');
     expect(body.assessment.youtubeUrl).toBe('https://www.youtube.com/watch?v=abc123def45');
     expect(body.assessment.videoLength).toBe('00:20:00');

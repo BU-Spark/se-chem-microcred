@@ -19,10 +19,12 @@ import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unha
 import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
 import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
 import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
-import gemAvatar from '../public/edit_avatar/sapphire.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
+import CourseTileImage from '@/app/_components/CourseTileImage';
+import type { CourseImageFields } from '@/lib/courseImage';
 
-interface EnrolledCourseCardData {
+interface EnrolledCourseCardData extends CourseImageFields {
   id: string;
   title: string;
   image?: string;
@@ -39,7 +41,7 @@ type CoursePreviewLesson = {
   }>;
 };
 
-type CreatedCourse = {
+type CreatedCourse = CourseImageFields & {
   id: string;
   title: string;
   description: string | null;
@@ -54,7 +56,7 @@ type CreatedCourse = {
 type EnrolledCourse = {
   id: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-  course: {
+  course: CourseImageFields & {
     id: string;
     code: string;
     section: string | null;
@@ -177,17 +179,25 @@ function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: str
       aria-label={`Open ${course.title}`}
     >
       <div className={courseStyles.courseMedia}>
-        {thumbnailUrl ? (
-          <Image
-            src={thumbnailUrl}
-            alt={`${course.title} preview`}
-            fill
-            sizes="(max-width: 768px) 100vw, 240px"
-            className={courseStyles.courseImage}
-          />
-        ) : (
-          <div className={courseStyles.coursePlaceholder} aria-hidden="true" />
-        )}
+        <CourseTileImage
+          iconName={course.iconName}
+          iconBgColor={course.iconBgColor}
+          iconFgColor={course.iconFgColor}
+          title={course.title}
+          fallback={
+            thumbnailUrl ? (
+              <Image
+                src={thumbnailUrl}
+                alt={`${course.title} preview`}
+                fill
+                sizes="(max-width: 768px) 100vw, 240px"
+                className={courseStyles.courseImage}
+              />
+            ) : (
+              <div className={courseStyles.coursePlaceholder} aria-hidden="true" />
+            )
+          }
+        />
       </div>
 
       <div className={courseStyles.courseText}>
@@ -216,6 +226,9 @@ function enrollmentToCard(enrollment: EnrolledCourse): EnrolledCourseCardData {
     title: course.title,
     image: resolvePreviewImage(course.lessons[0]),
     href: `/course_dashboard?courseId=${course.id}`,
+    iconName: course.iconName,
+    iconBgColor: course.iconBgColor,
+    iconFgColor: course.iconFgColor,
   };
 }
 
@@ -266,7 +279,6 @@ function HomeContent() {
   const [surveyRating, setSurveyRating] = useState(3);
   const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false);
   const [surveyError, setSurveyError] = useState<string | null>(null);
-  const [isWelcomeDismissed, setIsWelcomeDismissed] = useState(false);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
@@ -341,17 +353,6 @@ function HomeContent() {
   const isLoadingRoles = isLoadingCreated || isLoadingAssessorCourses || isLoadingEnrolled;
   // Instructors (and brand-new users with no role context) see "My Courses".
   const showMyCourses = hasCreated || (!hasAssessor && !hasEnrolled);
-  // Empty professor: signed in, finished loading, no courses in any role, no fetch error.
-  const isEmptyProfessor =
-    !isLoadingRoles &&
-    !hasCreated &&
-    !hasAssessor &&
-    !hasEnrolled &&
-    !createdError &&
-    !assessorCoursesError &&
-    !enrolledError;
-  const showWelcomeModal = isEmptyProfessor && !isWelcomeDismissed;
-
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.replace('/splash');
@@ -546,18 +547,26 @@ function HomeContent() {
         aria-label={`Open ${course.title}`}
       >
         <div className={courseStyles.courseMedia}>
-          {isYouTubeThumb ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageSrc} alt={`${course.title} preview`} className={courseStyles.courseImage} />
-          ) : (
-            <Image
-              src={imageSrc}
-              alt={`${course.title} preview`}
-              fill
-              sizes="(max-width: 768px) 100vw, 240px"
-              className={courseStyles.courseImage}
-            />
-          )}
+          <CourseTileImage
+            iconName={course.iconName}
+            iconBgColor={course.iconBgColor}
+            iconFgColor={course.iconFgColor}
+            title={course.title}
+            fallback={
+              isYouTubeThumb ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageSrc} alt={`${course.title} preview`} className={courseStyles.courseImage} />
+              ) : (
+                <Image
+                  src={imageSrc}
+                  alt={`${course.title} preview`}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 240px"
+                  className={courseStyles.courseImage}
+                />
+              )
+            }
+          />
         </div>
 
         <div className={courseStyles.courseText}>
@@ -709,30 +718,6 @@ function HomeContent() {
         </section>
       </main>
 
-      {showWelcomeModal ? (
-        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Welcome">
-          <div className={styles.welcomeModal}>
-            <button
-              type="button"
-              className={styles.welcomeClose}
-              onClick={() => setIsWelcomeDismissed(true)}
-              aria-label="Close"
-            >
-              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" aria-hidden="true">
-                <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
-              </svg>
-            </button>
-
-            <h2 className={styles.welcomeModalTitle}>Welcome, {displayName || 'Professor'}</h2>
-            <Image src={gemAvatar} alt="" className={styles.welcomeGem} width={168} height={168} priority />
-            <p className={styles.welcomeText}>You have no existing courses yet. Create a course to get started.</p>
-            <Link href="/courses/new" className={styles.welcomeCreateButton}>
-              Create Course
-            </Link>
-          </div>
-        </div>
-      ) : null}
-
       {isDuplicateOpen ? (
         <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Duplicate course">
           <div className={styles.dupModal}>
@@ -819,9 +804,7 @@ function HomeContent() {
               {assessmentAccessMessage ||
                 'You are not authorized to assess this badge, or the badge is not ready for assessment yet.'}
             </p>
-            <button type="button" className={styles.accessButton} onClick={closeAssessmentAccessModal}>
-              Back to home
-            </button>
+            <BackButton inline label="Back to home" onClick={closeAssessmentAccessModal} />
           </div>
         </div>
       ) : null}

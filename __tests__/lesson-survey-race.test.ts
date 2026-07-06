@@ -75,6 +75,9 @@ jest.mock('../lib/prisma', () => {
                 },
               ]),
             },
+            assessmentAttempt: {
+              findFirst: jest.fn().mockResolvedValue(null),
+            },
             studentBadge: {
               upsert: jest.fn().mockImplementation(async () => ({ id: 'sb-1', status: badgeState.status })),
               update: jest.fn().mockImplementation(async () => {

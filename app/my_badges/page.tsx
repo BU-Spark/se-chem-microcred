@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import styles from './page.module.css';
 
 type BadgeCatalogItem = {
@@ -19,8 +20,7 @@ type BadgeCatalogItem = {
     id: string;
     summary: string | null;
     displayText: string;
-    rubricItems: Array<{ number: number; text: string }>;
-    gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
+    youtubeUrl?: string | null;
     lesson: {
       id: string;
       title: string;
@@ -150,12 +150,21 @@ export default function MyBadgesPage() {
 
         {!isLoading && !error && sortedBadges.length > 0 ? (
           <section className={styles.badgeGrid} aria-label="Badge catalog">
-            {sortedBadges.map((badge) => (
-              <Link key={badge.id} href={resolveBadgeHref(badge)} className={styles.badgeCard}>
-                <span className={styles.badgeToken} aria-hidden="true" />
-                <span className={styles.badgeName}>{badge.name}</span>
-              </Link>
-            ))}
+            {sortedBadges.map((badge) => {
+              const videoUrl = badge.requirements.find((requirement) => requirement.youtubeUrl)?.youtubeUrl ?? null;
+              return (
+                <Link key={badge.id} href={resolveBadgeHref(badge)} className={styles.badgeCard}>
+                  <span className={styles.badgeToken}>
+                    <YoutubeThumbnail
+                      videoUrl={videoUrl}
+                      alt={`${badge.name} thumbnail`}
+                      className={styles.badgeTokenImage}
+                    />
+                  </span>
+                  <span className={styles.badgeName}>{badge.name}</span>
+                </Link>
+              );
+            })}
           </section>
         ) : null}
       </main>

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fetchAccessibleCourseMemberDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { youtubeUrlFromSummary } from '@/lib/video';
 
 function normalizeEmail(email?: string | null) {
   const trimmed = email?.trim().toLowerCase();
@@ -11,19 +12,23 @@ function normalizeId(value?: string | null) {
   return trimmed ? trimmed : null;
 }
 
-function formatBadge(badge: {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  category: string | null;
-}) {
+function formatBadge(
+  badge: {
+    id: string;
+    slug: string;
+    name: string;
+    description: string | null;
+    category: string | null;
+  },
+  summary?: string | null
+) {
   return {
     id: badge.id,
     slug: badge.slug,
     name: badge.name,
     description: badge.description,
     category: badge.category,
+    youtubeUrl: youtubeUrlFromSummary(summary),
   };
 }
 
@@ -91,22 +96,26 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     }
 
     const member = enrollment.student;
-    const courseBadges = new Map<
-      string,
-      {
-        id: string;
-        slug: string;
-        name: string;
-        description: string | null;
-        category: string | null;
-      }
-    >();
+    const courseBadges = new Map<string, ReturnType<typeof formatBadge>>();
+    const lessonStartedByBadgeId = new Map<string, boolean>();
 
     for (const lesson of course.lessons) {
+      const progress = lesson.progress[0] ?? null;
+      const lessonStarted =
+        Boolean(progress?.startedAt || progress?.completedAt) ||
+        progress?.status === 'IN_PROGRESS' ||
+        progress?.status === 'COMPLETED' ||
+        (progress?.percentComplete ?? 0) > 0;
+
       for (const requirement of lesson.badgeRequirements) {
         if (!courseBadges.has(requirement.badge.id)) {
-          courseBadges.set(requirement.badge.id, formatBadge(requirement.badge));
+          courseBadges.set(requirement.badge.id, formatBadge(requirement.badge, requirement.summary));
         }
+
+        lessonStartedByBadgeId.set(
+          requirement.badge.id,
+          (lessonStartedByBadgeId.get(requirement.badge.id) ?? false) || lessonStarted
+        );
       }
     }
 
@@ -156,6 +165,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         completed.push(badgeWithProgress);
       } else if (progress.status === 'READY_FOR_FINALIZATION') {
         readyForFinalization.push(badgeWithProgress);
+      } else if (progress.status === 'LEARNING' && !lessonStartedByBadgeId.get(badge.id)) {
+        notStarted.push(badge);
       } else {
         inProgress.push(badgeWithProgress);
       }

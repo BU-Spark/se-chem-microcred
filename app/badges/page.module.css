@@ -27,9 +27,11 @@
 }
 
 .pageTitle {
+  margin: 0;
   font-family: 'Lato', sans-serif;
-  font-size: 2.8rem;
+  font-size: 48px;
   font-weight: 700;
+  line-height: 1.05;
   color: #000000;
 }
 
@@ -79,17 +81,27 @@
   box-shadow:
     0 -14px 26px -14px rgba(0, 0, 0, 0.30),
     0 14px 26px -14px rgba(0, 0, 0, 0.30);
-  transition: box-shadow 0.25s ease;
+  transition:
+    transform 0.28s cubic-bezier(0.2, 0.7, 0.3, 1),
+    box-shadow 0.25s ease;
 }
 
-/* Overlap stacking: every card after the first pulls up over the previous one. */
+/* Overlap stacking: every card after the first pulls up over the previous one.
+   The deeper overlap makes the collapsed cards nest like a credit-card wallet. */
 .walletSection:not(.walletSectionFirst) {
-  margin-top: -2.6rem;
+  margin-top: -3.6rem;
 }
 
-/* Front (selected) card: tops the stack with a stronger shadow on both edges so
-   it lifts above the cards above and below it. */
+/* Collapsed cards keep a taller "portrait" strip so the stack reads as cards,
+   not thin header bars (the grid is removed from flow when collapsed). */
+.walletSectionCollapsed {
+  min-height: 172px;
+}
+
+/* Front (selected) card: tops the stack with a stronger shadow on both edges and
+   lifts slightly so it reads as pulled out of the wallet. */
 .walletSectionFront {
+  transform: translateY(-4px);
   box-shadow:
     0 -22px 38px -16px rgba(0, 0, 0, 0.42),
     0 22px 38px -16px rgba(0, 0, 0, 0.42);
@@ -196,6 +208,7 @@
 /* Solid filled circle badges */
 .badgeToken {
   position: relative;
+  overflow: hidden;
   width: 110px;
   height: 110px;
   border-radius: 50%;
@@ -205,6 +218,10 @@
   cursor: pointer;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   z-index: 1;
+}
+
+.badgeTokenImage {
+  object-fit: cover;
 }
 
 .badgeTokenWhite {
@@ -540,7 +557,7 @@
   }
 
   .pageTitle {
-    font-size: 2rem;
+    font-size: 38px;
   }
 
   .badgeGrid {

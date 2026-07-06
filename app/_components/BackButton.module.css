@@ -1,0 +1,46 @@
+/* Standard back button (issue #64): brand-blue, Lato, left chevron + label. */
+.backButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  width: fit-content;
+  border: none;
+  background: transparent;
+  padding: 0.15rem 0;
+  margin: 0 0 1rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1;
+  color: #2e6aa9;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.backButton:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.backButton:focus-visible {
+  outline: 2px solid #2e6aa9;
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.backButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+/* Footer / step-nav usage: no bottom margin so it aligns with sibling buttons. */
+.inline {
+  margin: 0;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}

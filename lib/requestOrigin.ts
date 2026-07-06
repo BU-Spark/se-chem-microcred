@@ -9,7 +9,14 @@ function normalizeOrigin(value: string) {
 
 export function getConfiguredPublicOrigin() {
   const configuredOrigin = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || process.env.RAILWAY_PUBLIC_DOMAIN;
-  return configuredOrigin ? normalizeOrigin(configuredOrigin) : null;
+  if (!configuredOrigin) {
+    return null;
+  }
+  try {
+    return normalizeOrigin(configuredOrigin);
+  } catch {
+    return null;
+  }
 }
 
 export function getPublicOrigin(request: Request) {

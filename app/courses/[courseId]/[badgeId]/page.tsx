@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
 import styles from './page.module.css';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'COMPLETED' | 'NOT_STARTED';
@@ -53,8 +54,13 @@ type AssessmentDetails = {
   videoTitle?: string | null;
   youtubeUrl?: string | null;
   videoLength?: string | null;
-  rubricItems: Array<{ number: number; text: string }>;
-  gradingCriteria: Array<{ number: number; criterion: string | null; options: string[] }>;
+  rubricGoal?: {
+    id: string;
+    name: string;
+    totalPoints: number;
+    passThreshold: number;
+    subgoals: Array<{ id: string; text: string; points: number; sortOrder: number }>;
+  } | null;
   checkpoints: Array<{
     number?: number;
     title?: string | null;
@@ -271,9 +277,7 @@ export default function CourseBadgeProgress() {
       <main className={styles.main}>
         <div className={styles.content}>
           <header className={styles.header}>
-            <button type="button" className={styles.backLink} onClick={handleBackToCourse}>
-              Back to course
-            </button>
+            <BackButton onClick={handleBackToCourse} />
             <h1 className={styles.pageTitle}>{badge?.name ?? course?.title ?? 'Badge'}</h1>
           </header>
 
@@ -282,18 +286,14 @@ export default function CourseBadgeProgress() {
           {!isLoading && error ? (
             <div className={styles.statusBlock}>
               <p className={styles.statusMessage}>{error}</p>
-              <button type="button" className={styles.inlineLink} onClick={handleBackToCourse}>
-                Back to course
-              </button>
+              <BackButton onClick={handleBackToCourse} />
             </div>
           ) : null}
 
           {!isLoading && !error && !(badge && summary && assessment) ? (
             <div className={styles.statusBlock}>
               <p className={styles.statusMessage}>Badge details could not be loaded.</p>
-              <button type="button" className={styles.inlineLink} onClick={handleBackToCourse}>
-                Back to course
-              </button>
+              <BackButton onClick={handleBackToCourse} />
             </div>
           ) : null}
 

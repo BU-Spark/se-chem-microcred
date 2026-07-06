@@ -22,10 +22,12 @@
 }
 
 .pageTitle {
+  margin: 0;
   font-family: 'Lato', sans-serif;
-  font-size: clamp(2rem, 2.8vw, 2.6rem);
+  font-size: 48px;
   font-weight: 700;
-  color: #0f172a;
+  line-height: 1.05;
+  color: #000000;
 }
 
 .pageSubtitle {
@@ -157,6 +159,10 @@
 }
 
 @media (max-width: 640px) {
+  .pageTitle {
+    font-size: 38px;
+  }
+
   .formCard {
     padding: 1.75rem;
   }

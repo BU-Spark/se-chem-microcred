@@ -5,6 +5,7 @@ import Image from 'next/image';
 // import { useRouter } from 'next/navigation';
 // import { useAuth } from '@clerk/nextjs';
 import styles from './page.module.css';
+import BackButton from '../_components/BackButton';
 import { createPortal } from 'react-dom';
 
 type Step = 'base' | 'face' | 'accessory';
@@ -611,9 +612,7 @@ export default function EditAvatarPage({ onClose }: EditAvatarModalProps = { onC
             </>
           ) : (
             <>
-              <button type="button" className={styles.cancelButton} onClick={handleBack}>
-                Back
-              </button>
+              <BackButton inline onClick={handleBack} />
               <button type="button" className={styles.nextButton} onClick={handleNext} disabled={nextDisabled}>
                 {nextLabel}
               </button>

@@ -70,6 +70,28 @@ describe('Badge creation page', () => {
     expect(screen.queryByRole('button', { name: /Edit Checkpoint/i })).not.toBeInTheDocument();
   });
 
+  it('renumbers checkpoints after deleting one', async () => {
+    render(<BadgeCreationPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Add checkpoint/i }));
+    expect(screen.getByRole('dialog', { name: 'Checkpoint 1' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /Add checkpoint/i }));
+    expect(screen.getByRole('dialog', { name: 'Checkpoint 2' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Checkpoint 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Remove checkpoint' }));
+
+    expect(screen.getByRole('button', { name: 'Edit Checkpoint 1' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Edit Checkpoint 2' })).not.toBeInTheDocument();
+    expect(screen.getByText('Segment 1')).toBeInTheDocument();
+  });
+
   it('submits the badge draft to the badge creation API with the course id', async () => {
     render(<BadgeCreationPage />);
 
@@ -142,26 +164,22 @@ describe('Badge creation page', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
-    fireEvent.change(screen.getByLabelText('Rubric item 1'), {
+    fireEvent.change(screen.getByLabelText('Rubric goal name'), {
+      target: { value: 'Safe burner operation' },
+    });
+    fireEvent.change(screen.getByLabelText('Subgoal 1'), {
       target: { value: 'Student performs setup and shutdown safely.' },
     });
-    // The rubric list auto-numbers: pressing Enter on a filled row spawns the next.
-    fireEvent.keyDown(screen.getByLabelText('Rubric item 1'), { key: 'Enter' });
-    fireEvent.change(screen.getByLabelText('Rubric item 2'), {
+    fireEvent.change(screen.getByLabelText('Subgoal 1 points'), {
+      target: { value: '3' },
+    });
+    // The subgoal list auto-numbers: pressing Enter on a filled row spawns the next.
+    fireEvent.keyDown(screen.getByLabelText('Subgoal 1'), { key: 'Enter' });
+    fireEvent.change(screen.getByLabelText('Subgoal 2'), {
       target: { value: 'Student explains the safety reason for each step.' },
     });
-    fireEvent.change(screen.getByLabelText('Criterion 1'), {
-      target: { value: 'Technique' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('Selection option 1'), {
-      target: { value: 'Needs support' },
-    });
-    fireEvent.change(screen.getByPlaceholderText('Selection option 2'), {
-      target: { value: 'Meets expectations' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: 'Add Criterion' }));
-    fireEvent.change(screen.getByLabelText('Criterion 2'), {
-      target: { value: 'Safety explanation' },
+    fireEvent.change(screen.getByLabelText('Pass threshold points'), {
+      target: { value: '2' },
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -218,21 +236,15 @@ describe('Badge creation page', () => {
       })
     );
 
-    expect(body.rubricItems).toEqual([
-      { id: 'rubric-item-1', text: 'Student performs setup and shutdown safely.' },
-      expect.objectContaining({ text: 'Student explains the safety reason for each step.' }),
-    ]);
-    expect(body.rubricCriteria).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          prompt: 'Technique',
-          options: ['Needs support', 'Meets expectations', ''],
-        }),
-        expect.objectContaining({
-          prompt: 'Safety explanation',
-          options: ['', '', ''],
-        }),
-      ])
+    expect(body.rubricGoal).toEqual(
+      expect.objectContaining({
+        name: 'Safe burner operation',
+        passThreshold: 2,
+        subgoals: [
+          { id: 'subgoal-1', text: 'Student performs setup and shutdown safely.', points: 3 },
+          expect.objectContaining({ text: 'Student explains the safety reason for each step.', points: 1 }),
+        ],
+      })
     );
 
     expect(await screen.findByRole('dialog', { name: 'Badge created successfully.' })).toBeInTheDocument();
@@ -292,11 +304,16 @@ describe('Badge creation page', () => {
               name: 'Original Badge',
               description: 'Original description.',
               category: 'SAFETY',
+              rubricGoal: {
+                id: 'goal-1',
+                name: 'Original goal',
+                totalPoints: 2,
+                passThreshold: 2,
+                subgoals: [{ id: 'subgoal-1', text: 'Original subgoal.', points: 2, sortOrder: 0 }],
+              },
               requirements: [
                 {
-                  displayText: 'Original rubric item.',
-                  rubricItems: [{ number: 1, text: 'Original rubric item.' }],
-                  gradingCriteria: [{ number: 1, criterion: 'Technique', options: ['Needs support', 'Ready'] }],
+                  displayText: 'Original goal',
                   checkpoints: [
                     {
                       title: 'Checkpoint 1',
@@ -367,6 +384,11 @@ describe('Badge creation page', () => {
         id: 'badge-1',
         courseId: 'course-1',
         badgeName: 'Updated Badge',
+        rubricGoal: {
+          name: 'Original goal',
+          passThreshold: 2,
+          subgoals: [{ id: 'subgoal-1', text: 'Original subgoal.', points: 2 }],
+        },
       })
     );
     expect(await screen.findByRole('dialog', { name: 'Badge updated successfully.' })).toBeInTheDocument();

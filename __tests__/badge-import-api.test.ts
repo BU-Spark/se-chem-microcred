@@ -18,6 +18,8 @@ const mockTx = {
   badgeRequirement: { create: jest.fn() },
   surveyPrompt: { create: jest.fn() },
   studentBadge: { createMany: jest.fn() },
+  rubricGoal: { create: jest.fn() },
+  rubricSubgoal: { createMany: jest.fn() },
 };
 
 const mockPrisma = {
@@ -75,6 +77,15 @@ describe('badge import API', () => {
       name: 'Bunsen Burner Badge',
       description: 'Burner safety',
       category: 'EQUIPMENT',
+      rubricGoal: {
+        name: 'Use the burner safely.',
+        totalPoints: 4,
+        passThreshold: 3,
+        subgoals: [
+          { text: 'Light the burner correctly.', points: 2, sortOrder: 0 },
+          { text: 'Shut down safely.', points: 2, sortOrder: 1 },
+        ],
+      },
       requirements: [
         {
           summary: JSON.stringify({
@@ -160,6 +171,8 @@ describe('badge import API', () => {
     mockPrisma.__tx.lessonCheckpoint.findMany.mockResolvedValue([{ id: 'checkpoint-copy-1', sortOrder: 0 }]);
     mockPrisma.__tx.checkpointQuestion.createMany.mockResolvedValue({ count: 1 });
     mockPrisma.__tx.badgeRequirement.create.mockResolvedValue({ id: 'requirement-copy-1' });
+    mockPrisma.__tx.rubricGoal.create.mockResolvedValue({ id: 'goal-copy-1' });
+    mockPrisma.__tx.rubricSubgoal.createMany.mockResolvedValue({ count: 2 });
   });
 
   it('imports a reusable badge into a course as a course-specific copy', async () => {
@@ -232,6 +245,22 @@ describe('badge import API', () => {
       ],
       skipDuplicates: true,
     });
+    expect(mockPrisma.__tx.rubricGoal.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: {
+          badgeId: 'imported-badge-1',
+          name: 'Use the burner safely.',
+          totalPoints: 4,
+          passThreshold: 3,
+        },
+      })
+    );
+    expect(mockPrisma.__tx.rubricSubgoal.createMany).toHaveBeenCalledWith({
+      data: [
+        { text: 'Light the burner correctly.', points: 2, sortOrder: 0, goalId: 'goal-copy-1' },
+        { text: 'Shut down safely.', points: 2, sortOrder: 1, goalId: 'goal-copy-1' },
+      ],
+    });
 
     const body = await response.json();
     expect(body).toEqual(
@@ -259,6 +288,7 @@ describe('badge import API', () => {
             badgeName: 'Library Badge',
             lessonTitle: 'Library Lesson',
             skills: ['Observe carefully'],
+            passingPercent: 55,
             checkpoints: [
               {
                 title: 'Checkpoint 1',
@@ -288,6 +318,10 @@ describe('badge import API', () => {
     const response = await importBadge({ badgeId: 'source-badge-1' });
 
     expect(response.status).toBe(201);
+    // No source lesson row, so the threshold must come from the summary JSON (not the 70 default).
+    expect(mockPrisma.__tx.lesson.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ passingPercent: 55 }) })
+    );
     expect(mockPrisma.__tx.lessonCheckpoint.createMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: [

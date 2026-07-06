@@ -84,6 +84,7 @@ describe('POST /api/courses/[courseId]/duplicate', () => {
     mockPrisma.studentAnalytics.createMany.mockResolvedValue({ count: 1 });
 
     const response = await duplicateCourse();
+    if (!response) throw new Error('Expected a response from duplicateCourse');
 
     expect(response.status).toBe(201);
     expect(tx.courseContact.createMany).not.toHaveBeenCalled();

@@ -545,7 +545,7 @@ export function LessonVideoPage({
   }, [modalState, currentCheckpointIndex, orderedCheckpoints, currentSegmentIndex]);
 
   const primaryVideoSegment = useMemo(
-    () => lesson.segments.find((segment) => !!segment.videoUrl) ?? lesson.segments[0] ?? null,
+    () => lesson.segments.find((segment) => !!segment.videoUrl) ?? null,
     [lesson.segments]
   );
   const youtubeId = useMemo(() => extractYouTubeId(primaryVideoSegment?.videoUrl), [primaryVideoSegment]);
@@ -1311,7 +1311,17 @@ export function LessonVideoPage({
     <div className={styles.page}>
       <div className={styles.content}>
         <button type="button" className={styles.backButton} onClick={handleBackToLessonDetail}>
-          Back
+          <svg className={styles.backIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path
+              d="M15 5l-7 7 7 7"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.4"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+          <span>Back</span>
         </button>
 
         <aside className={styles.timeline}>
@@ -1759,14 +1769,25 @@ export function LessonVideoPage({
             <h2 className={styles.modalTitle}>{assessmentBadge?.badgeName ?? 'Badge'} Skill Check</h2>
             {lessonQrImageSrc ? (
               <div className={styles.qrCodeFrame}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={lessonQrImageSrc}
-                  alt={`${assessmentBadge?.badgeName ?? 'Badge'} QR code`}
-                  className={styles.qrCodeImage}
-                  width={360}
-                  height={360}
-                />
+                <div className={styles.qrCodeCanvas}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={lessonQrImageSrc}
+                    alt={`${assessmentBadge?.badgeName ?? 'Badge'} QR code`}
+                    className={styles.qrCodeImage}
+                    width={360}
+                    height={360}
+                  />
+                  <div className={styles.qrCodeLogo}>
+                    <Image
+                      src="/assets/badge_wallet/QR/qr_logo.svg"
+                      alt="Checkd logo"
+                      width={74}
+                      height={74}
+                      className={styles.qrCodeLogoImage}
+                    />
+                  </div>
+                </div>
               </div>
             ) : (
               <p className={styles.modalError}>We could not build the assessment QR code for this lesson.</p>

@@ -31,17 +31,17 @@ export type CheckpointDraft = CheckpointQuestionDraft & {
   questions: CheckpointQuestionDraft[];
 };
 
-export type RubricCriterion = {
-  id: string;
-  prompt: string;
-  options: string[];
-  // Prewritten feedback paired 1:1 with `options` (same index). Blank => none.
-  optionFeedback: string[];
-};
-
-export type RubricItem = {
+export type RubricSubgoalDraft = {
   id: string;
   text: string;
+  points: number;
+};
+
+export type RubricGoalDraft = {
+  name: string;
+  // Points needed to pass; total points is derived from the subgoals.
+  passThreshold: number;
+  subgoals: RubricSubgoalDraft[];
 };
 
 export type BadgeDraft = {
@@ -56,14 +56,14 @@ export type BadgeDraft = {
   youtubeUrl: string;
   videoTitle: string;
   videoLength: string;
+  // Percent of checkpoint questions a student must answer correctly to pass the lesson.
+  passingPercent: number;
   checkpoints: CheckpointDraft[];
   reassessmentLimit: number;
   cooldownDays: number;
   reassessmentRequired: boolean;
   reassessmentResources: string[];
-  rubricOverview: string;
-  rubricItems: RubricItem[];
-  rubricCriteria: RubricCriterion[];
+  rubricGoal: RubricGoalDraft;
 };
 
 export type BadgeCatalogItem = {
@@ -74,16 +74,16 @@ export type BadgeCatalogItem = {
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
+  rubricGoal?: {
+    id: string;
+    name: string;
+    totalPoints: number;
+    passThreshold: number;
+    subgoals: Array<{ id: string; text: string; points: number; sortOrder: number }>;
+  } | null;
   requirements: Array<{
     displayText: string;
     skills?: string[];
-    rubricItems: Array<{ number: number; text: string }>;
-    gradingCriteria: Array<{
-      number: number;
-      criterion: string | null;
-      options: string[];
-      optionFeedback?: string[];
-    }>;
     checkpoints?: Array<
       Partial<CheckpointDraft> & {
         number?: number;
@@ -91,15 +91,18 @@ export type BadgeCatalogItem = {
         questions?: Array<Partial<CheckpointQuestionDraft> & { prompt?: string | null; correctIndex?: number | null }>;
       }
     >;
-    // Video stored in the requirement summary JSON (source badges have no lesson).
+    // Video + passing threshold stored in the requirement summary JSON (source
+    // badges have no lesson row, so these are the durable copy).
     youtubeUrl?: string | null;
     videoTitle?: string | null;
     videoLength?: string | null;
+    passingPercent?: number | null;
     lesson: {
       title: string;
       description: string | null;
       dueDate: string | null;
       estimatedMinutes: number | null;
+      passingPercent?: number | null;
       segment: {
         title: string;
         duration: number | null;
@@ -113,7 +116,7 @@ export type BadgesResponse = {
   badges: BadgeCatalogItem[];
 };
 
-export const DRAFT_STORAGE_KEY = 'badge_creation_draft_v2';
+export const DRAFT_STORAGE_KEY = 'badge_creation_draft_v3';
 export const DEFAULT_VIDEO_FALLBACK = 'Lesson video';
 
 export const STEP_DEFINITIONS: StepDefinition[] = [
@@ -135,24 +138,21 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   youtubeUrl: '',
   videoTitle: '',
   videoLength: '',
+  passingPercent: 70,
   checkpoints: [],
   reassessmentLimit: 0,
   cooldownDays: 0,
   reassessmentRequired: false,
   reassessmentResources: [],
-  rubricOverview: '',
-  rubricItems: [
-    {
-      id: 'rubric-item-1',
-      text: '',
-    },
-  ],
-  rubricCriteria: [
-    {
-      id: 'criterion-1',
-      prompt: '',
-      options: ['', '', ''],
-      optionFeedback: ['', '', ''],
-    },
-  ],
+  rubricGoal: {
+    name: '',
+    passThreshold: 1,
+    subgoals: [
+      {
+        id: 'subgoal-1',
+        text: '',
+        points: 1,
+      },
+    ],
+  },
 };

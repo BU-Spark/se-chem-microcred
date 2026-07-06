@@ -24,6 +24,14 @@ const mockTx = {
   },
   surveyPrompt: { create: jest.fn() },
   studentBadge: { createMany: jest.fn() },
+  rubricGoal: { upsert: jest.fn(), deleteMany: jest.fn() },
+  rubricSubgoal: {
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    createMany: jest.fn(),
+    deleteMany: jest.fn(),
+  },
 };
 
 const mockPrisma = {
@@ -123,6 +131,13 @@ describe('badge creation API', () => {
     });
     mockPrisma.__tx.badgeRequirement.findMany.mockResolvedValue([{ lessonId: 'lesson-1' }]);
     mockPrisma.__tx.badge.findMany.mockResolvedValue([]);
+    mockPrisma.__tx.rubricGoal.upsert.mockResolvedValue({ id: 'goal-1' });
+    mockPrisma.__tx.rubricGoal.deleteMany.mockResolvedValue({ count: 0 });
+    mockPrisma.__tx.rubricSubgoal.findMany.mockResolvedValue([]);
+    mockPrisma.__tx.rubricSubgoal.create.mockResolvedValue({ id: 'subgoal-1' });
+    mockPrisma.__tx.rubricSubgoal.update.mockResolvedValue({ id: 'subgoal-1' });
+    mockPrisma.__tx.rubricSubgoal.createMany.mockResolvedValue({ count: 1 });
+    mockPrisma.__tx.rubricSubgoal.deleteMany.mockResolvedValue({ count: 0 });
   });
 
   it('creates badge, lesson, checkpoint question, and student badge rows for the course', async () => {
@@ -185,10 +200,45 @@ describe('badge creation API', () => {
           segmentLabel: 'Segment 1 Starts 00:00:00',
         },
       ],
-      rubricOverview: 'Use safe setup and shutdown.',
+      rubricGoal: {
+        name: 'Operate the burner safely',
+        passThreshold: 3,
+        subgoals: [
+          { text: 'Safe setup', points: 2 },
+          { text: 'Safe shutdown', points: 2 },
+        ],
+      },
     });
 
     expect(response.status).toBe(201);
+    expect(mockPrisma.__tx.rubricGoal.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { badgeId: 'source-badge-1' },
+        create: { badgeId: 'source-badge-1', name: 'Operate the burner safely', totalPoints: 4, passThreshold: 3 },
+      })
+    );
+    expect(mockPrisma.__tx.rubricGoal.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { badgeId: 'course-badge-1' },
+        create: { badgeId: 'course-badge-1', name: 'Operate the burner safely', totalPoints: 4, passThreshold: 3 },
+      })
+    );
+    expect(mockPrisma.__tx.rubricSubgoal.findMany).toHaveBeenCalledWith({
+      where: { goalId: 'goal-1' },
+      select: { id: true, sortOrder: true },
+    });
+    expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({ text: 'Safe setup', points: 2, sortOrder: 0, goalId: 'goal-1' }),
+      })
+    );
+    expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ text: 'Safe shutdown', points: 2, sortOrder: 1, goalId: 'goal-1' }),
+      })
+    );
     expect(mockPrisma.__tx.course.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'course-1', createdById: 'instructor-1' },
@@ -308,17 +358,55 @@ describe('badge creation API', () => {
     );
   });
 
+  it('persists a custom passing threshold to the lesson row and the requirement summary', async () => {
+    mockPrisma.__tx.badge.create
+      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null, category: null })
+      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null, category: null });
+
+    const response = await postBadge({
+      courseId: 'course-1',
+      badgeName: 'Threshold Badge',
+      passingPercent: 55,
+      rubricGoal: { name: 'Goal', subgoals: [{ text: 'Does the thing', points: 1 }] },
+    });
+
+    expect(response.status).toBe(201);
+    // The lesson row (course copy) gets the chosen threshold instead of the schema default of 70.
+    expect(mockPrisma.__tx.lesson.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ passingPercent: 55 }) })
+    );
+    // The source badge has no lesson row, so the threshold must round-trip via the summary JSON.
+    const sourceSummary = JSON.parse(mockPrisma.__tx.badgeRequirement.create.mock.calls[0][0].data.summary);
+    expect(sourceSummary.passingPercent).toBe(55);
+  });
+
+  it('clamps and defaults the passing threshold server-side', async () => {
+    mockPrisma.__tx.badge.create
+      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null, category: null })
+      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null, category: null });
+
+    // Out-of-range value is clamped to 100; an omitted value would default to 70.
+    const response = await postBadge({
+      courseId: 'course-1',
+      badgeName: 'Threshold Badge',
+      passingPercent: 250,
+      rubricGoal: { name: 'Goal', subgoals: [{ text: 'Does the thing', points: 1 }] },
+    });
+
+    expect(response.status).toBe(201);
+    expect(mockPrisma.__tx.lesson.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ passingPercent: 100 }) })
+    );
+  });
+
   it('creates an independent badge when course id is missing', async () => {
     const response = await postBadge({
       badgeName: 'Independent Badge',
       badgeDescription: 'Reusable credential',
-      rubricItems: [{ text: 'Student demonstrates the skill.' }],
-      gradingCriteria: [
-        {
-          prompt: 'Technique',
-          options: ['Needs support', 'Meets expectations'],
-        },
-      ],
+      rubricGoal: {
+        name: 'Demonstrate the skill',
+        subgoals: [{ text: 'Student demonstrates the skill.', points: 1 }],
+      },
     });
 
     expect(response.status).toBe(201);
@@ -355,12 +443,18 @@ describe('badge creation API', () => {
         description: 'Prove safe usage and understanding of flame control.',
         category: 'EQUIPMENT',
         createdAt: new Date('2025-02-20T17:00:00.000Z'),
+        rubricGoal: {
+          id: 'goal-1',
+          name: 'Use the burner safely.',
+          totalPoints: 4,
+          passThreshold: 3,
+          subgoals: [{ id: 'subgoal-1', text: 'Light the burner correctly.', points: 4, sortOrder: 0 }],
+        },
         requirements: [
           {
             id: 'requirement-1',
             summary: JSON.stringify({
-              rubricItems: [{ number: 1, text: 'Use the burner safely.' }],
-              gradingCriteria: [],
+              skills: [],
             }),
             lesson: {
               id: 'lesson-1',
@@ -400,6 +494,12 @@ describe('badge creation API', () => {
           name: 'Bunsen Burner Badge',
           assignedStudentCount: 2,
           createdAt: '2025-02-20T17:00:00.000Z',
+          rubricGoal: expect.objectContaining({
+            name: 'Use the burner safely.',
+            totalPoints: 4,
+            passThreshold: 3,
+            subgoals: [expect.objectContaining({ text: 'Light the burner correctly.', points: 4 })],
+          }),
           requirements: [
             expect.objectContaining({
               displayText: 'Use the burner safely.',
@@ -417,7 +517,15 @@ describe('badge creation API', () => {
       badgeDescription: 'Updated description',
       category: 'SAFETY',
       skills: ['Updated skill'],
-      rubricItems: [{ text: 'First rubric item' }, { text: 'Second rubric item' }],
+      passingPercent: 65,
+      rubricGoal: {
+        name: 'Updated goal',
+        passThreshold: 2,
+        subgoals: [
+          { text: 'First subgoal', points: 1 },
+          { text: 'Second subgoal', points: 2 },
+        ],
+      },
       checkpoints: [
         {
           title: 'Checkpoint 1',
@@ -464,15 +572,40 @@ describe('badge creation API', () => {
     const updateCall = mockPrisma.__tx.badgeRequirement.update.mock.calls[0][0];
     const storedSummary = JSON.parse(updateCall.data.summary);
     expect(storedSummary.lessonTitle).toBe('Updated Badge');
-    expect(storedSummary.rubricItems).toEqual([
-      { number: 1, text: 'First rubric item' },
-      { number: 2, text: 'Second rubric item' },
-    ]);
+    // The edited threshold round-trips through the summary and updates the lesson row.
+    expect(storedSummary.passingPercent).toBe(65);
+    // The rubric moved to the RubricGoal/RubricSubgoal tables in version 3.
+    expect(storedSummary.version).toBe(3);
+    expect(storedSummary.rubricItems).toBeUndefined();
+    expect(storedSummary.gradingCriteria).toBeUndefined();
     expect(storedSummary.checkpoints).toEqual([]);
+    expect(mockPrisma.__tx.rubricGoal.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { badgeId: 'badge-1' },
+        update: { name: 'Updated goal', totalPoints: 3, passThreshold: 2 },
+      })
+    );
+    expect(mockPrisma.__tx.rubricSubgoal.findMany).toHaveBeenCalledWith({
+      where: { goalId: 'goal-1' },
+      select: { id: true, sortOrder: true },
+    });
+    expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({ text: 'First subgoal', points: 1, sortOrder: 0, goalId: 'goal-1' }),
+      })
+    );
+    expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({ text: 'Second subgoal', points: 2, sortOrder: 1, goalId: 'goal-1' }),
+      })
+    );
     expect(mockPrisma.__tx.lesson.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           title: 'Updated Badge',
+          passingPercent: 65,
         }),
       })
     );
@@ -519,6 +652,9 @@ describe('badge creation API', () => {
         where: { badgeId: { in: ['course-copy-1'] } },
       })
     );
+    // No rubricGoal in the payload => the rubric is removed across the family.
+    expect(mockPrisma.__tx.rubricGoal.deleteMany).toHaveBeenCalledWith({ where: { badgeId: 'badge-1' } });
+    expect(mockPrisma.__tx.rubricGoal.deleteMany).toHaveBeenCalledWith({ where: { badgeId: 'course-copy-1' } });
   });
 
   it('syncs edited checkpoint questions into lesson question rows', async () => {

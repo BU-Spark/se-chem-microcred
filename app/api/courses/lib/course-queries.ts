@@ -95,6 +95,18 @@ export async function fetchCreatedBadgeDetail(userId: string, courseId: string, 
                   slug: true,
                   category: true,
                   name: true,
+                  rubricGoal: {
+                    select: {
+                      id: true,
+                      name: true,
+                      totalPoints: true,
+                      passThreshold: true,
+                      subgoals: {
+                        orderBy: { sortOrder: 'asc' },
+                        select: { id: true, text: true, points: true, sortOrder: true },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -363,6 +375,18 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                   slug: true,
                   category: true,
                   name: true,
+                  rubricGoal: {
+                    select: {
+                      id: true,
+                      name: true,
+                      totalPoints: true,
+                      passThreshold: true,
+                      subgoals: {
+                        orderBy: { sortOrder: 'asc' },
+                        select: { id: true, text: true, points: true, sortOrder: true },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -462,6 +486,11 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
           summary: true,
           thumbnailUrl: true,
           sortOrder: true,
+          segments: {
+            orderBy: { sortOrder: 'asc' },
+            take: 1,
+            select: { videoUrl: true },
+          },
           badgeRequirements: {
             orderBy: { createdAt: 'asc' },
             select: {
@@ -525,10 +554,24 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
       lessons: {
         orderBy: { sortOrder: 'asc' },
         select: {
+          id: true,
+          progress: {
+            where: {
+              studentId: memberId,
+            },
+            take: 1,
+            select: {
+              status: true,
+              startedAt: true,
+              completedAt: true,
+              percentComplete: true,
+            },
+          },
           badgeRequirements: {
             orderBy: { createdAt: 'asc' },
             select: {
               id: true,
+              summary: true,
               badge: {
                 select: {
                   id: true,
@@ -636,10 +679,24 @@ export async function fetchCreatedCourseMemberDetail(userId: string, courseId: s
       lessons: {
         orderBy: { sortOrder: 'asc' },
         select: {
+          id: true,
+          progress: {
+            where: {
+              studentId: memberId,
+            },
+            take: 1,
+            select: {
+              status: true,
+              startedAt: true,
+              completedAt: true,
+              percentComplete: true,
+            },
+          },
           badgeRequirements: {
             orderBy: { createdAt: 'asc' },
             select: {
               id: true,
+              summary: true,
               badge: {
                 select: {
                   id: true,

@@ -6,6 +6,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
 import rosterStyles from '@/app/roster/[studentId]/page.module.css';
 import styles from './page.module.css';
 
@@ -61,23 +62,27 @@ type BadgeDetailResponse = {
     completedCheckpoints: number;
   };
   assessment?: {
-    criteria: Array<{
-      id: string;
-      criterionKey: string;
-      criterion: string;
-      options: string[];
-      sortOrder: number;
-    }>;
+    rubric: {
+      goalId: string;
+      goalName: string;
+      totalPoints: number;
+      passThreshold: number;
+      subgoals: Array<{
+        id: string;
+        text: string;
+        points: number;
+        sortOrder: number;
+      }>;
+    } | null;
   };
 };
 
-type CriterionDraft = {
-  criterionKey: string;
-  criterion: string;
-  selectedOption: string;
-  notes: string;
+type SubgoalDraft = {
+  subgoalId: string;
+  text: string;
+  points: number;
   passed: boolean;
-  sortOrder: number;
+  feedback: string;
 };
 
 function resolveParam(value: string | string[] | undefined) {
@@ -220,10 +225,11 @@ export default function AssessmentReadinessPage() {
   const { signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isAssessmentStarted, setIsAssessmentStarted] = useState(false);
-  const [criterionDrafts, setCriterionDrafts] = useState<CriterionDraft[]>([]);
-  const [score, setScore] = useState('100');
-  const [passed, setPassed] = useState(true);
-  const [feedback, setFeedback] = useState('');
+  const [subgoalDrafts, setSubgoalDrafts] = useState<SubgoalDraft[]>([]);
+  // The outcome follows the score-vs-threshold suggestion until the assessor
+  // explicitly picks Pass / Needs reassessment, which pins their choice.
+  const [pinnedPassed, setPinnedPassed] = useState<boolean | null>(null);
+  const [overrideFeedback, setOverrideFeedback] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -281,52 +287,55 @@ export default function AssessmentReadinessPage() {
 
   useEffect(() => {
     if (!badgeDetail) {
-      setCriterionDrafts([]);
+      setSubgoalDrafts([]);
       return;
     }
 
-    const criteria = badgeDetail.assessment?.criteria ?? [];
+    const rubric = badgeDetail.assessment?.rubric ?? null;
 
-    setCriterionDrafts(
-      criteria.length > 0
-        ? criteria.map((criterion, index) => ({
-            criterionKey: criterion.criterionKey,
-            criterion: criterion.criterion,
-            selectedOption: criterion.options[0] ?? '',
-            notes: '',
-            passed: true,
-            sortOrder: criterion.sortOrder ?? index,
-          }))
-        : [
-            {
-              criterionKey: 'overall',
-              criterion: 'Overall badge performance',
-              selectedOption: '',
-              notes: '',
-              passed: true,
-              sortOrder: 0,
-            },
-          ]
+    // Every subgoal starts red/failed: the assessor affirmatively marks each
+    // one the student demonstrated.
+    setSubgoalDrafts(
+      (rubric?.subgoals ?? []).map((subgoal) => ({
+        subgoalId: subgoal.id,
+        text: subgoal.text,
+        points: subgoal.points,
+        passed: false,
+        feedback: '',
+      }))
     );
+    setPinnedPassed(null);
+    setOverrideFeedback('');
     setIsAssessmentStarted(false);
     setSubmitError(null);
   }, [badgeDetail]);
 
-  const updateCriterionDraft = (criterionKey: string, patch: Partial<CriterionDraft>) => {
-    setCriterionDrafts((current) =>
-      current.map((criterion) => (criterion.criterionKey === criterionKey ? { ...criterion, ...patch } : criterion))
+  const updateSubgoalDraft = (subgoalId: string, patch: Partial<SubgoalDraft>, resetPin = true) => {
+    setSubgoalDrafts((current) =>
+      current.map((subgoal) => (subgoal.subgoalId === subgoalId ? { ...subgoal, ...patch } : subgoal))
     );
+    if (resetPin && 'passed' in patch) {
+      setPinnedPassed(null);
+    }
   };
+
+  const rubric = badgeDetail?.assessment?.rubric ?? null;
+  const pointsPossible = subgoalDrafts.reduce((sum, subgoal) => sum + subgoal.points, 0);
+  const pointsEarned = subgoalDrafts.reduce((sum, subgoal) => (subgoal.passed ? sum + subgoal.points : sum), 0);
+  const passThreshold = rubric?.passThreshold ?? 0;
+  const suggestedPassed = rubric ? pointsEarned >= passThreshold : true;
+  const passed = pinnedPassed ?? suggestedPassed;
+  const outcomeFlipped = rubric !== null && passed !== suggestedPassed;
 
   const submitAssessment = async () => {
     if (!courseId || !studentId || !badgeId || !email) {
       return;
     }
 
-    const parsedScore = Number(score);
-
-    if (!Number.isFinite(parsedScore) || parsedScore < 0 || parsedScore > 100) {
-      setSubmitError('Enter a score from 0 to 100.');
+    if (outcomeFlipped && !overrideFeedback.trim()) {
+      setSubmitError(
+        'You are overriding the score-suggested outcome — describe what you observed in the assessor override field.'
+      );
       return;
     }
 
@@ -348,9 +357,12 @@ export default function AssessmentReadinessPage() {
           },
           body: JSON.stringify({
             passed,
-            score: Math.round(parsedScore),
-            feedback,
-            criteria: criterionDrafts,
+            subgoals: subgoalDrafts.map((subgoal) => ({
+              subgoalId: subgoal.subgoalId,
+              passed: subgoal.passed,
+              feedback: subgoal.feedback,
+            })),
+            override: overrideFeedback.trim() ? { feedback: overrideFeedback.trim() } : null,
           }),
         }
       );
@@ -382,9 +394,7 @@ export default function AssessmentReadinessPage() {
 
       <main className={rosterStyles.main}>
         <div className={rosterStyles.content}>
-          <button type="button" className={styles.topBackLink} onClick={handleBack}>
-            <span aria-hidden="true">←</span> Back
-          </button>
+          <BackButton onClick={handleBack} />
 
           <header className={rosterStyles.header}>
             <h1 className={rosterStyles.pageTitle}>{badgeDetail?.badge.name ?? 'Assessment'}</h1>
@@ -528,85 +538,69 @@ export default function AssessmentReadinessPage() {
                   {canStartNewAssessment && isAssessmentStarted ? (
                     <div className={styles.assessmentPanel}>
                       <div className={styles.assessmentPanelHeader}>
-                        <h2>Assessor Grading</h2>
+                        <h2>{rubric?.goalName || 'Assessor Grading'}</h2>
                         <div className={styles.passToggle} role="group" aria-label="Assessment outcome">
                           <button
                             type="button"
                             className={passed ? styles.toggleButtonActive : styles.toggleButton}
-                            onClick={() => setPassed(true)}
+                            onClick={() => setPinnedPassed(true)}
                           >
                             Pass
                           </button>
                           <button
                             type="button"
                             className={!passed ? styles.toggleButtonActive : styles.toggleButton}
-                            onClick={() => setPassed(false)}
+                            onClick={() => setPinnedPassed(false)}
                           >
                             Needs reassessment
                           </button>
                         </div>
                       </div>
 
-                      <label className={styles.scoreField}>
-                        <span>Score</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max="100"
-                          value={score}
-                          onChange={(event) => setScore(event.target.value)}
-                        />
-                      </label>
+                      {rubric ? (
+                        <p className={styles.scoreSummary}>
+                          Score:{' '}
+                          <strong>
+                            {pointsEarned} / {pointsPossible}
+                          </strong>{' '}
+                          <span className={pointsEarned >= passThreshold ? styles.thresholdMet : styles.thresholdUnmet}>
+                            (pass at {passThreshold})
+                          </span>
+                        </p>
+                      ) : null}
 
                       <div className={styles.criteriaList}>
-                        {criterionDrafts.map((criterion) => (
-                          <div key={criterion.criterionKey} className={styles.criterionCard}>
+                        {subgoalDrafts.map((subgoal, index) => (
+                          <div key={subgoal.subgoalId} className={styles.criterionCard}>
                             <div className={styles.criterionHeader}>
-                              <h3>{criterion.criterion}</h3>
-                              <label className={styles.criterionPass}>
-                                <input
-                                  type="checkbox"
-                                  checked={criterion.passed}
-                                  onChange={(event) =>
-                                    updateCriterionDraft(criterion.criterionKey, { passed: event.target.checked })
-                                  }
-                                />
-                                Met
-                              </label>
+                              <h3>
+                                {index + 1}. {subgoal.text}
+                              </h3>
+                              <div className={styles.subgoalControl}>
+                                <span className={styles.subgoalPoints}>
+                                  {subgoal.points} {subgoal.points === 1 ? 'pt' : 'pts'}
+                                </span>
+                                <button
+                                  type="button"
+                                  role="switch"
+                                  aria-checked={subgoal.passed}
+                                  aria-label={`Subgoal ${index + 1} ${subgoal.passed ? 'passed' : 'failed'}`}
+                                  className={subgoal.passed ? styles.subgoalSliderOn : styles.subgoalSliderOff}
+                                  onClick={() => updateSubgoalDraft(subgoal.subgoalId, { passed: !subgoal.passed })}
+                                >
+                                  <span className={styles.subgoalSliderKnob} aria-hidden="true" />
+                                </button>
+                              </div>
                             </div>
 
-                            {badgeDetail.assessment?.criteria.find(
-                              (entry) => entry.criterionKey === criterion.criterionKey
-                            )?.options.length ? (
-                              <label className={styles.criteriaField}>
-                                <span>Observed outcome</span>
-                                <select
-                                  value={criterion.selectedOption}
-                                  onChange={(event) =>
-                                    updateCriterionDraft(criterion.criterionKey, {
-                                      selectedOption: event.target.value,
-                                    })
-                                  }
-                                >
-                                  {badgeDetail.assessment.criteria
-                                    .find((entry) => entry.criterionKey === criterion.criterionKey)
-                                    ?.options.map((option) => (
-                                      <option key={option} value={option}>
-                                        {option}
-                                      </option>
-                                    ))}
-                                </select>
-                              </label>
-                            ) : null}
-
                             <label className={styles.criteriaField}>
-                              <span>Notes</span>
+                              <span>Feedback (optional)</span>
                               <textarea
-                                value={criterion.notes}
+                                value={subgoal.feedback}
                                 onChange={(event) =>
-                                  updateCriterionDraft(criterion.criterionKey, { notes: event.target.value })
+                                  updateSubgoalDraft(subgoal.subgoalId, { feedback: event.target.value }, false)
                                 }
-                                rows={3}
+                                rows={2}
                               />
                             </label>
                           </div>
@@ -614,8 +608,13 @@ export default function AssessmentReadinessPage() {
                       </div>
 
                       <label className={styles.criteriaField}>
-                        <span>Overall feedback</span>
-                        <textarea value={feedback} onChange={(event) => setFeedback(event.target.value)} rows={4} />
+                        <span>Assessor override</span>
+                        <textarea
+                          value={overrideFeedback}
+                          onChange={(event) => setOverrideFeedback(event.target.value)}
+                          rows={4}
+                          placeholder="Anything observed during the experiment that the rubric doesn't cover. Filling this in lets you pass or fail the student regardless of the score."
+                        />
                       </label>
 
                       {submitError ? <p className={styles.errorText}>{submitError}</p> : null}
@@ -627,9 +626,7 @@ export default function AssessmentReadinessPage() {
               </section>
 
               <div className={styles.actionRow}>
-                <button type="button" className={styles.backLink} onClick={handleBack}>
-                  Back
-                </button>
+                <BackButton onClick={handleBack} />
                 <button
                   type="button"
                   className={styles.primaryButton}
