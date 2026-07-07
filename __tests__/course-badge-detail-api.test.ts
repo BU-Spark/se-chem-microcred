@@ -4,7 +4,6 @@ import { NextRequest } from 'next/server';
 
 const mockFetchUserByEmail = jest.fn();
 const mockFetchCreatedCourseDetail = jest.fn();
-const mockFetchCreatedBadgeDetail = jest.fn();
 const mockFetchAccessibleCourseDetail = jest.fn();
 const mockFetchAccessibleBadgeDetail = jest.fn();
 
@@ -13,7 +12,6 @@ jest.mock(
   () => ({
     fetchUserByEmail: (...args: unknown[]) => mockFetchUserByEmail(...args),
     fetchCreatedCourseDetail: (...args: unknown[]) => mockFetchCreatedCourseDetail(...args),
-    fetchCreatedBadgeDetail: (...args: unknown[]) => mockFetchCreatedBadgeDetail(...args),
     fetchAccessibleCourseDetail: (...args: unknown[]) => mockFetchAccessibleCourseDetail(...args),
     fetchAccessibleBadgeDetail: (...args: unknown[]) => mockFetchAccessibleBadgeDetail(...args),
   }),
@@ -23,7 +21,6 @@ jest.mock(
 jest.mock('../app/api/courses/lib/course-queries', () => ({
   fetchUserByEmail: (...args: unknown[]) => mockFetchUserByEmail(...args),
   fetchCreatedCourseDetail: (...args: unknown[]) => mockFetchCreatedCourseDetail(...args),
-  fetchCreatedBadgeDetail: (...args: unknown[]) => mockFetchCreatedBadgeDetail(...args),
   fetchAccessibleCourseDetail: (...args: unknown[]) => mockFetchAccessibleCourseDetail(...args),
   fetchAccessibleBadgeDetail: (...args: unknown[]) => mockFetchAccessibleBadgeDetail(...args),
 }));
@@ -148,6 +145,14 @@ describe('course badge detail API', () => {
                 updatedAt: new Date('2026-01-04T00:00:00.000Z'),
               },
             ],
+            lessonProgress: [
+              {
+                status: 'COMPLETED',
+                startedAt: new Date('2026-01-01T00:00:00.000Z'),
+                completedAt: new Date('2026-01-03T00:00:00.000Z'),
+                percentComplete: 100,
+              },
+            ],
           },
         },
         {
@@ -169,6 +174,14 @@ describe('course badge detail API', () => {
                 updatedAt: new Date('2026-01-03T00:00:00.000Z'),
               },
             ],
+            lessonProgress: [
+              {
+                status: 'COMPLETED',
+                startedAt: new Date('2026-01-01T00:00:00.000Z'),
+                completedAt: new Date('2026-01-02T00:00:00.000Z'),
+                percentComplete: 100,
+              },
+            ],
           },
         },
         {
@@ -181,6 +194,7 @@ describe('course badge detail API', () => {
             email: 'student3@example.edu',
             buid: 'U3',
             badgeProgress: [],
+            lessonProgress: [],
           },
         },
       ],
@@ -234,5 +248,74 @@ describe('course badge detail API', () => {
     ]);
     expect(body.students).toHaveLength(3);
     expect(body.students[2]).toEqual(expect.objectContaining({ status: 'NOT_STARTED', progress: null }));
+  });
+
+  // Regression for #97: StudentBadge rows are eagerly created with LEARNING at
+  // badge creation/import, so a LEARNING row without any requirement-lesson
+  // activity must still count as NOT_STARTED.
+  it('treats an untouched LEARNING badge as not started', async () => {
+    const learningProgress = {
+      id: 'progress-learning',
+      badgeId: 'badge-1',
+      status: 'LEARNING',
+      awardedAt: null,
+      score: null,
+      updatedAt: new Date('2026-01-03T00:00:00.000Z'),
+    };
+    const badgeDetail = await mockFetchAccessibleBadgeDetail();
+    mockFetchAccessibleBadgeDetail.mockResolvedValue({
+      ...badgeDetail,
+      enrollments: [
+        {
+          id: 'enrollment-1',
+          role: 'STUDENT',
+          sections: [],
+          student: {
+            id: 'student-1',
+            name: 'Untouched Learner',
+            email: 'untouched@example.edu',
+            buid: 'U1',
+            badgeProgress: [{ ...learningProgress }],
+            lessonProgress: [{ status: 'NOT_STARTED', startedAt: null, completedAt: null, percentComplete: 0 }],
+          },
+        },
+        {
+          id: 'enrollment-2',
+          role: 'STUDENT',
+          sections: [],
+          student: {
+            id: 'student-2',
+            name: 'Active Learner',
+            email: 'active@example.edu',
+            buid: 'U2',
+            badgeProgress: [{ ...learningProgress, id: 'progress-active' }],
+            lessonProgress: [
+              {
+                status: 'IN_PROGRESS',
+                startedAt: new Date('2026-01-02T00:00:00.000Z'),
+                completedAt: null,
+                percentComplete: 20,
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const response = await getBadgeDetail();
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+
+    expect(body.students[0]).toEqual(expect.objectContaining({ status: 'NOT_STARTED' }));
+    expect(body.students[1]).toEqual(expect.objectContaining({ status: 'LEARNING' }));
+    expect(body.summary).toEqual(
+      expect.objectContaining({
+        totalStudents: 2,
+        notStartedCount: 1,
+        inProgressCount: 1,
+        completedCount: 0,
+      })
+    );
   });
 });

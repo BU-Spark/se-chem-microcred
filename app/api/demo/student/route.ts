@@ -641,11 +641,44 @@ export async function GET(req: Request) {
         };
   });
 
-  const badgeGroups = groupBadgesByStatus(normalizedStudentBadges.map(formatBadge));
+  // StudentBadge rows are eagerly created with LEARNING status when a badge is
+  // created/imported, so a LEARNING row alone doesn't mean the student has
+  // started: require activity on at least one requirement lesson.
+  const isUnstartedLearningBadge = (entry: (typeof normalizedStudentBadges)[number]) => {
+    if (entry.status !== BadgeStatus.LEARNING) {
+      return false;
+    }
 
-  // "Not yet started" = course badges the student has no StudentBadge row for yet.
+    const requirementLessonIds = entry.badge.requirements
+      .map((requirement) => requirement.lessonId)
+      .filter((lessonId): lessonId is string => Boolean(lessonId));
+
+    if (requirementLessonIds.length === 0) {
+      return false;
+    }
+
+    return !requirementLessonIds.some((lessonId) => {
+      const progress = progressByLessonId.get(lessonId);
+      return (
+        Boolean(progress?.startedAt || progress?.completedAt) ||
+        progress?.status === LessonStatus.IN_PROGRESS ||
+        progress?.status === LessonStatus.COMPLETED ||
+        (progress?.percentComplete ?? 0) > 0
+      );
+    });
+  };
+
+  const startedStudentBadges = normalizedStudentBadges.filter((entry) => !isUnstartedLearningBadge(entry));
+  const unstartedLearningBadges = normalizedStudentBadges
+    .filter(isUnstartedLearningBadge)
+    .map((entry) => ({ ...formatBadge(entry), status: 'NOT_STARTED' as const }));
+
+  const badgeGroups = groupBadgesByStatus(startedStudentBadges.map(formatBadge));
+
+  // "Not yet started" = course badges the student has no StudentBadge row for
+  // yet, plus LEARNING rows with no requirement-lesson activity (above).
   const studentBadgeIds = new Set(studentBadges.map((sb) => sb.badgeId));
-  const notStartedBadges = courseBadges
+  const neverAttemptedBadges = courseBadges
     .filter((badge) => !studentBadgeIds.has(badge.id))
     .map((badge) => ({
       id: badge.id,
@@ -659,6 +692,7 @@ export async function GET(req: Request) {
       score: null,
       requirements: [] as Array<{ summary: string | null; lessonSlug: string | null; lessonTitle: string | null }>,
     }));
+  const notStartedBadges = [...neverAttemptedBadges, ...unstartedLearningBadges];
 
   const lessonSurveyPrompts = surveyPrompts
     .filter((prompt) => prompt.context === SurveyContext.LESSON)

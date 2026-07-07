@@ -13,145 +13,6 @@ export async function fetchUserByEmail(email: string) {
   });
 }
 
-export async function fetchCreatedBadgeDetail(userId: string, courseId: string, badgeId: string) {
-  return prisma.course.findFirst({
-    where: {
-      id: courseId,
-      createdById: userId,
-      lessons: {
-        some: {
-          badgeRequirements: {
-            some: {
-              badgeId,
-            },
-          },
-        },
-      },
-    },
-    select: {
-      id: true,
-      title: true,
-      sectionCount: true,
-      createdBy: {
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          buid: true,
-        },
-      },
-      lessons: {
-        where: {
-          badgeRequirements: {
-            some: {
-              badgeId,
-            },
-          },
-        },
-        orderBy: { sortOrder: 'asc' },
-        select: {
-          id: true,
-          slug: true,
-          title: true,
-          sortOrder: true,
-          segments: {
-            orderBy: { sortOrder: 'asc' },
-            select: {
-              id: true,
-              title: true,
-              duration: true,
-              videoUrl: true,
-              thumbnailUrl: true,
-              sortOrder: true,
-            },
-          },
-          checkpoints: {
-            orderBy: { sortOrder: 'asc' },
-            select: {
-              id: true,
-              title: true,
-              label: true,
-              meta: true,
-              questionCount: true,
-              timeOffsetSeconds: true,
-              sortOrder: true,
-              questions: {
-                orderBy: { sortOrder: 'asc' },
-                select: {
-                  prompt: true,
-                },
-              },
-            },
-          },
-          badgeRequirements: {
-            where: { badgeId },
-            select: {
-              id: true,
-              summary: true,
-              badge: {
-                select: {
-                  id: true,
-                  description: true,
-                  slug: true,
-                  category: true,
-                  name: true,
-                  rubricGoal: {
-                    select: {
-                      id: true,
-                      name: true,
-                      totalPoints: true,
-                      passThreshold: true,
-                      subgoals: {
-                        orderBy: { sortOrder: 'asc' },
-                        select: { id: true, text: true, points: true, sortOrder: true },
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-      enrollments: {
-        where: {
-          role: 'STUDENT',
-        },
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true,
-          role: true,
-          status: true,
-          sections: {
-            orderBy: { section: 'asc' },
-            select: { section: true },
-          },
-          student: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              buid: true,
-              badgeProgress: {
-                where: { badgeId },
-                take: 1,
-                select: {
-                  id: true,
-                  badgeId: true,
-                  status: true,
-                  awardedAt: true,
-                  score: true,
-                  updatedAt: true,
-                },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-}
-
 export async function fetchCreatedCourses(userId: string) {
   return prisma.course.findMany({
     where: {
@@ -422,6 +283,18 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                   awardedAt: true,
                   score: true,
                   updatedAt: true,
+                },
+              },
+              // Progress on the badge's requirement lessons, used to tell a
+              // LEARNING row the student has actually worked on apart from one
+              // eagerly created at badge creation/import (still "not started").
+              lessonProgress: {
+                where: { lesson: { badgeRequirements: { some: { badgeId } } } },
+                select: {
+                  status: true,
+                  startedAt: true,
+                  completedAt: true,
+                  percentComplete: true,
                 },
               },
             },
