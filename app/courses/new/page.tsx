@@ -13,7 +13,7 @@ import CourseImagePicker from './components/CourseImagePicker';
 import CourseTileImage from '../../_components/CourseTileImage';
 import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
 
-const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Manage Assessor Configurations', 'Review'];
+const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Assessor Roster', 'Review'];
 
 // Named step indices so the wizard's conditionals and edit links stay readable
 // (and survive future reordering) rather than depending on bare numbers.
@@ -178,7 +178,7 @@ export default function CourseNewPage() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   // In edit mode, land directly on the Review step (the last step) so editing an
   // existing course opens on the review screen rather than walking the wizard from step 0.
-  const [currentStep, setCurrentStep] = useState(isEditMode ? steps.length - 1 : 0);
+  const [currentStep, setCurrentStep] = useState(isEditMode ? STEP_REVIEW : STEP_INFO);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -374,7 +374,7 @@ export default function CourseNewPage() {
       return;
     }
     setSubmitError('');
-    if (currentStep === steps.length - 1) {
+    if (currentStep === STEP_REVIEW) {
       // Re-entrancy guard: ignore clicks while a save is already in flight.
       if (isSubmittingRef.current) return;
 
@@ -407,7 +407,7 @@ export default function CourseNewPage() {
       return;
     }
 
-    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
+    setCurrentStep((prev) => Math.min(prev + 1, STEP_REVIEW));
   };
 
   const goBack = () => {
@@ -1110,7 +1110,7 @@ export default function CourseNewPage() {
             onClick={goNext}
             disabled={isSubmitting || isLoadingCourse}
           >
-            {currentStep === steps.length - 1
+            {currentStep === STEP_REVIEW
               ? isSubmitting
                 ? isEditMode
                   ? 'Saving...'
