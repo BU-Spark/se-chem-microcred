@@ -534,14 +534,23 @@ export default function BadgeWalletPage() {
                         )}
 
                         {activeBadge.status === 'COMPLETED' && (
-                          <button
-                            type="button"
-                            className={styles.popoverActionPrimary}
-                            onClick={() => exportBadgeToLinkedIn(activeBadge)}
-                            disabled={isExporting}
-                          >
-                            {isExporting ? 'Preparing LinkedIn package…' : 'Export to LinkedIn'}
-                          </button>
+                          <>
+                            <button
+                              type="button"
+                              className={styles.popoverActionPrimary}
+                              onClick={() => exportBadgeToLinkedIn(activeBadge)}
+                              disabled={isExporting}
+                            >
+                              {isExporting ? 'Preparing LinkedIn package…' : 'Export to LinkedIn'}
+                            </button>
+                            <button
+                              type="button"
+                              className={styles.popoverActionLink}
+                              onClick={() => reviewFeedback(activeBadge)}
+                            >
+                              Review Feedback
+                            </button>
+                          </>
                         )}
                       </div>
 

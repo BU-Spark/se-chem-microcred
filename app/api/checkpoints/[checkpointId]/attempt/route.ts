@@ -161,6 +161,8 @@ export async function POST(request: Request, context: RouteContext) {
             studentId: user.id,
             lessonProgressId: lessonProgress.id,
             selectedIndex: entry.selectedIndex,
+            selectedIndices: entry.selectedIndices.length > 0 ? entry.selectedIndices : undefined,
+            numericAnswer: entry.numericAnswer,
             isCorrect: entry.isCorrect,
           })),
         },

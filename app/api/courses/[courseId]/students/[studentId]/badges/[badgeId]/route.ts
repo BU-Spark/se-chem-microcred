@@ -3,6 +3,7 @@ import { BadgeStatus, EnrollmentStatus } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { normalizeCheckpointQuestion, type NormalizedCheckpointQuestion } from '@/lib/checkpointQuestions';
 import prisma from '@/lib/prisma';
 
 function normalizeEmail(email?: string | null) {
@@ -23,16 +24,30 @@ async function sessionMatchesEmail(email: string) {
   return Boolean(sessionEmail) && sessionEmail === email;
 }
 
-function answerTextFromResponse(options: unknown, selectedIndex?: number | null) {
-  if (selectedIndex == null) {
+// Render a stored response against its (normalized) question. Multiple-choice
+// answers map indices onto the normalized option texts; short answers read the
+// persisted numericAnswer. Older responses predate the numericAnswer and
+// selectedIndices columns, so fall back to selectedIndex / "No answer recorded".
+function answerTextFromResponse(
+  question: NormalizedCheckpointQuestion,
+  response: { selectedIndex: number | null; selectedIndices: unknown; numericAnswer: number | null }
+) {
+  if (question.type === 'shortAnswer') {
+    return response.numericAnswer != null ? String(response.numericAnswer) : 'No answer recorded';
+  }
+
+  const indices = Array.isArray(response.selectedIndices)
+    ? response.selectedIndices.map((index) => Number(index)).filter((index) => Number.isInteger(index) && index >= 0)
+    : response.selectedIndex != null
+      ? [response.selectedIndex]
+      : [];
+
+  if (indices.length === 0) {
     return 'No answer recorded';
   }
 
-  if (Array.isArray(options) && selectedIndex >= 0 && selectedIndex < options.length) {
-    return String(options[selectedIndex]);
-  }
-
-  return `Option ${selectedIndex + 1}`;
+  const options = Array.isArray(question.options) ? question.options : [];
+  return indices.map((index) => (index < options.length ? String(options[index]) : `Option ${index + 1}`)).join(', ');
 }
 
 function formatCheckpointLabel(label: string | null | undefined, sortOrder: number) {
@@ -286,6 +301,7 @@ export async function GET(
                     id: true,
                     prompt: true,
                     options: true,
+                    correctIndex: true,
                   },
                 },
                 attempts: {
@@ -308,6 +324,8 @@ export async function GET(
                         id: true,
                         questionId: true,
                         selectedIndex: true,
+                        selectedIndices: true,
+                        numericAnswer: true,
                         isCorrect: true,
                       },
                     },
@@ -468,6 +486,7 @@ export async function GET(
         title: formatCheckpointLabel(checkpoint.label, checkpoint.sortOrder),
         lessonTitle: lesson.title,
         questions: checkpoint.questions.map((question, questionIndex) => {
+          const normalizedQuestion = normalizeCheckpointQuestion(question);
           const attempts = checkpoint.attempts
             .map((attempt) => {
               const response = attempt.responses.find((entry) => entry.questionId === question.id);
@@ -479,7 +498,7 @@ export async function GET(
               return {
                 id: `${attempt.id}-${question.id}`,
                 label: '',
-                answeredText: answerTextFromResponse(question.options, response.selectedIndex),
+                answeredText: answerTextFromResponse(normalizedQuestion, response),
                 isCorrect: response.isCorrect,
               };
             })
