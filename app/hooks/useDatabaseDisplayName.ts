@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 type ProfileSummary = {
   displayName: string | null;
@@ -55,6 +55,51 @@ export function useDatabaseDisplayName(email?: string | null, enabled = true) {
       : { displayName: null, avatarBase: null }
   );
 
+  // Tracks whether the consuming component is still mounted so a slow fetch
+  // (mount revalidation or a manual refresh) can't setState after unmount.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  // Fetches the latest name/avatar from the server and updates every cache layer
+  // plus local state. Exposed as `refresh` so callers (e.g. after saving a new
+  // name) can force the sidebar to repaint without a full page reload.
+  const refresh = useCallback(async () => {
+    if (!normalizedEmail) {
+      return;
+    }
+    try {
+      const response = await fetch('/api/profile/display-name', {
+        headers: {
+          Accept: 'application/json',
+        },
+      });
+
+      const payload = (await response.json().catch(() => ({}))) as DisplayNameResponse;
+
+      if (!response.ok) {
+        throw new Error(payload.error ?? `Request failed with status ${response.status}`);
+      }
+
+      const resolved: ProfileSummary = {
+        displayName: payload.user?.name?.trim() || null,
+        avatarBase: payload.user?.avatarBase ?? null,
+      };
+      profileCache.set(normalizedEmail, resolved);
+      writeStored(normalizedEmail, resolved);
+
+      if (mountedRef.current) {
+        setProfile(resolved);
+      }
+    } catch {
+      // Keep whatever we already painted from cache on failure.
+    }
+  }, [normalizedEmail]);
+
   useEffect(() => {
     if (!enabled || !normalizedEmail) {
       return;
@@ -73,43 +118,8 @@ export function useDatabaseDisplayName(email?: string | null, enabled = true) {
     }
 
     // 2. Always revalidate in the background so a freshly chosen avatar/name shows up.
-    let isCancelled = false;
-
-    const fetchProfile = async () => {
-      try {
-        const response = await fetch('/api/profile/display-name', {
-          headers: {
-            Accept: 'application/json',
-          },
-        });
-
-        const payload = (await response.json().catch(() => ({}))) as DisplayNameResponse;
-
-        if (!response.ok) {
-          throw new Error(payload.error ?? `Request failed with status ${response.status}`);
-        }
-
-        const resolved: ProfileSummary = {
-          displayName: payload.user?.name?.trim() || null,
-          avatarBase: payload.user?.avatarBase ?? null,
-        };
-        profileCache.set(normalizedEmail, resolved);
-        writeStored(normalizedEmail, resolved);
-
-        if (!isCancelled) {
-          setProfile(resolved);
-        }
-      } catch {
-        // Keep whatever we already painted from cache on failure.
-      }
-    };
-
-    void fetchProfile();
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [enabled, normalizedEmail]);
+    void refresh();
+  }, [enabled, normalizedEmail, refresh]);
 
   // Optimistic update: paint a freshly-chosen avatar everywhere immediately and
   // keep the caches warm, so the change doesn't wait on the background refetch.
@@ -127,5 +137,5 @@ export function useDatabaseDisplayName(email?: string | null, enabled = true) {
     [normalizedEmail]
   );
 
-  return { displayName: profile.displayName, avatarBase: profile.avatarBase, setAvatarBase };
+  return { displayName: profile.displayName, avatarBase: profile.avatarBase, setAvatarBase, refresh };
 }

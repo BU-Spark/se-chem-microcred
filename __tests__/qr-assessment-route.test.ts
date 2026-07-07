@@ -22,6 +22,27 @@ const mockPrisma = prisma as unknown as {
   user: { findUnique: jest.Mock };
   course: { findFirst: jest.Mock };
 };
+const originalPublicEnv = {
+  APP_URL: process.env.APP_URL,
+  NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+  RAILWAY_PUBLIC_DOMAIN: process.env.RAILWAY_PUBLIC_DOMAIN,
+};
+
+function restorePublicEnv() {
+  for (const [key, value] of Object.entries(originalPublicEnv)) {
+    if (value === undefined) {
+      delete process.env[key];
+    } else {
+      process.env[key] = value;
+    }
+  }
+}
+
+function clearPublicEnv() {
+  delete process.env.APP_URL;
+  delete process.env.NEXT_PUBLIC_APP_URL;
+  delete process.env.RAILWAY_PUBLIC_DOMAIN;
+}
 
 function requestFor(params = 'courseId=course-1&studentId=student-1&badgeId=badge-1') {
   return new Request(`http://localhost/qr/assessment?${params}`);
@@ -71,12 +92,17 @@ function courseWith({
 describe('assessment QR resolver', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    clearPublicEnv();
     mockCurrentUser.mockResolvedValue({
       id: 'clerk-assessor',
       emailAddresses: [{ emailAddress: 'assessor@example.edu' }],
     } as Awaited<ReturnType<typeof currentUser>>);
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'assessor-1' });
     mockPrisma.course.findFirst.mockResolvedValue(courseWith());
+  });
+
+  afterEach(() => {
+    restorePublicEnv();
   });
 
   it('redirects an authorized assessor to the assessment page', async () => {

@@ -42,16 +42,6 @@ function avatarAsset(base?: string | null) {
   }
 }
 
-function splitLastFirst(name?: string | null) {
-  if (!name) return { line1: 'Name not provided', line2: '' };
-
-  const parts = name.split(',').map((p) => p.trim());
-  if (parts.length === 1) {
-    return { line1: parts[0], line2: '' };
-  }
-  return { line1: parts[0], line2: parts[1] };
-}
-
 function formatCreatedDate(value?: string | null) {
   if (!value) return 'Not available';
   const date = new Date(value);
@@ -67,22 +57,6 @@ function pellLabel(value?: boolean | null) {
   return value ? 'Yes' : 'No';
 }
 
-type Contact = {
-  id: string;
-  name: string;
-  type: string;
-  email?: string | null;
-  avatarUrl?: string | null;
-};
-
-function getContactAvatarSrc(contact: Contact) {
-  if (contact.avatarUrl) {
-    return contact.avatarUrl;
-  }
-
-  return '/edit_avatar/sapphire.svg';
-}
-
 // 10 minutes
 const SENSITIVE_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -95,7 +69,11 @@ export default function ProfilePage() {
   const { data: studentData, refresh: refreshStudentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   // Cached avatar base (in-memory + localStorage) so the chosen avatar paints
   // immediately instead of flashing the default gem while studentData loads.
-  const { avatarBase: cachedAvatarBase, setAvatarBase: setCachedAvatarBase } = useDatabaseDisplayNameContext();
+  const {
+    avatarBase: cachedAvatarBase,
+    setAvatarBase: setCachedAvatarBase,
+    refresh: refreshDisplayName,
+  } = useDatabaseDisplayNameContext();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   // ---------- 1. Sensitive-data visibility ----------
@@ -127,6 +105,7 @@ export default function ProfilePage() {
 
   // ---------- 3. Demographic edit modal ----------
   const [isDemographicModalOpen, setIsDemographicModalOpen] = useState(false);
+  const [draftName, setDraftName] = useState('');
   const [draftGender, setDraftGender] = useState('');
   const [draftRaceEthnicity, setDraftRaceEthnicity] = useState('');
   const [draftParentalEducation, setDraftParentalEducation] = useState('');
@@ -171,7 +150,7 @@ export default function ProfilePage() {
 
   // Real step-up auth: useReverification wraps a call to a reverification-protected
   // route. Clerk catches the reverification error, prompts the user to re-verify
-  // their credentials, and retries — so the reveal can't be bypassed by a confirm box.
+  // their credentials, and retries, so the reveal cannot be bypassed by a confirm box.
   const reverifiedReveal = useReverification(async () => {
     const response = await fetch('/api/profile/reverify', { method: 'POST' });
     if (!response.ok) {
@@ -241,6 +220,7 @@ export default function ProfilePage() {
     const parentalEducation = studentData?.student.parentalEducation ?? 'Not provided';
     const pell = pellLabel(studentData?.student.pellGrantQualified);
 
+    setDraftName(studentData?.student.name ?? '');
     setDraftGender(gender);
     setDraftRaceEthnicity(raceEthnicity);
     setDraftParentalEducation(parentalEducation);
@@ -260,6 +240,7 @@ export default function ProfilePage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: studentData.student.email,
+          name: draftName.trim(),
           gender: draftGender,
           raceEthnicity: draftRaceEthnicity,
           parentalEducation: draftParentalEducation,
@@ -271,6 +252,9 @@ export default function ProfilePage() {
         throw new Error('Failed to save demographic info');
       }
       await refreshStudentData();
+      // Repaint the sidebar name/avatar (served from the display-name cache)
+      // with the freshly saved value instead of waiting for a full reload.
+      await refreshDisplayName();
       setIsDemographicModalOpen(false);
     } catch (err) {
       console.error('Failed to save demographic info', err);
@@ -321,9 +305,6 @@ export default function ProfilePage() {
     { label: 'Pell Grant Qualified?', value: pellGrantQualified },
   ];
 
-  const checkerContacts = studentData?.course?.contacts.filter((contact) => contact.type === 'CHECKER') ?? [];
-  const courseTitle = studentData?.course?.title ?? 'Course information not available';
-  const courseSection = studentData?.course?.section ?? 'Not provided';
   const avatarSrc = avatarAsset(optimisticAvatarBase ?? studentData?.student.avatar?.base ?? cachedAvatarBase);
 
   const learningBadges = studentData?.badges.learning ?? [];
@@ -397,7 +378,7 @@ export default function ProfilePage() {
               </button>
             </div>
 
-            {/* RIGHT: demographic dropdown + course + checker */}
+            {/* RIGHT: demographic dropdown */}
             <aside className={styles.rightColumn}>
               {/* Demographic Info dropdown */}
               <div className={styles.demographicSection}>
@@ -427,50 +408,7 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              {/* Course Info */}
-              <div className={styles.courseSection}>
-                <h3 className={styles.courseInfoTitle}>Course Info:</h3>
-                <div className={styles.courseMeta}>
-                  {courseTitle}
-                  <br />
-                  Section: {courseSection}
-                </div>
-              </div>
-
-              {/* Checker */}
-              <div className={styles.courseSection}>
-                <h3 className={styles.checkerTitle}>Checker</h3>
-                <div className={styles.contactList}>
-                  {checkerContacts.length === 0 ? (
-                    <div className={styles.emptyState}>No checkers listed.</div>
-                  ) : (
-                    checkerContacts.map((contact) => {
-                      const { line1, line2 } = splitLastFirst(contact.name);
-                      return (
-                        <div key={contact.id} className={styles.contactItem}>
-                          <div className={styles.contactAvatar}>
-                            <Image src={getContactAvatarSrc(contact)} alt={contact.name} width={110} height={110} />
-                          </div>
-                          <div className={styles.contactInfo}>
-                            <span className={styles.contactName}>
-                              {line1}
-                              {line2 ? (
-                                <>
-                                  <br />
-                                  {line2}
-                                </>
-                              ) : null}
-                            </span>
-                            <span className={styles.contactEmail}>{contact.email}</span>
-                          </div>
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              {/* Edit pencil for course/checker area -> demographic/edit handler */}
+              {/* Edit pencil for demographic area -> demographic/edit handler */}
               <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
                 <span className={styles.editPencilText}>Edit</span>
                 <Image src={editIcon} alt="" width={20} height={20} className={styles.editPencilIcon} />
@@ -597,9 +535,19 @@ export default function ProfilePage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id="demographic-modal-title" className={styles.demographicModalTitle}>
-              Edit demographic info
+              Edit profile info
             </h2>
-            <p className={styles.demographicModalHint}>Only demographic fields can be changed here.</p>
+            <p className={styles.demographicModalHint}>Update your name and demographic details.</p>
+
+            <label className={styles.demographicModalField}>
+              <span className={styles.demographicModalLabel}>Name</span>
+              <input
+                type="text"
+                value={draftName}
+                onChange={(e) => setDraftName(e.target.value)}
+                placeholder="First Last"
+              />
+            </label>
 
             <label className={styles.demographicModalField}>
               <span className={styles.demographicModalLabel}>Gender</span>
@@ -645,7 +593,7 @@ export default function ProfilePage() {
                 type="button"
                 className={styles.demographicModalSave}
                 onClick={handleSaveDemographics}
-                disabled={isSavingDemographics}
+                disabled={isSavingDemographics || !draftName.trim()}
               >
                 {isSavingDemographics ? 'Saving…' : 'Save'}
               </button>

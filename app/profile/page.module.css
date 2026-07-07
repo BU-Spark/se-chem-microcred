@@ -158,7 +158,7 @@
 }
 
 /* ===========================
-   Right column (Demographic / Course / Checker)
+   Right column (Demographic Info)
    =========================== */
 .rightColumn {
   display: flex;
@@ -224,83 +224,6 @@
   font-weight: 400;
   color: #0f172a;
   font-family: 'Open Sans', sans-serif;
-}
-
-/* ---------- Course info ---------- */
-.courseSection {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
-
-.courseInfoTitle {
-  font-family: 'Lato', sans-serif;
-  font-size: 24px;
-  font-weight: 400;
-  color: #000000;
-}
-
-.checkerTitle {
-  font-family: 'Lato', sans-serif;
-  font-size: 24px;
-  font-weight: 400;
-  color: #000000;
-}
-
-.courseMeta {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  color: #000000;
-  line-height: 1.4;
-}
-
-/* Checker contact list */
-.contactList {
-  display: grid;
-  gap: 1rem;
-  margin-top: 0.25rem;
-}
-
-.contactItem {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.contactAvatar {
-  width: 90px;
-  height: 90px;
-  border-radius: 50%;
-  background: #f3f4f6;
-  border: 1px solid #d9d9d9;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.contactAvatar :global(img) {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.contactInfo {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.contactName {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  font-weight: 400;
-  color: #000000;
-  line-height: 1.25;
-}
-
-.contactEmail {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  color: #000000;
 }
 
 .emptyState {
