@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { CourseRole } from '@prisma/client';
 import { fetchAccessibleCourseMemberDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
+import prisma from '@/lib/prisma';
 import { youtubeUrlFromSummary } from '@/lib/video';
 
 function normalizeEmail(email?: string | null) {
@@ -226,5 +229,53 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     console.error('GET /api/courses/[courseId]/students/[studentId] failed:', error);
 
     return NextResponse.json({ error: 'Failed to fetch roster member details' }, { status: 500 });
+  }
+}
+
+// Remove a student from a course. Instructor-only: the signed-in user must be
+// the course creator, and only STUDENT enrollments are removable here. Deleting
+// the enrollment cascades its EnrollmentSection rows (see prisma schema).
+export async function DELETE(_req: NextRequest, context: { params: Promise<{ courseId: string; studentId: string }> }) {
+  try {
+    const { courseId: rawCourseId, studentId: rawStudentId } = await context.params;
+    const courseId = normalizeId(rawCourseId);
+    const studentId = normalizeId(rawStudentId);
+
+    if (!courseId || !studentId) {
+      return NextResponse.json({ error: 'Course id and student id are required' }, { status: 400 });
+    }
+
+    const user = await ensureCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Only the course creator (instructor) may remove students.
+    const course = await prisma.course.findFirst({
+      where: { id: courseId, createdById: user.id },
+      select: { id: true },
+    });
+    if (!course) {
+      return NextResponse.json(
+        { error: 'Course not found or you do not have permission to manage it.' },
+        { status: 404 }
+      );
+    }
+
+    const enrollment = await prisma.enrollment.findFirst({
+      where: { courseId, studentId, role: CourseRole.STUDENT },
+      select: { id: true },
+    });
+    if (!enrollment) {
+      return NextResponse.json({ error: 'Student is not enrolled in this course.' }, { status: 404 });
+    }
+
+    await prisma.enrollment.delete({ where: { id: enrollment.id } });
+
+    return NextResponse.json({ message: 'Student removed from course.' }, { status: 200 });
+  } catch (error) {
+    console.error('DELETE /api/courses/[courseId]/students/[studentId] failed:', error);
+
+    return NextResponse.json({ error: 'Failed to remove student from course.' }, { status: 500 });
   }
 }

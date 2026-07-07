@@ -6,6 +6,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
 import BackButton from '../_components/BackButton';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import styles from './page.module.css';
 
 type EnrollmentSummary = {
@@ -172,6 +173,9 @@ export default function StudentRosterPage() {
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
   const { data, isLoading, error, refresh } = useCourseRoster(courseId, email);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<RosterMemberRow | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+  const [removeError, setRemoveError] = useState<string | null>(null);
   const isCheckerRoster = rosterRole === 'CHECKER';
   const rosterLabel = isCheckerRoster ? 'Assessor' : 'Student';
   const rosterPluralLabel = isCheckerRoster ? 'assessors' : 'students';
@@ -210,6 +214,8 @@ export default function StudentRosterPage() {
 
   const course = data?.course ?? null;
   const isInstructor = data?.viewerRole === 'INSTRUCTOR';
+  // Only instructors can remove students, and only on the student roster.
+  const canManageStudents = isInstructor && !isCheckerRoster;
   const displayName = course?.createdBy?.name || '';
 
   // Pending assessor requests an instructor can approve/decline (CHECKER roster only).
@@ -246,6 +252,36 @@ export default function StudentRosterPage() {
     },
     [courseId, pendingActionId, refresh]
   );
+
+  const closeRemoveModal = useCallback(() => {
+    if (removingId) return;
+    setMemberToRemove(null);
+    setRemoveError(null);
+  }, [removingId]);
+
+  const removeModalRef = useFocusTrap<HTMLDivElement>(Boolean(memberToRemove), closeRemoveModal);
+
+  const handleRemoveStudent = useCallback(async () => {
+    if (!courseId || !memberToRemove) return;
+    setRemovingId(memberToRemove.memberId);
+    setRemoveError(null);
+    try {
+      const response = await fetch(
+        `/api/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(memberToRemove.memberId)}`,
+        { method: 'DELETE', headers: { Accept: 'application/json' } }
+      );
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error ?? 'Failed to remove student from course.');
+      }
+      setMemberToRemove(null);
+      await refresh();
+    } catch (err) {
+      setRemoveError(err instanceof Error ? err.message : 'Failed to remove student from course.');
+    } finally {
+      setRemovingId(null);
+    }
+  }, [courseId, memberToRemove, refresh]);
 
   const rosterRows = useMemo<RosterMemberRow[]>(() => {
     if (!course) return [];
@@ -619,6 +655,7 @@ export default function StudentRosterPage() {
                         <th>BUID Number</th>
                         <th>Email</th>
                         <th>Section</th>
+                        {canManageStudents ? <th className={styles.actionsHeader}>Actions</th> : null}
                       </tr>
                     </thead>
                     <tbody>
@@ -642,11 +679,27 @@ export default function StudentRosterPage() {
                             <td>{member.buid || '—'}</td>
                             <td>{member.email || '—'}</td>
                             <td>{member.sectionLabel || '—'}</td>
+                            {canManageStudents ? (
+                              <td className={styles.actionsCell}>
+                                <button
+                                  type="button"
+                                  className={styles.removeButton}
+                                  disabled={removingId === member.memberId}
+                                  onClick={(event) => {
+                                    event.stopPropagation();
+                                    setRemoveError(null);
+                                    setMemberToRemove(member);
+                                  }}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            ) : null}
                           </tr>
                         ))
                       ) : (
                         <tr>
-                          <td className={styles.emptyCell} colSpan={5}>
+                          <td className={styles.emptyCell} colSpan={canManageStudents ? 6 : 5}>
                             {emptyResultsMessage}
                           </td>
                         </tr>
@@ -659,6 +712,51 @@ export default function StudentRosterPage() {
           ) : null}
         </div>
       </main>
+
+      {memberToRemove ? (
+        <div className={styles.modalOverlay} role="presentation" onClick={closeRemoveModal}>
+          <div
+            ref={removeModalRef}
+            className={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-student-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h2 id="remove-student-title" className={styles.modalTitle}>
+              Remove student?
+            </h2>
+            <p className={styles.modalBody}>
+              Remove{' '}
+              <strong>
+                {[memberToRemove.firstName, memberToRemove.lastName].filter(Boolean).join(' ') ||
+                  memberToRemove.email ||
+                  'this student'}
+              </strong>{' '}
+              from <strong>{course?.title}</strong>? They will lose access to this course. This cannot be undone.
+            </p>
+            {removeError ? <p className={styles.modalError}>{removeError}</p> : null}
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={styles.clearFiltersButton}
+                disabled={Boolean(removingId)}
+                onClick={closeRemoveModal}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.removeConfirmButton}
+                disabled={Boolean(removingId)}
+                onClick={handleRemoveStudent}
+              >
+                {removingId ? 'Removing…' : 'Remove student'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
