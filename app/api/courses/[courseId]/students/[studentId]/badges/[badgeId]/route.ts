@@ -71,6 +71,7 @@ function fetchRubricGoal(badgeId: string) {
       name: true,
       totalPoints: true,
       passThreshold: true,
+      instructions: true,
       subgoals: {
         orderBy: { sortOrder: 'asc' },
         select: { id: true, text: true, points: true, sortOrder: true },
@@ -576,6 +577,7 @@ export async function GET(
                 goalName: rubricGoal.name,
                 totalPoints: rubricGoal.totalPoints,
                 passThreshold: rubricGoal.passThreshold,
+                instructions: rubricGoal.instructions,
                 subgoals: rubricGoal.subgoals,
               }
             : null,

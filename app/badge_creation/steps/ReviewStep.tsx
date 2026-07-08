@@ -138,6 +138,13 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
           <strong>{draft.rubricGoal.subgoals.reduce((sum, subgoal) => sum + (subgoal.points || 0), 0)}</strong> points
           possible, pass at <strong>{draft.rubricGoal.passThreshold}</strong>
         </p>
+
+        <div className={styles.reviewSubsectionHeader}>TA Instructions</div>
+        {draft.rubricGoal.taInstructions.trim() ? (
+          <div className="rte-readonly" dangerouslySetInnerHTML={{ __html: draft.rubricGoal.taInstructions }} />
+        ) : (
+          <p className={styles.reviewMuted}>No instructions added</p>
+        )}
       </section>
     </div>
   );

@@ -386,6 +386,7 @@ describe('Badge creation page', () => {
         rubricGoal: {
           name: 'Original goal',
           passThreshold: 2,
+          taInstructions: '',
           subgoals: [{ id: 'subgoal-1', text: 'Original subgoal.', points: 2 }],
         },
       })

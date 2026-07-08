@@ -392,6 +392,10 @@ export default function BadgeCreationPage() {
     updateDraft('rubricGoal', { ...draft.rubricGoal, passThreshold: points });
   };
 
+  const updateRubricInstructions = (taInstructions: string) => {
+    updateDraft('rubricGoal', { ...draft.rubricGoal, taInstructions });
+  };
+
   const updateSubgoal = (subgoalId: string, patch: Partial<Omit<RubricSubgoalDraft, 'id'>>) => {
     updateDraft('rubricGoal', {
       ...draft.rubricGoal,
@@ -564,6 +568,7 @@ export default function BadgeCreationPage() {
                 draft={draft}
                 updateRubricGoalName={updateRubricGoalName}
                 updateRubricGoalThreshold={updateRubricGoalThreshold}
+                updateRubricInstructions={updateRubricInstructions}
                 updateSubgoal={updateSubgoal}
                 addSubgoal={addSubgoal}
                 removeSubgoal={removeSubgoal}

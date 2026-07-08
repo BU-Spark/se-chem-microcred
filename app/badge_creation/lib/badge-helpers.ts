@@ -197,6 +197,7 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
     ? {
         name: badge.rubricGoal.name,
         passThreshold: badge.rubricGoal.passThreshold,
+        taInstructions: badge.rubricGoal.instructions ?? '',
         subgoals: badge.rubricGoal.subgoals.length
           ? badge.rubricGoal.subgoals.map((subgoal) => ({
               id: subgoal.id,

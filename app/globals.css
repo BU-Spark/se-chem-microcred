@@ -634,6 +634,208 @@ html.dark .error-boundary details {
   text-align: left;
 }
 
+/* =========================
+   Rich Text Editor (Lexical)
+   ========================= */
+.rte-container {
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text-color);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.rte-container:focus-within {
+  border-color: var(--primary-accent);
+  box-shadow: 0 0 0 3px rgba(0, 96, 199, 0.12);
+}
+
+html.dark .rte-container:focus-within {
+  box-shadow: 0 0 0 3px rgba(162, 70, 248, 0.18);
+}
+
+/* ---- Toolbar ---- */
+.rte-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--card-bg-alt);
+  border-bottom: 1px solid var(--card-border);
+}
+
+.rte-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-color);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.rte-toolbar-btn:hover:not(:disabled) {
+  background: var(--divider);
+}
+
+.rte-toolbar-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.rte-toolbar-btn--active {
+  background: rgba(0, 96, 199, 0.14);
+  color: var(--primary-accent);
+}
+
+html.dark .rte-toolbar-btn--active {
+  background: rgba(162, 70, 248, 0.2);
+  color: var(--primary-accent);
+}
+
+.rte-toolbar-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 0.25rem 0.35rem;
+  background: var(--divider-strong);
+}
+
+/* ---- Editable surface ---- */
+.rte-editor-shell {
+  position: relative;
+}
+
+.rte-content-editable {
+  min-height: 180px;
+  padding: 1rem 1.15rem;
+  outline: none;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-color);
+  caret-color: var(--primary-accent);
+}
+
+.rte-placeholder {
+  position: absolute;
+  top: 1rem;
+  left: 1.15rem;
+  color: #9ca3af;
+  pointer-events: none;
+  user-select: none;
+  font-size: 0.95rem;
+}
+
+/* ---- Block elements ---- */
+.rte-paragraph {
+  margin: 0 0 0.75rem;
+}
+
+.rte-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+.rte-h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+  line-height: 1.25;
+}
+
+.rte-h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  margin: 0 0 0.65rem;
+  line-height: 1.3;
+}
+
+.rte-h3 {
+  font-size: 1.15rem;
+  font-weight: 600;
+  margin: 0 0 0.55rem;
+  line-height: 1.35;
+}
+
+.rte-quote {
+  margin: 0 0 0.75rem;
+  padding-left: 1rem;
+  border-left: 4px solid var(--divider-strong);
+  color: #6b7280;
+  font-style: italic;
+}
+
+html.dark .rte-quote {
+  color: #9ca3af;
+}
+
+.rte-ul,
+.rte-ol {
+  margin: 0 0 0.75rem;
+  padding-left: 1.5rem;
+}
+
+.rte-ul {
+  list-style: disc;
+}
+
+.rte-ol {
+  list-style: decimal;
+}
+
+.rte-li {
+  margin: 0.2rem 0;
+}
+
+.rte-nested-li {
+  list-style-type: circle;
+}
+
+.rte-link {
+  color: var(--link-color);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ---- Inline text formats ---- */
+.rte-bold {
+  font-weight: 700;
+}
+
+.rte-italic {
+  font-style: italic;
+}
+
+.rte-underline {
+  text-decoration: underline;
+}
+
+.rte-strikethrough {
+  text-decoration: line-through;
+}
+
+.rte-underline.rte-strikethrough {
+  text-decoration: underline line-through;
+}
+
+.rte-inline-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  background: var(--code-bg);
+  padding: 0.1rem 0.35rem;
+  border-radius: 4px;
+}
+
+/* Read-only rendering of editor HTML (e.g. TA instructions in the assessor view). */
+.rte-readonly > :last-child {
+  margin-bottom: 0;
+}
+
 /* Global logo header shown on every page */
 .global-header {
   position: absolute;

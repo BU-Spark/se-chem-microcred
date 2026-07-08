@@ -39,6 +39,7 @@ type RubricSubgoalPayload = {
 type RubricGoalPayload = {
   name?: string | null;
   passThreshold?: number | string | null;
+  taInstructions?: string | null;
   subgoals?: RubricSubgoalPayload[] | null;
 };
 
@@ -77,6 +78,20 @@ type UpdateBadgePayload = {
 function normalizeString(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+// Rich-text (HTML) fields are stored verbatim, but an "empty" editor still
+// serializes to markup like `<p><br></p>`. Treat markup with no visible text
+// or embedded media as empty so it persists as null.
+function normalizeRichText(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const textContent = trimmed
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+  const hasEmbeddedContent = /<(img|iframe|video|audio|hr)\b/i.test(trimmed);
+  return textContent || hasEmbeddedContent ? trimmed : null;
 }
 
 // Trim, drop empties, case-insensitive de-dupe, cap at 5. The API is the
@@ -310,6 +325,7 @@ function normalizePassingPercent(value: number | string | null | undefined) {
 // defaults to the full total (every point required) when omitted.
 function normalizeRubricGoal(goal?: RubricGoalPayload | null) {
   const name = normalizeString(goal?.name);
+  const instructions = normalizeRichText(goal?.taInstructions);
   const subgoals = (goal?.subgoals ?? [])
     .map((subgoal) => ({
       text: normalizeString(subgoal.text),
@@ -318,7 +334,7 @@ function normalizeRubricGoal(goal?: RubricGoalPayload | null) {
     .filter((subgoal): subgoal is { text: string; points: number } => Boolean(subgoal.text))
     .map((subgoal, index) => ({ ...subgoal, sortOrder: index }));
 
-  if (!name && subgoals.length === 0) {
+  if (!name && subgoals.length === 0 && !instructions) {
     return null;
   }
 
@@ -329,6 +345,7 @@ function normalizeRubricGoal(goal?: RubricGoalPayload | null) {
     name: name ?? 'Rubric goal',
     totalPoints,
     passThreshold,
+    instructions,
     subgoals,
   };
 }
@@ -345,8 +362,19 @@ async function syncBadgeRubricGoal(tx: Prisma.TransactionClient, badgeId: string
 
   const savedGoal = await tx.rubricGoal.upsert({
     where: { badgeId },
-    create: { badgeId, name: goal.name, totalPoints: goal.totalPoints, passThreshold: goal.passThreshold },
-    update: { name: goal.name, totalPoints: goal.totalPoints, passThreshold: goal.passThreshold },
+    create: {
+      badgeId,
+      name: goal.name,
+      totalPoints: goal.totalPoints,
+      passThreshold: goal.passThreshold,
+      instructions: goal.instructions,
+    },
+    update: {
+      name: goal.name,
+      totalPoints: goal.totalPoints,
+      passThreshold: goal.passThreshold,
+      instructions: goal.instructions,
+    },
     select: { id: true },
   });
 
@@ -538,6 +566,7 @@ export async function GET(req: NextRequest) {
             name: true,
             totalPoints: true,
             passThreshold: true,
+            instructions: true,
             subgoals: {
               orderBy: { sortOrder: 'asc' },
               select: { id: true, text: true, points: true, sortOrder: true },

@@ -303,6 +303,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
                 name: true,
                 totalPoints: true,
                 passThreshold: true,
+                instructions: true,
                 subgoals: {
                   orderBy: { sortOrder: 'asc' },
                   select: { text: true, points: true, sortOrder: true },
@@ -603,6 +604,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
               name: sourceBadge.rubricGoal.name,
               totalPoints: sourceBadge.rubricGoal.totalPoints,
               passThreshold: sourceBadge.rubricGoal.passThreshold,
+              instructions: sourceBadge.rubricGoal.instructions,
             },
             select: { id: true },
           });

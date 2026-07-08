@@ -222,13 +222,25 @@ describe('badge creation API', () => {
     expect(mockPrisma.__tx.rubricGoal.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { badgeId: 'source-badge-1' },
-        create: { badgeId: 'source-badge-1', name: 'Operate the burner safely', totalPoints: 4, passThreshold: 3 },
+        create: {
+          badgeId: 'source-badge-1',
+          name: 'Operate the burner safely',
+          totalPoints: 4,
+          passThreshold: 3,
+          instructions: null,
+        },
       })
     );
     expect(mockPrisma.__tx.rubricGoal.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { badgeId: 'course-badge-1' },
-        create: { badgeId: 'course-badge-1', name: 'Operate the burner safely', totalPoints: 4, passThreshold: 3 },
+        create: {
+          badgeId: 'course-badge-1',
+          name: 'Operate the burner safely',
+          totalPoints: 4,
+          passThreshold: 3,
+          instructions: null,
+        },
       })
     );
     expect(mockPrisma.__tx.rubricSubgoal.findMany).toHaveBeenCalledWith({
@@ -588,7 +600,7 @@ describe('badge creation API', () => {
     expect(mockPrisma.__tx.rubricGoal.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { badgeId: 'badge-1' },
-        update: { name: 'Updated goal', totalPoints: 3, passThreshold: 2 },
+        update: { name: 'Updated goal', totalPoints: 3, passThreshold: 2, instructions: null },
       })
     );
     expect(mockPrisma.__tx.rubricSubgoal.findMany).toHaveBeenCalledWith({

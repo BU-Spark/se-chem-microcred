@@ -40,6 +40,8 @@ export type RubricGoalDraft = {
   // Points needed to pass; total points is derived from the subgoals.
   passThreshold: number;
   subgoals: RubricSubgoalDraft[];
+  // Rich-text (HTML) instructions for TAs to relay to students during assessment.
+  taInstructions: string;
 };
 
 export type BadgeDraft = {
@@ -75,6 +77,7 @@ export type BadgeCatalogItem = {
     name: string;
     totalPoints: number;
     passThreshold: number;
+    instructions?: string | null;
     subgoals: Array<{ id: string; text: string; points: number; sortOrder: number }>;
   } | null;
   requirements: Array<{
@@ -149,5 +152,6 @@ export const DEFAULT_DRAFT: BadgeDraft = {
         points: 1,
       },
     ],
+    taInstructions: '',
   },
 };

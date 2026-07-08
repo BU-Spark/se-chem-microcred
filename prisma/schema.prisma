@@ -406,6 +406,8 @@ model RubricGoal {
   name          String
   totalPoints   Int      @default(0)
   passThreshold Int      @default(0)
+  // Rich-text (HTML) instructions for TAs to relay to students during assessment.
+  instructions  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
