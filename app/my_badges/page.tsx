@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
+import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import styles from './page.module.css';
@@ -92,6 +93,7 @@ export default function MyBadgesPage() {
   const { signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { data, isLoading, error, refresh } = useBadgesCatalog(isLoaded && Boolean(isSignedIn));
+  const { canCreateContent } = useCanCreateContent(isLoaded && Boolean(isSignedIn));
   const displayName = user?.fullName || 'Student';
   const sortedBadges = useMemo(
     () => [...(data?.badges ?? [])].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)),
@@ -125,9 +127,11 @@ export default function MyBadgesPage() {
       <main className={`main ${styles.main}`}>
         <h1 className={styles.pageTitle}>Badges</h1>
 
-        <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
-          Create New Badge
-        </button>
+        {canCreateContent ? (
+          <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
+            Create New Badge
+          </button>
+        ) : null}
 
         {isLoading ? <p className={styles.statusMessage}>Loading badges...</p> : null}
 

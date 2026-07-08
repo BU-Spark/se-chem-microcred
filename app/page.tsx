@@ -2,6 +2,7 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMyCourses } from './hooks/useMyCourses';
+import { useCanCreateContent } from './hooks/useCanCreateContent';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -255,6 +256,7 @@ function HomeContent() {
     error: fetchError,
     mutate: refreshCourses,
   } = useMyCourses(isLoaded && isSignedIn);
+  const { canCreateContent } = useCanCreateContent(isLoaded && isSignedIn);
   const coursesError = fetchError
     ? fetchError instanceof Error
       ? fetchError.message
@@ -640,7 +642,7 @@ function HomeContent() {
           </div>
 
           <div className={styles.myCoursesGrid} data-testid="created-courses-grid">
-            <AddCourseCard />
+            {canCreateContent ? <AddCourseCard /> : null}
             {createdCourses.map((course) => (
               <CreatedCourseCard key={course.id} course={course} />
             ))}
