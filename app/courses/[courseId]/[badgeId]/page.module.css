@@ -136,19 +136,6 @@
   font-weight: 700;
 }
 
-.exportButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  border: none;
-  background: transparent;
-  color: #000000;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  cursor: pointer;
-  padding: 0;
-}
-
 .checkpointCount {
   margin: 0.5rem 0 0;
   color: #000000;

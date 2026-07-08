@@ -17,6 +17,7 @@ import rubyAvatar from '@/public/edit_avatar/ruby.svg';
 import sapphireAvatar from '@/public/edit_avatar/sapphire.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import BackButton from '@/app/_components/BackButton';
+import ExportCsvDataButton from '@/app/_components/ExportToCsv';
 import styles from './page.module.css';
 
 type CourseContact = {
@@ -635,6 +636,9 @@ export default function CreatedCourseDetailPage() {
                         <button type="button" className={styles.primaryButton} onClick={openAssessmentCodeModal}>
                           Assess Student
                         </button>
+                      ) : null}
+                      {isInstructor && email ? (
+                        <ExportCsvDataButton courseId={course.id} email={email} className={styles.primaryButton} />
                       ) : null}
                     </div>
                   ) : null}

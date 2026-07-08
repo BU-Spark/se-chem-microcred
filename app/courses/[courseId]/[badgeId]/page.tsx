@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+
 import BackButton from '@/app/_components/BackButton';
 import styles from './page.module.css';
 
@@ -314,18 +315,6 @@ export default function CourseBadgeProgress() {
                       Showing progress for: <strong>All students</strong>
                     </p>
                   </div>
-                  <button type="button" className={styles.exportButton}>
-                    <span>Export</span>
-                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" aria-hidden="true">
-                      <path
-                        d="M12 16V4M12 4l-4 4M12 4l4 4M5 20h14"
-                        stroke="#1d1d1d"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </button>
                 </div>
 
                 <div className={styles.progressBody}>
