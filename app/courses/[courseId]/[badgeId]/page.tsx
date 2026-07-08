@@ -15,7 +15,6 @@ type BadgeDetail = {
   slug: string;
   name: string;
   description: string | null;
-  category: string | null;
   lesson: {
     id: string;
     title: string;

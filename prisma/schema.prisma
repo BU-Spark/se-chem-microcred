@@ -379,7 +379,6 @@ model Badge {
   slug            String             @unique
   name            String
   description     String?
-  category        BadgeCategory?
   createdById     String?
   sourceBadgeId   String?
   availableOn     DateTime?
@@ -427,13 +426,6 @@ model RubricSubgoal {
   responses AssessmentSubgoalResponse[]
 
   @@unique([goalId, sortOrder])
-}
-
-enum BadgeCategory {
-  SAFETY
-  EQUIPMENT
-  WASTE
-  OTHER
 }
 
 model BadgeRequirement {

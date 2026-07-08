@@ -13,7 +13,6 @@ type BadgeCatalogItem = {
   slug: string;
   name: string;
   description: string | null;
-  category: string | null;
   createdAt: string;
   assignedStudentCount: number;
   requirements: Array<{

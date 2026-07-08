@@ -60,7 +60,6 @@ function studentData() {
           slug: 'learning-badge',
           name: 'Learning Badge',
           description: 'Needs feedback review',
-          category: 'Safety',
           status: 'LEARNING' as const,
           awardedAt: null,
           score: 40,

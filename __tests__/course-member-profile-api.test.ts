@@ -1,7 +1,7 @@
 /** @jest-environment node */
 
 import { NextRequest } from 'next/server';
-import { BadgeCategory, BadgeStatus, CourseRole, EnrollmentStatus, LessonStatus } from '@prisma/client';
+import { BadgeStatus, CourseRole, EnrollmentStatus, LessonStatus } from '@prisma/client';
 
 import { GET } from '../app/api/courses/[courseId]/students/[studentId]/route';
 import { fetchAccessibleCourseMemberDetail, fetchUserByEmail } from '../app/api/courses/lib/course-queries';
@@ -32,7 +32,6 @@ function badge(id: string, name: string) {
     slug: id,
     name,
     description: null,
-    category: BadgeCategory.SAFETY,
   };
 }
 

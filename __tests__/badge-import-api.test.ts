@@ -76,7 +76,7 @@ describe('badge import API', () => {
       slug: 'bunsen-burner-template',
       name: 'Bunsen Burner Badge',
       description: 'Burner safety',
-      category: 'EQUIPMENT',
+
       rubricGoal: {
         name: 'Use the burner safely.',
         totalPoints: 4,
@@ -280,7 +280,7 @@ describe('badge import API', () => {
       slug: 'library-badge',
       name: 'Library Badge',
       description: 'Created before course assignment',
-      category: 'SAFETY',
+
       requirements: [
         {
           summary: JSON.stringify({

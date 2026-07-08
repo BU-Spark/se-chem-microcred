@@ -46,7 +46,6 @@ type CourseBadge = {
   slug: string;
   name: string;
   description: string | null;
-  category: string | null;
 };
 
 type CourseLesson = {
@@ -104,7 +103,6 @@ type BadgeLibraryItem = {
   id: string;
   name: string;
   description: string | null;
-  category: string | null;
   assignedStudentCount: number;
   requirements: Array<{
     displayText: string;

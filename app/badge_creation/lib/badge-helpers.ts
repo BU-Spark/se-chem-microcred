@@ -216,7 +216,6 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
     ...DEFAULT_DRAFT,
     badgeName: badge.name,
     badgeDescription: badge.description ?? '',
-    category: badge.category ?? 'OTHER',
     skills: requirement?.skills?.length ? requirement.skills : [],
     availableOn: formatDateInput(badge.availableOn),
     closesOn: neverCloses ? '' : formatDateInput(closesOnSource),

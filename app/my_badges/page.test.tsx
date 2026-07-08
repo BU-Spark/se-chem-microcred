@@ -53,7 +53,7 @@ describe('My badges page', () => {
             slug: 'bunsen-burner-badge',
             name: 'Bunsen Burner Badge',
             description: 'Prove safe usage and understanding of flame control.',
-            category: 'EQUIPMENT',
+
             createdAt: '2025-02-20T17:00:00.000Z',
             assignedStudentCount: 1,
             requirements: [
@@ -76,7 +76,7 @@ describe('My badges page', () => {
             slug: 'standalone-badge',
             name: 'Standalone Badge',
             description: null,
-            category: null,
+
             createdAt: '2025-02-21T17:00:00.000Z',
             assignedStudentCount: 0,
             requirements: [],

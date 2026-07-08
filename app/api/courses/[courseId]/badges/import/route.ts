@@ -297,7 +297,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             slug: true,
             name: true,
             description: true,
-            category: true,
+
             rubricGoal: {
               select: {
                 name: true,
@@ -398,7 +398,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             slug: badgeSlug,
             name: sourceBadge.name,
             description: sourceBadge.description,
-            category: sourceBadge.category,
             createdById: creator.id,
             sourceBadgeId: rootSourceBadgeId,
             availableOn: availableOnDate,

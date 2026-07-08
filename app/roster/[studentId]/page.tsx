@@ -25,7 +25,7 @@ type StudentProfileBadge = {
   slug: string;
   name: string;
   description: string | null;
-  category: string | null;
+
   status?: string;
   awardedAt?: string | null;
   score?: number | null;

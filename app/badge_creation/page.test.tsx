@@ -303,7 +303,6 @@ describe('Badge creation page', () => {
               id: 'badge-1',
               name: 'Original Badge',
               description: 'Original description.',
-              category: 'SAFETY',
               rubricGoal: {
                 id: 'goal-1',
                 name: 'Original goal',

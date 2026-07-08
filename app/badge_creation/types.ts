@@ -1,5 +1,3 @@
-import type { BadgeCategory } from '@prisma/client';
-
 export type StepKey = 'badgeInfo' | 'lessonVideo' | 'checkpoints' | 'rubric' | 'review';
 
 export type StepDefinition = {
@@ -47,7 +45,6 @@ export type RubricGoalDraft = {
 export type BadgeDraft = {
   badgeName: string;
   badgeDescription: string;
-  category: BadgeCategory;
   // LinkedIn-style skill tags (max 5). Persisted in BadgeRequirement.summary JSON.
   skills: string[];
   availableOn: string;
@@ -70,7 +67,6 @@ export type BadgeCatalogItem = {
   id: string;
   name: string;
   description: string | null;
-  category: BadgeCategory | null;
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
@@ -130,7 +126,6 @@ export const STEP_DEFINITIONS: StepDefinition[] = [
 export const DEFAULT_DRAFT: BadgeDraft = {
   badgeName: '',
   badgeDescription: '',
-  category: 'OTHER',
   skills: [],
   availableOn: '',
   closesOn: '',

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { BadgeCategory, BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
+import { BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
 import prisma from '@/lib/prisma';
@@ -45,7 +45,6 @@ type CreateBadgePayload = {
   courseId?: string | null;
   badgeName?: string | null;
   badgeDescription?: string | null;
-  category?: BadgeCategory | null;
   skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;
@@ -62,7 +61,6 @@ type UpdateBadgePayload = {
   id?: string | null;
   badgeName?: string | null;
   badgeDescription?: string | null;
-  category?: BadgeCategory | null;
   skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;
@@ -78,10 +76,6 @@ type UpdateBadgePayload = {
 function normalizeString(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
-}
-
-function normalizeCategory(value?: string | null) {
-  return value && Object.values(BadgeCategory).includes(value as BadgeCategory) ? (value as BadgeCategory) : null;
 }
 
 // Trim, drop empties, case-insensitive de-dupe, cap at 5. The API is the
@@ -533,7 +527,6 @@ export async function GET(req: NextRequest) {
         slug: true,
         name: true,
         description: true,
-        category: true,
         availableOn: true,
         closesOn: true,
         neverCloses: true,
@@ -598,7 +591,6 @@ export async function GET(req: NextRequest) {
           slug: badge.slug,
           name: badge.name,
           description: badge.description,
-          category: badge.category,
           availableOn: badge.availableOn?.toISOString() ?? null,
           closesOn: badge.closesOn?.toISOString() ?? null,
           neverCloses: badge.neverCloses ?? null,
@@ -675,7 +667,6 @@ export async function PATCH(req: NextRequest) {
     const badgeId = normalizeString(body.id);
     const badgeName = normalizeString(body.badgeName);
     const badgeDescription = normalizeString(body.badgeDescription);
-    const category = normalizeCategory(body.category);
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
     const checkpoints = body.checkpoints ?? [];
@@ -706,7 +697,6 @@ export async function PATCH(req: NextRequest) {
         data: {
           name: badgeName,
           description: badgeDescription,
-          category,
           availableOn,
           closesOn,
           neverCloses,
@@ -716,7 +706,6 @@ export async function PATCH(req: NextRequest) {
           slug: true,
           name: true,
           description: true,
-          category: true,
           sourceBadgeId: true,
         },
       });
@@ -731,7 +720,7 @@ export async function PATCH(req: NextRequest) {
           OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
           NOT: { id: badge.id },
         },
-        data: { name: badgeName, description: badgeDescription, category, availableOn, closesOn, neverCloses },
+        data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses },
       });
 
       const firstRequirement = await tx.badgeRequirement.findFirst({
@@ -973,7 +962,6 @@ export async function POST(req: NextRequest) {
     const badgeDescription = normalizeString(body.badgeDescription);
     const videoTitle = normalizeString(body.videoTitle);
     const youtubeUrl = normalizeString(body.youtubeUrl);
-    const category = normalizeCategory(body.category);
     const checkpoints = body.checkpoints ?? [];
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
@@ -1050,7 +1038,6 @@ export async function POST(req: NextRequest) {
             slug: sourceBadgeSlug,
             name: badgeName,
             description: badgeDescription,
-            category,
             availableOn,
             closesOn,
             neverCloses,
@@ -1061,7 +1048,6 @@ export async function POST(req: NextRequest) {
             slug: true,
             name: true,
             description: true,
-            category: true,
           },
         });
 
@@ -1091,7 +1077,6 @@ export async function POST(req: NextRequest) {
               slug: courseBadgeSlug,
               name: badgeName,
               description: badgeDescription,
-              category,
               availableOn,
               closesOn,
               neverCloses,
@@ -1103,7 +1088,6 @@ export async function POST(req: NextRequest) {
               slug: true,
               name: true,
               description: true,
-              category: true,
             },
           });
 

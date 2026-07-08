@@ -98,7 +98,6 @@ describe('badge creation API', () => {
       slug: 'bunsen-burner-source',
       name: 'Bunsen Burner',
       description: 'Burner safety',
-      category: 'EQUIPMENT',
     });
     mockPrisma.__tx.lesson.create.mockResolvedValue({
       id: 'lesson-1',
@@ -123,7 +122,6 @@ describe('badge creation API', () => {
       slug: 'updated-badge',
       name: 'Updated Badge',
       description: 'Updated description',
-      category: 'SAFETY',
     });
     mockPrisma.__tx.badgeRequirement.findFirst.mockResolvedValue({
       id: 'requirement-1',
@@ -147,21 +145,19 @@ describe('badge creation API', () => {
         slug: 'bunsen-burner-source',
         name: 'Bunsen Burner',
         description: 'Burner safety',
-        category: 'EQUIPMENT',
       })
       .mockResolvedValueOnce({
         id: 'course-badge-1',
         slug: 'bunsen-burner-course',
         name: 'Bunsen Burner',
         description: 'Burner safety',
-        category: 'EQUIPMENT',
       });
 
     const response = await postBadge({
       courseId: 'course-1',
       badgeName: 'Bunsen Burner',
       badgeDescription: 'Burner safety',
-      category: 'EQUIPMENT',
+
       youtubeUrl: 'https://www.youtube.com/shorts/abc123def45',
       videoTitle: 'Burner lesson',
       videoLength: '00:20:00',
@@ -250,7 +246,7 @@ describe('badge creation API', () => {
         data: expect.objectContaining({
           name: 'Bunsen Burner',
           description: 'Burner safety',
-          category: 'EQUIPMENT',
+
           createdById: 'instructor-1',
         }),
       })
@@ -360,8 +356,8 @@ describe('badge creation API', () => {
 
   it('persists a custom passing threshold to the lesson row and the requirement summary', async () => {
     mockPrisma.__tx.badge.create
-      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null, category: null })
-      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null, category: null });
+      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null })
+      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null });
 
     const response = await postBadge({
       courseId: 'course-1',
@@ -382,8 +378,8 @@ describe('badge creation API', () => {
 
   it('clamps and defaults the passing threshold server-side', async () => {
     mockPrisma.__tx.badge.create
-      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null, category: null })
-      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null, category: null });
+      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null })
+      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null });
 
     // Out-of-range value is clamped to 100; an omitted value would default to 70.
     const response = await postBadge({
@@ -441,7 +437,7 @@ describe('badge creation API', () => {
         slug: 'bunsen-burner-badge',
         name: 'Bunsen Burner Badge',
         description: 'Prove safe usage and understanding of flame control.',
-        category: 'EQUIPMENT',
+
         createdAt: new Date('2025-02-20T17:00:00.000Z'),
         rubricGoal: {
           id: 'goal-1',
@@ -515,7 +511,7 @@ describe('badge creation API', () => {
       id: 'badge-1',
       badgeName: 'Updated Badge',
       badgeDescription: 'Updated description',
-      category: 'SAFETY',
+
       skills: ['Updated skill'],
       passingPercent: 65,
       rubricGoal: {
@@ -543,7 +539,6 @@ describe('badge creation API', () => {
         data: expect.objectContaining({
           name: 'Updated Badge',
           description: 'Updated description',
-          category: 'SAFETY',
         }),
       })
     );
@@ -556,7 +551,6 @@ describe('badge creation API', () => {
         data: expect.objectContaining({
           name: 'Updated Badge',
           description: 'Updated description',
-          category: 'SAFETY',
         }),
       })
     );
@@ -627,7 +621,6 @@ describe('badge creation API', () => {
       id: 'badge-1',
       badgeName: 'Updated Badge',
       badgeDescription: 'Updated description',
-      category: 'SAFETY',
     });
 
     expect(response.status).toBe(200);
@@ -662,7 +655,6 @@ describe('badge creation API', () => {
       id: 'badge-1',
       badgeName: 'Updated Badge',
       badgeDescription: 'Updated description',
-      category: 'SAFETY',
       checkpoints: [
         {
           title: 'Checkpoint 1',
