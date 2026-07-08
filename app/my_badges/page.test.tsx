@@ -21,6 +21,12 @@ jest.mock('@clerk/nextjs', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+// Treat the test user as an allowlisted admin so the alpha lock doesn't hide the
+// Create UI or add a /api/me/access fetch. Lock behavior is covered in the API tests.
+jest.mock('../hooks/useCanCreateContent', () => ({
+  useCanCreateContent: () => ({ canCreateContent: true, isAdmin: true, isLoading: false }),
+}));
+
 function createClerkState(overrides = {}) {
   return {
     isLoaded: true,

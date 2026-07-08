@@ -81,8 +81,20 @@ async function getBadges() {
 }
 
 describe('badge creation API', () => {
+  const originalAlphaMode = process.env.ALPHA_MODE;
+  const originalAdminEmails = process.env.ALPHA_ADMIN_EMAILS;
+
+  afterAll(() => {
+    process.env.ALPHA_MODE = originalAlphaMode;
+    process.env.ALPHA_ADMIN_EMAILS = originalAdminEmails;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // These tests exercise creation logic, not the alpha lock — keep the lock off
+    // so they are independent of the ambient .env value. Lock behavior is covered
+    // separately below.
+    process.env.ALPHA_MODE = 'false';
     mockCurrentUser.mockResolvedValue({
       id: 'clerk-1',
       emailAddresses: [{ emailAddress: 'prof@example.edu' }],
@@ -717,5 +729,28 @@ describe('badge creation API', () => {
         }),
       })
     );
+  });
+
+  describe('alpha lock', () => {
+    it('rejects creation with 403 when alpha mode is on and the user is not allowlisted', async () => {
+      process.env.ALPHA_MODE = 'true';
+      process.env.ALPHA_ADMIN_EMAILS = 'admin@example.edu';
+
+      const response = await postBadge({ badgeName: 'Bunsen Burner' });
+
+      expect(response.status).toBe(403);
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('allows an allowlisted admin to create when alpha mode is on', async () => {
+      process.env.ALPHA_MODE = 'true';
+      process.env.ALPHA_ADMIN_EMAILS = 'prof@example.edu';
+
+      const response = await postBadge({ badgeName: 'Bunsen Burner' });
+
+      expect(response.status).not.toBe(403);
+      expect(mockPrisma.user.findUnique).toHaveBeenCalled();
+    });
   });
 });
