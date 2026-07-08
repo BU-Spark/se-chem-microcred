@@ -3,7 +3,7 @@
 import { NextRequest } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 
-import { POST } from '../app/api/courses/[courseId]/students/[studentId]/badges/[badgeId]/route';
+import { GET, POST } from '../app/api/courses/[courseId]/students/[studentId]/badges/[badgeId]/route';
 import { fetchUserByEmail } from '../app/api/courses/lib/course-queries';
 import prisma from '../lib/prisma';
 
@@ -29,6 +29,9 @@ jest.mock('../lib/prisma', () => ({
     rubricGoal: {
       findUnique: jest.fn(),
     },
+    assessmentAttempt: {
+      findMany: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -38,6 +41,7 @@ const mockFetchUserByEmail = fetchUserByEmail as jest.MockedFunction<typeof fetc
 const mockPrisma = prisma as unknown as {
   course: { findFirst: jest.Mock };
   rubricGoal: { findUnique: jest.Mock };
+  assessmentAttempt: { findMany: jest.Mock };
   $transaction: jest.Mock;
 };
 
@@ -324,5 +328,169 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
       error: 'Assessment must cover each rubric subgoal exactly once.',
     });
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+// Regression for #96: the assessor's Answer History must show what the student
+// actually answered — option text for multiple choice (including the newer
+// object-shaped options JSON) and the persisted numeric value for short answers.
+describe('GET /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', () => {
+  function answerHistoryCourseFixture() {
+    return {
+      createdById: 'assessor-1',
+      settings: { allowCrossSectionView: true },
+      lessons: [
+        {
+          id: 'lesson-1',
+          title: 'Bunsen Burner Lesson',
+          sortOrder: 0,
+          badgeRequirements: [{ id: 'requirement-1' }],
+          checkpoints: [
+            {
+              id: 'checkpoint-1',
+              title: 'Burner Basics',
+              label: 'Checkpoint',
+              sortOrder: 0,
+              questions: [
+                {
+                  id: 'question-mcq',
+                  prompt: 'What flame color is safest?',
+                  options: { type: 'multipleChoice', options: ['Blue', 'Yellow', 'Orange'], correctIndices: [0] },
+                  correctIndex: null,
+                },
+                {
+                  id: 'question-multi',
+                  prompt: 'Which are safety steps?',
+                  options: {
+                    type: 'multipleChoice',
+                    options: ['Goggles', 'Open flame', 'Tie hair back'],
+                    correctIndices: [0, 2],
+                  },
+                  correctIndex: null,
+                },
+                {
+                  id: 'question-numeric',
+                  prompt: 'How many mL?',
+                  options: { type: 'shortAnswer', expectedAnswer: 25, tolerancePercent: 10 },
+                  correctIndex: null,
+                },
+                {
+                  id: 'question-numeric-legacy',
+                  prompt: 'How many grams?',
+                  options: { type: 'shortAnswer', expectedAnswer: 5, tolerancePercent: 0 },
+                  correctIndex: null,
+                },
+              ],
+              attempts: [
+                {
+                  id: 'attempt-1',
+                  createdAt: new Date('2026-01-02T00:00:00.000Z'),
+                  completedAt: new Date('2026-01-02T00:05:00.000Z'),
+                  isPassing: false,
+                  responses: [
+                    {
+                      id: 'response-mcq',
+                      questionId: 'question-mcq',
+                      selectedIndex: 1,
+                      selectedIndices: [1],
+                      numericAnswer: null,
+                      isCorrect: false,
+                    },
+                    {
+                      id: 'response-multi',
+                      questionId: 'question-multi',
+                      selectedIndex: 0,
+                      selectedIndices: [0, 2],
+                      numericAnswer: null,
+                      isCorrect: true,
+                    },
+                    {
+                      id: 'response-numeric',
+                      questionId: 'question-numeric',
+                      selectedIndex: null,
+                      selectedIndices: null,
+                      numericAnswer: 24.5,
+                      isCorrect: true,
+                    },
+                    // Row written before numericAnswer existed — nothing recoverable.
+                    {
+                      id: 'response-numeric-legacy',
+                      questionId: 'question-numeric-legacy',
+                      selectedIndex: null,
+                      selectedIndices: null,
+                      numericAnswer: null,
+                      isCorrect: false,
+                    },
+                  ],
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      enrollments: [
+        {
+          role: 'STUDENT',
+          status: 'ACTIVE',
+          sections: [{ section: 'A1' }],
+          student: {
+            id: 'student-1',
+            badgeProgress: [
+              {
+                id: 'progress-1',
+                status: 'READY_FOR_ASSESSMENT',
+                awardedAt: null,
+                score: null,
+                reassessmentLimit: null,
+                cooldownDays: null,
+                reassessmentRequired: null,
+                badge: {
+                  id: 'badge-1',
+                  slug: 'bunsen-burner',
+                  name: 'Bunsen Burner Badge',
+                  description: 'Burner safety',
+                  category: 'EQUIPMENT',
+                },
+              },
+            ],
+          },
+        },
+      ],
+    };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCurrentUser.mockResolvedValue({
+      emailAddresses: [{ emailAddress: 'assessor@example.edu' }],
+    } as Awaited<ReturnType<typeof currentUser>>);
+    mockFetchUserByEmail.mockResolvedValue({ id: 'assessor-1' } as Awaited<ReturnType<typeof fetchUserByEmail>>);
+    mockPrisma.course.findFirst.mockResolvedValue(answerHistoryCourseFixture());
+    mockPrisma.rubricGoal.findUnique.mockResolvedValue(rubricGoalFixture);
+    mockPrisma.assessmentAttempt.findMany.mockResolvedValue([]);
+  });
+
+  it('renders answered text from option labels and persisted numeric answers', async () => {
+    const request = new NextRequest(
+      'http://localhost/api/courses/course-1/students/student-1/badges/badge-1?email=assessor%40example.edu'
+    );
+
+    const response = (await GET(request, submitParams())) as Response;
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+
+    const questions = body.checkpoints[0].questions;
+    const answeredTextByQuestionId = new Map<string, string>(
+      questions.map((question: { id: string; attempts: Array<{ answeredText: string }> }) => [
+        question.id,
+        question.attempts[0]?.answeredText,
+      ])
+    );
+
+    expect(answeredTextByQuestionId.get('question-mcq')).toBe('Yellow');
+    expect(answeredTextByQuestionId.get('question-multi')).toBe('Goggles, Tie hair back');
+    expect(answeredTextByQuestionId.get('question-numeric')).toBe('24.5');
+    expect(answeredTextByQuestionId.get('question-numeric-legacy')).toBe('No answer recorded');
   });
 });

@@ -13,7 +13,7 @@ import CourseImagePicker from './components/CourseImagePicker';
 import CourseTileImage from '../../_components/CourseTileImage';
 import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
 
-const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Manage Assessor Configurations', 'Review'];
+const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Assessor Roster', 'Review'];
 
 // Named step indices so the wizard's conditionals and edit links stay readable
 // (and survive future reordering) rather than depending on bare numbers.
@@ -22,6 +22,12 @@ const STEP_IMAGE = 1;
 const STEP_ROSTER = 2;
 const STEP_ASSESSOR = 3;
 const STEP_REVIEW = 4;
+
+// Assessor Configurations are gated out of the MVP. Keep the assessor roster,
+// but only surface the configuration toggles in dev builds until the feature is
+// ready to ship. Mirrors the NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV gate used in
+// Sidebar.tsx and the lesson video player.
+const SHOW_ASSESSOR_CONFIGS = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
 type StudentRow = {
   lastName: string;
@@ -172,7 +178,7 @@ export default function CourseNewPage() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   // In edit mode, land directly on the Review step (the last step) so editing an
   // existing course opens on the review screen rather than walking the wizard from step 0.
-  const [currentStep, setCurrentStep] = useState(isEditMode ? steps.length - 1 : 0);
+  const [currentStep, setCurrentStep] = useState(isEditMode ? STEP_REVIEW : STEP_INFO);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -368,7 +374,7 @@ export default function CourseNewPage() {
       return;
     }
     setSubmitError('');
-    if (currentStep === steps.length - 1) {
+    if (currentStep === STEP_REVIEW) {
       // Re-entrancy guard: ignore clicks while a save is already in flight.
       if (isSubmittingRef.current) return;
 
@@ -401,7 +407,7 @@ export default function CourseNewPage() {
       return;
     }
 
-    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));
+    setCurrentStep((prev) => Math.min(prev + 1, STEP_REVIEW));
   };
 
   const goBack = () => {
@@ -948,21 +954,23 @@ export default function CourseNewPage() {
               )}
             </section>
 
-            <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Assessor Configurations</h2>
+            {SHOW_ASSESSOR_CONFIGS && (
+              <section className={styles.card}>
+                <h2 className={styles.cardTitle}>Assessor Configurations</h2>
 
-              <div className={styles.configList}>
-                {assessorConfigs.map((config) => (
-                  <ConfigRow
-                    key={config.label}
-                    label={config.label}
-                    checked={config.checked}
-                    onChange={config.setChecked}
-                    infoText={config.infoText}
-                  />
-                ))}
-              </div>
-            </section>
+                <div className={styles.configList}>
+                  {assessorConfigs.map((config) => (
+                    <ConfigRow
+                      key={config.label}
+                      label={config.label}
+                      checked={config.checked}
+                      onChange={config.setChecked}
+                      infoText={config.infoText}
+                    />
+                  ))}
+                </div>
+              </section>
+            )}
           </>
         )}
 
@@ -1049,37 +1057,47 @@ export default function CourseNewPage() {
               </div>
             </div>
 
-            <div className={styles.reviewDivider} />
+            {SHOW_ASSESSOR_CONFIGS && (
+              <>
+                <div className={styles.reviewDivider} />
 
-            <div className={styles.reviewSection}>
-              <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Assessor Configurations</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ASSESSOR)}>
-                  <span className={styles.editLabel}>Edit</span>
-                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
-                </button>
-              </div>
-
-              <div className={styles.reviewConfigList}>
-                {assessorConfigs.map((config) => (
-                  <div key={config.label} className={styles.reviewConfigItem}>
-                    <span className={styles.reviewConfigLabel}>{config.label}</span>
-                    <div className={styles.toggleRow}>
-                      <span className={styles.toggleText}>Don’t allow</span>
-                      <button
-                        type="button"
-                        className={`${styles.switch} ${config.checked ? styles.switchOn : ''}`}
-                        onClick={() => config.setChecked((prev) => !prev)}
-                        aria-pressed={config.checked}
-                      >
-                        <span className={styles.switchThumb} />
-                      </button>
-                      <span className={styles.toggleText}>Allow</span>
-                    </div>
+                <div className={styles.reviewSection}>
+                  <div className={styles.reviewHeaderRow}>
+                    <h3 className={styles.reviewTitle}>Assessor Configurations</h3>
+                    <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ASSESSOR)}>
+                      <span className={styles.editLabel}>Edit</span>
+                      <Image
+                        src="/assets/profile/edit.png"
+                        alt="Edit"
+                        width={18}
+                        height={18}
+                        className={styles.editIcon}
+                      />
+                    </button>
                   </div>
-                ))}
-              </div>
-            </div>
+
+                  <div className={styles.reviewConfigList}>
+                    {assessorConfigs.map((config) => (
+                      <div key={config.label} className={styles.reviewConfigItem}>
+                        <span className={styles.reviewConfigLabel}>{config.label}</span>
+                        <div className={styles.toggleRow}>
+                          <span className={styles.toggleText}>Don’t allow</span>
+                          <button
+                            type="button"
+                            className={`${styles.switch} ${config.checked ? styles.switchOn : ''}`}
+                            onClick={() => config.setChecked((prev) => !prev)}
+                            aria-pressed={config.checked}
+                          >
+                            <span className={styles.switchThumb} />
+                          </button>
+                          <span className={styles.toggleText}>Allow</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
           </section>
         )}
 
@@ -1092,7 +1110,7 @@ export default function CourseNewPage() {
             onClick={goNext}
             disabled={isSubmitting || isLoadingCourse}
           >
-            {currentStep === steps.length - 1
+            {currentStep === STEP_REVIEW
               ? isSubmitting
                 ? isEditMode
                   ? 'Saving...'

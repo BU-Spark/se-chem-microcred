@@ -345,6 +345,8 @@ model CheckpointResponse {
   studentId        String
   lessonProgressId String?
   selectedIndex    Int?
+  selectedIndices  Json?
+  numericAnswer    Float?
   isCorrect        Boolean?
   createdAt        DateTime @default(now())
 

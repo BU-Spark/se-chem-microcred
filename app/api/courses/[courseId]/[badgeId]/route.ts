@@ -171,12 +171,33 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     };
     const students = badge.enrollments.map((enrollment) => {
       const progress = enrollment.student.badgeProgress[0] ?? null;
-      const status = (progress?.status ?? 'NOT_STARTED') as BadgeStatus | 'NOT_STARTED';
+      // StudentBadge rows are eagerly created with LEARNING status when a badge
+      // is created/imported, so a LEARNING row alone doesn't mean the student
+      // has started. Mirror the roster member route: they've started only once
+      // a requirement lesson shows activity.
+      const lessonStarted = enrollment.student.lessonProgress.some(
+        (lessonProgress) =>
+          Boolean(lessonProgress.startedAt || lessonProgress.completedAt) ||
+          lessonProgress.status === 'IN_PROGRESS' ||
+          lessonProgress.status === 'COMPLETED' ||
+          lessonProgress.percentComplete > 0
+      );
+      const status = (
+        !progress || (progress.status === 'LEARNING' && !lessonStarted) ? 'NOT_STARTED' : progress.status
+      ) as BadgeStatus | 'NOT_STARTED';
 
       return {
         enrollmentId: enrollment.id,
         sections: enrollment.sections.map((assignment) => assignment.section),
-        student: enrollment.student,
+        // Rebuild the student payload without the lessonProgress rows fetched
+        // above — they exist only to derive `status`.
+        student: {
+          id: enrollment.student.id,
+          name: enrollment.student.name,
+          email: enrollment.student.email,
+          buid: enrollment.student.buid,
+          badgeProgress: enrollment.student.badgeProgress,
+        },
         progress: progress
           ? {
               id: progress.id,
