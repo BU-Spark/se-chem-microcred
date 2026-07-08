@@ -122,6 +122,48 @@ describe('My badges page', () => {
     expect(mockPush).toHaveBeenCalledWith('/badge_creation');
   });
 
+  it('deletes a badge through the confirmation modal and refreshes the catalog', async () => {
+    const catalogResponse = {
+      ok: true,
+      json: async () => ({
+        count: 1,
+        badges: [
+          {
+            id: 'badge-1',
+            slug: 'bunsen-burner-badge',
+            name: 'Bunsen Burner Badge',
+            description: null,
+            createdAt: '2025-02-20T17:00:00.000Z',
+            assignedStudentCount: 0,
+            requirements: [],
+          },
+        ],
+      }),
+    };
+    // Initial load, then the DELETE call, then the post-delete refresh.
+    mockFetch
+      .mockResolvedValueOnce(catalogResponse)
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ deleted: 1 }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ count: 0, badges: [] }) });
+
+    render(<MyBadgesPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete Bunsen Burner Badge' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete badge' }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/badges/badge-1', {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('No badges yet')).toBeInTheDocument();
+    });
+  });
+
   it('redirects to sign-in when signed out', async () => {
     mockUseUser.mockReturnValue(
       createClerkState({
