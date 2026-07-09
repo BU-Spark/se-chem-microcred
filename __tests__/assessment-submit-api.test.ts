@@ -97,13 +97,33 @@ function subHundredCourseFixture(badgeStatus: string) {
 const rubricGoalFixture = {
   id: 'goal-1',
   name: 'Perform the experiment safely',
-  totalPoints: 5,
-  passThreshold: 3,
   subgoals: [
-    { id: 'subgoal-1', text: 'Wears PPE', points: 2, sortOrder: 0 },
-    { id: 'subgoal-2', text: 'Follows procedure', points: 3, sortOrder: 1 },
+    {
+      id: 'subgoal-1',
+      text: 'Wears PPE',
+      passThreshold: 1,
+      sortOrder: 0,
+      tasks: [
+        { id: 'task-1', text: 'Wears goggles', points: 1, sortOrder: 0 },
+        { id: 'task-2', text: 'Wears gloves', points: 1, sortOrder: 1 },
+      ],
+    },
+    {
+      id: 'subgoal-2',
+      text: 'Follows procedure',
+      passThreshold: 3,
+      sortOrder: 1,
+      tasks: [{ id: 'task-3', text: 'Correct step order', points: 3, sortOrder: 0 }],
+    },
   ],
 };
+
+// Every task passed — a full-marks submission used by several tests.
+const allTasksPassed = [
+  { taskId: 'task-1', passed: true },
+  { taskId: 'task-2', passed: true },
+  { taskId: 'task-3', passed: true },
+];
 
 function submitParams() {
   return {
@@ -137,32 +157,22 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
   it('rejects stale assessment submissions after a badge has already been assessed', async () => {
     mockPrisma.course.findFirst.mockResolvedValue(courseFixture('READY_FOR_FINALIZATION'));
 
-    const response = await POST(
-      assessmentRequest({
-        passed: true,
-        subgoals: [
-          { subgoalId: 'subgoal-1', passed: true },
-          { subgoalId: 'subgoal-2', passed: true },
-        ],
-        override: null,
-      }),
-      submitParams()
-    );
+    const response = await POST(assessmentRequest({ tasks: allTasksPassed, override: null }), submitParams());
 
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({ error: 'This badge has already been assessed.' });
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('computes the score from passed subgoal points and snapshots response rows', async () => {
+  it('passes when every subgoal meets its threshold and snapshots task response rows', async () => {
     mockPrisma.course.findFirst.mockResolvedValue(courseFixture('READY_FOR_ASSESSMENT'));
 
     const response = await POST(
       assessmentRequest({
-        passed: true,
-        subgoals: [
-          { subgoalId: 'subgoal-1', passed: false, feedback: 'Forgot goggles at first.' },
-          { subgoalId: 'subgoal-2', passed: true },
+        tasks: [
+          { taskId: 'task-1', passed: true },
+          { taskId: 'task-2', passed: false, feedback: 'Forgot gloves.' },
+          { taskId: 'task-3', passed: true },
         ],
         override: null,
       }),
@@ -171,75 +181,121 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
 
     expect(response.status).toBe(201);
     const body = await response.json();
-    // 3 of 5 points, threshold 3 => suggested pass matches the submitted pass.
+    // subgoal-1 earns 1 >= threshold 1 (pass), subgoal-2 earns 3 >= 3 (pass) =>
+    // badge passes on 4 of 5 task points.
     expect(body.attempt).toEqual(
-      expect.objectContaining({ passed: true, score: 60, pointsEarned: 3, pointsPossible: 5 })
+      expect.objectContaining({ passed: true, score: 80, pointsEarned: 4, pointsPossible: 5 })
     );
     expect(body.status).toBe('READY_FOR_FINALIZATION');
 
     const createCall = mockTx.assessmentAttempt.create.mock.calls[0][0];
     expect(createCall.data.responses.create).toEqual([
       expect.objectContaining({
-        subgoalId: 'subgoal-1',
+        taskId: 'task-1',
         subgoalText: 'Wears PPE',
-        points: 2,
-        passed: false,
-        feedback: 'Forgot goggles at first.',
+        taskText: 'Wears goggles',
+        points: 1,
+        passed: true,
+        feedback: null,
         isOverride: false,
         sortOrder: 0,
       }),
       expect.objectContaining({
-        subgoalId: 'subgoal-2',
+        taskId: 'task-2',
+        subgoalText: 'Wears PPE',
+        taskText: 'Wears gloves',
+        points: 1,
+        passed: false,
+        feedback: 'Forgot gloves.',
+        isOverride: false,
+        sortOrder: 1,
+      }),
+      expect.objectContaining({
+        taskId: 'task-3',
         subgoalText: 'Follows procedure',
+        taskText: 'Correct step order',
         points: 3,
         passed: true,
         feedback: null,
         isOverride: false,
-        sortOrder: 1,
+        sortOrder: 2,
       }),
     ]);
     expect(mockTx.studentBadge.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'progress-1' },
-        data: { status: 'READY_FOR_FINALIZATION', score: 60 },
+        data: { status: 'READY_FOR_FINALIZATION', score: 80 },
       })
     );
   });
 
-  it('rejects flipping the suggested outcome without override feedback', async () => {
+  it('fails the badge when any subgoal misses its threshold', async () => {
     mockPrisma.course.findFirst.mockResolvedValue(courseFixture('READY_FOR_ASSESSMENT'));
 
     const response = await POST(
       assessmentRequest({
-        // Full marks suggest a pass, but the assessor fails the student with
-        // no override justification.
-        passed: false,
-        subgoals: [
-          { subgoalId: 'subgoal-1', passed: true },
-          { subgoalId: 'subgoal-2', passed: true },
+        tasks: [
+          { taskId: 'task-1', passed: true },
+          { taskId: 'task-2', passed: true },
+          // subgoal-2 needs 3 points but earns 0 => badge fails despite subgoal-1 passing.
+          { taskId: 'task-3', passed: false },
         ],
         override: null,
       }),
       submitParams()
     );
 
+    expect(response.status).toBe(201);
+    const body = await response.json();
+    expect(body.attempt).toEqual(
+      expect.objectContaining({ passed: false, score: 40, pointsEarned: 2, pointsPossible: 5 })
+    );
+    expect(body.status).toBe('LEARNING');
+  });
+
+  it('rejects an override to still learning without feedback', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(courseFixture('READY_FOR_ASSESSMENT'));
+
+    const response = await POST(
+      assessmentRequest({ tasks: allTasksPassed, override: { feedback: '' } }),
+      submitParams()
+    );
+
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: 'Overriding the score-suggested outcome requires override feedback.',
+      error: 'Overriding a passing assessment to still learning requires feedback.',
     });
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('records an override row when the assessor fails a full-marks student with justification', async () => {
+  it('rejects an override when the assessment is not a pass', async () => {
     mockPrisma.course.findFirst.mockResolvedValue(courseFixture('READY_FOR_ASSESSMENT'));
 
     const response = await POST(
       assessmentRequest({
-        passed: false,
-        subgoals: [
-          { subgoalId: 'subgoal-1', passed: true },
-          { subgoalId: 'subgoal-2', passed: true },
+        tasks: [
+          { taskId: 'task-1', passed: false },
+          { taskId: 'task-2', passed: false },
+          { taskId: 'task-3', passed: false },
         ],
+        override: { feedback: 'Trying to override a failing student.' },
+      }),
+      submitParams()
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Only a passing assessment can be overridden to still learning.',
+    });
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('records an override row when the assessor downgrades a passing student with justification', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(courseFixture('READY_FOR_ASSESSMENT'));
+
+    const response = await POST(
+      assessmentRequest({
+        tasks: allTasksPassed,
         override: { feedback: 'Spilled acid and did not report it.' },
       }),
       submitParams()
@@ -256,13 +312,14 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(createCall.data.feedback).toBe('Spilled acid and did not report it.');
     expect(createCall.data.responses.create).toContainEqual(
       expect.objectContaining({
-        subgoalId: null,
+        taskId: null,
         subgoalText: 'Assessor override',
+        taskText: 'Assessor override',
         points: 0,
         passed: false,
         feedback: 'Spilled acid and did not report it.',
         isOverride: true,
-        sortOrder: 2,
+        sortOrder: 3,
       })
     );
   });
@@ -273,17 +330,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     // now owned by the badge status, so a sub-100% pass is assessable.
     mockPrisma.course.findFirst.mockResolvedValue(subHundredCourseFixture('READY_FOR_ASSESSMENT'));
 
-    const response = await POST(
-      assessmentRequest({
-        passed: true,
-        subgoals: [
-          { subgoalId: 'subgoal-1', passed: true },
-          { subgoalId: 'subgoal-2', passed: true },
-        ],
-        override: null,
-      }),
-      submitParams()
-    );
+    const response = await POST(assessmentRequest({ tasks: allTasksPassed, override: null }), submitParams());
 
     expect(response.status).toBe(201);
     const body = await response.json();
@@ -294,30 +341,19 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
   it('rejects assessment while the badge is still LEARNING (precheck incomplete)', async () => {
     mockPrisma.course.findFirst.mockResolvedValue(subHundredCourseFixture('LEARNING'));
 
-    const response = await POST(
-      assessmentRequest({
-        passed: true,
-        subgoals: [
-          { subgoalId: 'subgoal-1', passed: true },
-          { subgoalId: 'subgoal-2', passed: true },
-        ],
-        override: null,
-      }),
-      submitParams()
-    );
+    const response = await POST(assessmentRequest({ tasks: allTasksPassed, override: null }), submitParams());
 
     expect(response.status).toBe(409);
     await expect(response.json()).resolves.toEqual({ error: 'Student has not completed the badge precheck.' });
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('rejects submissions that do not cover the rubric subgoals exactly', async () => {
+  it('rejects submissions that do not cover the rubric tasks exactly', async () => {
     mockPrisma.course.findFirst.mockResolvedValue(courseFixture('READY_FOR_ASSESSMENT'));
 
     const response = await POST(
       assessmentRequest({
-        passed: true,
-        subgoals: [{ subgoalId: 'unknown-subgoal', passed: true }],
+        tasks: [{ taskId: 'unknown-task', passed: true }],
         override: null,
       }),
       submitParams()
@@ -325,7 +361,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
-      error: 'Assessment must cover each rubric subgoal exactly once.',
+      error: 'Assessment must cover each rubric task exactly once.',
     });
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });

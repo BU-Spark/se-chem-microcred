@@ -210,10 +210,9 @@ describe('badge creation API', () => {
       ],
       rubricGoal: {
         name: 'Operate the burner safely',
-        passThreshold: 3,
         subgoals: [
-          { text: 'Safe setup', points: 2 },
-          { text: 'Safe shutdown', points: 2 },
+          { text: 'Safe setup', passThreshold: 2, tasks: [{ text: 'Check the gas line', points: 2 }] },
+          { text: 'Safe shutdown', passThreshold: 2, tasks: [{ text: 'Close the gas valve', points: 2 }] },
         ],
       },
     });
@@ -225,8 +224,6 @@ describe('badge creation API', () => {
         create: {
           badgeId: 'source-badge-1',
           name: 'Operate the burner safely',
-          totalPoints: 4,
-          passThreshold: 3,
           instructions: null,
         },
       })
@@ -237,26 +234,33 @@ describe('badge creation API', () => {
         create: {
           badgeId: 'course-badge-1',
           name: 'Operate the burner safely',
-          totalPoints: 4,
-          passThreshold: 3,
           instructions: null,
         },
       })
     );
-    expect(mockPrisma.__tx.rubricSubgoal.findMany).toHaveBeenCalledWith({
-      where: { goalId: 'goal-1' },
-      select: { id: true, sortOrder: true },
-    });
+    expect(mockPrisma.__tx.rubricSubgoal.deleteMany).toHaveBeenCalledWith({ where: { goalId: 'goal-1' } });
     expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        data: expect.objectContaining({ text: 'Safe setup', points: 2, sortOrder: 0, goalId: 'goal-1' }),
+        data: expect.objectContaining({
+          text: 'Safe setup',
+          passThreshold: 2,
+          sortOrder: 0,
+          goalId: 'goal-1',
+          tasks: { create: [expect.objectContaining({ text: 'Check the gas line', points: 2, sortOrder: 0 })] },
+        }),
       })
     );
     expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        data: expect.objectContaining({ text: 'Safe shutdown', points: 2, sortOrder: 1, goalId: 'goal-1' }),
+        data: expect.objectContaining({
+          text: 'Safe shutdown',
+          passThreshold: 2,
+          sortOrder: 1,
+          goalId: 'goal-1',
+          tasks: { create: [expect.objectContaining({ text: 'Close the gas valve', points: 2, sortOrder: 0 })] },
+        }),
       })
     );
     expect(mockPrisma.__tx.course.findFirst).toHaveBeenCalledWith(
@@ -466,9 +470,15 @@ describe('badge creation API', () => {
         rubricGoal: {
           id: 'goal-1',
           name: 'Use the burner safely.',
-          totalPoints: 4,
-          passThreshold: 3,
-          subgoals: [{ id: 'subgoal-1', text: 'Light the burner correctly.', points: 4, sortOrder: 0 }],
+          subgoals: [
+            {
+              id: 'subgoal-1',
+              text: 'Light the burner correctly.',
+              passThreshold: 4,
+              sortOrder: 0,
+              tasks: [{ id: 'task-1', text: 'Ignite on the first try.', points: 4, sortOrder: 0 }],
+            },
+          ],
         },
         requirements: [
           {
@@ -516,9 +526,13 @@ describe('badge creation API', () => {
           createdAt: '2025-02-20T17:00:00.000Z',
           rubricGoal: expect.objectContaining({
             name: 'Use the burner safely.',
-            totalPoints: 4,
-            passThreshold: 3,
-            subgoals: [expect.objectContaining({ text: 'Light the burner correctly.', points: 4 })],
+            subgoals: [
+              expect.objectContaining({
+                text: 'Light the burner correctly.',
+                passThreshold: 4,
+                tasks: [expect.objectContaining({ text: 'Ignite on the first try.', points: 4 })],
+              }),
+            ],
           }),
           requirements: [
             expect.objectContaining({
@@ -540,10 +554,9 @@ describe('badge creation API', () => {
       passingPercent: 65,
       rubricGoal: {
         name: 'Updated goal',
-        passThreshold: 2,
         subgoals: [
-          { text: 'First subgoal', points: 1 },
-          { text: 'Second subgoal', points: 2 },
+          { text: 'First subgoal', passThreshold: 1, tasks: [{ text: 'First task', points: 1 }] },
+          { text: 'Second subgoal', passThreshold: 2, tasks: [{ text: 'Second task', points: 2 }] },
         ],
       },
       checkpoints: [
@@ -600,23 +613,32 @@ describe('badge creation API', () => {
     expect(mockPrisma.__tx.rubricGoal.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { badgeId: 'badge-1' },
-        update: { name: 'Updated goal', totalPoints: 3, passThreshold: 2, instructions: null },
+        update: { name: 'Updated goal', instructions: null },
       })
     );
-    expect(mockPrisma.__tx.rubricSubgoal.findMany).toHaveBeenCalledWith({
-      where: { goalId: 'goal-1' },
-      select: { id: true, sortOrder: true },
-    });
+    expect(mockPrisma.__tx.rubricSubgoal.deleteMany).toHaveBeenCalledWith({ where: { goalId: 'goal-1' } });
     expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        data: expect.objectContaining({ text: 'First subgoal', points: 1, sortOrder: 0, goalId: 'goal-1' }),
+        data: expect.objectContaining({
+          text: 'First subgoal',
+          passThreshold: 1,
+          sortOrder: 0,
+          goalId: 'goal-1',
+          tasks: { create: [expect.objectContaining({ text: 'First task', points: 1, sortOrder: 0 })] },
+        }),
       })
     );
     expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        data: expect.objectContaining({ text: 'Second subgoal', points: 2, sortOrder: 1, goalId: 'goal-1' }),
+        data: expect.objectContaining({
+          text: 'Second subgoal',
+          passThreshold: 2,
+          sortOrder: 1,
+          goalId: 'goal-1',
+          tasks: { create: [expect.objectContaining({ text: 'Second task', points: 2, sortOrder: 0 })] },
+        }),
       })
     );
     expect(mockPrisma.__tx.lesson.updateMany).toHaveBeenCalledWith(
