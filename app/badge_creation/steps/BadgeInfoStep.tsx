@@ -1,5 +1,3 @@
-import type { BadgeCategory } from '@prisma/client';
-
 import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 import ChipInput from '../components/ChipInput';
@@ -51,23 +49,6 @@ export default function BadgeInfoStep({
           onChange={(event) => updateDraft('badgeDescription', event.target.value)}
           placeholder="Describe what students will learn and demonstrate."
         />
-      </div>
-
-      <div className={styles.badgeInfoField}>
-        <label className={styles.sectionLabel} htmlFor="badgeCategory">
-          Category
-        </label>
-        <select
-          id="badgeCategory"
-          className={styles.selectField}
-          value={draft.category}
-          onChange={(event) => updateDraft('category', event.target.value as BadgeCategory)}
-        >
-          <option value="SAFETY">Safety</option>
-          <option value="EQUIPMENT">Equipment</option>
-          <option value="WASTE">Waste</option>
-          <option value="OTHER">Other</option>
-        </select>
       </div>
     </div>
   );

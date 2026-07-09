@@ -449,7 +449,6 @@ describe('GET /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', ()
                   slug: 'bunsen-burner',
                   name: 'Bunsen Burner Badge',
                   description: 'Burner safety',
-                  category: 'EQUIPMENT',
                 },
               },
             ],

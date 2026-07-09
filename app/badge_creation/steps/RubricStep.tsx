@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
+import RichTextEditor from '@/app/_components/RichTextEditor';
 import styles from '../page.module.css';
 import type { BadgeDraft, RubricSubgoalDraft } from '../types';
 
@@ -9,6 +10,7 @@ export default function RubricStep({
   draft,
   updateRubricGoalName,
   updateRubricGoalThreshold,
+  updateRubricInstructions,
   updateSubgoal,
   addSubgoal,
   removeSubgoal,
@@ -16,6 +18,7 @@ export default function RubricStep({
   draft: BadgeDraft;
   updateRubricGoalName: (name: string) => void;
   updateRubricGoalThreshold: (points: number) => void;
+  updateRubricInstructions: (taInstructions: string) => void;
   updateSubgoal: (subgoalId: string, patch: Partial<Omit<RubricSubgoalDraft, 'id'>>) => void;
   addSubgoal: () => void;
   removeSubgoal: (subgoalId: string) => void;
@@ -140,6 +143,19 @@ export default function RubricStep({
         <button type="button" className={styles.addCriterionButton} aria-label="Add subgoal" onClick={addSubgoal}>
           +
         </button>
+      </div>
+
+      <div className={styles.editorCard}>
+        <h3 className={styles.panelTitle}>TA Instructions</h3>
+        <p className={styles.panelHint}>
+          Notes for the assessor to relay to students during assessment. Shown alongside this rubric while grading.
+        </p>
+        <RichTextEditor
+          namespace="ta-instructions"
+          placeholder="Add any guidance the TA should share with students…"
+          initialHTML={rubricGoal.taInstructions}
+          onChange={updateRubricInstructions}
+        />
       </div>
     </div>
   );

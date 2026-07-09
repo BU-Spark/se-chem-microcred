@@ -109,6 +109,60 @@
   max-width: 1180px;
 }
 
+/* Wraps the clickable badge with its creator-only delete affordance so the
+   delete button sits outside the <Link> (anchors can't nest interactive elements). */
+.badgeCardItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+}
+
+.badgeDeleteButton {
+  border: 1px solid #f0c4c0;
+  border-radius: 999px;
+  background: #fdf2f1;
+  color: #b42318;
+  cursor: pointer;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.5rem 1rem;
+}
+
+.badgeDeleteButton:hover:not(:disabled) {
+  background: #f9e2e0;
+}
+
+.badgeDeleteButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.dangerButton {
+  border: 0;
+  border-radius: 999px;
+  background: #b42318;
+  color: #ffffff;
+  cursor: pointer;
+  font-size: 0.96rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.9rem 1.35rem;
+}
+
+.dangerButton:hover:not(:disabled) {
+  background: #9a1e14;
+}
+
+.dangerButton:disabled,
+.secondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* Each badge is a clickable token + name that opens the badge's main page. */
 .badgeCard {
   display: flex;

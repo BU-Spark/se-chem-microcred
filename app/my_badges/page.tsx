@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
+import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import styles from './page.module.css';
@@ -13,7 +14,6 @@ type BadgeCatalogItem = {
   slug: string;
   name: string;
   description: string | null;
-  category: string | null;
   createdAt: string;
   assignedStudentCount: number;
   requirements: Array<{
@@ -93,6 +93,10 @@ export default function MyBadgesPage() {
   const { signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { data, isLoading, error, refresh } = useBadgesCatalog(isLoaded && Boolean(isSignedIn));
+  const { canCreateContent } = useCanCreateContent(isLoaded && Boolean(isSignedIn));
+  const [badgePendingDelete, setBadgePendingDelete] = useState<{ id: string; name: string } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const displayName = user?.fullName || 'Student';
   const sortedBadges = useMemo(
     () => [...(data?.badges ?? [])].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)),
@@ -119,6 +123,38 @@ export default function MyBadgesPage() {
     }
   };
 
+  const requestDeleteBadge = (badge: { id: string; name: string }) => {
+    if (isDeleting) return;
+    setDeleteError(null);
+    setBadgePendingDelete(badge);
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setBadgePendingDelete(null);
+    setDeleteError(null);
+  };
+
+  const confirmDeleteBadge = async () => {
+    if (!badgePendingDelete || isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      const response = await fetch(`/api/badges/${encodeURIComponent(badgePendingDelete.id)}`, {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Failed to delete badge.');
+      setBadgePendingDelete(null);
+      await refresh();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Failed to delete badge.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className={`page ${styles.page}`}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
@@ -126,9 +162,11 @@ export default function MyBadgesPage() {
       <main className={`main ${styles.main}`}>
         <h1 className={styles.pageTitle}>Badges</h1>
 
-        <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
-          Create New Badge
-        </button>
+        {canCreateContent ? (
+          <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
+            Create New Badge
+          </button>
+        ) : null}
 
         {isLoading ? <p className={styles.statusMessage}>Loading badges...</p> : null}
 
@@ -153,21 +191,65 @@ export default function MyBadgesPage() {
             {sortedBadges.map((badge) => {
               const videoUrl = badge.requirements.find((requirement) => requirement.youtubeUrl)?.youtubeUrl ?? null;
               return (
-                <Link key={badge.id} href={resolveBadgeHref(badge)} className={styles.badgeCard}>
-                  <span className={styles.badgeToken}>
-                    <YoutubeThumbnail
-                      videoUrl={videoUrl}
-                      alt={`${badge.name} thumbnail`}
-                      className={styles.badgeTokenImage}
-                    />
-                  </span>
-                  <span className={styles.badgeName}>{badge.name}</span>
-                </Link>
+                <div key={badge.id} className={styles.badgeCardItem}>
+                  <Link href={resolveBadgeHref(badge)} className={styles.badgeCard}>
+                    <span className={styles.badgeToken}>
+                      <YoutubeThumbnail
+                        videoUrl={videoUrl}
+                        alt={`${badge.name} thumbnail`}
+                        className={styles.badgeTokenImage}
+                      />
+                    </span>
+                    <span className={styles.badgeName}>{badge.name}</span>
+                  </Link>
+                  {canCreateContent ? (
+                    <button
+                      type="button"
+                      className={styles.badgeDeleteButton}
+                      onClick={() => requestDeleteBadge({ id: badge.id, name: badge.name })}
+                      disabled={isDeleting}
+                      aria-label={`Delete ${badge.name}`}
+                    >
+                      Delete
+                    </button>
+                  ) : null}
+                </div>
               );
             })}
           </section>
         ) : null}
       </main>
+
+      {badgePendingDelete ? (
+        <div
+          className={styles.modalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-badge-title"
+          onClick={closeDeleteModal}
+        >
+          <div className={styles.editModal} onClick={(event) => event.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h2 id="delete-badge-title">Delete badge</h2>
+              <button type="button" className={styles.closeButton} onClick={closeDeleteModal} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <p className={styles.statusMessage}>
+              Delete the badge &ldquo;{badgePendingDelete.name}&rdquo;? This removes it everywhere and cannot be undone.
+            </p>
+            {deleteError ? <p className={styles.errorText}>{deleteError}</p> : null}
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.secondaryButton} onClick={closeDeleteModal} disabled={isDeleting}>
+                Cancel
+              </button>
+              <button type="button" className={styles.dangerButton} onClick={confirmDeleteBadge} disabled={isDeleting}>
+                {isDeleting ? 'Deleting…' : 'Delete badge'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

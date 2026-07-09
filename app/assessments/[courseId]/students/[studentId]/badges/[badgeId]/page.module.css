@@ -151,6 +151,29 @@
   color: #111111;
 }
 
+.taInstructions {
+  padding: 0.9rem 1.1rem;
+  border: 1px solid #e5e7eb;
+  border-left: 4px solid #1f5fab;
+  border-radius: 10px;
+  background: #f7f8fb;
+}
+
+.taInstructionsTitle {
+  margin: 0 0 0.5rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1f5fab;
+}
+
+.taInstructionsBody {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #111111;
+}
+
 .thresholdMet {
   color: #2f7d45;
 }

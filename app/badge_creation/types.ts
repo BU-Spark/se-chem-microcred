@@ -1,5 +1,3 @@
-import type { BadgeCategory } from '@prisma/client';
-
 export type StepKey = 'badgeInfo' | 'lessonVideo' | 'checkpoints' | 'rubric' | 'review';
 
 export type StepDefinition = {
@@ -42,12 +40,13 @@ export type RubricGoalDraft = {
   // Points needed to pass; total points is derived from the subgoals.
   passThreshold: number;
   subgoals: RubricSubgoalDraft[];
+  // Rich-text (HTML) instructions for TAs to relay to students during assessment.
+  taInstructions: string;
 };
 
 export type BadgeDraft = {
   badgeName: string;
   badgeDescription: string;
-  category: BadgeCategory;
   // LinkedIn-style skill tags (max 5). Persisted in BadgeRequirement.summary JSON.
   skills: string[];
   availableOn: string;
@@ -70,7 +69,6 @@ export type BadgeCatalogItem = {
   id: string;
   name: string;
   description: string | null;
-  category: BadgeCategory | null;
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
@@ -79,6 +77,7 @@ export type BadgeCatalogItem = {
     name: string;
     totalPoints: number;
     passThreshold: number;
+    instructions?: string | null;
     subgoals: Array<{ id: string; text: string; points: number; sortOrder: number }>;
   } | null;
   requirements: Array<{
@@ -130,7 +129,6 @@ export const STEP_DEFINITIONS: StepDefinition[] = [
 export const DEFAULT_DRAFT: BadgeDraft = {
   badgeName: '',
   badgeDescription: '',
-  category: 'OTHER',
   skills: [],
   availableOn: '',
   closesOn: '',
@@ -154,5 +152,6 @@ export const DEFAULT_DRAFT: BadgeDraft = {
         points: 1,
       },
     ],
+    taInstructions: '',
   },
 };

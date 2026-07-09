@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { BadgeCategory, BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
+import { BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
 import prisma from '@/lib/prisma';
+import { canCreateContent } from '@/lib/adminAccess';
 
 type CheckpointQuestionPayload = {
   id?: string | null;
@@ -38,6 +39,7 @@ type RubricSubgoalPayload = {
 type RubricGoalPayload = {
   name?: string | null;
   passThreshold?: number | string | null;
+  taInstructions?: string | null;
   subgoals?: RubricSubgoalPayload[] | null;
 };
 
@@ -45,7 +47,6 @@ type CreateBadgePayload = {
   courseId?: string | null;
   badgeName?: string | null;
   badgeDescription?: string | null;
-  category?: BadgeCategory | null;
   skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;
@@ -62,7 +63,6 @@ type UpdateBadgePayload = {
   id?: string | null;
   badgeName?: string | null;
   badgeDescription?: string | null;
-  category?: BadgeCategory | null;
   skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;
@@ -80,8 +80,18 @@ function normalizeString(value?: string | null) {
   return trimmed ? trimmed : null;
 }
 
-function normalizeCategory(value?: string | null) {
-  return value && Object.values(BadgeCategory).includes(value as BadgeCategory) ? (value as BadgeCategory) : null;
+// Rich-text (HTML) fields are stored verbatim, but an "empty" editor still
+// serializes to markup like `<p><br></p>`. Treat markup with no visible text
+// or embedded media as empty so it persists as null.
+function normalizeRichText(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const textContent = trimmed
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+  const hasEmbeddedContent = /<(img|iframe|video|audio|hr)\b/i.test(trimmed);
+  return textContent || hasEmbeddedContent ? trimmed : null;
 }
 
 // Trim, drop empties, case-insensitive de-dupe, cap at 5. The API is the
@@ -315,6 +325,7 @@ function normalizePassingPercent(value: number | string | null | undefined) {
 // defaults to the full total (every point required) when omitted.
 function normalizeRubricGoal(goal?: RubricGoalPayload | null) {
   const name = normalizeString(goal?.name);
+  const instructions = normalizeRichText(goal?.taInstructions);
   const subgoals = (goal?.subgoals ?? [])
     .map((subgoal) => ({
       text: normalizeString(subgoal.text),
@@ -323,7 +334,7 @@ function normalizeRubricGoal(goal?: RubricGoalPayload | null) {
     .filter((subgoal): subgoal is { text: string; points: number } => Boolean(subgoal.text))
     .map((subgoal, index) => ({ ...subgoal, sortOrder: index }));
 
-  if (!name && subgoals.length === 0) {
+  if (!name && subgoals.length === 0 && !instructions) {
     return null;
   }
 
@@ -334,6 +345,7 @@ function normalizeRubricGoal(goal?: RubricGoalPayload | null) {
     name: name ?? 'Rubric goal',
     totalPoints,
     passThreshold,
+    instructions,
     subgoals,
   };
 }
@@ -350,8 +362,19 @@ async function syncBadgeRubricGoal(tx: Prisma.TransactionClient, badgeId: string
 
   const savedGoal = await tx.rubricGoal.upsert({
     where: { badgeId },
-    create: { badgeId, name: goal.name, totalPoints: goal.totalPoints, passThreshold: goal.passThreshold },
-    update: { name: goal.name, totalPoints: goal.totalPoints, passThreshold: goal.passThreshold },
+    create: {
+      badgeId,
+      name: goal.name,
+      totalPoints: goal.totalPoints,
+      passThreshold: goal.passThreshold,
+      instructions: goal.instructions,
+    },
+    update: {
+      name: goal.name,
+      totalPoints: goal.totalPoints,
+      passThreshold: goal.passThreshold,
+      instructions: goal.instructions,
+    },
     select: { id: true },
   });
 
@@ -533,7 +556,6 @@ export async function GET(req: NextRequest) {
         slug: true,
         name: true,
         description: true,
-        category: true,
         availableOn: true,
         closesOn: true,
         neverCloses: true,
@@ -544,6 +566,7 @@ export async function GET(req: NextRequest) {
             name: true,
             totalPoints: true,
             passThreshold: true,
+            instructions: true,
             subgoals: {
               orderBy: { sortOrder: 'asc' },
               select: { id: true, text: true, points: true, sortOrder: true },
@@ -598,7 +621,6 @@ export async function GET(req: NextRequest) {
           slug: badge.slug,
           name: badge.name,
           description: badge.description,
-          category: badge.category,
           availableOn: badge.availableOn?.toISOString() ?? null,
           closesOn: badge.closesOn?.toISOString() ?? null,
           neverCloses: badge.neverCloses ?? null,
@@ -675,7 +697,6 @@ export async function PATCH(req: NextRequest) {
     const badgeId = normalizeString(body.id);
     const badgeName = normalizeString(body.badgeName);
     const badgeDescription = normalizeString(body.badgeDescription);
-    const category = normalizeCategory(body.category);
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
     const checkpoints = body.checkpoints ?? [];
@@ -706,7 +727,6 @@ export async function PATCH(req: NextRequest) {
         data: {
           name: badgeName,
           description: badgeDescription,
-          category,
           availableOn,
           closesOn,
           neverCloses,
@@ -716,7 +736,6 @@ export async function PATCH(req: NextRequest) {
           slug: true,
           name: true,
           description: true,
-          category: true,
           sourceBadgeId: true,
         },
       });
@@ -731,7 +750,7 @@ export async function PATCH(req: NextRequest) {
           OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
           NOT: { id: badge.id },
         },
-        data: { name: badgeName, description: badgeDescription, category, availableOn, closesOn, neverCloses },
+        data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses },
       });
 
       const firstRequirement = await tx.badgeRequirement.findFirst({
@@ -958,6 +977,13 @@ export async function POST(req: NextRequest) {
     }
 
     const creatorEmail = clerkUser.emailAddresses[0].emailAddress.trim().toLowerCase();
+
+    // Alpha lock: creation is temporarily restricted to allowlisted accounts.
+    // Reversible by clearing ALPHA_ADMIN_EMAILS (see lib/adminAccess.ts).
+    if (!canCreateContent(creatorEmail)) {
+      return NextResponse.json({ error: 'Badge creation is restricted during the alpha test.' }, { status: 403 });
+    }
+
     const creator = await prisma.user.findUnique({
       where: { email: creatorEmail },
       select: { id: true },
@@ -973,7 +999,6 @@ export async function POST(req: NextRequest) {
     const badgeDescription = normalizeString(body.badgeDescription);
     const videoTitle = normalizeString(body.videoTitle);
     const youtubeUrl = normalizeString(body.youtubeUrl);
-    const category = normalizeCategory(body.category);
     const checkpoints = body.checkpoints ?? [];
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
@@ -1050,7 +1075,6 @@ export async function POST(req: NextRequest) {
             slug: sourceBadgeSlug,
             name: badgeName,
             description: badgeDescription,
-            category,
             availableOn,
             closesOn,
             neverCloses,
@@ -1061,7 +1085,6 @@ export async function POST(req: NextRequest) {
             slug: true,
             name: true,
             description: true,
-            category: true,
           },
         });
 
@@ -1091,7 +1114,6 @@ export async function POST(req: NextRequest) {
               slug: courseBadgeSlug,
               name: badgeName,
               description: badgeDescription,
-              category,
               availableOn,
               closesOn,
               neverCloses,
@@ -1103,7 +1125,6 @@ export async function POST(req: NextRequest) {
               slug: true,
               name: true,
               description: true,
-              category: true,
             },
           });
 

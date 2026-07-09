@@ -60,7 +60,6 @@ describe('Course badge progress page', () => {
           slug: 'bunsen-burner',
           name: 'Bunsen Burner Badge',
           description: 'Burner safety and setup.',
-          category: 'EQUIPMENT',
           lesson: {
             id: 'lesson-1',
             title: 'Bunsen Burner Badge',

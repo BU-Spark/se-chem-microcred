@@ -28,7 +28,6 @@ const {
   AvatarAccessory,
   AvatarBase,
   AvatarFace,
-  BadgeCategory,
   BadgeStatus,
   CourseContactType,
   CourseRole,
@@ -521,7 +520,7 @@ const badgeSeeds = [
     slug: 'bunsen-burner-badge',
     name: 'Bunsen Burner Badge',
     description: 'Prove safe usage and understanding of flame control.',
-    category: BadgeCategory.EQUIPMENT,
+
     lessonSlug: 'bunsen-burners',
     studentStatus: { status: BadgeStatus.LEARNING },
   },
@@ -529,7 +528,7 @@ const badgeSeeds = [
     slug: 'general-safety-badge',
     name: 'General Lab Safety Badge',
     description: 'Show core lab safety readiness and PPE habits.',
-    category: BadgeCategory.SAFETY,
+
     lessonSlug: 'general-lab-safety',
     studentStatus: { status: BadgeStatus.LEARNING },
   },
@@ -537,7 +536,7 @@ const badgeSeeds = [
     slug: 'top-loading-balance-badge',
     name: 'Top-loading Balance Badge',
     description: 'Operate balances accurately and record measurements correctly.',
-    category: BadgeCategory.EQUIPMENT,
+
     lessonSlug: 'top-loading-balance',
     studentStatus: { status: BadgeStatus.LEARNING },
   },
@@ -545,7 +544,7 @@ const badgeSeeds = [
     slug: 'graduated-cylinder-badge',
     name: 'Graduated Cylinder Badge',
     description: 'Measure volumes precisely using the correct meniscus technique.',
-    category: BadgeCategory.SAFETY,
+
     lessonSlug: 'graduated-cylinder',
     studentStatus: { status: BadgeStatus.LEARNING },
   },
@@ -553,7 +552,7 @@ const badgeSeeds = [
     slug: 'lab-notebook-badge',
     name: 'Lab Notebook Badge',
     description: 'Set up and maintain a compliant lab notebook.',
-    category: BadgeCategory.OTHER,
+
     lessonSlug: 'lab-notebook',
     // Ready for the assessor to grade — this is the assessor's queue.
     studentStatus: { status: BadgeStatus.READY_FOR_ASSESSMENT },
@@ -562,7 +561,7 @@ const badgeSeeds = [
     slug: 'volumetric-stock-badge',
     name: 'Volumetric Stock Solutions Badge',
     description: 'Prepare accurate stock solutions with volumetric glassware.',
-    category: BadgeCategory.EQUIPMENT,
+
     lessonSlug: 'volumetric-stock-solutions',
     // Passed assessment — student still owes the finalization survey.
     studentStatus: { status: BadgeStatus.READY_FOR_FINALIZATION, score: 92 },
@@ -571,7 +570,7 @@ const badgeSeeds = [
     slug: 'general-waste-badge',
     name: 'General Waste Handling Badge',
     description: 'Segregate and label lab waste correctly.',
-    category: BadgeCategory.WASTE,
+
     lessonSlug: 'general-waste-handling',
     studentStatus: {
       status: BadgeStatus.COMPLETED,
@@ -984,7 +983,6 @@ async function buildBadges(student, lessonBySlug) {
         slug: seedSlug(badgeSeed.slug),
         name: badgeSeed.name,
         description: badgeSeed.description,
-        category: badgeSeed.category,
       },
     });
     badgeBySlug.set(badgeSeed.slug, badge);

@@ -28,6 +28,12 @@ jest.mock('../../../hooks/useStudentData', () => ({
   useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
 }));
 
+// The Sidebar rendered by this page reads content-access; stub it so it doesn't add
+// a /api/me/access fetch that would perturb the fetch expectations.
+jest.mock('../../../hooks/useCanCreateContent', () => ({
+  useCanCreateContent: () => ({ canCreateContent: true, isAdmin: true, isLoading: false }),
+}));
+
 type MockImageProps = {
   src: string | { src: string };
   alt: string;
@@ -60,7 +66,6 @@ function studentData() {
           slug: 'learning-badge',
           name: 'Learning Badge',
           description: 'Needs feedback review',
-          category: 'Safety',
           status: 'LEARNING' as const,
           awardedAt: null,
           score: 40,

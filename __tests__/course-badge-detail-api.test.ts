@@ -112,7 +112,7 @@ describe('course badge detail API', () => {
                 slug: 'bunsen-burner',
                 name: 'Bunsen Burner Badge',
                 description: 'Burner safety',
-                category: 'EQUIPMENT',
+
                 rubricGoal: {
                   id: 'goal-1',
                   name: 'Use the burner safely.',

@@ -5,7 +5,6 @@ import './globals.css';
 import { DatabaseDisplayNameProvider } from './_components/DatabaseDisplayNameProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalHeader } from './components/GlobalHeader'; // 👈 NEW
-import './globals.css';
 
 const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY;
 
@@ -14,9 +13,9 @@ if (!clerkPublishableKey) {
 }
 
 export const metadata: Metadata = {
-  title: 'ChemSkills Demo',
-  description: 'Student demo for micro-credential experience.',
-  keywords: ['Chemistry', 'Micro-credential', 'Student Experience'],
+  title: 'Checkd - Microcredentials for you',
+  description: 'Checkd app',
+  keywords: ['Chemistry', 'Micro-credential', 'Student Experience', 'Student', 'Instructor'],
 };
 
 // Every route is auth-gated and renders client-side from the Clerk session +

@@ -21,7 +21,6 @@ function formatBadge(
     slug: string;
     name: string;
     description: string | null;
-    category: string | null;
   },
   summary?: string | null
 ) {
@@ -30,7 +29,6 @@ function formatBadge(
     slug: badge.slug,
     name: badge.name,
     description: badge.description,
-    category: badge.category,
     youtubeUrl: youtubeUrlFromSummary(summary),
   };
 }

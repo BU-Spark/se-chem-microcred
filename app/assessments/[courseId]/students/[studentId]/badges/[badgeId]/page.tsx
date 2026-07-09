@@ -67,6 +67,7 @@ type BadgeDetailResponse = {
       goalName: string;
       totalPoints: number;
       passThreshold: number;
+      instructions: string | null;
       subgoals: Array<{
         id: string;
         text: string;
@@ -567,6 +568,18 @@ export default function AssessmentReadinessPage() {
                             (pass at {passThreshold})
                           </span>
                         </p>
+                      ) : null}
+
+                      {rubric?.instructions ? (
+                        <div className={styles.taInstructions}>
+                          <h3 className={styles.taInstructionsTitle}>Instructions for the assessor</h3>
+                          {/* Instructions are authored in the badge editor's rich-text field and
+                              stored as sanitized HTML; render read-only for the assessor. */}
+                          <div
+                            className={`${styles.taInstructionsBody} rte-readonly`}
+                            dangerouslySetInnerHTML={{ __html: rubric.instructions }}
+                          />
+                        </div>
                       ) : null}
 
                       <div className={styles.criteriaList}>

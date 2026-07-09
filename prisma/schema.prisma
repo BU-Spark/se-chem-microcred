@@ -379,7 +379,6 @@ model Badge {
   slug            String             @unique
   name            String
   description     String?
-  category        BadgeCategory?
   createdById     String?
   sourceBadgeId   String?
   availableOn     DateTime?
@@ -407,6 +406,8 @@ model RubricGoal {
   name          String
   totalPoints   Int      @default(0)
   passThreshold Int      @default(0)
+  // Rich-text (HTML) instructions for TAs to relay to students during assessment.
+  instructions  String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -427,13 +428,6 @@ model RubricSubgoal {
   responses AssessmentSubgoalResponse[]
 
   @@unique([goalId, sortOrder])
-}
-
-enum BadgeCategory {
-  SAFETY
-  EQUIPMENT
-  WASTE
-  OTHER
 }
 
 model BadgeRequirement {
