@@ -57,9 +57,13 @@ type AssessmentDetails = {
   rubricGoal?: {
     id: string;
     name: string;
-    totalPoints: number;
-    passThreshold: number;
-    subgoals: Array<{ id: string; text: string; points: number; sortOrder: number }>;
+    subgoals: Array<{
+      id: string;
+      text: string;
+      passThreshold: number;
+      sortOrder: number;
+      tasks: Array<{ id: string; text: string; points: number; sortOrder: number }>;
+    }>;
   } | null;
   checkpoints: Array<{
     number?: number;

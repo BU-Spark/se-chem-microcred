@@ -301,12 +301,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             rubricGoal: {
               select: {
                 name: true,
-                totalPoints: true,
-                passThreshold: true,
                 instructions: true,
                 subgoals: {
                   orderBy: { sortOrder: 'asc' },
-                  select: { text: true, points: true, sortOrder: true },
+                  select: {
+                    text: true,
+                    passThreshold: true,
+                    sortOrder: true,
+                    tasks: {
+                      orderBy: { sortOrder: 'asc' },
+                      select: { text: true, points: true, sortOrder: true },
+                    },
+                  },
                 },
               },
             },
@@ -596,24 +602,29 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
         });
 
         // The course copy gets its own rubric rows so assessments reference
-        // subgoals on the badge being assessed, mirroring POST /api/badges.
+        // tasks on the badge being assessed, mirroring POST /api/badges.
         if (sourceBadge.rubricGoal) {
-          const importedGoal = await tx.rubricGoal.create({
+          await tx.rubricGoal.create({
             data: {
               badgeId: badge.id,
               name: sourceBadge.rubricGoal.name,
-              totalPoints: sourceBadge.rubricGoal.totalPoints,
-              passThreshold: sourceBadge.rubricGoal.passThreshold,
               instructions: sourceBadge.rubricGoal.instructions,
+              subgoals: {
+                create: sourceBadge.rubricGoal.subgoals.map((subgoal) => ({
+                  text: subgoal.text,
+                  passThreshold: subgoal.passThreshold,
+                  sortOrder: subgoal.sortOrder,
+                  tasks: {
+                    create: subgoal.tasks.map((task) => ({
+                      text: task.text,
+                      points: task.points,
+                      sortOrder: task.sortOrder,
+                    })),
+                  },
+                })),
+              },
             },
-            select: { id: true },
           });
-
-          if (sourceBadge.rubricGoal.subgoals.length > 0) {
-            await tx.rubricSubgoal.createMany({
-              data: sourceBadge.rubricGoal.subgoals.map((subgoal) => ({ ...subgoal, goalId: importedGoal.id })),
-            });
-          }
         }
 
         await tx.surveyPrompt.create({

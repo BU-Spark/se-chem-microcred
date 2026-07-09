@@ -29,16 +29,23 @@ export type CheckpointDraft = CheckpointQuestionDraft & {
   questions: CheckpointQuestionDraft[];
 };
 
-export type RubricSubgoalDraft = {
+export type RubricTaskDraft = {
   id: string;
   text: string;
   points: number;
 };
 
+export type RubricSubgoalDraft = {
+  id: string;
+  text: string;
+  // Point threshold the summed weights of passed tasks must reach for this
+  // subgoal to pass; defaults to the sum of its task weights.
+  passThreshold: number;
+  tasks: RubricTaskDraft[];
+};
+
 export type RubricGoalDraft = {
   name: string;
-  // Points needed to pass; total points is derived from the subgoals.
-  passThreshold: number;
   subgoals: RubricSubgoalDraft[];
   // Rich-text (HTML) instructions for TAs to relay to students during assessment.
   taInstructions: string;
@@ -75,10 +82,14 @@ export type BadgeCatalogItem = {
   rubricGoal?: {
     id: string;
     name: string;
-    totalPoints: number;
-    passThreshold: number;
     instructions?: string | null;
-    subgoals: Array<{ id: string; text: string; points: number; sortOrder: number }>;
+    subgoals: Array<{
+      id: string;
+      text: string;
+      passThreshold: number;
+      sortOrder: number;
+      tasks: Array<{ id: string; text: string; points: number; sortOrder: number }>;
+    }>;
   } | null;
   requirements: Array<{
     displayText: string;
@@ -115,7 +126,7 @@ export type BadgesResponse = {
   badges: BadgeCatalogItem[];
 };
 
-export const DRAFT_STORAGE_KEY = 'badge_creation_draft_v3';
+export const DRAFT_STORAGE_KEY = 'badge_creation_draft_v4';
 export const DEFAULT_VIDEO_FALLBACK = 'Lesson video';
 
 export const STEP_DEFINITIONS: StepDefinition[] = [
@@ -144,12 +155,18 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   reassessmentResources: [],
   rubricGoal: {
     name: '',
-    passThreshold: 1,
     subgoals: [
       {
         id: 'subgoal-1',
         text: '',
-        points: 1,
+        passThreshold: 1,
+        tasks: [
+          {
+            id: 'task-1',
+            text: '',
+            points: 1,
+          },
+        ],
       },
     ],
     taInstructions: '',

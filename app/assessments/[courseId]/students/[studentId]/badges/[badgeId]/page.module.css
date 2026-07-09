@@ -250,6 +250,67 @@
   gap: 0.9rem;
 }
 
+.subgoalGroup {
+  display: grid;
+  gap: 0.75rem;
+  border: 2px solid #d9dee5;
+  border-radius: 1.1rem;
+  padding: 1rem 1.1rem 1.1rem;
+  background: #ffffff;
+}
+
+.subgoalGroupHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.subgoalGroupHeader h3 {
+  font-size: 1.1rem;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+}
+
+.subgoalGroupPass,
+.subgoalGroupFail {
+  white-space: nowrap;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.subgoalGroupPass {
+  color: #15803d;
+}
+
+.subgoalGroupFail {
+  color: #a33d38;
+}
+
+.confirmPanel {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.confirmMessagePass,
+.confirmMessageFail {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
+.confirmMessagePass {
+  color: #15803d;
+}
+
+.confirmMessageFail {
+  color: #a33d38;
+}
+
 .criterionCard {
   display: grid;
   gap: 0.85rem;

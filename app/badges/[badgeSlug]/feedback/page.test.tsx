@@ -109,9 +109,15 @@ describe('Badge feedback page', () => {
           rubric: {
             goalId: 'goal-1',
             goalName: 'Operate safely',
-            totalPoints: 5,
-            passThreshold: 4,
-            subgoals: [{ id: 'subgoal-1', text: 'Wear PPE', points: 2, sortOrder: 0 }],
+            subgoals: [
+              {
+                id: 'subgoal-1',
+                text: 'Wear PPE',
+                passThreshold: 2,
+                sortOrder: 0,
+                tasks: [{ id: 'task-1', text: 'Wears goggles', points: 2, sortOrder: 0 }],
+              },
+            ],
           },
           latestAttempt: {
             id: 'attempt-1',
@@ -126,6 +132,7 @@ describe('Badge feedback page', () => {
               {
                 id: 'response-1',
                 subgoalText: 'Wear PPE',
+                taskText: 'Wears goggles',
                 points: 2,
                 passed: false,
                 feedback: 'Goggles were missing.',
@@ -135,6 +142,7 @@ describe('Badge feedback page', () => {
               {
                 id: 'response-override',
                 subgoalText: 'Assessor override',
+                taskText: 'Assessor override',
                 points: 0,
                 passed: false,
                 feedback: 'Assessor override: unsafe flame control.',
