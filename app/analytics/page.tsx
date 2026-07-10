@@ -21,15 +21,6 @@ type ScoreItem = {
   label: string;
 };
 
-function ClockIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor">
-      <circle cx="12" cy="12" r="9.2" strokeLinecap="round" />
-      <path d="M12 6.8v5l3.2 1.8" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
 function BadgeCheckIcon() {
   return (
     <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor">
@@ -58,18 +49,6 @@ function CrossBadgeIcon() {
     <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor">
       <circle cx="12" cy="12" r="9.2" />
       <path d="m9.1 9.1 5.8 5.8M14.9 9.1l-5.8 5.8" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function NotebookIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor">
-      <rect x="5.5" y="4" width="12.5" height="16" rx="1.6" />
-      <path d="M9 4v16" />
-      <path d="M9 8.4h5.4" strokeLinecap="round" />
-      <path d="M9 11.8h5.4" strokeLinecap="round" />
-      <path d="M9 15.2h4" strokeLinecap="round" />
     </svg>
   );
 }
@@ -236,13 +215,6 @@ export default function AnalyticsPage() {
 
   const progressItems: ProgressItem[] = [
     {
-      id: 'hours-learning',
-      value: analytics ? String(analytics.hoursLearning) : '0',
-      label: 'hours spent learning',
-      icon: <ClockIcon />,
-      iconClassName: `${styles.progressIcon} ${styles.iconLime}`,
-    },
-    {
       id: 'badges-completed',
       value: String(studentData?.badges.completed.length ?? 0),
       label: 'badges completed',
@@ -261,13 +233,6 @@ export default function AnalyticsPage() {
       value: String(analytics?.badgesNotAttempted ?? 0),
       label: 'badges not yet attempted',
       icon: <CrossBadgeIcon />,
-      iconClassName: `${styles.progressIcon} ${styles.iconLime}`,
-    },
-    {
-      id: 'questions-answered',
-      value: String(analytics?.questionsAnswered ?? 0),
-      label: 'questions answered',
-      icon: <NotebookIcon />,
       iconClassName: `${styles.progressIcon} ${styles.iconLime}`,
     },
   ];

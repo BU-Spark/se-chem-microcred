@@ -431,8 +431,6 @@ describe('Analytics page', () => {
   it('computes badge percentages and renders stat cards', () => {
     render(<AnalyticsPage />);
     expect(screen.getAllByText(/badges completed/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/hours spent learning/i)).toBeInTheDocument();
-    expect(screen.getByText(/questions answered/i)).toBeInTheDocument();
     expect(screen.getByText(/Average assessment score/i)).toBeInTheDocument();
   });
 });
