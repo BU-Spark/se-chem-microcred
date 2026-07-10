@@ -2,14 +2,14 @@
 import type { ImgHTMLAttributes } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { SWRConfig } from 'swr';
-import HomePage from './page';
+import CoursesPage from './page';
 
 // Isolate the SWR cache per render so cached /api/courses/mine data does not
 // bleed between tests.
-function renderHome() {
+function renderCourses() {
   return render(
     <SWRConfig value={{ provider: () => new Map(), dedupingInterval: 0 }}>
-      <HomePage />
+      <CoursesPage />
     </SWRConfig>
   );
 }
@@ -76,7 +76,7 @@ function createAuthState(overrides = {}) {
   };
 }
 
-describe('Home Page', () => {
+describe('Courses Page', () => {
   beforeEach(() => {
     mockReplace.mockClear();
     mockUsePathname.mockReset();
@@ -236,15 +236,15 @@ describe('Home Page', () => {
     global.fetch = mockFetch as unknown as typeof fetch;
   });
 
-  it('renders created and enrolled course sections on the merged home page', async () => {
-    renderHome();
+  it('renders courses page with instructors, student, and assessor courses', async () => {
+    renderCourses();
 
     expect(screen.getByText('Student Demo')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Instructor Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Assessor Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Enrolled Courses' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Courses' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Courses' })).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/mine', {
@@ -321,7 +321,7 @@ describe('Home Page', () => {
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
-    renderHome();
+    renderCourses();
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/mine', {
@@ -338,30 +338,29 @@ describe('Home Page', () => {
   it('highlights the active navigation item based on the current pathname', async () => {
     mockUsePathname.mockReturnValue('/profile');
 
-    renderHome();
+    renderCourses();
 
     await screen.findByText('Created Course 1');
 
-    const profileLink = screen.getByRole('link', { name: 'Profile' });
-    const homeLink = screen.getByRole('link', { name: 'Home' });
+    const profileLink = screen.getByRole('link', { name: 'My Profile' });
+    const coursesLink = screen.getByRole('link', { name: 'Courses' });
 
     expect(profileLink.className).toContain('navItemActive');
-    expect(homeLink.className).not.toContain('navItemActive');
+    expect(coursesLink.className).not.toContain('navItemActive');
   });
 
   it.each(['/courses/created-course-1', '/course_dashboard'])(
-    'keeps Home active for course workspace route %s',
+    'keeps Courses active for course workspace route %s',
     async (pathname) => {
       mockUsePathname.mockReturnValue(pathname);
 
-      renderHome();
+      renderCourses();
 
       await screen.findByText('Created Course 1');
 
-      const homeLink = screen.getByRole('link', { name: 'Home' });
+      const coursesLink = screen.getByRole('link', { name: 'Courses' });
 
-      expect(homeLink.className).toContain('navItemActive');
-      expect(screen.queryByRole('link', { name: 'Courses' })).not.toBeInTheDocument();
+      expect(coursesLink.className).toContain('navItemActive');
     }
   );
 
@@ -378,7 +377,7 @@ describe('Home Page', () => {
       })
     );
 
-    const { container } = renderHome();
+    const { container } = renderCourses();
 
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/splash');
@@ -394,7 +393,7 @@ describe('Home Page', () => {
       })
     );
 
-    renderHome();
+    renderCourses();
 
     await screen.findByText('Created Course 1');
 
@@ -411,7 +410,7 @@ describe('Home Page', () => {
   });
 
   it('joins a course by course code and refreshes the course list', async () => {
-    renderHome();
+    renderCourses();
 
     await screen.findByText('Created Course 1');
 
