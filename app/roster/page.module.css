@@ -397,8 +397,12 @@
 /* Per-row Remove student action (instructor, student roster only) */
 .actionsHeader,
 .actionsCell {
-  text-align: right;
+  text-align: center !important;
   white-space: nowrap;
+}
+
+.actionsCell .removeButton {
+  margin-inline: auto;
 }
 
 .removeButton {

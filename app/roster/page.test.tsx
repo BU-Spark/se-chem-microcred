@@ -440,4 +440,39 @@ describe('Course roster page', () => {
       )
     );
   });
+
+  it('lets an instructor remove an assessor', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
+    const payload = {
+      viewerRole: 'INSTRUCTOR',
+      course: {
+        id: 'course-1',
+        title: 'Course 1',
+        createdBy: { name: 'Professor Demo', email: 'prof@example.edu' },
+        enrollments: [
+          {
+            id: 'checker-enrollment',
+            role: 'CHECKER',
+            status: 'ACTIVE',
+            sections: ['A1'],
+            student: { id: 'checker-1', name: 'Alex Checker', email: 'checker@bu.edu', buid: 'U2' },
+          },
+        ],
+      },
+    };
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => payload })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ message: 'removed' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => payload });
+    render(<StudentRosterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+    expect(screen.getByRole('dialog', { name: 'Remove assessor?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove assessor' }));
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith('/api/courses/course-1/assessors/checker-1', {
+        method: 'DELETE',
+        headers: { Accept: 'application/json' },
+      })
+    );
+  });
 });

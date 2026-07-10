@@ -273,7 +273,7 @@ export default function StudentRosterPage() {
   const course = data?.course ?? null;
   const isInstructor = data?.viewerRole === 'INSTRUCTOR';
   // Only instructors can remove students, and only on the student roster.
-  const canManageStudents = isInstructor && !isCheckerRoster;
+  const canRemoveMembers = isInstructor;
   const canAddMembers = isInstructor;
   const canManageSections = isInstructor;
   const displayName = course?.createdBy?.name || '';
@@ -393,7 +393,7 @@ export default function StudentRosterPage() {
     setRemoveError(null);
     try {
       const response = await fetch(
-        `/api/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(memberToRemove.memberId)}`,
+        `/api/courses/${encodeURIComponent(courseId)}/${isCheckerRoster ? 'assessors' : 'students'}/${encodeURIComponent(memberToRemove.memberId)}`,
         { method: 'DELETE', headers: { Accept: 'application/json' } }
       );
       if (!response.ok) {
@@ -407,7 +407,7 @@ export default function StudentRosterPage() {
     } finally {
       setRemovingId(null);
     }
-  }, [courseId, memberToRemove, refresh]);
+  }, [courseId, isCheckerRoster, memberToRemove, refresh]);
 
   const closeSectionModal = useCallback(() => {
     if (isSavingSection) return;
@@ -832,7 +832,7 @@ export default function StudentRosterPage() {
                         <th>BUID Number</th>
                         <th>Email</th>
                         <th>Section</th>
-                        {canManageStudents ? <th className={styles.actionsHeader}>Actions</th> : null}
+                        {canRemoveMembers ? <th className={styles.actionsHeader}>Actions</th> : null}
                       </tr>
                     </thead>
                     <tbody>
@@ -876,7 +876,7 @@ export default function StudentRosterPage() {
                                 member.sectionLabel || '—'
                               )}
                             </td>
-                            {canManageStudents ? (
+                            {canRemoveMembers ? (
                               <td className={styles.actionsCell}>
                                 <button
                                   type="button"
@@ -896,7 +896,7 @@ export default function StudentRosterPage() {
                         ))
                       ) : (
                         <tr>
-                          <td className={styles.emptyCell} colSpan={canManageStudents ? 6 : 5}>
+                          <td className={styles.emptyCell} colSpan={canRemoveMembers ? 6 : 5}>
                             {emptyResultsMessage}
                           </td>
                         </tr>
@@ -1077,18 +1077,18 @@ export default function StudentRosterPage() {
             className={styles.modal}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="remove-student-title"
+            aria-labelledby="remove-member-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <h2 id="remove-student-title" className={styles.modalTitle}>
-              Remove student?
+            <h2 id="remove-member-title" className={styles.modalTitle}>
+              Remove {isCheckerRoster ? 'assessor' : 'student'}?
             </h2>
             <p className={styles.modalBody}>
               Remove{' '}
               <strong>
                 {[memberToRemove.firstName, memberToRemove.lastName].filter(Boolean).join(' ') ||
                   memberToRemove.email ||
-                  'this student'}
+                  `this ${isCheckerRoster ? 'assessor' : 'student'}`}
               </strong>{' '}
               from <strong>{course?.title}</strong>? They will lose access to this course. This cannot be undone.
             </p>
@@ -1108,7 +1108,7 @@ export default function StudentRosterPage() {
                 disabled={Boolean(removingId)}
                 onClick={handleRemoveStudent}
               >
-                {removingId ? 'Removing…' : 'Remove student'}
+                {removingId ? 'Removing…' : `Remove ${isCheckerRoster ? 'assessor' : 'student'}`}
               </button>
             </div>
           </div>
