@@ -367,7 +367,8 @@ function HomePageContent() {
       <div key={lesson.id} className={styles.card}>
         <div className={styles.cardMedia}>
           {isYouTubeThumb ? (
-            <Image src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
           ) : (
             <Image src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
           )}
