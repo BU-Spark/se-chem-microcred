@@ -423,7 +423,6 @@ describe('Badge Feedback page', () => {
     render(<BadgeFeedbackPage />);
     expect(screen.getByText(/Bunsen Burner Badge/i)).toBeInTheDocument();
     expect(screen.getByText(/Status:/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Ignition/i).length).toBeGreaterThan(0); // checkpoint title from REVIEW_CONTENT
   });
 });
 

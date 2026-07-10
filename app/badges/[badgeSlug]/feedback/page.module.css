@@ -165,12 +165,21 @@
 }
 
 .rubricHeader {
+  font-size: 2rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid #d8e0ec;
   font-family: 'Lato', sans-serif;
 }
 
+.rubricSubHeader {
+  font-size: 1.2rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #d8e0ec;
+  font-family: 'Lato', sans-serif;
+}
+
 .rubricRow {
+  
   padding: 1rem;
   border: 1px solid #d8e0ec;
   border-radius: 16px;
