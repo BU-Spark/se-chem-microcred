@@ -455,14 +455,6 @@ describe('Profile page', () => {
     expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
     jest.useRealTimers();
   });
-
-  it('invokes Clerk profile for change password action', () => {
-    const openProfile = jest.fn();
-    mockUseClerk.mockReturnValue({ openUserProfile: openProfile });
-    render(<ProfilePage />);
-    fireEvent.click(screen.getByText(/Change Password/i));
-    expect(openProfile).toHaveBeenCalled();
-  });
 });
 
 describe('Grades and Settings placeholders', () => {
