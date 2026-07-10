@@ -730,6 +730,17 @@ export async function POST(
     const rubricTasks = rubricSubgoals.flatMap((subgoal) =>
       subgoal.tasks.map((task) => ({ ...task, subgoalText: subgoal.text }))
     );
+
+    // Guard against legacy/imported badges or blank rubrics. Without tasks,
+    // validation would trivially pass (empty set == empty set), letting the
+    // badge record a perfect score. Require at least one task to assess.
+    if (!rubricGoal || rubricTasks.length === 0) {
+      return NextResponse.json(
+        { error: 'This badge has no rubric or tasks defined and cannot be assessed.' },
+        { status: 400 }
+      );
+    }
+
     const responseByTaskId = new Map(body.tasks.map((entry) => [entry.taskId, entry]));
 
     if (body.tasks.length !== rubricTasks.length || rubricTasks.some((task) => !responseByTaskId.has(task.id))) {

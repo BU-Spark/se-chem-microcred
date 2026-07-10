@@ -132,6 +132,7 @@ export default function RubricStep({
                             }
                           } else if (event.key === 'Backspace' && !task.text && subgoal.tasks.length > 1) {
                             event.preventDefault();
+                            focusSubgoalRef.current = subgoal.id;
                             removeTask(subgoal.id, task.id);
                           }
                         }}

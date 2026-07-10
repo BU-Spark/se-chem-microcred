@@ -170,6 +170,9 @@ describe('Badge feedback page', () => {
     expect(screen.getByText('Assessor override: unsafe flame control.')).toBeInTheDocument();
     expect(document.querySelector('.badgeCard')).not.toHaveTextContent('Assessor override: unsafe flame control.');
     expect(screen.getAllByText('Needs work')).toHaveLength(2);
+    expect(screen.getByText('Wears goggles')).toBeInTheDocument();
+    expect(screen.getByText('2 points')).toBeInTheDocument();
+    expect(screen.getByText('Pass at 2 pts')).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Review Lesson/i })).toHaveAttribute(

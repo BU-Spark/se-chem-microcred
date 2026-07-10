@@ -381,7 +381,9 @@ export default function BadgeFeedbackPage() {
   const latestAttempt = feedbackDetail?.latestAttempt ?? null;
   const rubric = feedbackDetail?.rubric ?? null;
   const responseByKey = new Map(
-    latestAttempt?.responses.map((response) => [`${response.subgoalText}::${response.taskText}`, response]) ?? []
+    latestAttempt?.responses
+      .filter((response) => !response.isOverride)
+      .map((response) => [`${response.subgoalText}::${response.taskText}`, response]) ?? []
   );
 
   return (
