@@ -47,6 +47,8 @@ type YouTubePlayer = {
   isMuted?(): boolean;
   setVolume?(v: number): void;
   getVolume?(): number;
+  loadModule?(module: string): void;
+  unloadModule?(module: string): void;
 };
 
 type YouTubeApi = {
@@ -313,8 +315,8 @@ export function LessonVideoPage({
   const [duration, setDuration] = useState(0);
   const durationRef = useRef(0);
   const [videoEnded, setVideoEnded] = useState(false);
-  const [thumbnailCache, setThumbnailCache] = useState<Record<string, string>>({});
   const [isMuted, setIsMuted] = useState(false);
+  const [captionsEnabled, setCaptionsEnabled] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(true);
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const modalStateRef = useRef<ModalState>('none');
@@ -543,7 +545,6 @@ export function LessonVideoPage({
     [lesson.segments]
   );
   const youtubeId = useMemo(() => extractYouTubeId(primaryVideoSegment?.videoUrl), [primaryVideoSegment]);
-  const primaryVideoUrl = primaryVideoSegment?.videoUrl ?? null;
 
   const timelineItems = useMemo(() => {
     return orderedCheckpoints.map((checkpoint, index) => {
@@ -553,49 +554,10 @@ export function LessonVideoPage({
       return {
         id: checkpoint.id,
         title: checkpoint.title || `Checkpoint ${index + 1}`,
-        snapshotUrl: thumbnailCache[checkpoint.id] ?? checkpoint.snapshotUrl ?? null,
         status: isCompleted ? 'completed' : isActive ? 'current' : 'pending',
       } as const;
     });
-  }, [orderedCheckpoints, answeredCheckpointIds, activeCheckpointId, firstIncompleteCheckpoint, thumbnailCache]);
-
-  useEffect(() => {
-    if (!primaryVideoUrl) {
-      return;
-    }
-    let cancelled = false;
-
-    const hydrateThumbnails = async () => {
-      const missing = orderedCheckpoints.filter((cp) => !thumbnailCache[cp.id]);
-      if (missing.length === 0) {
-        return;
-      }
-
-      for (const cp of missing) {
-        try {
-          const params = new URLSearchParams({
-            video: primaryVideoUrl,
-            t: String(cp.timeOffsetSeconds),
-          });
-          const res = await fetch(`/api/checkpoint-snapshot?${params.toString()}`);
-          if (!res.ok) {
-            continue;
-          }
-          const { url } = (await res.json()) as { url?: string };
-          if (!cancelled && url) {
-            setThumbnailCache((prev) => ({ ...prev, [cp.id]: url }));
-          }
-        } catch {
-          console.warn('Failed to hydrate checkpoint thumbnail for', cp.id);
-        }
-      }
-    };
-
-    void hydrateThumbnails();
-    return () => {
-      cancelled = true;
-    };
-  }, [orderedCheckpoints, primaryVideoUrl, thumbnailCache]);
+  }, [orderedCheckpoints, answeredCheckpointIds, activeCheckpointId, firstIncompleteCheckpoint]);
 
   const ensurePlayerPaused = useCallback(() => {
     const player = playerRef.current;
@@ -687,6 +649,7 @@ export function LessonVideoPage({
           videoId: youtubeId,
           playerVars: {
             controls: 0,
+            cc_load_policy: 0,
             disablekb: 1,
             rel: 0,
             modestbranding: 1,
@@ -708,6 +671,8 @@ export function LessonVideoPage({
 
               setPlayerReady(true);
               setIsMuted(playerRef.current?.isMuted?.() ?? false);
+              readyPlayer?.unloadModule?.('captions');
+              setCaptionsEnabled(false);
 
               if (typeof window !== 'undefined') {
                 const apiRef = (window as { YT?: YouTubeApi }).YT;
@@ -1139,6 +1104,20 @@ export function LessonVideoPage({
     }
   }, [isMuted, modalState, scheduleHide]);
 
+  const toggleCaptions = useCallback(() => {
+    const player = playerRef.current;
+    if (!player) return;
+
+    if (captionsEnabled) {
+      player.unloadModule?.('captions');
+    } else {
+      player.loadModule?.('captions');
+    }
+    setCaptionsEnabled((enabled) => !enabled);
+    setControlsVisible(true);
+    scheduleHide();
+  }, [captionsEnabled, scheduleHide]);
+
   const handleLessonSurveyFaceSelect = useCallback((value: number) => {
     setLessonSurveyRating(value);
   }, []);
@@ -1318,32 +1297,19 @@ export function LessonVideoPage({
         </button>
 
         <aside className={styles.timeline}>
-          {timelineItems.map((item) => {
-            const thumbnailClass = [
-              styles.timelineThumbnail,
-              item.status === 'completed' ? styles.timelineThumbnailCompleted : '',
-              item.status === 'current' ? styles.timelineThumbnailActive : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
-
+          {timelineItems.map((item, index) => {
             const checkpointClass = [
               styles.timelineCheckpoint,
               item.status === 'completed' ? styles.timelineCheckpointCompleted : '',
+              item.status === 'current' ? styles.timelineCheckpointActive : '',
             ]
               .filter(Boolean)
               .join(' ');
 
             return (
               <div key={item.id} className={styles.timelineItem}>
-                <div className={thumbnailClass}>
-                  {item.snapshotUrl ? (
-                    <Image src={item.snapshotUrl} alt={item.title} width={72} height={72} />
-                  ) : (
-                    <div className={styles.timelinePlaceholder}>Preview</div>
-                  )}
-                </div>
-                <div className={checkpointClass}>{item.status === 'completed' ? '✓' : ''}</div>
+                <div className={checkpointClass}>{item.status === 'completed' ? '✓' : index + 1}</div>
+                <span className={styles.timelineLabel}>{item.title}</span>
               </div>
             );
           })}
@@ -1452,6 +1418,16 @@ export function LessonVideoPage({
                     width={41}
                     height={41}
                   />
+                </button>
+
+                <button
+                  type="button"
+                  className={`${styles.qevBtn} ${styles.captionButton} ${captionsEnabled ? styles.captionButtonActive : ''}`}
+                  onClick={toggleCaptions}
+                  aria-label={captionsEnabled ? 'Turn captions off' : 'Turn captions on'}
+                  aria-pressed={captionsEnabled}
+                >
+                  CC
                 </button>
 
                 {/* Rewind (e.g., back 10s) */}
