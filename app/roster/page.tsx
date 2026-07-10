@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
@@ -38,6 +38,15 @@ type CourseRosterResponse = {
 };
 
 type RosterRole = 'STUDENT' | 'CHECKER';
+type AddMode = 'single' | 'csv';
+
+type NewRosterMember = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  buid: string;
+  sections: string;
+};
 
 type RosterMemberRow = {
   enrollmentId: string;
@@ -65,6 +74,44 @@ const EMPTY_FILTERS: RosterFilters = {
   email: '',
   section: '',
 };
+
+const EMPTY_NEW_MEMBER: NewRosterMember = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  buid: '',
+  sections: '',
+};
+
+function parseRosterCsv(csv: string): NewRosterMember[] {
+  const lines = csv
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length < 2) throw new Error('CSV must contain a header and at least one roster member.');
+  const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
+  const indexOf = (...names: string[]) => headers.findIndex((header) => names.includes(header));
+  const indices = {
+    lastName: indexOf('lastname'),
+    firstName: indexOf('firstname'),
+    buid: indexOf('buid'),
+    email: indexOf('email'),
+    sections: indexOf('sections', 'section'),
+  };
+  if (Object.values(indices).some((index) => index < 0)) {
+    throw new Error('CSV must contain headers: lastName, firstName, buid, email, sections.');
+  }
+  return lines.slice(1).map((line) => {
+    const columns = line.split(',').map((column) => column.trim());
+    return {
+      lastName: columns[indices.lastName] || '',
+      firstName: columns[indices.firstName] || '',
+      buid: columns[indices.buid] || '',
+      email: columns[indices.email] || '',
+      sections: columns[indices.sections] || '',
+    };
+  });
+}
 
 function splitName(fullName?: string | null) {
   const parts = fullName?.trim().split(/\s+/).filter(Boolean) ?? [];
@@ -176,6 +223,13 @@ export default function StudentRosterPage() {
   const [memberToRemove, setMemberToRemove] = useState<RosterMemberRow | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addMode, setAddMode] = useState<AddMode>('single');
+  const [newMember, setNewMember] = useState<NewRosterMember>(EMPTY_NEW_MEMBER);
+  const [selectedCsv, setSelectedCsv] = useState<File | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
   const isCheckerRoster = rosterRole === 'CHECKER';
   const rosterLabel = isCheckerRoster ? 'Assessor' : 'Student';
   const rosterPluralLabel = isCheckerRoster ? 'assessors' : 'students';
@@ -216,6 +270,7 @@ export default function StudentRosterPage() {
   const isInstructor = data?.viewerRole === 'INSTRUCTOR';
   // Only instructors can remove students, and only on the student roster.
   const canManageStudents = isInstructor && !isCheckerRoster;
+  const canAddMembers = isInstructor;
   const displayName = course?.createdBy?.name || '';
 
   // Pending assessor requests an instructor can approve/decline (CHECKER roster only).
@@ -260,6 +315,72 @@ export default function StudentRosterPage() {
   }, [removingId]);
 
   const removeModalRef = useFocusTrap<HTMLDivElement>(Boolean(memberToRemove), closeRemoveModal);
+
+  const closeAddModal = useCallback(() => {
+    if (isAdding) return;
+    setIsAddModalOpen(false);
+    setAddMode('single');
+    setNewMember(EMPTY_NEW_MEMBER);
+    setSelectedCsv(null);
+    setAddError(null);
+  }, [isAdding]);
+
+  const addModalRef = useFocusTrap<HTMLDivElement>(isAddModalOpen, closeAddModal);
+
+  const openAddModal = () => {
+    setAddMode('single');
+    setNewMember(EMPTY_NEW_MEMBER);
+    setSelectedCsv(null);
+    setAddError(null);
+    setIsAddModalOpen(true);
+  };
+
+  const addRosterMembers = async (members: NewRosterMember[]) => {
+    if (!courseId) return;
+    setIsAdding(true);
+    setAddError(null);
+    try {
+      const response = await fetch(`/api/courses/${encodeURIComponent(courseId)}/members`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: rosterRole, members }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Unable to add roster members.');
+      setIsAddModalOpen(false);
+      setNewMember(EMPTY_NEW_MEMBER);
+      setSelectedCsv(null);
+      await refresh();
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Unable to add roster members.');
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleAddSubmit = async () => {
+    if (addMode === 'single') {
+      if (!newMember.email.trim() && !newMember.buid.trim()) {
+        setAddError('Enter an email or BUID.');
+        return;
+      }
+      await addRosterMembers([newMember]);
+      return;
+    }
+    if (!selectedCsv) {
+      setAddError('Choose a CSV file to upload.');
+      return;
+    }
+    try {
+      const members = parseRosterCsv(await selectedCsv.text());
+      if (members.some((member) => !member.email.trim() && !member.buid.trim())) {
+        throw new Error('Every CSV row must include an email or BUID.');
+      }
+      await addRosterMembers(members);
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Unable to read the CSV file.');
+    }
+  };
 
   const handleRemoveStudent = useCallback(async () => {
     if (!courseId || !memberToRemove) return;
@@ -462,6 +583,12 @@ export default function StudentRosterPage() {
                     <FilterIcon />
                   </button>
                 </label>
+
+                {canAddMembers ? (
+                  <button type="button" className={styles.addMembersButton} onClick={openAddModal}>
+                    + Add {isCheckerRoster ? 'assessors' : 'students'}
+                  </button>
+                ) : null}
 
                 <div className={styles.filters}>
                   <span className={styles.filtersLabel}>Filters applied:</span>
@@ -709,6 +836,114 @@ export default function StudentRosterPage() {
                 </div>
               </section>
             </>
+          ) : null}
+
+          {isAddModalOpen ? (
+            <div className={styles.modalOverlay} role="presentation" onMouseDown={closeAddModal}>
+              <div
+                ref={addModalRef}
+                className={`${styles.modal} ${styles.addModal}`}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="add-members-title"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <h2 id="add-members-title" className={styles.modalTitle}>
+                  Add {isCheckerRoster ? 'assessors' : 'students'}
+                </h2>
+                <div className={styles.addModeTabs} role="tablist" aria-label="Add roster members">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={addMode === 'single'}
+                    className={`${styles.addModeTab} ${addMode === 'single' ? styles.addModeTabActive : ''}`}
+                    onClick={() => {
+                      setAddMode('single');
+                      setAddError(null);
+                    }}
+                  >
+                    Single user
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={addMode === 'csv'}
+                    className={`${styles.addModeTab} ${addMode === 'csv' ? styles.addModeTabActive : ''}`}
+                    onClick={() => {
+                      setAddMode('csv');
+                      setAddError(null);
+                    }}
+                  >
+                    CSV upload
+                  </button>
+                </div>
+
+                {addMode === 'single' ? (
+                  <div className={styles.addMemberGrid}>
+                    {(['firstName', 'lastName', 'email', 'buid', 'sections'] as const).map((field) => {
+                      const labels = {
+                        firstName: 'First name',
+                        lastName: 'Last name',
+                        email: 'Email',
+                        buid: 'BUID',
+                        sections: isCheckerRoster ? 'Sections' : 'Section',
+                      };
+                      return (
+                        <label key={field} className={styles.filterField}>
+                          <span className={styles.filterFieldLabel}>{labels[field]}</span>
+                          <input
+                            className={styles.filterInput}
+                            type={field === 'email' ? 'email' : 'text'}
+                            value={newMember[field]}
+                            placeholder={field === 'sections' ? (isCheckerRoster ? 'A1 | A2' : 'A1') : undefined}
+                            onChange={(event) =>
+                              setNewMember((current) => ({ ...current, [field]: event.target.value }))
+                            }
+                          />
+                        </label>
+                      );
+                    })}
+                    <p className={styles.addHint}>
+                      Email or BUID is required. Separate multiple assessor sections with |.
+                    </p>
+                  </div>
+                ) : (
+                  <div className={styles.csvPanel}>
+                    <p className={styles.modalBody}>
+                      Upload a CSV with headers: lastName, firstName, buid, email, sections.
+                    </p>
+                    <input
+                      ref={csvInputRef}
+                      type="file"
+                      accept=".csv,text/csv"
+                      className={styles.csvInput}
+                      onChange={(event) => setSelectedCsv(event.target.files?.[0] ?? null)}
+                    />
+                    {selectedCsv ? <p className={styles.selectedFile}>{selectedCsv.name}</p> : null}
+                  </div>
+                )}
+
+                {addError ? <p className={styles.modalError}>{addError}</p> : null}
+                <div className={styles.modalActions}>
+                  <button
+                    type="button"
+                    className={styles.clearFiltersButton}
+                    onClick={closeAddModal}
+                    disabled={isAdding}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.applyFiltersButton}
+                    disabled={isAdding}
+                    onClick={() => void handleAddSubmit()}
+                  >
+                    {isAdding ? 'Adding…' : addMode === 'single' ? `Add ${rosterLabel.toLowerCase()}` : 'Upload CSV'}
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : null}
         </div>
       </main>

@@ -313,4 +313,62 @@ describe('Course roster page', () => {
 
     expect(mockPush).toHaveBeenCalledWith('/roster/checker-1?courseId=course-1');
   });
+
+  it('lets an instructor manually add a student and refreshes the roster', async () => {
+    const rosterPayload = {
+      viewerRole: 'INSTRUCTOR',
+      course: {
+        id: 'course-1',
+        title: 'Course 1',
+        createdBy: { name: 'Professor Demo', email: 'prof@example.edu' },
+        enrollments: [],
+      },
+    };
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => rosterPayload })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ count: 1 }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => rosterPayload });
+
+    render(<StudentRosterPage />);
+    const addButton = await screen.findByRole('button', { name: '+ Add students' });
+    fireEvent.click(addButton);
+    fireEvent.change(screen.getByLabelText('First name'), { target: { value: 'Ada' } });
+    fireEvent.change(screen.getByLabelText('Last name'), { target: { value: 'Lovelace' } });
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'ada@bu.edu' } });
+    fireEvent.change(screen.getByLabelText('Section'), { target: { value: 'A1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add student' }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/courses/course-1/members', {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'STUDENT',
+          members: [{ firstName: 'Ada', lastName: 'Lovelace', email: 'ada@bu.edu', buid: '', sections: 'A1' }],
+        }),
+      });
+    });
+    expect(mockFetch).toHaveBeenCalledTimes(3);
+  });
+
+  it('shows the assessor add modal only to instructors', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        viewerRole: 'INSTRUCTOR',
+        course: {
+          id: 'course-1',
+          title: 'Course 1',
+          createdBy: { name: 'Professor Demo', email: 'prof@example.edu' },
+          enrollments: [],
+        },
+      }),
+    });
+    render(<StudentRosterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: '+ Add assessors' }));
+    expect(screen.getByRole('dialog', { name: 'Add assessors' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Single user' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'CSV upload' })).toBeInTheDocument();
+  });
 });
