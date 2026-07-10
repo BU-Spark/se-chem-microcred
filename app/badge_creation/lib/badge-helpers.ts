@@ -196,13 +196,19 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
   const rubricGoal = badge.rubricGoal
     ? {
         name: badge.rubricGoal.name,
-        passThreshold: badge.rubricGoal.passThreshold,
         taInstructions: badge.rubricGoal.instructions ?? '',
         subgoals: badge.rubricGoal.subgoals.length
           ? badge.rubricGoal.subgoals.map((subgoal) => ({
               id: subgoal.id,
               text: subgoal.text,
-              points: subgoal.points,
+              passThreshold: subgoal.passThreshold,
+              tasks: subgoal.tasks.length
+                ? subgoal.tasks.map((task) => ({
+                    id: task.id,
+                    text: task.text,
+                    points: task.points,
+                  }))
+                : DEFAULT_DRAFT.rubricGoal.subgoals[0].tasks,
             }))
           : DEFAULT_DRAFT.rubricGoal.subgoals,
       }

@@ -239,11 +239,18 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                     select: {
                       id: true,
                       name: true,
-                      totalPoints: true,
-                      passThreshold: true,
                       subgoals: {
                         orderBy: { sortOrder: 'asc' },
-                        select: { id: true, text: true, points: true, sortOrder: true },
+                        select: {
+                          id: true,
+                          text: true,
+                          passThreshold: true,
+                          sortOrder: true,
+                          tasks: {
+                            orderBy: { sortOrder: 'asc' },
+                            select: { id: true, text: true, points: true, sortOrder: true },
+                          },
+                        },
                       },
                     },
                   },

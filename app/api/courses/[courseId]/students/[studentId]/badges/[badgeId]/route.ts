@@ -61,74 +61,81 @@ function formatCheckpointLabel(label: string | null | undefined, sortOrder: numb
   return trimmed;
 }
 
-// Fetch the assessed badge's rubric (one goal, ordered subgoals). Shared by
-// GET (display) and POST (validation + server-side scoring).
+// Fetch the assessed badge's rubric (one goal, ordered subgoals, each with its
+// ordered tasks). Shared by GET (display) and POST (validation + scoring).
 function fetchRubricGoal(badgeId: string) {
   return prisma.rubricGoal.findUnique({
     where: { badgeId },
     select: {
       id: true,
       name: true,
-      totalPoints: true,
-      passThreshold: true,
       instructions: true,
       subgoals: {
         orderBy: { sortOrder: 'asc' },
-        select: { id: true, text: true, points: true, sortOrder: true },
+        select: {
+          id: true,
+          text: true,
+          passThreshold: true,
+          sortOrder: true,
+          tasks: {
+            orderBy: { sortOrder: 'asc' },
+            select: { id: true, text: true, points: true, sortOrder: true },
+          },
+        },
       },
     },
   });
 }
 
-// The assessor submits a pass/fail per subgoal plus an optional override entry
-// (the catch-all for anything the rubric doesn't cover). The score is computed
-// server-side from the rubric, so the payload carries no score.
+// The assessor submits a pass/fail per task. The badge outcome is computed
+// server-side (per-subgoal thresholds, all subgoals must pass), so the payload
+// carries no score. An optional override downgrades a passing result to "still
+// learning" and, when present, must carry feedback (validated in POST).
 function normalizeAssessmentPayload(value: unknown) {
   if (!value || typeof value !== 'object') {
     return null;
   }
 
   const body = value as {
-    passed?: unknown;
-    subgoals?: unknown;
+    tasks?: unknown;
     override?: unknown;
   };
 
-  if (typeof body.passed !== 'boolean' || !Array.isArray(body.subgoals)) {
+  if (!Array.isArray(body.tasks)) {
     return null;
   }
 
-  const subgoals: Array<{ subgoalId: string; passed: boolean; feedback: string }> = [];
-  for (const entry of body.subgoals) {
+  const tasks: Array<{ taskId: string; passed: boolean; feedback: string }> = [];
+  for (const entry of body.tasks) {
     if (!entry || typeof entry !== 'object') {
       return null;
     }
 
-    const item = entry as { subgoalId?: unknown; passed?: unknown; feedback?: unknown };
-    const subgoalId = typeof item.subgoalId === 'string' ? item.subgoalId.trim() : '';
+    const item = entry as { taskId?: unknown; passed?: unknown; feedback?: unknown };
+    const taskId = typeof item.taskId === 'string' ? item.taskId.trim() : '';
 
-    if (!subgoalId || typeof item.passed !== 'boolean') {
+    if (!taskId || typeof item.passed !== 'boolean') {
       return null;
     }
 
-    subgoals.push({
-      subgoalId,
+    tasks.push({
+      taskId,
       passed: item.passed,
       feedback: typeof item.feedback === 'string' ? item.feedback.trim() : '',
     });
   }
 
+  // An override object (even with empty feedback) signals intent to downgrade;
+  // POST rejects it when the feedback is missing.
+  const hasOverride = Boolean(body.override) && typeof body.override === 'object';
   const overrideFeedback =
-    body.override &&
-    typeof body.override === 'object' &&
-    typeof (body.override as { feedback?: unknown }).feedback === 'string'
+    hasOverride && typeof (body.override as { feedback?: unknown }).feedback === 'string'
       ? ((body.override as { feedback: string }).feedback ?? '').trim()
       : '';
 
   return {
-    passed: body.passed,
-    subgoals,
-    override: overrideFeedback ? { feedback: overrideFeedback } : null,
+    tasks,
+    override: hasOverride ? { feedback: overrideFeedback } : null,
   };
 }
 
@@ -524,24 +531,24 @@ export async function GET(
       latestAssessment?.responses && latestAssessment.responses.length > 0
         ? latestAssessment.responses.map((response) => ({
             id: response.id,
-            title: response.isOverride ? 'Assessor override' : response.subgoalText,
+            title: response.isOverride ? 'Assessor override' : `${response.subgoalText} › ${response.taskText}`,
             outcome:
               response.feedback ||
               (response.isOverride
-                ? response.passed
-                  ? 'Passed by assessor decision'
-                  : 'Failed by assessor decision'
+                ? 'Overridden to still learning'
                 : response.passed
                   ? `Passed (+${response.points} ${response.points === 1 ? 'pt' : 'pts'})`
                   : 'Not passed'),
             passed: response.passed,
           }))
-        : (rubricGoal?.subgoals ?? []).map((subgoal) => ({
-            id: subgoal.id,
-            title: subgoal.text,
-            outcome: 'Not assessed yet',
-            passed: false,
-          }));
+        : (rubricGoal?.subgoals ?? []).flatMap((subgoal) =>
+            subgoal.tasks.map((task) => ({
+              id: task.id,
+              title: `${subgoal.text} › ${task.text}`,
+              outcome: 'Not assessed yet',
+              passed: false,
+            }))
+          );
 
     return NextResponse.json(
       {
@@ -575,8 +582,6 @@ export async function GET(
             ? {
                 goalId: rubricGoal.id,
                 goalName: rubricGoal.name,
-                totalPoints: rubricGoal.totalPoints,
-                passThreshold: rubricGoal.passThreshold,
                 instructions: rubricGoal.instructions,
                 subgoals: rubricGoal.subgoals,
               }
@@ -719,42 +724,71 @@ export async function POST(
     }
 
     // The server owns scoring: the payload is matched against the badge's
-    // rubric subgoals and the score derives from the points of passed ones.
+    // rubric tasks and the outcome derives from per-subgoal thresholds.
     const rubricGoal = await fetchRubricGoal(badgeId);
     const rubricSubgoals = rubricGoal?.subgoals ?? [];
-    const responseBySubgoalId = new Map(body.subgoals.map((entry) => [entry.subgoalId, entry]));
-
-    if (
-      body.subgoals.length !== rubricSubgoals.length ||
-      rubricSubgoals.some((subgoal) => !responseBySubgoalId.has(subgoal.id))
-    ) {
-      return NextResponse.json({ error: 'Assessment must cover each rubric subgoal exactly once.' }, { status: 400 });
-    }
-
-    const pointsPossible = rubricSubgoals.reduce((sum, subgoal) => sum + subgoal.points, 0);
-    const pointsEarned = rubricSubgoals.reduce(
-      (sum, subgoal) => (responseBySubgoalId.get(subgoal.id)?.passed ? sum + subgoal.points : sum),
-      0
+    const rubricTasks = rubricSubgoals.flatMap((subgoal) =>
+      subgoal.tasks.map((task) => ({ ...task, subgoalText: subgoal.text }))
     );
-    const score = pointsPossible > 0 ? Math.round((pointsEarned / pointsPossible) * 100) : body.passed ? 100 : 0;
 
-    // The threshold suggests the outcome; the assessor may flip it either way,
-    // but only with an override entry justifying the call.
-    const suggestedPassed = rubricGoal ? pointsEarned >= rubricGoal.passThreshold : body.passed;
-
-    if (body.passed !== suggestedPassed && !body.override) {
+    // Guard against legacy/imported badges or blank rubrics. Without tasks,
+    // validation would trivially pass (empty set == empty set), letting the
+    // badge record a perfect score. Require at least one task to assess.
+    if (!rubricGoal || rubricTasks.length === 0) {
       return NextResponse.json(
-        { error: 'Overriding the score-suggested outcome requires override feedback.' },
+        { error: 'This badge has no rubric or tasks defined and cannot be assessed.' },
         { status: 400 }
       );
     }
 
-    const completedAt = new Date();
-    const nextStatus = body.passed ? BadgeStatus.READY_FOR_FINALIZATION : BadgeStatus.LEARNING;
+    const responseByTaskId = new Map(body.tasks.map((entry) => [entry.taskId, entry]));
 
-    type SubgoalResponseData = {
-      subgoalId: string | null;
+    if (body.tasks.length !== rubricTasks.length || rubricTasks.some((task) => !responseByTaskId.has(task.id))) {
+      return NextResponse.json({ error: 'Assessment must cover each rubric task exactly once.' }, { status: 400 });
+    }
+
+    // A subgoal passes when its passed tasks' weights meet its threshold; the
+    // badge passes only when every subgoal passes.
+    const computedPassed = rubricSubgoals.every((subgoal) => {
+      const earned = subgoal.tasks.reduce(
+        (sum, task) => (responseByTaskId.get(task.id)?.passed ? sum + task.points : sum),
+        0
+      );
+      return earned >= subgoal.passThreshold;
+    });
+
+    // The override is a one-way downgrade of a passing result to "still
+    // learning" and requires justification (issue #119).
+    if (body.override && !computedPassed) {
+      return NextResponse.json(
+        { error: 'Only a passing assessment can be overridden to still learning.' },
+        { status: 400 }
+      );
+    }
+
+    if (body.override && !body.override.feedback) {
+      return NextResponse.json(
+        { error: 'Overriding a passing assessment to still learning requires feedback.' },
+        { status: 400 }
+      );
+    }
+
+    const passed = computedPassed && !body.override;
+
+    const pointsPossible = rubricTasks.reduce((sum, task) => sum + task.points, 0);
+    const pointsEarned = rubricTasks.reduce(
+      (sum, task) => (responseByTaskId.get(task.id)?.passed ? sum + task.points : sum),
+      0
+    );
+    const score = pointsPossible > 0 ? Math.round((pointsEarned / pointsPossible) * 100) : passed ? 100 : 0;
+
+    const completedAt = new Date();
+    const nextStatus = passed ? BadgeStatus.READY_FOR_FINALIZATION : BadgeStatus.LEARNING;
+
+    type TaskResponseData = {
+      taskId: string | null;
       subgoalText: string;
+      taskText: string;
       points: number;
       passed: boolean;
       feedback: string | null;
@@ -762,30 +796,32 @@ export async function POST(
       sortOrder: number;
     };
 
-    const subgoalResponses: SubgoalResponseData[] = rubricSubgoals.map((subgoal) => {
-      const entry = responseBySubgoalId.get(subgoal.id)!;
+    const taskResponses: TaskResponseData[] = rubricTasks.map((task, index) => {
+      const entry = responseByTaskId.get(task.id)!;
       return {
-        subgoalId: subgoal.id,
-        // Snapshot text/points: rubric edits replace subgoal rows and SetNull
-        // the FK, so past attempts must stay readable on their own.
-        subgoalText: subgoal.text,
-        points: subgoal.points,
+        taskId: task.id,
+        // Snapshot text/points: rubric edits replace task rows and SetNull the
+        // FK, so past attempts must stay readable on their own.
+        subgoalText: task.subgoalText,
+        taskText: task.text,
+        points: task.points,
         passed: entry.passed,
         feedback: entry.feedback || null,
         isOverride: false,
-        sortOrder: subgoal.sortOrder,
+        sortOrder: index,
       };
     });
 
-    if (body.override || body.passed !== suggestedPassed) {
-      subgoalResponses.push({
-        subgoalId: null,
+    if (body.override) {
+      taskResponses.push({
+        taskId: null,
         subgoalText: 'Assessor override',
+        taskText: 'Assessor override',
         points: 0,
-        passed: body.passed,
-        feedback: body.override?.feedback ?? null,
+        passed: false,
+        feedback: body.override.feedback,
         isOverride: true,
-        sortOrder: rubricSubgoals.length,
+        sortOrder: rubricTasks.length,
       });
     }
 
@@ -796,7 +832,7 @@ export async function POST(
           badgeId,
           studentId,
           assessorId: user.id,
-          passed: body.passed,
+          passed,
           score,
           pointsEarned: pointsPossible > 0 ? pointsEarned : null,
           pointsPossible: pointsPossible > 0 ? pointsPossible : null,
@@ -805,7 +841,7 @@ export async function POST(
           feedback: body.override?.feedback ?? null,
           completedAt,
           responses: {
-            create: subgoalResponses,
+            create: taskResponses,
           },
         },
       });

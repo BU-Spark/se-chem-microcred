@@ -49,6 +49,7 @@ function latestAttemptSelect() {
       select: {
         id: true,
         subgoalText: true,
+        taskText: true,
         points: true,
         passed: true,
         feedback: true,
@@ -94,15 +95,22 @@ export async function GET(_request: Request, context: RouteContext) {
             select: {
               id: true,
               name: true,
-              totalPoints: true,
-              passThreshold: true,
               subgoals: {
                 orderBy: { sortOrder: 'asc' },
                 select: {
                   id: true,
                   text: true,
-                  points: true,
+                  passThreshold: true,
                   sortOrder: true,
+                  tasks: {
+                    orderBy: { sortOrder: 'asc' },
+                    select: {
+                      id: true,
+                      text: true,
+                      points: true,
+                      sortOrder: true,
+                    },
+                  },
                 },
               },
             },
@@ -139,8 +147,6 @@ export async function GET(_request: Request, context: RouteContext) {
       ? {
           goalId: studentBadge.badge.rubricGoal.id,
           goalName: studentBadge.badge.rubricGoal.name,
-          totalPoints: studentBadge.badge.rubricGoal.totalPoints,
-          passThreshold: studentBadge.badge.rubricGoal.passThreshold,
           subgoals: studentBadge.badge.rubricGoal.subgoals,
         }
       : null,

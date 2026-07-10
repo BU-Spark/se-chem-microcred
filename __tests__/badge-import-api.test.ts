@@ -79,11 +79,19 @@ describe('badge import API', () => {
 
       rubricGoal: {
         name: 'Use the burner safely.',
-        totalPoints: 4,
-        passThreshold: 3,
         subgoals: [
-          { text: 'Light the burner correctly.', points: 2, sortOrder: 0 },
-          { text: 'Shut down safely.', points: 2, sortOrder: 1 },
+          {
+            text: 'Light the burner correctly.',
+            passThreshold: 2,
+            sortOrder: 0,
+            tasks: [{ text: 'Ignite on the first try.', points: 2, sortOrder: 0 }],
+          },
+          {
+            text: 'Shut down safely.',
+            passThreshold: 2,
+            sortOrder: 1,
+            tasks: [{ text: 'Close the gas valve.', points: 2, sortOrder: 0 }],
+          },
         ],
       },
       requirements: [
@@ -247,20 +255,30 @@ describe('badge import API', () => {
     });
     expect(mockPrisma.__tx.rubricGoal.create).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: {
+        data: expect.objectContaining({
           badgeId: 'imported-badge-1',
           name: 'Use the burner safely.',
-          totalPoints: 4,
-          passThreshold: 3,
-        },
+          subgoals: {
+            create: [
+              expect.objectContaining({
+                text: 'Light the burner correctly.',
+                passThreshold: 2,
+                sortOrder: 0,
+                tasks: {
+                  create: [expect.objectContaining({ text: 'Ignite on the first try.', points: 2, sortOrder: 0 })],
+                },
+              }),
+              expect.objectContaining({
+                text: 'Shut down safely.',
+                passThreshold: 2,
+                sortOrder: 1,
+                tasks: { create: [expect.objectContaining({ text: 'Close the gas valve.', points: 2, sortOrder: 0 })] },
+              }),
+            ],
+          },
+        }),
       })
     );
-    expect(mockPrisma.__tx.rubricSubgoal.createMany).toHaveBeenCalledWith({
-      data: [
-        { text: 'Light the burner correctly.', points: 2, sortOrder: 0, goalId: 'goal-copy-1' },
-        { text: 'Shut down safely.', points: 2, sortOrder: 1, goalId: 'goal-copy-1' },
-      ],
-    });
 
     const body = await response.json();
     expect(body).toEqual(
