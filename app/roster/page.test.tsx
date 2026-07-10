@@ -371,4 +371,73 @@ describe('Course roster page', () => {
     expect(screen.getByRole('tab', { name: 'Single user' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'CSV upload' })).toBeInTheDocument();
   });
+
+  it('lets an instructor assign an unassigned student to a new section', async () => {
+    const payload = {
+      viewerRole: 'INSTRUCTOR',
+      course: {
+        id: 'course-1',
+        title: 'Course 1',
+        createdBy: { name: 'Professor Demo', email: 'prof@example.edu' },
+        enrollments: [
+          {
+            id: 'enrollment-1',
+            role: 'STUDENT',
+            status: 'ACTIVE',
+            sections: [],
+            student: { id: 'student-1', name: 'Ada Lovelace', email: 'ada@bu.edu', buid: 'U1' },
+          },
+        ],
+      },
+    };
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => payload })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ sections: ['NEW-1'] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => payload });
+    render(<StudentRosterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Assign section' }));
+    fireEvent.change(screen.getByLabelText('Section'), { target: { value: 'NEW-1' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save sections' }));
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/courses/course-1/enrollments/enrollment-1/sections',
+        expect.objectContaining({ method: 'PUT', body: JSON.stringify({ sections: ['NEW-1'] }) })
+      )
+    );
+  });
+
+  it('lets an instructor add multiple assessor sections', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
+    const payload = {
+      viewerRole: 'INSTRUCTOR',
+      course: {
+        id: 'course-1',
+        title: 'Course 1',
+        createdBy: { name: 'Professor Demo', email: 'prof@example.edu' },
+        enrollments: [
+          {
+            id: 'checker-enrollment',
+            role: 'CHECKER',
+            status: 'ACTIVE',
+            sections: ['A1'],
+            student: { id: 'checker-1', name: 'Alex Checker', email: 'checker@bu.edu', buid: 'U2' },
+          },
+        ],
+      },
+    };
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => payload })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ sections: ['A1', 'B2'] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => payload });
+    render(<StudentRosterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Sections'), { target: { value: 'A1 | B2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save sections' }));
+    await waitFor(() =>
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/courses/course-1/enrollments/checker-enrollment/sections',
+        expect.objectContaining({ body: JSON.stringify({ sections: ['A1', 'B2'] }) })
+      )
+    );
+  });
 });

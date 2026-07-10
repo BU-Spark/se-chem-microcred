@@ -422,6 +422,30 @@
   cursor: not-allowed;
 }
 
+.sectionCell {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.editSectionButton,
+.assignSectionButton {
+  border-radius: 10px;
+  padding: 0.38rem 0.72rem;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+}
+.editSectionButton {
+  border: 1px solid #b8cce2;
+  background: #ffffff;
+  color: #2e6aa9;
+}
+.assignSectionButton {
+  border: none;
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
 /* Remove-student confirmation modal */
 .modalOverlay {
   position: fixed;

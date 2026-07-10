@@ -229,6 +229,10 @@ export default function StudentRosterPage() {
   const [selectedCsv, setSelectedCsv] = useState<File | null>(null);
   const [addError, setAddError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
+  const [sectionMember, setSectionMember] = useState<RosterMemberRow | null>(null);
+  const [sectionValue, setSectionValue] = useState('');
+  const [sectionError, setSectionError] = useState<string | null>(null);
+  const [isSavingSection, setIsSavingSection] = useState(false);
   const csvInputRef = useRef<HTMLInputElement | null>(null);
   const isCheckerRoster = rosterRole === 'CHECKER';
   const rosterLabel = isCheckerRoster ? 'Assessor' : 'Student';
@@ -271,6 +275,7 @@ export default function StudentRosterPage() {
   // Only instructors can remove students, and only on the student roster.
   const canManageStudents = isInstructor && !isCheckerRoster;
   const canAddMembers = isInstructor;
+  const canManageSections = isInstructor;
   const displayName = course?.createdBy?.name || '';
 
   // Pending assessor requests an instructor can approve/decline (CHECKER roster only).
@@ -403,6 +408,51 @@ export default function StudentRosterPage() {
       setRemovingId(null);
     }
   }, [courseId, memberToRemove, refresh]);
+
+  const closeSectionModal = useCallback(() => {
+    if (isSavingSection) return;
+    setSectionMember(null);
+    setSectionError(null);
+  }, [isSavingSection]);
+  const sectionModalRef = useFocusTrap<HTMLDivElement>(Boolean(sectionMember), closeSectionModal);
+
+  const openSectionModal = (member: RosterMemberRow) => {
+    setSectionMember(member);
+    setSectionValue(member.sections.join(' | '));
+    setSectionError(null);
+  };
+
+  const saveSections = async () => {
+    if (!courseId || !sectionMember) return;
+    const sections = sectionValue
+      .split('|')
+      .map((section) => section.trim())
+      .filter(Boolean);
+    if (!isCheckerRoster && sections.length > 1) {
+      setSectionError('Students can only belong to one section.');
+      return;
+    }
+    setIsSavingSection(true);
+    setSectionError(null);
+    try {
+      const response = await fetch(
+        `/api/courses/${encodeURIComponent(courseId)}/enrollments/${encodeURIComponent(sectionMember.enrollmentId)}/sections`,
+        {
+          method: 'PUT',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sections }),
+        }
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Unable to update sections.');
+      setSectionMember(null);
+      await refresh();
+    } catch (error) {
+      setSectionError(error instanceof Error ? error.message : 'Unable to update sections.');
+    } finally {
+      setIsSavingSection(false);
+    }
+  };
 
   const rosterRows = useMemo<RosterMemberRow[]>(() => {
     if (!course) return [];
@@ -805,7 +855,27 @@ export default function StudentRosterPage() {
                             <td>{member.firstName || '—'}</td>
                             <td>{member.buid || '—'}</td>
                             <td>{member.email || '—'}</td>
-                            <td>{member.sectionLabel || '—'}</td>
+                            <td>
+                              {canManageSections ? (
+                                <div className={styles.sectionCell}>
+                                  {member.sectionLabel ? <span>{member.sectionLabel}</span> : null}
+                                  <button
+                                    type="button"
+                                    className={
+                                      member.sectionLabel ? styles.editSectionButton : styles.assignSectionButton
+                                    }
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openSectionModal(member);
+                                    }}
+                                  >
+                                    {member.sectionLabel ? 'Edit' : 'Assign section'}
+                                  </button>
+                                </div>
+                              ) : (
+                                member.sectionLabel || '—'
+                              )}
+                            </td>
                             {canManageStudents ? (
                               <td className={styles.actionsCell}>
                                 <button
@@ -940,6 +1010,58 @@ export default function StudentRosterPage() {
                     onClick={() => void handleAddSubmit()}
                   >
                     {isAdding ? 'Adding…' : addMode === 'single' ? `Add ${rosterLabel.toLowerCase()}` : 'Upload CSV'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {sectionMember ? (
+            <div className={styles.modalOverlay} role="presentation" onMouseDown={closeSectionModal}>
+              <div
+                ref={sectionModalRef}
+                className={styles.modal}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="section-modal-title"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <h2 id="section-modal-title" className={styles.modalTitle}>
+                  {sectionMember.sectionLabel ? 'Change' : 'Assign'}{' '}
+                  {isCheckerRoster ? 'assessor sections' : 'student section'}
+                </h2>
+                <label className={styles.filterField}>
+                  <span className={styles.filterFieldLabel}>{isCheckerRoster ? 'Sections' : 'Section'}</span>
+                  <input
+                    className={styles.filterInput}
+                    value={sectionValue}
+                    onChange={(event) => setSectionValue(event.target.value)}
+                    placeholder={isCheckerRoster ? 'A1 | A2' : 'A1'}
+                    autoFocus
+                  />
+                </label>
+                <p className={styles.addHint}>
+                  {isCheckerRoster
+                    ? 'Separate multiple sections with |. You can enter a new section name.'
+                    : 'You can enter an existing or new section name.'}
+                </p>
+                {sectionError ? <p className={styles.modalError}>{sectionError}</p> : null}
+                <div className={styles.modalActions}>
+                  <button
+                    type="button"
+                    className={styles.clearFiltersButton}
+                    onClick={closeSectionModal}
+                    disabled={isSavingSection}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.applyFiltersButton}
+                    onClick={() => void saveSections()}
+                    disabled={isSavingSection}
+                  >
+                    {isSavingSection ? 'Saving…' : 'Save sections'}
                   </button>
                 </div>
               </div>
