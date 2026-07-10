@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 
 import type { LessonRecord } from '../../hooks/useStudentData';
-import { getMultiAnswerSelectionCount, LessonVideoPage } from './video';
+import { LessonVideoPage } from './video';
 
 const mockPush = jest.fn();
 
@@ -111,17 +111,5 @@ describe('LessonVideoPage', () => {
     );
 
     expect(screen.getAllByText('✓')).toHaveLength(1);
-  });
-  it('derives the answer count shown beside multi-answer question titles', () => {
-    const question = buildLesson().checkpoints[0].questions[0];
-
-    expect(getMultiAnswerSelectionCount({ ...question, correctIndices: [0, 2] })).toBe(2);
-    expect(getMultiAnswerSelectionCount(question)).toBe(1);
-  });
-  it('derives the answer count shown beside multi-answer question titles', () => {
-    const question = buildLesson().checkpoints[0].questions[0];
-
-    expect(getMultiAnswerSelectionCount({ ...question, correctIndices: [0, 2] })).toBe(2);
-    expect(getMultiAnswerSelectionCount(question)).toBe(1);
   });
 });

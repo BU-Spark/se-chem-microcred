@@ -33,12 +33,6 @@ type SelectedAnswerState =
   | { kind: 'multipleChoice'; selectedIndices: number[] }
   | { kind: 'shortAnswer'; raw: string; value: number | null; hasError: boolean };
 
-export function getMultiAnswerSelectionCount(
-  question?: LessonRecord['checkpoints'][number]['questions'][number] | null
-) {
-  return question?.type === 'multipleChoice' ? (question.correctIndices ?? []).length : 0;
-}
-
 type YouTubePlayer = {
   playVideo(): void;
   pauseVideo(): void;
@@ -1224,7 +1218,6 @@ export function LessonVideoPage({
     totalCheckpointQuestions > 0 ? (currentCheckpointQuestions[activeQuestionIndex] ?? null) : null;
   const currentAnswer = currentQuestion ? (selectedAnswers[currentQuestion.id] ?? null) : null;
   const currentShortAnswerValue = currentAnswer?.kind === 'shortAnswer' ? currentAnswer.raw : '';
-  const multiAnswerSelectionCount = getMultiAnswerSelectionCount(currentQuestion);
   const canAdvance = currentQuestion
     ? (() => {
         const selection = selectedAnswers[currentQuestion.id];
@@ -1492,9 +1485,6 @@ export function LessonVideoPage({
                             <span>
                               Question {activeQuestionIndex + 1} of {totalCheckpointQuestions}
                             </span>
-                            {multiAnswerSelectionCount > 1 ? (
-                              <span className={styles.multiAnswerHint}>Select {multiAnswerSelectionCount} answers</span>
-                            ) : null}
                           </div>
                           <p className={styles.questionPrompt}>
                             {currentQuestion.prompt ?? 'Choose the correct answer.'}

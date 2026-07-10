@@ -249,7 +249,7 @@ export default function CheckpointsStep({
                         type="button"
                         className={styles.secondaryButton}
                         onClick={() => addCheckpointQuestionOption(selectedCheckpoint.id, question.id)}
-                        disabled={question.options.length >= 4}
+                        disabled={question.options.length >= 8}
                       >
                         Add choice
                       </button>

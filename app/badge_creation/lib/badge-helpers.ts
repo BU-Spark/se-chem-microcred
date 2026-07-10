@@ -137,7 +137,7 @@ type CatalogCheckpoint = Partial<CheckpointDraft> & {
 };
 
 function normalizeChoicePlaceholders(options?: string[] | null) {
-  const base = options?.length ? options.slice(0, 4) : ['', ''];
+  const base = options?.length ? options.slice(0, 8) : ['', ''];
   while (base.length < 2) base.push('');
   return base;
 }

@@ -131,6 +131,10 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByLabelText('Question 1 choice 2 is correct'));
     fireEvent.click(screen.getByRole('button', { name: 'Add choice' }));
     fireEvent.click(screen.getByRole('button', { name: 'Add choice' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add choice' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add choice' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add choice' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add choice' }));
     expect(screen.getByRole('button', { name: 'Add choice' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Add question' }));
     fireEvent.change(screen.getByLabelText('Question 2 prompt'), {
@@ -217,14 +221,14 @@ describe('Badge creation page', () => {
       expect.objectContaining({
         questionType: 'multipleChoice',
         question: 'What should you check first?',
-        options: ['Gas valve is off', 'Bench is wet', '', ''],
+        options: ['Gas valve is off', 'Bench is wet', '', '', '', '', '', ''],
         correctIndices: [0, 1],
       })
     );
     expect(body.checkpoints[0].questions).toEqual([
       expect.objectContaining({
         question: 'What should you check first?',
-        options: ['Gas valve is off', 'Bench is wet', '', ''],
+        options: ['Gas valve is off', 'Bench is wet', '', '', '', '', '', ''],
         correctIndices: [0, 1],
       }),
       expect.objectContaining({

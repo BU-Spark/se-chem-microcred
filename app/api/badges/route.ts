@@ -197,7 +197,7 @@ function normalizeOptions(options?: string[] | null) {
     .map((option) => normalizeString(option))
     .filter((option): option is string => Boolean(option));
 
-  const capped = normalized.slice(0, 4);
+  const capped = normalized.slice(0, 8);
   while (capped.length < 2) {
     capped.push(capped.length === 0 ? 'Yes' : 'No');
   }
