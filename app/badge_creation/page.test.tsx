@@ -167,19 +167,25 @@ describe('Badge creation page', () => {
     fireEvent.change(screen.getByLabelText('Rubric goal name'), {
       target: { value: 'Safe burner operation' },
     });
-    fireEvent.change(screen.getByLabelText('Subgoal 1'), {
+    fireEvent.change(screen.getByLabelText('Subgoal 1 title'), {
+      target: { value: 'Setup and shutdown' },
+    });
+    fireEvent.change(screen.getByLabelText('Subgoal 1 task 1'), {
       target: { value: 'Student performs setup and shutdown safely.' },
     });
-    fireEvent.change(screen.getByLabelText('Subgoal 1 points'), {
+    fireEvent.change(screen.getByLabelText('Subgoal 1 task 1 points'), {
       target: { value: '3' },
     });
-    // The subgoal list auto-numbers: pressing Enter on a filled row spawns the next.
-    fireEvent.keyDown(screen.getByLabelText('Subgoal 1'), { key: 'Enter' });
-    fireEvent.change(screen.getByLabelText('Subgoal 2'), {
-      target: { value: 'Student explains the safety reason for each step.' },
+    fireEvent.change(screen.getByLabelText('Subgoal 1 pass threshold points'), {
+      target: { value: '3' },
     });
-    fireEvent.change(screen.getByLabelText('Pass threshold points'), {
-      target: { value: '2' },
+    // Add a second subgoal (with its default single task).
+    fireEvent.click(screen.getByRole('button', { name: 'Add subgoal' }));
+    fireEvent.change(screen.getByLabelText('Subgoal 2 title'), {
+      target: { value: 'Explains safety' },
+    });
+    fireEvent.change(screen.getByLabelText('Subgoal 2 task 1'), {
+      target: { value: 'Student explains the safety reason for each step.' },
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
@@ -239,10 +245,17 @@ describe('Badge creation page', () => {
     expect(body.rubricGoal).toEqual(
       expect.objectContaining({
         name: 'Safe burner operation',
-        passThreshold: 2,
         subgoals: [
-          { id: 'subgoal-1', text: 'Student performs setup and shutdown safely.', points: 3 },
-          expect.objectContaining({ text: 'Student explains the safety reason for each step.', points: 1 }),
+          expect.objectContaining({
+            text: 'Setup and shutdown',
+            passThreshold: 3,
+            tasks: [expect.objectContaining({ text: 'Student performs setup and shutdown safely.', points: 3 })],
+          }),
+          expect.objectContaining({
+            text: 'Explains safety',
+            passThreshold: 1,
+            tasks: [expect.objectContaining({ text: 'Student explains the safety reason for each step.', points: 1 })],
+          }),
         ],
       })
     );
@@ -267,10 +280,13 @@ describe('Badge creation page', () => {
       target: { value: 'Standalone Badge' },
     });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> video
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> rubric
+    fireEvent.change(screen.getByLabelText('Rubric goal name'), {
+      target: { value: 'Demonstrate the skill' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> review
     fireEvent.click(screen.getByRole('button', { name: 'Create Badge' }));
 
     await waitFor(() => {
@@ -303,13 +319,18 @@ describe('Badge creation page', () => {
               id: 'badge-1',
               name: 'Original Badge',
               description: 'Original description.',
-              category: 'SAFETY',
               rubricGoal: {
                 id: 'goal-1',
                 name: 'Original goal',
-                totalPoints: 2,
-                passThreshold: 2,
-                subgoals: [{ id: 'subgoal-1', text: 'Original subgoal.', points: 2, sortOrder: 0 }],
+                subgoals: [
+                  {
+                    id: 'subgoal-1',
+                    text: 'Original subgoal.',
+                    passThreshold: 2,
+                    sortOrder: 0,
+                    tasks: [{ id: 'task-1', text: 'Original task.', points: 2, sortOrder: 0 }],
+                  },
+                ],
               },
               requirements: [
                 {
@@ -386,8 +407,15 @@ describe('Badge creation page', () => {
         badgeName: 'Updated Badge',
         rubricGoal: {
           name: 'Original goal',
-          passThreshold: 2,
-          subgoals: [{ id: 'subgoal-1', text: 'Original subgoal.', points: 2 }],
+          taInstructions: '',
+          subgoals: [
+            {
+              id: 'subgoal-1',
+              text: 'Original subgoal.',
+              passThreshold: 2,
+              tasks: [{ id: 'task-1', text: 'Original task.', points: 2 }],
+            },
+          ],
         },
       })
     );
@@ -419,6 +447,9 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> rubric
+    fireEvent.change(screen.getByLabelText('Rubric goal name'), {
+      target: { value: 'Pipette accurately' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> review
     fireEvent.click(screen.getByRole('button', { name: 'Create Badge' }));
 
@@ -454,5 +485,25 @@ describe('Badge creation page', () => {
     expect(screen.getByText('Fix the highlighted video fields before continuing.')).toBeInTheDocument();
     // Still on the video step (link field remains visible).
     expect(screen.getByLabelText('Paste YouTube link here')).toBeInTheDocument();
+  });
+
+  it('blocks advancing past the rubric step without a goal name', async () => {
+    render(<BadgeCreationPage />);
+
+    fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Burner' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> video
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> rubric
+
+    // Leaving the goal name blank blocks the step and surfaces an error.
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Add a rubric goal name before continuing.')).toBeInTheDocument();
+    // Still on the rubric step (the goal name field remains visible).
+    expect(screen.getByLabelText('Rubric goal name')).toBeInTheDocument();
+
+    // Providing a name unblocks advancing to review.
+    fireEvent.change(screen.getByLabelText('Rubric goal name'), { target: { value: 'Operate the burner safely' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByRole('button', { name: 'Create Badge' })).toBeInTheDocument();
   });
 });

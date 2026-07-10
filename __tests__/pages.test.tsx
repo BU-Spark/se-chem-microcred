@@ -281,7 +281,7 @@ function createStudentData(): StudentData {
           youtubeUrl: null,
           name: 'Bunsen Burner Badge',
           description: 'Complete badge',
-          category: 'Safety',
+
           status: 'COMPLETED',
           awardedAt: '2024-01-01T00:00:00.000Z',
           score: 95,
@@ -296,7 +296,7 @@ function createStudentData(): StudentData {
           youtubeUrl: null,
           name: 'Assessment Badge',
           description: 'Needs in-person assessment',
-          category: 'Safety',
+
           status: 'READY_FOR_ASSESSMENT',
           awardedAt: null,
           score: null,
@@ -311,7 +311,7 @@ function createStudentData(): StudentData {
           youtubeUrl: null,
           name: 'Finalize Badge',
           description: 'Needs survey',
-          category: 'Safety',
+
           status: 'READY_FOR_FINALIZATION',
           awardedAt: null,
           score: null,
@@ -326,7 +326,7 @@ function createStudentData(): StudentData {
           youtubeUrl: null,
           name: 'Learning Badge',
           description: 'Still learning',
-          category: 'Safety',
+
           status: 'LEARNING',
           awardedAt: null,
           score: null,

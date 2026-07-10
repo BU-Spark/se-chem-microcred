@@ -1,5 +1,3 @@
-import type { BadgeCategory } from '@prisma/client';
-
 export type StepKey = 'badgeInfo' | 'lessonVideo' | 'checkpoints' | 'rubric' | 'review';
 
 export type StepDefinition = {
@@ -31,23 +29,31 @@ export type CheckpointDraft = CheckpointQuestionDraft & {
   questions: CheckpointQuestionDraft[];
 };
 
-export type RubricSubgoalDraft = {
+export type RubricTaskDraft = {
   id: string;
   text: string;
   points: number;
 };
 
+export type RubricSubgoalDraft = {
+  id: string;
+  text: string;
+  // Point threshold the summed weights of passed tasks must reach for this
+  // subgoal to pass; defaults to the sum of its task weights.
+  passThreshold: number;
+  tasks: RubricTaskDraft[];
+};
+
 export type RubricGoalDraft = {
   name: string;
-  // Points needed to pass; total points is derived from the subgoals.
-  passThreshold: number;
   subgoals: RubricSubgoalDraft[];
+  // Rich-text (HTML) instructions for TAs to relay to students during assessment.
+  taInstructions: string;
 };
 
 export type BadgeDraft = {
   badgeName: string;
   badgeDescription: string;
-  category: BadgeCategory;
   // LinkedIn-style skill tags (max 5). Persisted in BadgeRequirement.summary JSON.
   skills: string[];
   availableOn: string;
@@ -70,16 +76,20 @@ export type BadgeCatalogItem = {
   id: string;
   name: string;
   description: string | null;
-  category: BadgeCategory | null;
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
   rubricGoal?: {
     id: string;
     name: string;
-    totalPoints: number;
-    passThreshold: number;
-    subgoals: Array<{ id: string; text: string; points: number; sortOrder: number }>;
+    instructions?: string | null;
+    subgoals: Array<{
+      id: string;
+      text: string;
+      passThreshold: number;
+      sortOrder: number;
+      tasks: Array<{ id: string; text: string; points: number; sortOrder: number }>;
+    }>;
   } | null;
   requirements: Array<{
     displayText: string;
@@ -116,7 +126,7 @@ export type BadgesResponse = {
   badges: BadgeCatalogItem[];
 };
 
-export const DRAFT_STORAGE_KEY = 'badge_creation_draft_v3';
+export const DRAFT_STORAGE_KEY = 'badge_creation_draft_v4';
 export const DEFAULT_VIDEO_FALLBACK = 'Lesson video';
 
 export const STEP_DEFINITIONS: StepDefinition[] = [
@@ -130,7 +140,6 @@ export const STEP_DEFINITIONS: StepDefinition[] = [
 export const DEFAULT_DRAFT: BadgeDraft = {
   badgeName: '',
   badgeDescription: '',
-  category: 'OTHER',
   skills: [],
   availableOn: '',
   closesOn: '',
@@ -146,13 +155,20 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   reassessmentResources: [],
   rubricGoal: {
     name: '',
-    passThreshold: 1,
     subgoals: [
       {
         id: 'subgoal-1',
         text: '',
-        points: 1,
+        passThreshold: 1,
+        tasks: [
+          {
+            id: 'task-1',
+            text: '',
+            points: 1,
+          },
+        ],
       },
     ],
+    taInstructions: '',
   },
 };

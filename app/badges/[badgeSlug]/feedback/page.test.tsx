@@ -28,6 +28,12 @@ jest.mock('../../../hooks/useStudentData', () => ({
   useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
 }));
 
+// The Sidebar rendered by this page reads content-access; stub it so it doesn't add
+// a /api/me/access fetch that would perturb the fetch expectations.
+jest.mock('../../../hooks/useCanCreateContent', () => ({
+  useCanCreateContent: () => ({ canCreateContent: true, isAdmin: true, isLoading: false }),
+}));
+
 type MockImageProps = {
   src: string | { src: string };
   alt: string;
@@ -60,7 +66,6 @@ function studentData() {
           slug: 'learning-badge',
           name: 'Learning Badge',
           description: 'Needs feedback review',
-          category: 'Safety',
           status: 'LEARNING' as const,
           awardedAt: null,
           score: 40,
@@ -104,9 +109,15 @@ describe('Badge feedback page', () => {
           rubric: {
             goalId: 'goal-1',
             goalName: 'Operate safely',
-            totalPoints: 5,
-            passThreshold: 4,
-            subgoals: [{ id: 'subgoal-1', text: 'Wear PPE', points: 2, sortOrder: 0 }],
+            subgoals: [
+              {
+                id: 'subgoal-1',
+                text: 'Wear PPE',
+                passThreshold: 2,
+                sortOrder: 0,
+                tasks: [{ id: 'task-1', text: 'Wears goggles', points: 2, sortOrder: 0 }],
+              },
+            ],
           },
           latestAttempt: {
             id: 'attempt-1',
@@ -121,6 +132,7 @@ describe('Badge feedback page', () => {
               {
                 id: 'response-1',
                 subgoalText: 'Wear PPE',
+                taskText: 'Wears goggles',
                 points: 2,
                 passed: false,
                 feedback: 'Goggles were missing.',
@@ -130,6 +142,7 @@ describe('Badge feedback page', () => {
               {
                 id: 'response-override',
                 subgoalText: 'Assessor override',
+                taskText: 'Assessor override',
                 points: 0,
                 passed: false,
                 feedback: 'Assessor override: unsafe flame control.',
@@ -157,6 +170,9 @@ describe('Badge feedback page', () => {
     expect(screen.getByText('Assessor override: unsafe flame control.')).toBeInTheDocument();
     expect(document.querySelector('.badgeCard')).not.toHaveTextContent('Assessor override: unsafe flame control.');
     expect(screen.getAllByText('Needs work')).toHaveLength(2);
+    expect(screen.getByText('Wears goggles')).toBeInTheDocument();
+    expect(screen.getByText('2 points')).toBeInTheDocument();
+    expect(screen.getByText('Pass at 2 pts')).toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Review Lesson/i })).toHaveAttribute(

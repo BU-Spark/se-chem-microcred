@@ -124,20 +124,39 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
         </p>
 
         <ol className={styles.reviewOrderedList}>
-          {draft.rubricGoal.subgoals.map((subgoal) => (
-            <li key={subgoal.id}>
-              {subgoal.text || <span className={styles.reviewMuted}>Empty subgoal</span>}{' '}
-              <strong>
-                ({subgoal.points} {subgoal.points === 1 ? 'point' : 'points'})
-              </strong>
-            </li>
-          ))}
+          {draft.rubricGoal.subgoals.map((subgoal) => {
+            const subgoalTotal = subgoal.tasks.reduce((sum, task) => sum + (task.points || 0), 0);
+            return (
+              <li key={subgoal.id}>
+                {subgoal.text || <span className={styles.reviewMuted}>Untitled subgoal</span>}{' '}
+                <strong>
+                  (pass at {subgoal.passThreshold} of {subgoalTotal} pts)
+                </strong>
+                {subgoal.tasks.length > 0 ? (
+                  <ul className={styles.reviewTaskList}>
+                    {subgoal.tasks.map((task) => (
+                      <li key={task.id}>
+                        {task.text || <span className={styles.reviewMuted}>Empty task</span>}{' '}
+                        <strong>
+                          ({task.points} {task.points === 1 ? 'pt' : 'pts'})
+                        </strong>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <span className={styles.reviewMuted}> — no tasks</span>
+                )}
+              </li>
+            );
+          })}
         </ol>
 
-        <p className={styles.reviewMeta}>
-          <strong>{draft.rubricGoal.subgoals.reduce((sum, subgoal) => sum + (subgoal.points || 0), 0)}</strong> points
-          possible, pass at <strong>{draft.rubricGoal.passThreshold}</strong>
-        </p>
+        <div className={styles.reviewSubsectionHeader}>TA Instructions</div>
+        {draft.rubricGoal.taInstructions.trim() ? (
+          <div className="rte-readonly" dangerouslySetInnerHTML={{ __html: draft.rubricGoal.taInstructions }} />
+        ) : (
+          <p className={styles.reviewMuted}>No instructions added</p>
+        )}
       </section>
     </div>
   );

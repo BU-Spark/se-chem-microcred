@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { BadgeCategory, CourseRole, Prisma, SurveyContext } from '@prisma/client';
+import { CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
 import prisma from '@/lib/prisma';
@@ -288,7 +288,6 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
           slug: string;
           name: string;
           description: string | null;
-          category: BadgeCategory | null;
           createdById: string;
           sourceBadgeId: string;
         }[] = [];
@@ -306,7 +305,6 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
               slug: newSlug,
               name: sourceBadge.name,
               description: sourceBadge.description,
-              category: sourceBadge.category,
               createdById: creator.id,
               sourceBadgeId: sourceBadge.sourceBadgeId ?? sourceBadge.id,
             });

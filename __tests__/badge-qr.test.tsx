@@ -84,7 +84,7 @@ function createStudentData() {
         slug: 'assessment-badge',
         name: 'Assessment Badge',
         description: 'Needs in-person assessment',
-        category: 'Safety',
+
         status: 'READY_FOR_ASSESSMENT',
         awardedAt: null,
         score: null,
@@ -195,7 +195,7 @@ describe('Badge Wallet QR modal', () => {
         slug: 'learning-badge',
         name: 'Learning Badge',
         description: 'Needs feedback review',
-        category: 'Safety',
+
         status: 'LEARNING' as const,
         awardedAt: null,
         score: 40,

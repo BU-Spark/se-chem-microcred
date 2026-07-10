@@ -70,7 +70,6 @@ function createStudentProfilePayload() {
           slug: 'waste-handling',
           name: 'Waste Handling',
           description: null,
-          category: 'WASTE',
           status: 'LEARNING',
           awardedAt: null,
           score: null,
@@ -82,7 +81,6 @@ function createStudentProfilePayload() {
           slug: 'bunsen-burner',
           name: 'Bunsen Burners',
           description: null,
-          category: 'EQUIPMENT',
         },
       ],
       readyForFinalization: [] as Array<{
@@ -90,7 +88,7 @@ function createStudentProfilePayload() {
         slug: string;
         name: string;
         description: string | null;
-        category: string | null;
+
         status: string;
         awardedAt: string | null;
         score: number | null;
@@ -101,7 +99,7 @@ function createStudentProfilePayload() {
           slug: 'vent-hood',
           name: 'Vent Hood Safety',
           description: null,
-          category: 'SAFETY',
+
           status: 'COMPLETED',
           awardedAt: '2026-03-22T10:00:00.000Z',
           score: 95,
@@ -118,7 +116,7 @@ function createInProgressBadgeDetailPayload() {
       slug: 'waste-handling',
       name: 'Waste Handling',
       description: null,
-      category: 'WASTE',
+
       status: 'LEARNING',
       awardedAt: null,
       score: null,
@@ -175,7 +173,7 @@ function createCompletedBadgeDetailPayload() {
       slug: 'vent-hood',
       name: 'Vent Hood Safety',
       description: null,
-      category: 'SAFETY',
+
       status: 'COMPLETED',
       awardedAt: '2026-03-22T10:00:00.000Z',
       score: 95,
@@ -533,7 +531,7 @@ describe('Roster member profile page', () => {
               slug: 'waste-handling',
               name: 'Waste Handling',
               description: null,
-              category: 'WASTE',
+
               status: 'LEARNING',
               awardedAt: null,
               score: null,
@@ -545,7 +543,6 @@ describe('Roster member profile page', () => {
               slug: 'bunsen-burner',
               name: 'Bunsen Burners',
               description: null,
-              category: 'EQUIPMENT',
             },
           ],
           readyForFinalization: [],

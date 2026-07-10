@@ -379,7 +379,6 @@ model Badge {
   slug            String             @unique
   name            String
   description     String?
-  category        BadgeCategory?
   createdById     String?
   sourceBadgeId   String?
   availableOn     DateTime?
@@ -401,39 +400,54 @@ model Badge {
   @@index([sourceBadgeId])
 }
 
+// The "primary goal" for a badge — named after the badge itself. Holds the
+// subgoals; the badge passes only when every subgoal passes, so there is no
+// goal-level point total or threshold anymore.
 model RubricGoal {
-  id            String   @id @default(cuid())
-  badgeId       String   @unique
-  name          String
-  totalPoints   Int      @default(0)
-  passThreshold Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id      String @id @default(cuid())
+  badgeId String @unique
+  name    String
+  // Rich-text (HTML) instructions for TAs to relay to students during assessment.
+  instructions String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   badge    Badge           @relation(fields: [badgeId], references: [id], onDelete: Cascade)
   subgoals RubricSubgoal[]
 }
 
+// A grouping of tasks (e.g. "Turning on", "Cleaning"). Passes when the summed
+// weights of its passed tasks meet passThreshold.
 model RubricSubgoal {
+  id            String   @id @default(cuid())
+  goalId        String
+  text          String
+  passThreshold Int      @default(0)
+  sortOrder     Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  goal  RubricGoal   @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  tasks RubricTask[]
+
+  @@unique([goalId, sortOrder])
+}
+
+// A leaf item the assessor grades pass/fail. Carries a point weight that counts
+// toward its subgoal's threshold when passed.
+model RubricTask {
   id        String   @id @default(cuid())
-  goalId    String
+  subgoalId String
   text      String
   points    Int      @default(1)
   sortOrder Int
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  goal      RubricGoal                  @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  responses AssessmentSubgoalResponse[]
+  subgoal   RubricSubgoal            @relation(fields: [subgoalId], references: [id], onDelete: Cascade)
+  responses AssessmentTaskResponse[]
 
-  @@unique([goalId, sortOrder])
-}
-
-enum BadgeCategory {
-  SAFETY
-  EQUIPMENT
-  WASTE
-  OTHER
+  @@unique([subgoalId, sortOrder])
 }
 
 model BadgeRequirement {
@@ -504,11 +518,11 @@ model AssessmentAttempt {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  course    Course                      @relation(fields: [courseId], references: [id])
-  badge     Badge                       @relation(fields: [badgeId], references: [id])
-  student   User                        @relation("AssessmentStudent", fields: [studentId], references: [id])
-  assessor  User                        @relation("AssessmentAssessor", fields: [assessorId], references: [id])
-  responses AssessmentSubgoalResponse[]
+  course    Course                   @relation(fields: [courseId], references: [id])
+  badge     Badge                    @relation(fields: [badgeId], references: [id])
+  student   User                     @relation("AssessmentStudent", fields: [studentId], references: [id])
+  assessor  User                     @relation("AssessmentAssessor", fields: [assessorId], references: [id])
+  responses AssessmentTaskResponse[]
 
   @@index([courseId, badgeId])
   @@index([studentId, badgeId])
@@ -529,11 +543,14 @@ model AssessmentAccessCode {
   @@index([studentId, badgeId, courseId])
 }
 
-model AssessmentSubgoalResponse {
+model AssessmentTaskResponse {
   id          String   @id @default(cuid())
   attemptId   String
-  subgoalId   String?
+  taskId      String?
+  // Snapshots taken at grade time so past attempts stay readable after rubric
+  // edits (the FK is SetNull): parent subgoal title, task text, and task weight.
   subgoalText String
+  taskText    String
   points      Int      @default(0)
   passed      Boolean
   feedback    String?
@@ -542,7 +559,7 @@ model AssessmentSubgoalResponse {
   createdAt   DateTime @default(now())
 
   attempt AssessmentAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  subgoal RubricSubgoal?    @relation(fields: [subgoalId], references: [id], onDelete: SetNull)
+  task    RubricTask?       @relation(fields: [taskId], references: [id], onDelete: SetNull)
 
   @@index([attemptId])
 }

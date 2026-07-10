@@ -58,7 +58,6 @@ export async function GET(request: NextRequest, context: BadgeExportContext) {
       website: 'https://checkd.example.com',
     },
     description: studentBadge.badge.description,
-    category: studentBadge.badge.category,
   };
 
   const issueYear = issuedDate.getUTCFullYear();

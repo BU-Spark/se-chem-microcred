@@ -9,7 +9,14 @@ import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
 import { DEFAULT_DRAFT, DRAFT_STORAGE_KEY, STEP_DEFINITIONS } from './types';
-import type { BadgeDraft, BadgesResponse, CheckpointDraft, CheckpointQuestionDraft, RubricSubgoalDraft } from './types';
+import type {
+  BadgeDraft,
+  BadgesResponse,
+  CheckpointDraft,
+  CheckpointQuestionDraft,
+  RubricSubgoalDraft,
+  RubricTaskDraft,
+} from './types';
 import {
   badgeToDraft,
   buildVideoThumbnail,
@@ -388,40 +395,73 @@ export default function BadgeCreationPage() {
     updateDraft('rubricGoal', { ...draft.rubricGoal, name });
   };
 
-  const updateRubricGoalThreshold = (points: number) => {
-    updateDraft('rubricGoal', { ...draft.rubricGoal, passThreshold: points });
+  const updateRubricInstructions = (taInstructions: string) => {
+    updateDraft('rubricGoal', { ...draft.rubricGoal, taInstructions });
   };
 
-  const updateSubgoal = (subgoalId: string, patch: Partial<Omit<RubricSubgoalDraft, 'id'>>) => {
-    updateDraft('rubricGoal', {
-      ...draft.rubricGoal,
-      subgoals: draft.rubricGoal.subgoals.map((subgoal) =>
-        subgoal.id === subgoalId ? { ...subgoal, ...patch } : subgoal
-      ),
-    });
+  // Apply a transform to the subgoal list using the LATEST committed draft
+  // (functional setState) so rapid nested edits in one React batch aren't dropped.
+  const mutateSubgoals = (updater: (subgoals: RubricSubgoalDraft[]) => RubricSubgoalDraft[]) => {
+    setDraft((current) => ({
+      ...current,
+      rubricGoal: { ...current.rubricGoal, subgoals: updater(current.rubricGoal.subgoals) },
+    }));
+    setSubmissionState(null);
+    setSubmitError('');
+  };
+
+  const updateSubgoal = (subgoalId: string, patch: Partial<Omit<RubricSubgoalDraft, 'id' | 'tasks'>>) => {
+    mutateSubgoals((subgoals) =>
+      subgoals.map((subgoal) => (subgoal.id === subgoalId ? { ...subgoal, ...patch } : subgoal))
+    );
   };
 
   const addSubgoal = () => {
-    updateDraft('rubricGoal', {
-      ...draft.rubricGoal,
-      subgoals: [
-        ...draft.rubricGoal.subgoals,
-        {
-          id: `subgoal-${Date.now()}`,
-          text: '',
-          points: 1,
-        },
-      ],
-    });
+    mutateSubgoals((subgoals) => [
+      ...subgoals,
+      {
+        id: `subgoal-${Date.now()}`,
+        text: '',
+        passThreshold: 1,
+        tasks: [{ id: `task-${Date.now()}`, text: '', points: 1 }],
+      },
+    ]);
   };
 
   const removeSubgoal = (subgoalId: string) => {
-    if (draft.rubricGoal.subgoals.length <= 1) return;
+    mutateSubgoals((subgoals) =>
+      subgoals.length <= 1 ? subgoals : subgoals.filter((subgoal) => subgoal.id !== subgoalId)
+    );
+  };
 
-    updateDraft('rubricGoal', {
-      ...draft.rubricGoal,
-      subgoals: draft.rubricGoal.subgoals.filter((subgoal) => subgoal.id !== subgoalId),
-    });
+  const updateTask = (subgoalId: string, taskId: string, patch: Partial<Omit<RubricTaskDraft, 'id'>>) => {
+    mutateSubgoals((subgoals) =>
+      subgoals.map((subgoal) =>
+        subgoal.id === subgoalId
+          ? { ...subgoal, tasks: subgoal.tasks.map((task) => (task.id === taskId ? { ...task, ...patch } : task)) }
+          : subgoal
+      )
+    );
+  };
+
+  const addTask = (subgoalId: string) => {
+    mutateSubgoals((subgoals) =>
+      subgoals.map((subgoal) =>
+        subgoal.id === subgoalId
+          ? { ...subgoal, tasks: [...subgoal.tasks, { id: `task-${Date.now()}`, text: '', points: 1 }] }
+          : subgoal
+      )
+    );
+  };
+
+  const removeTask = (subgoalId: string, taskId: string) => {
+    mutateSubgoals((subgoals) =>
+      subgoals.map((subgoal) =>
+        subgoal.id === subgoalId && subgoal.tasks.length > 1
+          ? { ...subgoal, tasks: subgoal.tasks.filter((task) => task.id !== taskId) }
+          : subgoal
+      )
+    );
   };
 
   const goToStep = (stepIndex: number) => {
@@ -475,6 +515,12 @@ export default function BadgeCreationPage() {
         setSubmitError('Fix the highlighted video fields before continuing.');
         return;
       }
+    }
+
+    // Require a rubric goal name before leaving the Create Rubric step.
+    if (currentStep === 3 && !draft.rubricGoal.name.trim()) {
+      setSubmitError('Add a rubric goal name before continuing.');
+      return;
     }
 
     if (currentStep < STEP_DEFINITIONS.length - 1) {
@@ -563,10 +609,13 @@ export default function BadgeCreationPage() {
               <RubricStep
                 draft={draft}
                 updateRubricGoalName={updateRubricGoalName}
-                updateRubricGoalThreshold={updateRubricGoalThreshold}
+                updateRubricInstructions={updateRubricInstructions}
                 updateSubgoal={updateSubgoal}
                 addSubgoal={addSubgoal}
                 removeSubgoal={removeSubgoal}
+                updateTask={updateTask}
+                addTask={addTask}
+                removeTask={removeTask}
               />
             )}
 

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { BadgeCategory, BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
+import { BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
 
 import prisma from '@/lib/prisma';
+import { canCreateContent } from '@/lib/adminAccess';
 
 type CheckpointQuestionPayload = {
   id?: string | null;
@@ -29,15 +30,22 @@ type CheckpointPayload = CheckpointQuestionPayload & {
   questions?: CheckpointQuestionPayload[] | null;
 };
 
-type RubricSubgoalPayload = {
+type RubricTaskPayload = {
   id?: string;
   text?: string | null;
   points?: number | string | null;
 };
 
+type RubricSubgoalPayload = {
+  id?: string;
+  text?: string | null;
+  passThreshold?: number | string | null;
+  tasks?: RubricTaskPayload[] | null;
+};
+
 type RubricGoalPayload = {
   name?: string | null;
-  passThreshold?: number | string | null;
+  taInstructions?: string | null;
   subgoals?: RubricSubgoalPayload[] | null;
 };
 
@@ -45,7 +53,6 @@ type CreateBadgePayload = {
   courseId?: string | null;
   badgeName?: string | null;
   badgeDescription?: string | null;
-  category?: BadgeCategory | null;
   skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;
@@ -62,7 +69,6 @@ type UpdateBadgePayload = {
   id?: string | null;
   badgeName?: string | null;
   badgeDescription?: string | null;
-  category?: BadgeCategory | null;
   skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;
@@ -80,8 +86,18 @@ function normalizeString(value?: string | null) {
   return trimmed ? trimmed : null;
 }
 
-function normalizeCategory(value?: string | null) {
-  return value && Object.values(BadgeCategory).includes(value as BadgeCategory) ? (value as BadgeCategory) : null;
+// Rich-text (HTML) fields are stored verbatim, but an "empty" editor still
+// serializes to markup like `<p><br></p>`. Treat markup with no visible text
+// or embedded media as empty so it persists as null.
+function normalizeRichText(value?: string | null) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const textContent = trimmed
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .trim();
+  const hasEmbeddedContent = /<(img|iframe|video|audio|hr)\b/i.test(trimmed);
+  return textContent || hasEmbeddedContent ? trimmed : null;
 }
 
 // Trim, drop empties, case-insensitive de-dupe, cap at 5. The API is the
@@ -310,30 +326,44 @@ function normalizePassingPercent(value: number | string | null | undefined) {
   return Math.min(100, Math.max(0, Math.round(parsed)));
 }
 
-// The rubric is a single goal with point-weighted subgoals. Total points is
-// always derived from the subgoals; the pass threshold is clamped to it and
-// defaults to the full total (every point required) when omitted.
+// The rubric is one goal (named after the badge) with subgoals, each holding
+// point-weighted tasks. A subgoal's passThreshold is clamped to the sum of its
+// task weights and defaults to that full sum (every task required) when omitted.
+// Tasks with no text are dropped; a subgoal survives if it has a title or any task.
 function normalizeRubricGoal(goal?: RubricGoalPayload | null) {
   const name = normalizeString(goal?.name);
+  const instructions = normalizeRichText(goal?.taInstructions);
   const subgoals = (goal?.subgoals ?? [])
-    .map((subgoal) => ({
-      text: normalizeString(subgoal.text),
-      points: normalizePoints(subgoal.points, 1),
-    }))
-    .filter((subgoal): subgoal is { text: string; points: number } => Boolean(subgoal.text))
-    .map((subgoal, index) => ({ ...subgoal, sortOrder: index }));
+    .map((subgoal) => {
+      const tasks = (subgoal.tasks ?? [])
+        .map((task) => ({
+          text: normalizeString(task.text),
+          points: normalizePoints(task.points, 1),
+        }))
+        .filter((task): task is { text: string; points: number } => Boolean(task.text))
+        .map((task, index) => ({ ...task, sortOrder: index }));
+      const taskPointsTotal = tasks.reduce((sum, task) => sum + task.points, 0);
+      return {
+        text: normalizeString(subgoal.text),
+        passThreshold: Math.min(taskPointsTotal, normalizePoints(subgoal.passThreshold, taskPointsTotal)),
+        tasks,
+      };
+    })
+    .filter((subgoal) => Boolean(subgoal.text) || subgoal.tasks.length > 0)
+    .map((subgoal, index) => ({
+      text: subgoal.text ?? 'Subgoal',
+      passThreshold: subgoal.passThreshold,
+      sortOrder: index,
+      tasks: subgoal.tasks,
+    }));
 
-  if (!name && subgoals.length === 0) {
+  if (!name && subgoals.length === 0 && !instructions) {
     return null;
   }
 
-  const totalPoints = subgoals.reduce((sum, subgoal) => sum + subgoal.points, 0);
-  const passThreshold = Math.min(totalPoints, normalizePoints(goal?.passThreshold, totalPoints));
-
   return {
     name: name ?? 'Rubric goal',
-    totalPoints,
-    passThreshold,
+    instructions,
     subgoals,
   };
 }
@@ -350,43 +380,38 @@ async function syncBadgeRubricGoal(tx: Prisma.TransactionClient, badgeId: string
 
   const savedGoal = await tx.rubricGoal.upsert({
     where: { badgeId },
-    create: { badgeId, name: goal.name, totalPoints: goal.totalPoints, passThreshold: goal.passThreshold },
-    update: { name: goal.name, totalPoints: goal.totalPoints, passThreshold: goal.passThreshold },
+    create: {
+      badgeId,
+      name: goal.name,
+      instructions: goal.instructions,
+    },
+    update: {
+      name: goal.name,
+      instructions: goal.instructions,
+    },
     select: { id: true },
   });
 
-  // Fetch existing subgoals to determine what to update/create/delete
-  const existingSubgoals = await tx.rubricSubgoal.findMany({
-    where: { goalId: savedGoal.id },
-    select: { id: true, sortOrder: true },
-  });
+  // Replace all subgoals + tasks. Deleting subgoals cascades to their tasks;
+  // past assessment responses keep their snapshots (AssessmentTaskResponse.taskId
+  // is SetNull), so recreating these rows is safe for attempt history.
+  await tx.rubricSubgoal.deleteMany({ where: { goalId: savedGoal.id } });
 
-  // Build a map of existing subgoals by sortOrder for quick lookup
-  const existingBySortOrder = new Map(existingSubgoals.map((sg) => [sg.sortOrder, sg.id]));
-
-  // Update or create subgoals based on sortOrder matching
   for (const subgoal of goal.subgoals) {
-    const existingId = existingBySortOrder.get(subgoal.sortOrder);
-    if (existingId) {
-      // Update existing subgoal in place
-      await tx.rubricSubgoal.update({
-        where: { id: existingId },
-        data: { text: subgoal.text, points: subgoal.points, sortOrder: subgoal.sortOrder },
-      });
-      existingBySortOrder.delete(subgoal.sortOrder);
-    } else {
-      // Create new subgoal
-      await tx.rubricSubgoal.create({
-        data: { ...subgoal, goalId: savedGoal.id },
-      });
-    }
-  }
-
-  // Delete subgoals that are no longer present in the incoming rubric
-  const idsToDelete = Array.from(existingBySortOrder.values());
-  if (idsToDelete.length > 0) {
-    await tx.rubricSubgoal.deleteMany({
-      where: { id: { in: idsToDelete } },
+    await tx.rubricSubgoal.create({
+      data: {
+        goalId: savedGoal.id,
+        text: subgoal.text,
+        passThreshold: subgoal.passThreshold,
+        sortOrder: subgoal.sortOrder,
+        tasks: {
+          create: subgoal.tasks.map((task) => ({
+            text: task.text,
+            points: task.points,
+            sortOrder: task.sortOrder,
+          })),
+        },
+      },
     });
   }
 }
@@ -410,7 +435,7 @@ function buildRequirementSummary({
   videoLength?: string | null;
   passingPercent?: number | null;
 }) {
-  // The rubric lives in the RubricGoal/RubricSubgoal tables as of version 3;
+  // The rubric lives in the RubricGoal/RubricSubgoal/RubricTask tables;
   // the summary only carries the non-rubric payload.
   return JSON.stringify({
     version: 3,
@@ -533,7 +558,6 @@ export async function GET(req: NextRequest) {
         slug: true,
         name: true,
         description: true,
-        category: true,
         availableOn: true,
         closesOn: true,
         neverCloses: true,
@@ -542,11 +566,19 @@ export async function GET(req: NextRequest) {
           select: {
             id: true,
             name: true,
-            totalPoints: true,
-            passThreshold: true,
+            instructions: true,
             subgoals: {
               orderBy: { sortOrder: 'asc' },
-              select: { id: true, text: true, points: true, sortOrder: true },
+              select: {
+                id: true,
+                text: true,
+                passThreshold: true,
+                sortOrder: true,
+                tasks: {
+                  orderBy: { sortOrder: 'asc' },
+                  select: { id: true, text: true, points: true, sortOrder: true },
+                },
+              },
             },
           },
         },
@@ -598,7 +630,6 @@ export async function GET(req: NextRequest) {
           slug: badge.slug,
           name: badge.name,
           description: badge.description,
-          category: badge.category,
           availableOn: badge.availableOn?.toISOString() ?? null,
           closesOn: badge.closesOn?.toISOString() ?? null,
           neverCloses: badge.neverCloses ?? null,
@@ -675,7 +706,6 @@ export async function PATCH(req: NextRequest) {
     const badgeId = normalizeString(body.id);
     const badgeName = normalizeString(body.badgeName);
     const badgeDescription = normalizeString(body.badgeDescription);
-    const category = normalizeCategory(body.category);
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
     const checkpoints = body.checkpoints ?? [];
@@ -706,7 +736,6 @@ export async function PATCH(req: NextRequest) {
         data: {
           name: badgeName,
           description: badgeDescription,
-          category,
           availableOn,
           closesOn,
           neverCloses,
@@ -716,7 +745,6 @@ export async function PATCH(req: NextRequest) {
           slug: true,
           name: true,
           description: true,
-          category: true,
           sourceBadgeId: true,
         },
       });
@@ -731,7 +759,7 @@ export async function PATCH(req: NextRequest) {
           OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
           NOT: { id: badge.id },
         },
-        data: { name: badgeName, description: badgeDescription, category, availableOn, closesOn, neverCloses },
+        data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses },
       });
 
       const firstRequirement = await tx.badgeRequirement.findFirst({
@@ -958,6 +986,13 @@ export async function POST(req: NextRequest) {
     }
 
     const creatorEmail = clerkUser.emailAddresses[0].emailAddress.trim().toLowerCase();
+
+    // Alpha lock: creation is temporarily restricted to allowlisted accounts.
+    // Reversible by clearing ALPHA_ADMIN_EMAILS (see lib/adminAccess.ts).
+    if (!canCreateContent(creatorEmail)) {
+      return NextResponse.json({ error: 'Badge creation is restricted during the alpha test.' }, { status: 403 });
+    }
+
     const creator = await prisma.user.findUnique({
       where: { email: creatorEmail },
       select: { id: true },
@@ -973,7 +1008,6 @@ export async function POST(req: NextRequest) {
     const badgeDescription = normalizeString(body.badgeDescription);
     const videoTitle = normalizeString(body.videoTitle);
     const youtubeUrl = normalizeString(body.youtubeUrl);
-    const category = normalizeCategory(body.category);
     const checkpoints = body.checkpoints ?? [];
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
@@ -1050,7 +1084,6 @@ export async function POST(req: NextRequest) {
             slug: sourceBadgeSlug,
             name: badgeName,
             description: badgeDescription,
-            category,
             availableOn,
             closesOn,
             neverCloses,
@@ -1061,7 +1094,6 @@ export async function POST(req: NextRequest) {
             slug: true,
             name: true,
             description: true,
-            category: true,
           },
         });
 
@@ -1091,7 +1123,6 @@ export async function POST(req: NextRequest) {
               slug: courseBadgeSlug,
               name: badgeName,
               description: badgeDescription,
-              category,
               availableOn,
               closesOn,
               neverCloses,
@@ -1103,7 +1134,6 @@ export async function POST(req: NextRequest) {
               slug: true,
               name: true,
               description: true,
-              category: true,
             },
           });
 

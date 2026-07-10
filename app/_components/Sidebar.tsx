@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useDatabaseDisplayNameContext } from './DatabaseDisplayNameProvider';
+import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import sapphire from '../../public/edit_avatar/sapphire.svg';
 import ruby from '../../public/edit_avatar/ruby.svg';
 import emerald from '../../public/edit_avatar/emerald.svg';
@@ -57,6 +58,10 @@ export function initialsFromName(name?: string | null) {
 
 export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut }: SidebarProps) {
   const pathname = usePathname();
+  const { isAdmin } = useCanCreateContent();
+  // My Badges is an admin-only surface (independent of ALPHA_MODE): hide it from
+  // non-admins. Hidden by default while access loads.
+  const visibleNavItems = isAdmin ? navItems : navItems.filter((item) => item.href !== '/my_badges');
   const { displayName: contextDisplayName, avatarBase } = useDatabaseDisplayNameContext();
   const resolvedDisplayName =
     contextDisplayName !== undefined ? (contextDisplayName?.trim() ?? '') : displayName.trim();
@@ -74,7 +79,7 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
 
       {/* Nav Links */}
       <nav className={styles.navList}>
-        {navItems.map((item) => {
+        {visibleNavItems.map((item) => {
           const isCourseWorkspace =
             pathname === '/course_dashboard' ||
             pathname === '/courses' ||

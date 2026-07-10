@@ -65,24 +65,36 @@ type BadgeDetailResponse = {
     rubric: {
       goalId: string;
       goalName: string;
-      totalPoints: number;
-      passThreshold: number;
+      instructions: string | null;
       subgoals: Array<{
         id: string;
         text: string;
-        points: number;
+        passThreshold: number;
         sortOrder: number;
+        tasks: Array<{
+          id: string;
+          text: string;
+          points: number;
+          sortOrder: number;
+        }>;
       }>;
     } | null;
   };
 };
 
-type SubgoalDraft = {
-  subgoalId: string;
+type TaskDraft = {
+  taskId: string;
   text: string;
   points: number;
   passed: boolean;
   feedback: string;
+};
+
+type SubgoalGroupDraft = {
+  subgoalId: string;
+  text: string;
+  passThreshold: number;
+  tasks: TaskDraft[];
 };
 
 function resolveParam(value: string | string[] | undefined) {
@@ -225,10 +237,11 @@ export default function AssessmentReadinessPage() {
   const { signOut } = useAuth();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isAssessmentStarted, setIsAssessmentStarted] = useState(false);
-  const [subgoalDrafts, setSubgoalDrafts] = useState<SubgoalDraft[]>([]);
-  // The outcome follows the score-vs-threshold suggestion until the assessor
-  // explicitly picks Pass / Needs reassessment, which pins their choice.
-  const [pinnedPassed, setPinnedPassed] = useState<boolean | null>(null);
+  // Two-step flow (issue #119): grade every task, then confirm the outcome.
+  const [phase, setPhase] = useState<'grading' | 'confirm'>('grading');
+  const [subgoalGroups, setSubgoalGroups] = useState<SubgoalGroupDraft[]>([]);
+  // Only used when the computed outcome is a pass: any text here downgrades the
+  // student to "still learning" and is sent as the assessor override.
   const [overrideFeedback, setOverrideFeedback] = useState('');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
@@ -287,55 +300,59 @@ export default function AssessmentReadinessPage() {
 
   useEffect(() => {
     if (!badgeDetail) {
-      setSubgoalDrafts([]);
+      setSubgoalGroups([]);
       return;
     }
 
     const rubric = badgeDetail.assessment?.rubric ?? null;
 
-    // Every subgoal starts red/failed: the assessor affirmatively marks each
-    // one the student demonstrated.
-    setSubgoalDrafts(
+    // Every task starts failed: the assessor affirmatively marks each one the
+    // student demonstrated.
+    setSubgoalGroups(
       (rubric?.subgoals ?? []).map((subgoal) => ({
         subgoalId: subgoal.id,
         text: subgoal.text,
-        points: subgoal.points,
-        passed: false,
-        feedback: '',
+        passThreshold: subgoal.passThreshold,
+        tasks: subgoal.tasks.map((task) => ({
+          taskId: task.id,
+          text: task.text,
+          points: task.points,
+          passed: false,
+          feedback: '',
+        })),
       }))
     );
-    setPinnedPassed(null);
     setOverrideFeedback('');
+    setPhase('grading');
     setIsAssessmentStarted(false);
     setSubmitError(null);
   }, [badgeDetail]);
 
-  const updateSubgoalDraft = (subgoalId: string, patch: Partial<SubgoalDraft>, resetPin = true) => {
-    setSubgoalDrafts((current) =>
-      current.map((subgoal) => (subgoal.subgoalId === subgoalId ? { ...subgoal, ...patch } : subgoal))
+  const updateTaskDraft = (subgoalId: string, taskId: string, patch: Partial<Omit<TaskDraft, 'taskId'>>) => {
+    setSubgoalGroups((current) =>
+      current.map((group) =>
+        group.subgoalId === subgoalId
+          ? { ...group, tasks: group.tasks.map((task) => (task.taskId === taskId ? { ...task, ...patch } : task)) }
+          : group
+      )
     );
-    if (resetPin && 'passed' in patch) {
-      setPinnedPassed(null);
-    }
   };
 
   const rubric = badgeDetail?.assessment?.rubric ?? null;
-  const pointsPossible = subgoalDrafts.reduce((sum, subgoal) => sum + subgoal.points, 0);
-  const pointsEarned = subgoalDrafts.reduce((sum, subgoal) => (subgoal.passed ? sum + subgoal.points : sum), 0);
-  const passThreshold = rubric?.passThreshold ?? 0;
-  const suggestedPassed = rubric ? pointsEarned >= passThreshold : true;
-  const passed = pinnedPassed ?? suggestedPassed;
-  const outcomeFlipped = rubric !== null && passed !== suggestedPassed;
+
+  // A subgoal passes when its passed tasks' weights meet its threshold; the
+  // badge passes only when every subgoal passes.
+  const subgoalResults = subgoalGroups.map((group) => {
+    const earned = group.tasks.reduce((sum, task) => (task.passed ? sum + task.points : sum), 0);
+    const possible = group.tasks.reduce((sum, task) => sum + task.points, 0);
+    return { ...group, earned, possible, passed: earned >= group.passThreshold };
+  });
+  const computedPassed = subgoalResults.every((group) => group.passed);
+  const willOverrideToStillLearning = computedPassed && overrideFeedback.trim().length > 0;
+  const finalPassed = computedPassed && !willOverrideToStillLearning;
 
   const submitAssessment = async () => {
     if (!courseId || !studentId || !badgeId || !email) {
-      return;
-    }
-
-    if (outcomeFlipped && !overrideFeedback.trim()) {
-      setSubmitError(
-        'You are overriding the score-suggested outcome — describe what you observed in the assessor override field.'
-      );
       return;
     }
 
@@ -356,13 +373,14 @@ export default function AssessmentReadinessPage() {
             Accept: 'application/json',
           },
           body: JSON.stringify({
-            passed,
-            subgoals: subgoalDrafts.map((subgoal) => ({
-              subgoalId: subgoal.subgoalId,
-              passed: subgoal.passed,
-              feedback: subgoal.feedback,
-            })),
-            override: overrideFeedback.trim() ? { feedback: overrideFeedback.trim() } : null,
+            tasks: subgoalGroups.flatMap((group) =>
+              group.tasks.map((task) => ({
+                taskId: task.taskId,
+                passed: task.passed,
+                feedback: task.feedback,
+              }))
+            ),
+            override: willOverrideToStillLearning ? { feedback: overrideFeedback.trim() } : null,
           }),
         }
       );
@@ -374,7 +392,7 @@ export default function AssessmentReadinessPage() {
         throw new Error(payload.error ?? 'Unable to record assessment.');
       }
 
-      setSubmitStatus(passed ? 'Assessment recorded. Badge is ready for finalization.' : 'Assessment recorded.');
+      setSubmitStatus(finalPassed ? 'Assessment recorded. Badge is ready for finalization.' : 'Assessment recorded.');
       setIsAssessmentStarted(false);
       router.push(`/courses/${courseId}?view=assessor`);
     } catch (err) {
@@ -539,83 +557,102 @@ export default function AssessmentReadinessPage() {
                     <div className={styles.assessmentPanel}>
                       <div className={styles.assessmentPanelHeader}>
                         <h2>{rubric?.goalName || 'Assessor Grading'}</h2>
-                        <div className={styles.passToggle} role="group" aria-label="Assessment outcome">
-                          <button
-                            type="button"
-                            className={passed ? styles.toggleButtonActive : styles.toggleButton}
-                            onClick={() => setPinnedPassed(true)}
-                          >
-                            Pass
-                          </button>
-                          <button
-                            type="button"
-                            className={!passed ? styles.toggleButtonActive : styles.toggleButton}
-                            onClick={() => setPinnedPassed(false)}
-                          >
-                            Needs reassessment
-                          </button>
-                        </div>
                       </div>
 
-                      {rubric ? (
-                        <p className={styles.scoreSummary}>
-                          Score:{' '}
-                          <strong>
-                            {pointsEarned} / {pointsPossible}
-                          </strong>{' '}
-                          <span className={pointsEarned >= passThreshold ? styles.thresholdMet : styles.thresholdUnmet}>
-                            (pass at {passThreshold})
-                          </span>
-                        </p>
+                      {rubric?.instructions ? (
+                        <div className={styles.taInstructions}>
+                          <h3 className={styles.taInstructionsTitle}>Instructions for the assessor</h3>
+                          {/* Instructions are authored in the badge editor's rich-text field and
+                              stored as sanitized HTML; render read-only for the assessor. */}
+                          <div
+                            className={`${styles.taInstructionsBody} rte-readonly`}
+                            dangerouslySetInnerHTML={{ __html: rubric.instructions }}
+                          />
+                        </div>
                       ) : null}
 
-                      <div className={styles.criteriaList}>
-                        {subgoalDrafts.map((subgoal, index) => (
-                          <div key={subgoal.subgoalId} className={styles.criterionCard}>
-                            <div className={styles.criterionHeader}>
-                              <h3>
-                                {index + 1}. {subgoal.text}
-                              </h3>
-                              <div className={styles.subgoalControl}>
-                                <span className={styles.subgoalPoints}>
-                                  {subgoal.points} {subgoal.points === 1 ? 'pt' : 'pts'}
+                      {phase === 'grading' ? (
+                        <div className={styles.criteriaList}>
+                          {subgoalResults.map((group, groupIndex) => (
+                            <div key={group.subgoalId} className={styles.subgoalGroup}>
+                              <div className={styles.subgoalGroupHeader}>
+                                <h3>
+                                  {groupIndex + 1}. {group.text}
+                                </h3>
+                                <span className={group.passed ? styles.subgoalGroupPass : styles.subgoalGroupFail}>
+                                  {group.earned} / {group.possible} pts · pass at {group.passThreshold} ·{' '}
+                                  {group.passed ? 'Passed' : 'Not passed'}
                                 </span>
-                                <button
-                                  type="button"
-                                  role="switch"
-                                  aria-checked={subgoal.passed}
-                                  aria-label={`Subgoal ${index + 1} ${subgoal.passed ? 'passed' : 'failed'}`}
-                                  className={subgoal.passed ? styles.subgoalSliderOn : styles.subgoalSliderOff}
-                                  onClick={() => updateSubgoalDraft(subgoal.subgoalId, { passed: !subgoal.passed })}
-                                >
-                                  <span className={styles.subgoalSliderKnob} aria-hidden="true" />
-                                </button>
                               </div>
+
+                              {group.tasks.map((task, taskIndex) => (
+                                <div key={task.taskId} className={styles.criterionCard}>
+                                  <div className={styles.criterionHeader}>
+                                    <h3>
+                                      {groupIndex + 1}.{taskIndex + 1} {task.text}
+                                    </h3>
+                                    <div className={styles.subgoalControl}>
+                                      <span className={styles.subgoalPoints}>
+                                        {task.points} {task.points === 1 ? 'pt' : 'pts'}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        role="switch"
+                                        aria-checked={task.passed}
+                                        aria-label={`Task ${groupIndex + 1}.${taskIndex + 1} ${
+                                          task.passed ? 'passed' : 'failed'
+                                        }`}
+                                        className={task.passed ? styles.subgoalSliderOn : styles.subgoalSliderOff}
+                                        onClick={() =>
+                                          updateTaskDraft(group.subgoalId, task.taskId, { passed: !task.passed })
+                                        }
+                                      >
+                                        <span className={styles.subgoalSliderKnob} aria-hidden="true" />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <label className={styles.criteriaField}>
+                                    <span>Feedback (optional)</span>
+                                    <textarea
+                                      value={task.feedback}
+                                      onChange={(event) =>
+                                        updateTaskDraft(group.subgoalId, task.taskId, { feedback: event.target.value })
+                                      }
+                                      rows={2}
+                                    />
+                                  </label>
+                                </div>
+                              ))}
                             </div>
-
-                            <label className={styles.criteriaField}>
-                              <span>Feedback (optional)</span>
-                              <textarea
-                                value={subgoal.feedback}
-                                onChange={(event) =>
-                                  updateSubgoalDraft(subgoal.subgoalId, { feedback: event.target.value }, false)
-                                }
-                                rows={2}
-                              />
-                            </label>
-                          </div>
-                        ))}
-                      </div>
-
-                      <label className={styles.criteriaField}>
-                        <span>Assessor override</span>
-                        <textarea
-                          value={overrideFeedback}
-                          onChange={(event) => setOverrideFeedback(event.target.value)}
-                          rows={4}
-                          placeholder="Anything observed during the experiment that the rubric doesn't cover. Filling this in lets you pass or fail the student regardless of the score."
-                        />
-                      </label>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className={styles.confirmPanel}>
+                          {computedPassed ? (
+                            <>
+                              <p className={finalPassed ? styles.confirmMessagePass : styles.confirmMessageFail}>
+                                {finalPassed
+                                  ? 'This student has passed the assessment and will be placed into ready to be finalized. If, for any reason, you feel they should be placed into still learning, please clarify below:'
+                                  : 'This student will be placed into still learning based on your note below.'}
+                              </p>
+                              <label className={styles.criteriaField}>
+                                <span>Override to still learning (optional)</span>
+                                <textarea
+                                  value={overrideFeedback}
+                                  onChange={(event) => setOverrideFeedback(event.target.value)}
+                                  rows={4}
+                                  placeholder="Leave blank to pass the student. Add a note to place them into still learning instead."
+                                />
+                              </label>
+                            </>
+                          ) : (
+                            <p className={styles.confirmMessageFail}>
+                              This student has failed the assessment and will be placed into still learning.
+                            </p>
+                          )}
+                        </div>
+                      )}
 
                       {submitError ? <p className={styles.errorText}>{submitError}</p> : null}
                     </div>
@@ -627,13 +664,34 @@ export default function AssessmentReadinessPage() {
 
               <div className={styles.actionRow}>
                 <BackButton onClick={handleBack} />
+                {isAssessmentStarted && phase === 'confirm' ? (
+                  <button
+                    type="button"
+                    className={styles.toggleButton}
+                    onClick={() => setPhase('grading')}
+                    disabled={isSubmitting}
+                  >
+                    Back to grading
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   className={styles.primaryButton}
+                  style={
+                    isAssessmentStarted && phase === 'confirm'
+                      ? { backgroundColor: finalPassed ? '#15803d' : '#b91c1c' }
+                      : undefined
+                  }
                   disabled={!canStartNewAssessment || isSubmitting}
                   onClick={() => {
                     if (!isAssessmentStarted) {
                       setIsAssessmentStarted(true);
+                      setPhase('grading');
+                      return;
+                    }
+
+                    if (phase === 'grading') {
+                      setPhase('confirm');
                       return;
                     }
 
@@ -642,11 +700,13 @@ export default function AssessmentReadinessPage() {
                 >
                   {assessmentComplete
                     ? 'Assessment complete'
-                    : isAssessmentStarted
-                      ? isSubmitting
-                        ? 'Recording...'
-                        : 'Submit Assessment'
-                      : 'Confirm and Start'}
+                    : !isAssessmentStarted
+                      ? 'Confirm and Start'
+                      : phase === 'grading'
+                        ? 'Continue to review'
+                        : isSubmitting
+                          ? 'Recording...'
+                          : 'Submit Assessment'}
                 </button>
               </div>
             </>

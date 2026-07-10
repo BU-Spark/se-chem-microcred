@@ -149,7 +149,6 @@ export interface BadgeRecord {
   slug: string;
   name: string;
   description: string | null;
-  category: string | null;
   status: BadgeStatus;
   awardedAt: string | null;
   score: number | null;

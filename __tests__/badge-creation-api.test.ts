@@ -81,8 +81,20 @@ async function getBadges() {
 }
 
 describe('badge creation API', () => {
+  const originalAlphaMode = process.env.ALPHA_MODE;
+  const originalAdminEmails = process.env.ALPHA_ADMIN_EMAILS;
+
+  afterAll(() => {
+    process.env.ALPHA_MODE = originalAlphaMode;
+    process.env.ALPHA_ADMIN_EMAILS = originalAdminEmails;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
+    // These tests exercise creation logic, not the alpha lock — keep the lock off
+    // so they are independent of the ambient .env value. Lock behavior is covered
+    // separately below.
+    process.env.ALPHA_MODE = 'false';
     mockCurrentUser.mockResolvedValue({
       id: 'clerk-1',
       emailAddresses: [{ emailAddress: 'prof@example.edu' }],
@@ -98,7 +110,6 @@ describe('badge creation API', () => {
       slug: 'bunsen-burner-source',
       name: 'Bunsen Burner',
       description: 'Burner safety',
-      category: 'EQUIPMENT',
     });
     mockPrisma.__tx.lesson.create.mockResolvedValue({
       id: 'lesson-1',
@@ -123,7 +134,6 @@ describe('badge creation API', () => {
       slug: 'updated-badge',
       name: 'Updated Badge',
       description: 'Updated description',
-      category: 'SAFETY',
     });
     mockPrisma.__tx.badgeRequirement.findFirst.mockResolvedValue({
       id: 'requirement-1',
@@ -147,21 +157,19 @@ describe('badge creation API', () => {
         slug: 'bunsen-burner-source',
         name: 'Bunsen Burner',
         description: 'Burner safety',
-        category: 'EQUIPMENT',
       })
       .mockResolvedValueOnce({
         id: 'course-badge-1',
         slug: 'bunsen-burner-course',
         name: 'Bunsen Burner',
         description: 'Burner safety',
-        category: 'EQUIPMENT',
       });
 
     const response = await postBadge({
       courseId: 'course-1',
       badgeName: 'Bunsen Burner',
       badgeDescription: 'Burner safety',
-      category: 'EQUIPMENT',
+
       youtubeUrl: 'https://www.youtube.com/shorts/abc123def45',
       videoTitle: 'Burner lesson',
       videoLength: '00:20:00',
@@ -202,10 +210,9 @@ describe('badge creation API', () => {
       ],
       rubricGoal: {
         name: 'Operate the burner safely',
-        passThreshold: 3,
         subgoals: [
-          { text: 'Safe setup', points: 2 },
-          { text: 'Safe shutdown', points: 2 },
+          { text: 'Safe setup', passThreshold: 2, tasks: [{ text: 'Check the gas line', points: 2 }] },
+          { text: 'Safe shutdown', passThreshold: 2, tasks: [{ text: 'Close the gas valve', points: 2 }] },
         ],
       },
     });
@@ -214,29 +221,46 @@ describe('badge creation API', () => {
     expect(mockPrisma.__tx.rubricGoal.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { badgeId: 'source-badge-1' },
-        create: { badgeId: 'source-badge-1', name: 'Operate the burner safely', totalPoints: 4, passThreshold: 3 },
+        create: {
+          badgeId: 'source-badge-1',
+          name: 'Operate the burner safely',
+          instructions: null,
+        },
       })
     );
     expect(mockPrisma.__tx.rubricGoal.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { badgeId: 'course-badge-1' },
-        create: { badgeId: 'course-badge-1', name: 'Operate the burner safely', totalPoints: 4, passThreshold: 3 },
+        create: {
+          badgeId: 'course-badge-1',
+          name: 'Operate the burner safely',
+          instructions: null,
+        },
       })
     );
-    expect(mockPrisma.__tx.rubricSubgoal.findMany).toHaveBeenCalledWith({
-      where: { goalId: 'goal-1' },
-      select: { id: true, sortOrder: true },
-    });
+    expect(mockPrisma.__tx.rubricSubgoal.deleteMany).toHaveBeenCalledWith({ where: { goalId: 'goal-1' } });
     expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        data: expect.objectContaining({ text: 'Safe setup', points: 2, sortOrder: 0, goalId: 'goal-1' }),
+        data: expect.objectContaining({
+          text: 'Safe setup',
+          passThreshold: 2,
+          sortOrder: 0,
+          goalId: 'goal-1',
+          tasks: { create: [expect.objectContaining({ text: 'Check the gas line', points: 2, sortOrder: 0 })] },
+        }),
       })
     );
     expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        data: expect.objectContaining({ text: 'Safe shutdown', points: 2, sortOrder: 1, goalId: 'goal-1' }),
+        data: expect.objectContaining({
+          text: 'Safe shutdown',
+          passThreshold: 2,
+          sortOrder: 1,
+          goalId: 'goal-1',
+          tasks: { create: [expect.objectContaining({ text: 'Close the gas valve', points: 2, sortOrder: 0 })] },
+        }),
       })
     );
     expect(mockPrisma.__tx.course.findFirst).toHaveBeenCalledWith(
@@ -250,7 +274,7 @@ describe('badge creation API', () => {
         data: expect.objectContaining({
           name: 'Bunsen Burner',
           description: 'Burner safety',
-          category: 'EQUIPMENT',
+
           createdById: 'instructor-1',
         }),
       })
@@ -360,8 +384,8 @@ describe('badge creation API', () => {
 
   it('persists a custom passing threshold to the lesson row and the requirement summary', async () => {
     mockPrisma.__tx.badge.create
-      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null, category: null })
-      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null, category: null });
+      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null })
+      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null });
 
     const response = await postBadge({
       courseId: 'course-1',
@@ -382,8 +406,8 @@ describe('badge creation API', () => {
 
   it('clamps and defaults the passing threshold server-side', async () => {
     mockPrisma.__tx.badge.create
-      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null, category: null })
-      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null, category: null });
+      .mockResolvedValueOnce({ id: 'source-badge-1', slug: 's', name: 'B', description: null })
+      .mockResolvedValueOnce({ id: 'course-badge-1', slug: 'c', name: 'B', description: null });
 
     // Out-of-range value is clamped to 100; an omitted value would default to 70.
     const response = await postBadge({
@@ -441,14 +465,20 @@ describe('badge creation API', () => {
         slug: 'bunsen-burner-badge',
         name: 'Bunsen Burner Badge',
         description: 'Prove safe usage and understanding of flame control.',
-        category: 'EQUIPMENT',
+
         createdAt: new Date('2025-02-20T17:00:00.000Z'),
         rubricGoal: {
           id: 'goal-1',
           name: 'Use the burner safely.',
-          totalPoints: 4,
-          passThreshold: 3,
-          subgoals: [{ id: 'subgoal-1', text: 'Light the burner correctly.', points: 4, sortOrder: 0 }],
+          subgoals: [
+            {
+              id: 'subgoal-1',
+              text: 'Light the burner correctly.',
+              passThreshold: 4,
+              sortOrder: 0,
+              tasks: [{ id: 'task-1', text: 'Ignite on the first try.', points: 4, sortOrder: 0 }],
+            },
+          ],
         },
         requirements: [
           {
@@ -496,9 +526,13 @@ describe('badge creation API', () => {
           createdAt: '2025-02-20T17:00:00.000Z',
           rubricGoal: expect.objectContaining({
             name: 'Use the burner safely.',
-            totalPoints: 4,
-            passThreshold: 3,
-            subgoals: [expect.objectContaining({ text: 'Light the burner correctly.', points: 4 })],
+            subgoals: [
+              expect.objectContaining({
+                text: 'Light the burner correctly.',
+                passThreshold: 4,
+                tasks: [expect.objectContaining({ text: 'Ignite on the first try.', points: 4 })],
+              }),
+            ],
           }),
           requirements: [
             expect.objectContaining({
@@ -515,15 +549,14 @@ describe('badge creation API', () => {
       id: 'badge-1',
       badgeName: 'Updated Badge',
       badgeDescription: 'Updated description',
-      category: 'SAFETY',
+
       skills: ['Updated skill'],
       passingPercent: 65,
       rubricGoal: {
         name: 'Updated goal',
-        passThreshold: 2,
         subgoals: [
-          { text: 'First subgoal', points: 1 },
-          { text: 'Second subgoal', points: 2 },
+          { text: 'First subgoal', passThreshold: 1, tasks: [{ text: 'First task', points: 1 }] },
+          { text: 'Second subgoal', passThreshold: 2, tasks: [{ text: 'Second task', points: 2 }] },
         ],
       },
       checkpoints: [
@@ -543,7 +576,6 @@ describe('badge creation API', () => {
         data: expect.objectContaining({
           name: 'Updated Badge',
           description: 'Updated description',
-          category: 'SAFETY',
         }),
       })
     );
@@ -556,7 +588,6 @@ describe('badge creation API', () => {
         data: expect.objectContaining({
           name: 'Updated Badge',
           description: 'Updated description',
-          category: 'SAFETY',
         }),
       })
     );
@@ -582,23 +613,32 @@ describe('badge creation API', () => {
     expect(mockPrisma.__tx.rubricGoal.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { badgeId: 'badge-1' },
-        update: { name: 'Updated goal', totalPoints: 3, passThreshold: 2 },
+        update: { name: 'Updated goal', instructions: null },
       })
     );
-    expect(mockPrisma.__tx.rubricSubgoal.findMany).toHaveBeenCalledWith({
-      where: { goalId: 'goal-1' },
-      select: { id: true, sortOrder: true },
-    });
+    expect(mockPrisma.__tx.rubricSubgoal.deleteMany).toHaveBeenCalledWith({ where: { goalId: 'goal-1' } });
     expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        data: expect.objectContaining({ text: 'First subgoal', points: 1, sortOrder: 0, goalId: 'goal-1' }),
+        data: expect.objectContaining({
+          text: 'First subgoal',
+          passThreshold: 1,
+          sortOrder: 0,
+          goalId: 'goal-1',
+          tasks: { create: [expect.objectContaining({ text: 'First task', points: 1, sortOrder: 0 })] },
+        }),
       })
     );
     expect(mockPrisma.__tx.rubricSubgoal.create).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        data: expect.objectContaining({ text: 'Second subgoal', points: 2, sortOrder: 1, goalId: 'goal-1' }),
+        data: expect.objectContaining({
+          text: 'Second subgoal',
+          passThreshold: 2,
+          sortOrder: 1,
+          goalId: 'goal-1',
+          tasks: { create: [expect.objectContaining({ text: 'Second task', points: 2, sortOrder: 0 })] },
+        }),
       })
     );
     expect(mockPrisma.__tx.lesson.updateMany).toHaveBeenCalledWith(
@@ -627,7 +667,6 @@ describe('badge creation API', () => {
       id: 'badge-1',
       badgeName: 'Updated Badge',
       badgeDescription: 'Updated description',
-      category: 'SAFETY',
     });
 
     expect(response.status).toBe(200);
@@ -662,7 +701,6 @@ describe('badge creation API', () => {
       id: 'badge-1',
       badgeName: 'Updated Badge',
       badgeDescription: 'Updated description',
-      category: 'SAFETY',
       checkpoints: [
         {
           title: 'Checkpoint 1',
@@ -725,5 +763,28 @@ describe('badge creation API', () => {
         }),
       })
     );
+  });
+
+  describe('alpha lock', () => {
+    it('rejects creation with 403 when alpha mode is on and the user is not allowlisted', async () => {
+      process.env.ALPHA_MODE = 'true';
+      process.env.ALPHA_ADMIN_EMAILS = 'admin@example.edu';
+
+      const response = await postBadge({ badgeName: 'Bunsen Burner' });
+
+      expect(response.status).toBe(403);
+      expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('allows an allowlisted admin to create when alpha mode is on', async () => {
+      process.env.ALPHA_MODE = 'true';
+      process.env.ALPHA_ADMIN_EMAILS = 'prof@example.edu';
+
+      const response = await postBadge({ badgeName: 'Bunsen Burner' });
+
+      expect(response.status).not.toBe(403);
+      expect(mockPrisma.user.findUnique).toHaveBeenCalled();
+    });
   });
 });

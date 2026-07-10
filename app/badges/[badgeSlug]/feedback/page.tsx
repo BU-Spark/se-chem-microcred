@@ -150,13 +150,17 @@ type FeedbackDetail = {
   rubric: {
     goalId: string;
     goalName: string;
-    totalPoints: number;
-    passThreshold: number;
     subgoals: Array<{
       id: string;
       text: string;
-      points: number;
+      passThreshold: number;
       sortOrder: number;
+      tasks: Array<{
+        id: string;
+        text: string;
+        points: number;
+        sortOrder: number;
+      }>;
     }>;
   } | null;
   latestAttempt: {
@@ -171,6 +175,7 @@ type FeedbackDetail = {
     responses: Array<{
       id: string;
       subgoalText: string;
+      taskText: string;
       points: number;
       passed: boolean;
       feedback: string | null;
@@ -375,7 +380,11 @@ export default function BadgeFeedbackPage() {
   const displayedStatus = reviewedStatus ?? feedbackDetail?.badge.status ?? badge.status;
   const latestAttempt = feedbackDetail?.latestAttempt ?? null;
   const rubric = feedbackDetail?.rubric ?? null;
-  const responseByText = new Map(latestAttempt?.responses.map((response) => [response.subgoalText, response]) ?? []);
+  const responseByKey = new Map(
+    latestAttempt?.responses
+      .filter((response) => !response.isOverride)
+      .map((response) => [`${response.subgoalText}::${response.taskText}`, response]) ?? []
+  );
 
   return (
     <div className="page">
@@ -422,29 +431,34 @@ export default function BadgeFeedbackPage() {
               <div className={styles.rubricTable} aria-label="Read-only assessment rubric">
                 <div className={styles.rubricHeader}>
                   <strong>{rubric.goalName}</strong>
-                  <span>
-                    Passing threshold: {rubric.passThreshold}/{rubric.totalPoints}
-                  </span>
                 </div>
-                {rubric.subgoals.map((subgoal) => {
-                  const response = responseByText.get(subgoal.text);
-                  return (
-                    <div key={subgoal.id} className={styles.rubricRow}>
-                      <div>
-                        <strong>{subgoal.text}</strong>
-                        <p>
-                          {subgoal.points} {subgoal.points === 1 ? 'point' : 'points'}
-                        </p>
-                      </div>
-                      <div>
-                        <span className={response?.passed ? styles.rubricPassed : styles.rubricNeedsWork}>
-                          {response ? (response.passed ? 'Passed' : 'Needs work') : 'Not assessed'}
-                        </span>
-                        <p>{response?.feedback || 'No criterion feedback recorded.'}</p>
-                      </div>
+                {rubric.subgoals.map((subgoal) => (
+                  <div key={subgoal.id}>
+                    <div className={styles.rubricHeader}>
+                      <strong>{subgoal.text}</strong>
+                      <span>Pass at {subgoal.passThreshold} pts</span>
                     </div>
-                  );
-                })}
+                    {subgoal.tasks.map((task) => {
+                      const response = responseByKey.get(`${subgoal.text}::${task.text}`);
+                      return (
+                        <div key={task.id} className={styles.rubricRow}>
+                          <div>
+                            <strong>{task.text}</strong>
+                            <p>
+                              {task.points} {task.points === 1 ? 'point' : 'points'}
+                            </p>
+                          </div>
+                          <div>
+                            <span className={response?.passed ? styles.rubricPassed : styles.rubricNeedsWork}>
+                              {response ? (response.passed ? 'Passed' : 'Needs work') : 'Not assessed'}
+                            </span>
+                            <p>{response?.feedback || 'No task feedback recorded.'}</p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
                 {latestAttempt?.responses
                   .filter((response) => response.isOverride)
                   .map((response) => (

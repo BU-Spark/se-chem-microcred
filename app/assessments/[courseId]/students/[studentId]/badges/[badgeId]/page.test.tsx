@@ -77,20 +77,20 @@ function createBadgePayload() {
       rubric: {
         goalId: 'goal-1',
         goalName: 'Safe burner operation',
-        totalPoints: 5,
-        passThreshold: 3,
         subgoals: [
           {
             id: 'subgoal-1',
             text: 'Adjust the burner to get a tight and blue flame.',
-            points: 3,
+            passThreshold: 3,
             sortOrder: 0,
+            tasks: [{ id: 'task-1', text: 'Produce a tight blue flame', points: 3, sortOrder: 0 }],
           },
           {
             id: 'subgoal-2',
             text: 'Shut the burner down safely.',
-            points: 2,
+            passThreshold: 2,
             sortOrder: 1,
+            tasks: [{ id: 'task-2', text: 'Close the gas valve', points: 2, sortOrder: 0 }],
           },
         ],
       },
@@ -159,18 +159,22 @@ describe('Assessment readiness page', () => {
     expect(screen.getByRole('heading', { name: 'Safe burner operation' })).toBeInTheDocument();
     expect(screen.getByText(/Adjust the burner to get a tight and blue flame\./)).toBeInTheDocument();
 
-    // Sliders default to red/failed: 0 of 5 points, below the threshold of 3.
-    expect(screen.getByText('0 / 5')).toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Subgoal 1 failed' })).toBeInTheDocument();
+    // Tasks default to red/failed.
+    expect(screen.getByRole('switch', { name: 'Task 1.1 failed' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Task 2.1 failed' })).toBeInTheDocument();
 
-    // Passing the 3-point subgoal reaches the threshold and the live score updates.
-    fireEvent.click(screen.getByRole('switch', { name: 'Subgoal 1 failed' }));
-    expect(screen.getByText('3 / 5')).toBeInTheDocument();
-    expect(screen.getByRole('switch', { name: 'Subgoal 1 passed' })).toBeInTheDocument();
+    // Pass both subgoals' tasks so every subgoal meets its threshold.
+    fireEvent.click(screen.getByRole('switch', { name: 'Task 1.1 failed' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Task 2.1 failed' }));
+    expect(screen.getByRole('switch', { name: 'Task 1.1 passed' })).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: 'Task 2.1 passed' })).toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText('Assessor override'), {
-      target: { value: 'Student demonstrated safe burner operation.' },
-    });
+    // Advance to the confirmation step, which shows the pass outcome.
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
+    expect(
+      screen.getByText(/This student has passed the assessment and will be placed into ready to be finalized/)
+    ).toBeInTheDocument();
+
     fireEvent.click(screen.getByRole('button', { name: 'Submit Assessment' }));
 
     await waitFor(() => {
@@ -185,19 +189,75 @@ describe('Assessment readiness page', () => {
     const postCall = mockFetch.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'POST');
     const postBody = JSON.parse((postCall?.[1] as RequestInit).body as string);
     expect(postBody).toEqual({
-      passed: true,
-      subgoals: [
-        { subgoalId: 'subgoal-1', passed: true, feedback: '' },
-        { subgoalId: 'subgoal-2', passed: false, feedback: '' },
+      tasks: [
+        { taskId: 'task-1', passed: true, feedback: '' },
+        { taskId: 'task-2', passed: true, feedback: '' },
       ],
-      override: { feedback: 'Student demonstrated safe burner operation.' },
+      override: null,
     });
 
     expect(await screen.findByText('Assessment recorded. Badge is ready for finalization.')).toBeInTheDocument();
     expect(mockPush).toHaveBeenCalledWith('/courses/course-1?view=assessor');
   });
 
-  it('blocks flipping the suggested outcome without override feedback', async () => {
+  it('downgrades a passing student to still learning with override feedback', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+
+      if (init?.method === 'POST') {
+        return {
+          ok: true,
+          status: 201,
+          json: async () => ({
+            attempt: { id: 'attempt-1', passed: false, score: 100, completedAt: null },
+            status: 'LEARNING',
+          }),
+        };
+      }
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() };
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createBadgePayload() };
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Task 1.1 failed' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Task 2.1 failed' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
+
+    // A note in the override field downgrades the passing student to still learning.
+    fireEvent.change(screen.getByLabelText('Override to still learning (optional)'), {
+      target: { value: 'Unsafe technique observed after the fact.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Submit Assessment' }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu',
+        expect.objectContaining({ method: 'POST' })
+      );
+    });
+
+    const postCall = mockFetch.mock.calls.find(([, init]) => (init as RequestInit | undefined)?.method === 'POST');
+    const postBody = JSON.parse((postCall?.[1] as RequestInit).body as string);
+    expect(postBody).toEqual({
+      tasks: [
+        { taskId: 'task-1', passed: true, feedback: '' },
+        { taskId: 'task-2', passed: true, feedback: '' },
+      ],
+      override: { feedback: 'Unsafe technique observed after the fact.' },
+    });
+  });
+
+  it('shows the fail outcome when a subgoal misses its threshold', async () => {
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
 
@@ -215,21 +275,15 @@ describe('Assessment readiness page', () => {
     render(<AssessmentReadinessPage />);
 
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
-
-    // 0 / 5 points suggests "Needs reassessment"; pinning Pass without an
-    // override justification must be rejected client-side.
-    fireEvent.click(screen.getByRole('button', { name: 'Pass' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Submit Assessment' }));
+    // Pass only the first subgoal; the second misses its threshold, so the badge fails.
+    fireEvent.click(screen.getByRole('switch', { name: 'Task 1.1 failed' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
 
     expect(
-      await screen.findByText(
-        'You are overriding the score-suggested outcome — describe what you observed in the assessor override field.'
-      )
+      screen.getByText('This student has failed the assessment and will be placed into still learning.')
     ).toBeInTheDocument();
-    expect(mockFetch).not.toHaveBeenCalledWith(
-      '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu',
-      expect.objectContaining({ method: 'POST' })
-    );
+    // The override field is only offered when the student is passing.
+    expect(screen.queryByLabelText('Override to still learning (optional)')).not.toBeInTheDocument();
   });
 
   it('disables the assessment action once the badge has already been assessed', async () => {
