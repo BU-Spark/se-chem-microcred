@@ -47,7 +47,11 @@ export async function computeLessonGrade(
     { totalQuestions: 0, correctAnswers: 0 }
   );
 
-  const percent = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+  // A lesson with no checkpoint questions can't be scored on answers — it is
+  // "passed" simply by watching the video to the end (the grade route is only
+  // invoked once the video completes). Treating it as 0% instead made such
+  // video-only lessons impossible to complete, so their badge never advanced.
+  const percent = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 100;
 
   return {
     totalQuestions,
