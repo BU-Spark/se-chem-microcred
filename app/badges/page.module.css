@@ -177,10 +177,10 @@
 /* Badges grid */
 .badgeGrid {
   position: relative;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 1.75rem 1.5rem;
-  justify-items: center;
   max-width: 540px;
   margin-left: auto;
   margin-right: auto;
@@ -543,10 +543,6 @@
   .walletRoot {
     padding: 2rem;
   }
-
-  .badgeGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 640px) {
@@ -561,7 +557,6 @@
   }
 
   .badgeGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 1.1rem;
   }
 
