@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { isBadgeReleased } from '@/lib/badgeVisibility';
 import prisma from '@/lib/prisma';
 
 function normalizeEmail(email?: string | null) {
@@ -69,11 +70,26 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         : [];
     const avatarBaseByEmail = new Map(contactUsers.map((u) => [u.email, u.avatar?.base ?? null]));
 
+    // Students must not see badges whose release date is still in the future.
+    // Instructors/checkers keep the full list so they can manage unreleased
+    // badges. Filter each lesson's badge requirements for student viewers.
+    const now = new Date();
+    const visibleLessons =
+      viewerRole === 'STUDENT'
+        ? course.lessons.map((lesson) => ({
+            ...lesson,
+            badgeRequirements: lesson.badgeRequirements.filter((requirement) =>
+              isBadgeReleased(requirement.badge, now)
+            ),
+          }))
+        : course.lessons;
+
     return NextResponse.json(
       {
         viewerRole,
         course: {
           ...course,
+          lessons: visibleLessons,
           createdBy: course.createdBy
             ? {
                 ...course.createdBy,
