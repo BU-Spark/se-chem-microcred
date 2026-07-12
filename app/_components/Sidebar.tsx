@@ -37,12 +37,12 @@ interface SidebarProps {
 const CUR_ENV = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
 export const SIDEBAR_NAV: NavItem[] = [
-  { label: 'Home', href: '/' },
-  { label: 'Badges', href: '/my_badges' },
-  { label: 'Badge Wallet', href: '/badges' },
-  ...(CUR_ENV ? [{ label: 'Messages', href: '/messages' }] : []),
+  { label: 'Courses', href: '/' },
+  { label: 'Created Badges', href: '/my_badges' },
+  { label: 'Badge Passport', href: '/badges' },
+  ...(CUR_ENV ? [{ label: 'My Messages', href: '/messages' }] : []),
   { label: 'My Analytics', href: '/analytics' },
-  { label: 'Profile', href: '/profile' }, // In this combine the setting and profile features.
+  { label: 'My Profile', href: '/profile' }, // In this combine the setting and profile features.
 ];
 
 export function initialsFromName(name?: string | null) {

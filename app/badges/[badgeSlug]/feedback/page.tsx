@@ -8,127 +8,7 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import styles from './page.module.css';
-
-const REVIEW_CONTENT: Record<
-  string,
-  {
-    title: string;
-    feedback: string;
-    cooldown: { last: string; remaining: string; next: string };
-    lessonSummary: string;
-    checkpoints: Array<{
-      title: string;
-      subtitle: string;
-      duration: string;
-      image: string;
-    }>;
-    optional: Array<{
-      title: string;
-      duration: string;
-      summary: string;
-      image: string;
-    }>;
-  }
-> = {
-  'bunsen-burner-badge': {
-    title: 'Bunsen Burner Badge',
-    feedback:
-      "Keep refining your flame control and ignition steps. Review your instructor's notes and rewatch the checkpoints below to prepare for your reassessment.",
-    cooldown: {
-      last: '03/08/2025',
-      remaining: '3 days remaining',
-      next: '03/15/2025',
-    },
-    lessonSummary:
-      'Revisit each burner checkpoint, paying close attention to hose inspections and flame height adjustments. Focus on deliberate movements and verbal callouts.',
-    checkpoints: [
-      {
-        title: 'Part 1',
-        subtitle: 'Ignition & Setup',
-        duration: '1.4 minutes',
-        image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=400&q=80',
-      },
-      {
-        title: 'Part 2',
-        subtitle: 'Flame Control',
-        duration: '1.3 minutes',
-        image: 'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=400&q=80',
-      },
-      {
-        title: 'Part 3',
-        subtitle: 'Shutdown & Storage',
-        duration: '1.2 minutes',
-        image: 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?auto=format&fit=crop&w=400&q=80',
-      },
-    ],
-    optional: [
-      {
-        title: 'Advanced Flame Types',
-        duration: '4 min',
-        summary: 'Walk through oxidizing vs. reducing flames and how to set each one.',
-        image: 'https://images.unsplash.com/photo-1470165229730-5bf5ce30f7b6?auto=format&fit=crop&w=400&q=80',
-      },
-      {
-        title: 'Common Burner Mistakes',
-        duration: '3 min',
-        summary: 'Review avoidable lab errors spotted during assessments.',
-        image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=400&q=80',
-      },
-      {
-        title: 'Instructor Walkthrough',
-        duration: '5 min',
-        summary: 'Watch a full burner demonstration narrated by the lab team.',
-        image: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=400&q=80',
-      },
-    ],
-  },
-  'lab-notebook-badge': {
-    title: 'Lab Notebook Badge',
-    feedback:
-      'Great start capturing your work. Tighten consistency on page numbering, dating entries, and summarizing objectives before each experiment.',
-    cooldown: {
-      last: '03/05/2025',
-      remaining: 'Open for reassessment now',
-      next: '03/12/2025',
-    },
-    lessonSummary:
-      'Review the setup walkthrough and ensure every page is numbered, dated, and includes a clear objective and materials list. Keep handwriting readable and avoid blank spaces.',
-    checkpoints: [
-      {
-        title: 'Part 1',
-        subtitle: 'Notebook Setup',
-        duration: '1.2 minutes',
-        image: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?auto=format&fit=crop&w=400&q=80',
-      },
-      {
-        title: 'Part 2',
-        subtitle: 'Page Numbering & Dates',
-        duration: '1.0 minutes',
-        image: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=400&q=80',
-      },
-      {
-        title: 'Part 3',
-        subtitle: 'Objectives & Materials',
-        duration: '1.1 minutes',
-        image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?auto=format&fit=crop&w=400&q=80',
-      },
-    ],
-    optional: [
-      {
-        title: 'Example Pre-lab Entry',
-        duration: '3 min',
-        summary: 'See a complete pre-lab with objectives, hazards, and materials.',
-        image: 'https://images.unsplash.com/photo-1488590528505-98d2b5aba04b?auto=format&fit=crop&w=400&q=80',
-      },
-      {
-        title: 'Common Notebook Pitfalls',
-        duration: '2 min',
-        summary: 'Avoid gaps, illegible notes, and missing dates.',
-        image: 'https://images.unsplash.com/photo-1504691342899-4d92b50853e1?auto=format&fit=crop&w=400&q=80',
-      },
-    ],
-  },
-};
+import { toTitleCase } from '@/lib/utils';
 
 const BADGE_STATUS_LABEL: Record<string, string> = {
   LEARNING: 'Still learning',
@@ -214,18 +94,16 @@ export default function BadgeFeedbackPage() {
   const badge = allBadges.find((entry) => entry.slug === params.badgeSlug);
   const content = useMemo(() => {
     if (!badge) return null;
-    const specific = REVIEW_CONTENT[params.badgeSlug];
-    if (specific) return specific;
     return {
       title: badge.name,
       feedback: badge.description ?? 'We are still preparing detailed feedback for this badge.',
       cooldown: { last: 'N/A', remaining: 'Feedback pending', next: 'TBD' },
       lessonSummary:
         'We are preparing detailed review points for this badge. In the meantime, revisit your lesson checkpoints.',
-      checkpoints: [],
-      optional: [],
+      checkpoints: [] as Array<{ title: string; image: string; subtitle: string; duration: string }>,
+      optional: [] as Array<{ title: string; image: string; duration: string; summary: string }>,
     };
-  }, [badge, params.badgeSlug]);
+  }, [badge]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !studentData) {
@@ -381,9 +259,7 @@ export default function BadgeFeedbackPage() {
   const latestAttempt = feedbackDetail?.latestAttempt ?? null;
   const rubric = feedbackDetail?.rubric ?? null;
   const responseByKey = new Map(
-    latestAttempt?.responses
-      .filter((response) => !response.isOverride)
-      .map((response) => [`${response.subgoalText}::${response.taskText}`, response]) ?? []
+    latestAttempt?.responses.map((response) => [`${response.subgoalText}::${response.taskText}`, response]) ?? []
   );
 
   return (
@@ -416,14 +292,6 @@ export default function BadgeFeedbackPage() {
             {latestAttempt ? (
               <div className={styles.assessmentSummary}>
                 <span>Outcome: {latestAttempt.passed ? 'Passed' : 'Needs reassessment'}</span>
-                <span>
-                  Score:{' '}
-                  {latestAttempt.pointsEarned != null && latestAttempt.pointsPossible != null
-                    ? `${latestAttempt.pointsEarned}/${latestAttempt.pointsPossible}`
-                    : latestAttempt.score != null
-                      ? `${latestAttempt.score}%`
-                      : 'Not scored'}
-                </span>
                 {latestAttempt.assessorName ? <span>Assessor: {latestAttempt.assessorName}</span> : null}
               </div>
             ) : null}
@@ -434,20 +302,14 @@ export default function BadgeFeedbackPage() {
                 </div>
                 {rubric.subgoals.map((subgoal) => (
                   <div key={subgoal.id}>
-                    <div className={styles.rubricHeader}>
+                    <div className={styles.rubricSubHeader}>
                       <strong>{subgoal.text}</strong>
-                      <span>Pass at {subgoal.passThreshold} pts</span>
                     </div>
                     {subgoal.tasks.map((task) => {
                       const response = responseByKey.get(`${subgoal.text}::${task.text}`);
                       return (
                         <div key={task.id} className={styles.rubricRow}>
-                          <div>
-                            <strong>{task.text}</strong>
-                            <p>
-                              {task.points} {task.points === 1 ? 'point' : 'points'}
-                            </p>
-                          </div>
+                          <strong>{toTitleCase(task.text)}</strong>
                           <div>
                             <span className={response?.passed ? styles.rubricPassed : styles.rubricNeedsWork}>
                               {response ? (response.passed ? 'Passed' : 'Needs work') : 'Not assessed'}

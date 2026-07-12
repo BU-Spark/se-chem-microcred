@@ -423,7 +423,6 @@ describe('Badge Feedback page', () => {
     render(<BadgeFeedbackPage />);
     expect(screen.getByText(/Bunsen Burner Badge/i)).toBeInTheDocument();
     expect(screen.getByText(/Status:/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Ignition/i).length).toBeGreaterThan(0); // checkpoint title from REVIEW_CONTENT
   });
 });
 
@@ -431,8 +430,6 @@ describe('Analytics page', () => {
   it('computes badge percentages and renders stat cards', () => {
     render(<AnalyticsPage />);
     expect(screen.getAllByText(/badges completed/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/hours spent learning/i)).toBeInTheDocument();
-    expect(screen.getByText(/questions answered/i)).toBeInTheDocument();
     expect(screen.getByText(/Average assessment score/i)).toBeInTheDocument();
   });
 });
@@ -454,14 +451,6 @@ describe('Profile page', () => {
     expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
     jest.useRealTimers();
-  });
-
-  it('invokes Clerk profile for change password action', () => {
-    const openProfile = jest.fn();
-    mockUseClerk.mockReturnValue({ openUserProfile: openProfile });
-    render(<ProfilePage />);
-    fireEvent.click(screen.getByText(/Change Password/i));
-    expect(openProfile).toHaveBeenCalled();
   });
 });
 

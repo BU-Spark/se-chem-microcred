@@ -367,7 +367,6 @@ function HomePageContent() {
       <div key={lesson.id} className={styles.card}>
         <div className={styles.cardMedia}>
           {isYouTubeThumb ? (
-            // 对 YouTube 缩略图使用普通 <img>，避免 next/image 域名限制
             // eslint-disable-next-line @next/next/no-img-element
             <img src={imageSrc} alt="Lesson preview" width={320} height={200} className={styles.cardMediaImage} />
           ) : (
