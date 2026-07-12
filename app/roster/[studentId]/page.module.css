@@ -341,14 +341,16 @@
 }
 
 .badgeGrid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 0.85rem 1.15rem;
 }
 
 .badgeItem {
   display: flex;
   justify-content: center;
+  width: 8.35rem;
 }
 
 .badgeTokenButton,
@@ -776,10 +778,6 @@
 
   .detailGrid {
     grid-template-columns: 1fr;
-  }
-
-  .badgeGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .badgesHeader,
