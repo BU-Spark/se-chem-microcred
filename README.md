@@ -81,6 +81,11 @@ SEEDED_DEMO_EMAIL="your-instructor-clerk-email@example.com"
 
 # Feature flag: show the WIP Messages tab (dev only). Omit/false in prod.
 NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV="true"
+
+# Feature flag for MVP -- to be removed after initial testing phase with clients. Flip to false to allow all users to create
+ALPHA_MODE="true"
+# List of allowed emails to create content during the MVP (locally make this just your email, in staging/prod use an actual list) -- This is needed in otherwise Alpha_Mode var will lock everyone out
+ALPHA_ADMIN_EMAILS="<comma separated list of emails that are valid>"
 ```
 
 Get Clerk keys by creating a project at https://clerk.com/ and copying the Publishable and Secret keys.
@@ -105,11 +110,11 @@ npm run db:seed        # runs prisma/seed.js -> prisma/seed-playtest.js (CHEM101
 
 The seed is **additive for users** and **scoped for course content**: it upserts three test users (stable ids, so Clerk links keep working), (re)builds the self-contained CHEM101 course with lessons/badges/checkpoints/surveys/progress, and removes the legacy PLAYTEST course if present. It's idempotent — safe to re-run to reset to the known starting state.
 
-| Role | Email | Course access |
-|------|-------|---------------|
-| Instructor | `SEEDED_DEMO_EMAIL`, or `instructor+clerk_test@gmail.com` if unset | owns CHEM101 |
-| Student | `student+clerk_test@bu.edu` | enrolled as student |
-| Assessor | `checker+clerk_test@bu.edu` | enrolled as active assessor (CHECKER) |
+| Role       | Email                                                              | Course access                         |
+| ---------- | ------------------------------------------------------------------ | ------------------------------------- |
+| Instructor | `SEEDED_DEMO_EMAIL`, or `instructor+clerk_test@gmail.com` if unset | owns CHEM101                          |
+| Student    | `student+clerk_test@bu.edu`                                        | enrolled as student                   |
+| Assessor   | `checker+clerk_test@bu.edu`                                        | enrolled as active assessor (CHECKER) |
 
 There's also an additive single-user seed for quickly adding yourself without touching anything else:
 

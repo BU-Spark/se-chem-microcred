@@ -12,6 +12,7 @@ import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
+import { isLessonReleased, lessonReleaseDate } from '../../../../lib/lessonVisibility';
 
 function avatarPathForBase(base?: string | null): string {
   switch (base) {
@@ -159,6 +160,7 @@ function formatLesson({
     thumbnailUrl: lesson.thumbnailUrl,
     estimatedMinutes: lesson.estimatedMinutes,
     dueDate: lesson.dueDate?.toISOString() ?? null,
+    availableOn: lessonReleaseDate(lesson.badgeRequirements.map((req) => req.badge.availableOn))?.toISOString() ?? null,
     sortOrder: lesson.sortOrder,
     passingPercent: lesson.passingPercent,
     status: derivedStatus,
@@ -237,7 +239,7 @@ async function fetchLessons(courseId: string) {
       badgeRequirements: {
         include: {
           badge: {
-            select: { id: true, name: true, slug: true },
+            select: { id: true, name: true, slug: true, availableOn: true },
           },
         },
       },
@@ -576,12 +578,23 @@ export async function GET(req: Request) {
     return formattedWithProgress;
   });
 
-  const upNextLessons = lessonCatalog
+  // Hide lessons whose badge hasn't been released yet — everywhere a student
+  // sees them (the row lists below and the catalog used by lesson pages).
+  const now = new Date();
+  const visibleLessons = lessonCatalog.filter((lesson) =>
+    isLessonReleased(lesson.availableOn ? new Date(lesson.availableOn) : null, now)
+  );
+
+  const upNextLessons = visibleLessons
     .filter((lesson) => lesson.status === LessonStatus.NOT_STARTED)
     .sort((a, b) => (a.dueDate && b.dueDate ? Date.parse(a.dueDate) - Date.parse(b.dueDate) : 0));
 
-  const continueLessons = lessonCatalog
+  const continueLessons = visibleLessons
     .filter((lesson) => lesson.status === LessonStatus.IN_PROGRESS)
+    .sort((a, b) => (a.dueDate && b.dueDate ? Date.parse(a.dueDate) - Date.parse(b.dueDate) : 0));
+
+  const completedLessons = visibleLessons
+    .filter((lesson) => lesson.status === LessonStatus.COMPLETED)
     .sort((a, b) => (a.dueDate && b.dueDate ? Date.parse(a.dueDate) - Date.parse(b.dueDate) : 0));
 
   const normalizedStudentBadges = studentBadges.map((entry) => {
@@ -776,9 +789,10 @@ export async function GET(req: Request) {
         }
       : null,
     lessons: {
-      catalog: lessonCatalog,
+      catalog: visibleLessons,
       upNext: upNextLessons,
       inProgress: continueLessons,
+      completed: completedLessons,
     },
     badges: {
       completed: badgeGroups[BadgeStatus.COMPLETED],

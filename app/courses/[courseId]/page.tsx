@@ -751,6 +751,7 @@ export default function CreatedCourseDetailPage() {
           courseId={courseId}
           badgeId={reminderBadge.id}
           badgeName={reminderBadge.name}
+          courseName={course?.title ?? 'Course'}
           onClose={() => setReminderBadge(null)}
         />
       ) : null}

@@ -1270,6 +1270,10 @@ export function LessonVideoPage({
     router.push('/');
   }, [router]);
 
+  const handleGoCourseDashboard = useCallback(() => {
+    router.push(`/course_dashboard?courseId=${courseId}`);
+  }, [router, courseId]);
+
   const handleBackToLessonDetail = useCallback(() => {
     if (window.history.length > 1) {
       router.back();
@@ -1649,8 +1653,8 @@ export function LessonVideoPage({
                         <button type="button" className={styles.modalSecondary} onClick={handleRestartAfterFailure}>
                           Restart now
                         </button>
-                        <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
-                          Back to dashboard
+                        <button type="button" className={styles.modalSecondary} onClick={handleGoCourseDashboard}>
+                          Go to course
                         </button>
                       </div>
                     </>

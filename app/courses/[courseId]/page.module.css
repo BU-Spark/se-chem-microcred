@@ -294,8 +294,9 @@
 }
 
 .badgeGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
   gap: 1.75rem;
   margin-top: 2.3rem;
 }
@@ -305,6 +306,7 @@
   flex-direction: column;
   align-items: center;
   gap: 0.95rem;
+  width: 9.8rem;
   text-align: center;
   color: inherit;
   text-decoration: none;
@@ -752,17 +754,9 @@
   .badgesCard {
     padding: 1.35rem;
   }
-
-  .badgeGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
 }
 
 @media (max-width: 520px) {
-  .badgeGrid {
-    grid-template-columns: 1fr;
-  }
-
   .personCard {
     align-items: flex-start;
   }

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser, useClerk, useReverification } from '@clerk/nextjs';
+import { useAuth, useUser, useReverification } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import styles from './page.module.css';
@@ -64,7 +64,8 @@ export default function ProfilePage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
   const { signOut } = useAuth();
-  const clerk = useClerk();
+  // commenting out here again use for clerk is not needed here anymore without the change password feature
+  // const clerk = useClerk();
 
   const { data: studentData, refresh: refreshStudentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   // Cached avatar base (in-memory + localStorage) so the chosen avatar paints
@@ -191,16 +192,16 @@ export default function ProfilePage() {
     }
     setDemographicOpen(true);
   };
-
-  const handleChangePassword = async () => {
-    // One simple pattern: open Clerk's built-in profile where the user can
-    // manage their password & authentication methods.
-    try {
-      clerk.openUserProfile();
-    } catch (err) {
-      console.error('Failed to open Clerk user profile', err);
-    }
-  };
+  // This function is deprecated until there is a need will keep commented out unless feature is wanted back
+  // const handleChangePassword = async () => {
+  //   // One simple pattern: open Clerk's built-in profile where the user can
+  //   // manage their password & authentication methods.
+  //   try {
+  //     clerk.openUserProfile();
+  //   } catch (err) {
+  //     console.error('Failed to open Clerk user profile', err);
+  //   }
+  // };
 
   const handleOpenLanguageModal = () => {
     setLanguageDraft(language); // start from current
@@ -318,7 +319,7 @@ export default function ProfilePage() {
       <main className="main">
         <div className={styles.pageContent}>
           <header className={styles.headerRow}>
-            <h1 className={styles.pageTitle}>Student Profile</h1>
+            <h1 className={styles.pageTitle}>My Profile</h1>
             <span className={styles.greeting}>Hello, {greetingName}</span>
           </header>
 
@@ -326,7 +327,7 @@ export default function ProfilePage() {
           <section className={styles.profileCard}>
             {/* LEFT: student info */}
             <div className={styles.infoColumn}>
-              <h2 className={styles.sectionTitle}>Student Info:</h2>
+              <h2 className={styles.sectionTitle}>My Info:</h2>
 
               <div className={styles.primaryName}>
                 {lastName ? (
@@ -340,7 +341,6 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <div className={styles.roleLabel}>Student</div>
               <div className={styles.metaLine}>Date Created: {createdAt}</div>
 
               <div className={styles.detailGridTop}>
@@ -357,9 +357,6 @@ export default function ProfilePage() {
               </div>
 
               <div className={styles.inlineActionsRow}>
-                <button type="button" className={styles.inlineLink} onClick={handleChangePassword}>
-                  Change Password
-                </button>
                 <button type="button" className={styles.inlineLink} onClick={handleOpenLanguageModal}>
                   Change Language
                 </button>

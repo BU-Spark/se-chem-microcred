@@ -142,31 +142,45 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       return 'Still Learning';
     };
 
+    // Wide/pivot layout (issue #120, "Option B"): one row per student, with a
+    // column per badge whose value is the student's status for that badge. Two
+    // badges can share a display name, which would collide as object keys, so
+    // build a unique column label per badge (suffixing duplicates) while keeping
+    // the badge's lesson order for the column sequence.
+    const columnLabelByBadgeId = new Map<string, string>();
+    const usedColumnLabels = new Set(['First Name', 'Last Name', 'BUID', 'Email']);
+    for (const badge of badges) {
+      let label = badge.name;
+      for (let suffix = 2; usedColumnLabels.has(label); suffix += 1) {
+        label = `${badge.name} (${suffix})`;
+      }
+      usedColumnLabels.add(label);
+      columnLabelByBadgeId.set(badge.id, label);
+    }
+
     const rows: Record<string, string>[] = [];
     for (const enrollment of students) {
       const { student } = enrollment;
       const { first, last } = splitName(student.name);
 
+      const row: Record<string, string> = {
+        'First Name': first,
+        'Last Name': last,
+        BUID: student.buid ?? '',
+        Email: student.email ?? '',
+      };
       for (const badge of badges) {
-        rows.push({
-          'First Name': first,
-          'Last Name': last,
-          BUID: student.buid ?? '',
-          Email: student.email ?? '',
-          Badge: badge.name,
-          Status: displayStatus(student.id, badge),
-        });
+        row[columnLabelByBadgeId.get(badge.id) as string] = displayStatus(student.id, badge);
       }
+      rows.push(row);
     }
 
-    // Group each student's badges together, then order badges by name, so the
-    // CSV reads as blocks of one student at a time.
+    // One row per student now, so order the rows by student name (then email).
     rows.sort(
       (a, b) =>
         a['Last Name'].localeCompare(b['Last Name']) ||
         a['First Name'].localeCompare(b['First Name']) ||
-        a.Email.localeCompare(b.Email) ||
-        a.Badge.localeCompare(b.Badge)
+        a.Email.localeCompare(b.Email)
     );
 
     const safeTitle = course.title.replace(/[^\w-]+/g, '_').replace(/^_+|_+$/g, '') || 'course';

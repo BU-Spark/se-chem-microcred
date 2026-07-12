@@ -19,6 +19,7 @@ function buildLesson(overrides: Partial<LessonRecord> = {}): LessonRecord {
     thumbnailUrl: null,
     estimatedMinutes: 10,
     dueDate: null,
+    availableOn: null,
     sortOrder: 0,
     passingPercent: 70,
     status: 'IN_PROGRESS',
