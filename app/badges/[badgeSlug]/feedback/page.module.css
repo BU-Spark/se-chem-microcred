@@ -168,14 +168,14 @@
   font-size: 2rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid #d8e0ec;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
 }
 
 .rubricSubHeader {
   font-size: 1.2rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid #d8e0ec;
-  font-family: 'Lato', sans-serif;
+  font-family: Lato, sans-serif;
 }
 
 .rubricRow {

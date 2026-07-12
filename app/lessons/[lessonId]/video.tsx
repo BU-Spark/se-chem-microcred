@@ -1667,7 +1667,7 @@ export function LessonVideoPage({
                           Restart now
                         </button>
                         <button type="button" className={styles.modalSecondary} onClick={handleGoCourseDashboard}>
-                          Back to dashboard
+                          Go to course
                         </button>
                       </div>
                     </>
