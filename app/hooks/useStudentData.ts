@@ -92,6 +92,7 @@ export interface LessonRecord {
   thumbnailUrl: string | null;
   estimatedMinutes: number | null;
   dueDate: string | null;
+  availableOn: string | null;
   sortOrder: number;
   passingPercent: number;
   status: LessonStatus;
