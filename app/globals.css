@@ -108,7 +108,9 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 a {
@@ -226,7 +228,9 @@ a {
   color: var(--brand-on);
   font-weight: 600;
   cursor: pointer;
-  transition: filter 0.2s ease, background-color 0.2s ease;
+  transition:
+    filter 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .signOffButton:hover {
@@ -507,7 +511,9 @@ html.dark .surveyQuestion {
   display: grid;
   place-items: center;
   cursor: pointer;
-  transition: transform 0.2s ease, border-color 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .surveyFaceSelected {
@@ -678,7 +684,9 @@ html.dark .rte-container:focus-within {
   background: transparent;
   color: var(--text-color);
   cursor: pointer;
-  transition: background-color 0.15s ease, color 0.15s ease;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .rte-toolbar-btn:hover:not(:disabled) {
@@ -730,6 +738,16 @@ html.dark .rte-toolbar-btn--active {
   pointer-events: none;
   user-select: none;
   font-size: 0.95rem;
+}
+
+.rte-container--compact .rte-content-editable {
+  min-height: 96px;
+  padding: 0.75rem 0.9rem;
+}
+
+.rte-container--compact .rte-placeholder {
+  top: 0.75rem;
+  left: 0.9rem;
 }
 
 /* ---- Block elements ---- */
@@ -829,6 +847,16 @@ html.dark .rte-quote {
   background: var(--code-bg);
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
+}
+
+.rte-subscript {
+  vertical-align: sub;
+  font-size: 0.75em;
+}
+
+.rte-superscript {
+  vertical-align: super;
+  font-size: 0.75em;
 }
 
 /* Read-only rendering of editor HTML (e.g. TA instructions in the assessor view). */

@@ -333,7 +333,7 @@ export default function BadgeCreationPage() {
       checkpoints.map((checkpoint) => {
         if (checkpoint.id !== checkpointId) return checkpoint;
         const nextQuestions = checkpoint.questions.map((question) =>
-          question.id === questionId && question.options.length < 4
+          question.id === questionId && question.options.length < 8
             ? { ...question, options: [...question.options, ''] }
             : question
         );

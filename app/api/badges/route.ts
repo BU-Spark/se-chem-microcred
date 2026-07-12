@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto';
 
 import prisma from '@/lib/prisma';
 import { canCreateContent } from '@/lib/adminAccess';
+import { hasVisibleQuestionText, sanitizeQuestionRichText } from '@/app/lib/question-rich-text';
 
 type CheckpointQuestionPayload = {
   id?: string | null;
@@ -197,7 +198,7 @@ function normalizeOptions(options?: string[] | null) {
     .map((option) => normalizeString(option))
     .filter((option): option is string => Boolean(option));
 
-  const capped = normalized.slice(0, 4);
+  const capped = normalized.slice(0, 8);
   while (capped.length < 2) {
     capped.push(capped.length === 0 ? 'Yes' : 'No');
   }
@@ -277,7 +278,8 @@ function buildQuestionOptions(question: CheckpointQuestionPayload) {
 }
 
 function getQuestionPrompt(question: CheckpointQuestionPayload) {
-  return normalizeString(question.question) ?? normalizeString(question.prompt);
+  const value = question.question ?? question.prompt;
+  return hasVisibleQuestionText(value) ? sanitizeQuestionRichText(value) : null;
 }
 
 function normalizeCheckpointQuestions(checkpoint: CheckpointPayload) {

@@ -71,6 +71,24 @@
   flex-wrap: wrap;
 }
 
+.addMembersButton {
+  min-height: 57px;
+  padding: 0.75rem 1.35rem;
+  border: none;
+  border-radius: 28.5px;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.addMembersButton:hover {
+  filter: brightness(1.06);
+}
+
 .searchField {
   flex: 1 1 446px;
   min-height: 57px;
@@ -379,8 +397,12 @@
 /* Per-row Remove student action (instructor, student roster only) */
 .actionsHeader,
 .actionsCell {
-  text-align: right;
+  text-align: center !important;
   white-space: nowrap;
+}
+
+.actionsCell .removeButton {
+  margin-inline: auto;
 }
 
 .removeButton {
@@ -404,6 +426,30 @@
   cursor: not-allowed;
 }
 
+.sectionCell {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+.editSectionButton,
+.assignSectionButton {
+  border-radius: 10px;
+  padding: 0.38rem 0.72rem;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+}
+.editSectionButton {
+  border: 1px solid #b8cce2;
+  background: #ffffff;
+  color: #2e6aa9;
+}
+.assignSectionButton {
+  border: none;
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
 /* Remove-student confirmation modal */
 .modalOverlay {
   position: fixed;
@@ -425,6 +471,61 @@
   display: flex;
   flex-direction: column;
   gap: 1rem;
+}
+
+.addModal {
+  width: min(40rem, 100%);
+}
+
+.addModeTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  padding: 0.3rem;
+  border-radius: 14px;
+  background: #eef2f6;
+}
+
+.addModeTab {
+  border: none;
+  border-radius: 11px;
+  padding: 0.75rem;
+  background: transparent;
+  color: #334155;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.addModeTabActive {
+  background: #ffffff;
+  color: #2e6aa9;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+}
+
+.addMemberGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.9rem 1rem;
+}
+.addMemberGrid .filterField:nth-child(3),
+.addMemberGrid .filterField:nth-child(5),
+.addHint {
+  grid-column: 1 / -1;
+}
+.addHint,
+.selectedFile {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+.csvPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+.csvInput {
+  font-family: 'Open Sans', sans-serif;
 }
 
 .modalTitle {
