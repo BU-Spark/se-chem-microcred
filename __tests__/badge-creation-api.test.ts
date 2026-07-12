@@ -332,7 +332,7 @@ describe('badge creation API', () => {
       expect.arrayContaining([
         expect.objectContaining({
           checkpointId: 'checkpoint-1',
-          prompt: 'What should you check first?',
+          prompt: '<p>What should you check first?</p>',
           options: {
             type: 'multipleChoice',
             options: ['Gas off', 'Gas on'],
@@ -343,7 +343,7 @@ describe('badge creation API', () => {
         expect.objectContaining({
           checkpointId: 'checkpoint-1',
           sortOrder: 1,
-          prompt: 'What color should a steady flame be?',
+          prompt: '<p>What color should a steady flame be?</p>',
           options: {
             type: 'multipleChoice',
             options: ['Orange', 'Blue', 'Yellow'],
@@ -353,7 +353,7 @@ describe('badge creation API', () => {
         }),
         expect.objectContaining({
           checkpointId: 'checkpoint-2',
-          prompt: 'What temperature range is acceptable?',
+          prompt: '<p>What temperature range is acceptable?</p>',
           options: {
             type: 'shortAnswer',
             expectedAnswer: 42,
@@ -753,7 +753,7 @@ describe('badge creation API', () => {
           },
         },
         create: expect.objectContaining({
-          prompt: 'Second question?',
+          prompt: '<p>Second question?</p>',
           options: {
             type: 'multipleChoice',
             options: ['Red', 'Blue'],
