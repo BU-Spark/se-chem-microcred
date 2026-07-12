@@ -55,6 +55,16 @@ export default function MessagesPage() {
 
   if (!isLoaded || !isSignedIn) return null;
 
+  const markRead = async (id: string) => {
+    // Optimistically flip to read; the PATCH is idempotent server-side.
+    setMessages((current) => current.map((message) => (message.id === id ? { ...message, read: true } : message)));
+    try {
+      await fetch(`/api/messages/${encodeURIComponent(id)}`, { method: 'PATCH' });
+    } catch (err) {
+      console.error('Failed to mark message read', err);
+    }
+  };
+
   const handleSignOut = async () => {
     if (isSigningOut) return;
     setIsSigningOut(true);
@@ -88,7 +98,11 @@ export default function MessagesPage() {
         ) : (
           <ul className={styles.list}>
             {messages.map((message) => (
-              <li key={message.id} className={`${styles.item} ${message.read ? '' : styles.itemUnread}`}>
+              <li
+                key={message.id}
+                className={`${styles.item} ${message.read ? '' : styles.itemUnread}`}
+                onClick={message.read ? undefined : () => void markRead(message.id)}
+              >
                 <div className={styles.itemHeader}>
                   <span className={styles.itemSubject}>{message.subject}</span>
                   <span className={styles.itemDate}>{new Date(message.createdAt).toLocaleDateString()}</span>
