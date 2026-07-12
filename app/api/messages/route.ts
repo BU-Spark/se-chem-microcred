@@ -43,7 +43,7 @@ export async function GET() {
         readAt: true,
         createdAt: true,
         sender: { select: { name: true, email: true } },
-        course: { select: { title: true } },
+        course: { select: { title: true, createdBy: { select: { name: true } } } },
         badge: { select: { name: true } },
       },
     });
@@ -57,7 +57,9 @@ export async function GET() {
           body: message.body,
           read: message.readAt != null,
           createdAt: message.createdAt.toISOString(),
-          senderName: message.sender?.name ?? null,
+          // Prefer the sender's own name; fall back to the course's instructor
+          // (its creator) so a real name shows even if the sender has none saved.
+          senderName: message.sender?.name ?? message.course?.createdBy?.name ?? null,
           courseTitle: message.course?.title ?? null,
           badgeName: message.badge?.name ?? null,
         })),

@@ -108,9 +108,9 @@ export default function MessagesPage() {
                   <span className={styles.itemDate}>{new Date(message.createdAt).toLocaleDateString()}</span>
                 </div>
                 <p className={styles.itemMeta}>
-                  {message.senderName ? `From ${message.senderName}` : 'From your instructor'}
-                  {message.courseTitle ? ` · ${message.courseTitle}` : ''}
+                  To: {message.courseTitle ? `${message.courseTitle} – Students` : 'Students'}
                 </p>
+                <p className={styles.itemMeta}>From: {message.senderName ?? 'your instructor'}</p>
                 <p className={styles.itemBody}>{message.body}</p>
               </li>
             ))}

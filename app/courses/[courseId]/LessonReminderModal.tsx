@@ -5,26 +5,27 @@ import { useState } from 'react';
 import { useFocusTrap } from '../../hooks/useFocusTrap';
 import styles from './LessonReminderModal.module.css';
 
-function defaultReminderBody(badgeName: string) {
-  const cleanName = badgeName.replace(/ Badge$/i, '').trim();
-  return `[Student],\n\nReminder that your assessment for ${cleanName.toUpperCase()} BADGE is due soon. Please finish the lesson and checkpoints before the deadline.\n\nBest,\nProfessor`;
+function defaultReminderBody(courseName: string, cleanName: string) {
+  return `${courseName} - Students,\n\nReminder that your assessment for ${cleanName.toUpperCase()} BADGE is due soon. Please finish the lesson and checkpoints before the deadline.\n\nBest,\nProfessor`;
 }
 
 export function LessonReminderModal({
   courseId,
   badgeId,
   badgeName,
+  courseName,
   onClose,
 }: {
   courseId: string;
   badgeId: string;
   badgeName: string;
+  courseName: string;
   onClose: () => void;
 }) {
   const modalRef = useFocusTrap<HTMLDivElement>(true, onClose);
   const cleanName = badgeName.replace(/ Badge$/i, '').trim();
 
-  const [body, setBody] = useState(() => defaultReminderBody(badgeName));
+  const [body, setBody] = useState(() => defaultReminderBody(courseName, cleanName));
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<number | null>(null);

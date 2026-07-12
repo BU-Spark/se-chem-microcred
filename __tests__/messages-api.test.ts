@@ -83,6 +83,26 @@ describe('GET /api/messages', () => {
     );
   });
 
+  it('falls back to the course instructor name when the sender has none', async () => {
+    mockPrisma.message.findMany.mockResolvedValue([
+      {
+        id: 'm1',
+        subject: 'Hello',
+        body: 'Body',
+        readAt: null,
+        createdAt: new Date('2026-07-01T00:00:00.000Z'),
+        sender: { name: null, email: 'prof@x.edu' },
+        course: { title: 'Chem 101', createdBy: { name: 'Prof Alice' } },
+        badge: null,
+      },
+    ]);
+
+    const response = await GET();
+    const body = await response.json();
+
+    expect(body.messages[0]).toMatchObject({ senderName: 'Prof Alice', courseTitle: 'Chem 101' });
+  });
+
   it('rejects unauthenticated callers', async () => {
     signedInAs(null);
     const response = await GET();
