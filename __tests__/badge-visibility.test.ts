@@ -1,6 +1,6 @@
 /** @jest-environment node */
 
-import { isBadgeReleased, isBadgeVisible } from '../lib/badgeVisibility';
+import { isBadgeVisible } from '../lib/badgeVisibility';
 
 const NOW = new Date('2026-07-12T12:00:00.000Z');
 const PAST = new Date('2026-01-01T00:00:00.000Z');
@@ -38,25 +38,5 @@ describe('isBadgeVisible', () => {
 
   it('treats the exact boundary as visible', () => {
     expect(isBadgeVisible({ availableOn: NOW, closesOn: NOW }, NOW)).toBe(true);
-  });
-});
-
-describe('isBadgeReleased', () => {
-  it('is released when no availableOn is set', () => {
-    expect(isBadgeReleased({}, NOW)).toBe(true);
-  });
-
-  it('is not released when availableOn is in the future', () => {
-    expect(isBadgeReleased({ availableOn: FUTURE }, NOW)).toBe(false);
-  });
-
-  it('is released when availableOn is in the past', () => {
-    expect(isBadgeReleased({ availableOn: PAST }, NOW)).toBe(true);
-  });
-
-  it('ignores closesOn entirely', () => {
-    // A released-but-closed badge is still "released" (kept for students who
-    // already started it), even though it is no longer offered as available.
-    expect(isBadgeReleased({ availableOn: PAST, closesOn: PAST }, NOW)).toBe(true);
   });
 });

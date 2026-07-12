@@ -15,16 +15,8 @@ export type BadgeVisibilityFields = {
   neverCloses?: boolean | null;
 };
 
-// True once the badge's release date has passed (or none is set). A badge that
-// has NOT been released must never be shown to a student, even if an eager
-// StudentBadge row exists for it — that row is auto-created, not real activity.
-export function isBadgeReleased(badge: BadgeVisibilityFields, now: Date = new Date()): boolean {
-  return !badge.availableOn || badge.availableOn <= now;
-}
-
-// True when the badge is both released and not yet closed. Used to decide
-// whether to offer a badge as newly available / not-yet-started.
 export function isBadgeVisible(badge: BadgeVisibilityFields, now: Date = new Date()): boolean {
+  const released = !badge.availableOn || badge.availableOn <= now;
   const notClosed = badge.neverCloses === true || !badge.closesOn || badge.closesOn >= now;
-  return isBadgeReleased(badge, now) && notClosed;
+  return released && notClosed;
 }
