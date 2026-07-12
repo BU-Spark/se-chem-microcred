@@ -12,7 +12,7 @@ import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
-import { isBadgeVisible } from '../../../../lib/badgeVisibility';
+import { isBadgeReleased, isBadgeVisible } from '../../../../lib/badgeVisibility';
 
 function avatarPathForBase(base?: string | null): string {
   switch (base) {
@@ -675,11 +675,16 @@ export async function GET(req: Request) {
     });
   };
 
+  // A badge that hasn't been released yet must never appear, even though an
+  // eager LEARNING StudentBadge row exists for it — that row is auto-created,
+  // not real student activity. Drop unreleased badges before any grouping.
+  const releasedStudentBadges = normalizedStudentBadges.filter((entry) => isBadgeReleased(entry.badge));
+
   // Badges the student has already started or earned stay visible regardless of
-  // the release/close dates, so nothing the student worked on ever disappears.
-  const startedStudentBadges = normalizedStudentBadges.filter((entry) => !isUnstartedLearningBadge(entry));
-  // Not-yet-started badges are gated on the instructor's availableOn/closesOn.
-  const unstartedLearningBadges = normalizedStudentBadges
+  // the close date, so nothing the student worked on ever disappears.
+  const startedStudentBadges = releasedStudentBadges.filter((entry) => !isUnstartedLearningBadge(entry));
+  // Not-yet-started badges are additionally gated on the close date.
+  const unstartedLearningBadges = releasedStudentBadges
     .filter(isUnstartedLearningBadge)
     .filter((entry) => isBadgeVisible(entry.badge))
     .map((entry) => ({ ...formatBadge(entry), status: 'NOT_STARTED' as const }));
