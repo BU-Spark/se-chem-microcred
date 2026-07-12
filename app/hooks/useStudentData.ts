@@ -48,6 +48,7 @@ export interface StudentData {
     catalog: LessonRecord[];
     upNext: LessonRecord[];
     inProgress: LessonRecord[];
+    completed: LessonRecord[];
   };
   badges: {
     completed: BadgeRecord[];

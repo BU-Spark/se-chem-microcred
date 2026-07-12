@@ -584,6 +584,10 @@ export async function GET(req: Request) {
     .filter((lesson) => lesson.status === LessonStatus.IN_PROGRESS)
     .sort((a, b) => (a.dueDate && b.dueDate ? Date.parse(a.dueDate) - Date.parse(b.dueDate) : 0));
 
+  const completedLessons = lessonCatalog
+    .filter((lesson) => lesson.status === LessonStatus.COMPLETED)
+    .sort((a, b) => (a.dueDate && b.dueDate ? Date.parse(a.dueDate) - Date.parse(b.dueDate) : 0));
+
   const normalizedStudentBadges = studentBadges.map((entry) => {
     const requirementLessonIds = entry.badge.requirements
       .map((requirement) => requirement.lessonId)
@@ -779,6 +783,7 @@ export async function GET(req: Request) {
       catalog: lessonCatalog,
       upNext: upNextLessons,
       inProgress: continueLessons,
+      completed: completedLessons,
     },
     badges: {
       completed: badgeGroups[BadgeStatus.COMPLETED],

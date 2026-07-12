@@ -271,6 +271,7 @@ function createStudentData(): StudentData {
         },
       ],
       catalog: [],
+      completed: [],
     },
     badges: {
       completed: [

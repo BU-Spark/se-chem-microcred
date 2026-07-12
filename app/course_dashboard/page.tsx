@@ -25,7 +25,7 @@ interface LessonCard {
   status: string;
   meta: string;
   actionLabel: string;
-  variant?: 'start' | 'continue';
+  variant?: 'start' | 'continue' | 'completed';
   image?: string;
   href?: string;
 }
@@ -154,13 +154,25 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
     metaParts.push(`${record.estimatedMinutes} min`);
   }
 
+  const statusLabel =
+    record.status === 'COMPLETED'
+      ? 'Completed'
+      : record.status === 'IN_PROGRESS'
+        ? `${Math.max(record.percentComplete, 1)}% complete`
+        : 'Not started';
+
+  const actionLabel = record.status === 'COMPLETED' ? 'Review' : record.status === 'IN_PROGRESS' ? 'Continue' : 'Start';
+
+  const variant: LessonCard['variant'] =
+    record.status === 'COMPLETED' ? 'completed' : record.status === 'IN_PROGRESS' ? 'continue' : 'start';
+
   return {
     id: record.id,
     title: record.title,
-    status: record.status === 'IN_PROGRESS' ? `${Math.max(record.percentComplete, 1)}% complete` : 'Not started',
+    status: statusLabel,
     meta: metaParts.join(' • ') || 'No due date',
-    actionLabel: record.status === 'IN_PROGRESS' ? 'Continue' : 'Start',
-    variant: record.status === 'IN_PROGRESS' ? 'continue' : 'start',
+    actionLabel,
+    variant,
     image: resolveLessonImage(record),
     href: `/lessons/${record.slug}`,
   };
@@ -263,6 +275,10 @@ function HomePageContent() {
 
   const continueLessons = useMemo(() => {
     return studentData?.lessons.inProgress.map(lessonRecordToCard) ?? [];
+  }, [studentData]);
+
+  const completedLessons = useMemo(() => {
+    return studentData?.lessons.completed?.map(lessonRecordToCard) ?? [];
   }, [studentData]);
 
   useEffect(() => {
@@ -470,6 +486,17 @@ function HomePageContent() {
                 <div className={styles.emptyState}>There are no in-progress lessons right now.</div>
               ) : (
                 <div className={styles.cardGrid}>{continueLessons.map(renderCard)}</div>
+              )}
+            </section>
+
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Completed</h2>
+              {isLoading ? (
+                <div className={styles.emptyState}>Loading your progress…</div>
+              ) : completedLessons.length === 0 ? (
+                <div className={styles.emptyState}>You haven&apos;t completed any lessons yet.</div>
+              ) : (
+                <div className={styles.cardGrid}>{completedLessons.map(renderCard)}</div>
               )}
             </section>
           </div>
