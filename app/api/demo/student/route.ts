@@ -12,7 +12,6 @@ import prisma from '../../../../lib/prisma';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
-import { isBadgeVisible } from '../../../../lib/badgeVisibility';
 
 function avatarPathForBase(base?: string | null): string {
   switch (base) {
@@ -331,15 +330,7 @@ export async function GET(req: Request) {
     enrollment
       ? prisma.badge.findMany({
           where: { requirements: { some: { lesson: { courseId: enrollment.courseId } } } },
-          select: {
-            id: true,
-            slug: true,
-            name: true,
-            description: true,
-            availableOn: true,
-            closesOn: true,
-            neverCloses: true,
-          },
+          select: { id: true, slug: true, name: true, description: true },
         })
       : Promise.resolve([]),
     fetchLessonProgress(student.id),
@@ -675,13 +666,9 @@ export async function GET(req: Request) {
     });
   };
 
-  // Badges the student has already started or earned stay visible regardless of
-  // the release/close dates, so nothing the student worked on ever disappears.
   const startedStudentBadges = normalizedStudentBadges.filter((entry) => !isUnstartedLearningBadge(entry));
-  // Not-yet-started badges are gated on the instructor's availableOn/closesOn.
   const unstartedLearningBadges = normalizedStudentBadges
     .filter(isUnstartedLearningBadge)
-    .filter((entry) => isBadgeVisible(entry.badge))
     .map((entry) => ({ ...formatBadge(entry), status: 'NOT_STARTED' as const }));
 
   const badgeGroups = groupBadgesByStatus(startedStudentBadges.map(formatBadge));
@@ -691,7 +678,6 @@ export async function GET(req: Request) {
   const studentBadgeIds = new Set(studentBadges.map((sb) => sb.badgeId));
   const neverAttemptedBadges = courseBadges
     .filter((badge) => !studentBadgeIds.has(badge.id))
-    .filter((badge) => isBadgeVisible(badge))
     .map((badge) => ({
       id: badge.id,
       courseId: enrollment?.courseId ?? null,
