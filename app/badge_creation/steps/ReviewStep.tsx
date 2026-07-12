@@ -151,7 +151,7 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
           })}
         </ol>
 
-        <div className={styles.reviewSubsectionHeader}>TA Instructions</div>
+        <div className={styles.reviewSubsectionHeader}>Assessor Instructions</div>
         {draft.rubricGoal.taInstructions.trim() ? (
           <div className="rte-readonly" dangerouslySetInnerHTML={{ __html: draft.rubricGoal.taInstructions }} />
         ) : (

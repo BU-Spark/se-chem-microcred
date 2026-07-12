@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { sanitizeQuestionRichText } from '@/app/lib/question-rich-text';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
 import veryUnhappyFace from '../../../public/assets/survey_faces/very_unhappy.svg';
@@ -280,6 +281,7 @@ export function LessonVideoPage({
   const [modalState, setModalState] = useState<ModalState>('none');
   const [activeCheckpointId, setActiveCheckpointId] = useState<string | null>(null);
   const [answeredCheckpointIds, setAnsweredCheckpointIds] = useState<string[]>(initialAnsweredIds);
+  const [completedCheckpointIds, setCompletedCheckpointIds] = useState<string[]>(lesson.completedCheckpointIds ?? []);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, SelectedAnswerState>>({});
   const [attemptSummary, setAttemptSummary] = useState<AttemptSummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -368,7 +370,8 @@ export function LessonVideoPage({
 
   useEffect(() => {
     setAnsweredCheckpointIds(initialAnsweredIds);
-  }, [initialAnsweredIds]);
+    setCompletedCheckpointIds(lesson.completedCheckpointIds ?? []);
+  }, [initialAnsweredIds, lesson.completedCheckpointIds]);
 
   useEffect(() => {
     setFurthestTime(resumeBaseTime);
@@ -548,16 +551,23 @@ export function LessonVideoPage({
 
   const timelineItems = useMemo(() => {
     return orderedCheckpoints.map((checkpoint, index) => {
-      const isCompleted = answeredCheckpointIds.includes(checkpoint.id);
+      const isCompleted = completedCheckpointIds.includes(checkpoint.id);
+      const isFailed = answeredCheckpointIds.includes(checkpoint.id) && !isCompleted;
       const isActive =
         checkpoint.id === activeCheckpointId || (!isCompleted && firstIncompleteCheckpoint?.id === checkpoint.id);
       return {
         id: checkpoint.id,
         title: checkpoint.title || `Checkpoint ${index + 1}`,
-        status: isCompleted ? 'completed' : isActive ? 'current' : 'pending',
+        status: isCompleted ? 'completed' : isFailed ? 'failed' : isActive ? 'current' : 'pending',
       } as const;
     });
-  }, [orderedCheckpoints, answeredCheckpointIds, activeCheckpointId, firstIncompleteCheckpoint]);
+  }, [
+    orderedCheckpoints,
+    answeredCheckpointIds,
+    completedCheckpointIds,
+    activeCheckpointId,
+    firstIncompleteCheckpoint,
+  ]);
 
   const ensurePlayerPaused = useCallback(() => {
     const player = playerRef.current;
@@ -1010,6 +1020,11 @@ export function LessonVideoPage({
       setAnsweredCheckpointIds((prev) =>
         prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
       );
+      if (payload.isPassing) {
+        setCompletedCheckpointIds((prev) =>
+          prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
+        );
+      }
       setModalState('result');
       setActiveQuestionIndex(0);
     } catch (error) {
@@ -1301,6 +1316,7 @@ export function LessonVideoPage({
             const checkpointClass = [
               styles.timelineCheckpoint,
               item.status === 'completed' ? styles.timelineCheckpointCompleted : '',
+              item.status === 'failed' ? styles.timelineCheckpointFailed : '',
               item.status === 'current' ? styles.timelineCheckpointActive : '',
             ]
               .filter(Boolean)
@@ -1308,7 +1324,9 @@ export function LessonVideoPage({
 
             return (
               <div key={item.id} className={styles.timelineItem}>
-                <div className={checkpointClass}>{item.status === 'completed' ? '✓' : index + 1}</div>
+                <div className={checkpointClass}>
+                  {item.status === 'completed' ? '✓' : item.status === 'failed' ? '×' : index + 1}
+                </div>
                 <span className={styles.timelineLabel}>{item.title}</span>
               </div>
             );
@@ -1462,9 +1480,12 @@ export function LessonVideoPage({
                               Question {activeQuestionIndex + 1} of {totalCheckpointQuestions}
                             </span>
                           </div>
-                          <p className={styles.questionPrompt}>
-                            {currentQuestion.prompt ?? 'Choose the correct answer.'}
-                          </p>
+                          <div
+                            className={`${styles.questionPrompt} ${styles.questionRichText}`}
+                            dangerouslySetInnerHTML={{
+                              __html: sanitizeQuestionRichText(currentQuestion.prompt ?? 'Choose the correct answer.'),
+                            }}
+                          />
                           <div className={styles.answerOptions}>
                             {currentQuestion.type === 'multipleChoice' ? (
                               (Array.isArray(currentQuestion.options) ? currentQuestion.options : []).map(

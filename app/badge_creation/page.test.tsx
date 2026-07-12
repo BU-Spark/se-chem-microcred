@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import BadgeCreationPage from './page';
 
@@ -25,6 +26,28 @@ jest.mock('@clerk/nextjs', () => ({
 jest.mock('../hooks/useStudentData', () => ({
   useStudentData: () => mockUseStudentData(),
 }));
+
+jest.mock(
+  '../_components/RichTextEditor',
+  () =>
+    function MockRichTextEditor({
+      ariaLabel,
+      initialHTML,
+      onChange,
+    }: {
+      ariaLabel?: string;
+      initialHTML?: string;
+      onChange?: (html: string) => void;
+    }) {
+      return (
+        <textarea
+          aria-label={ariaLabel}
+          value={initialHTML ?? ''}
+          onChange={(event) => onChange?.(event.target.value)}
+        />
+      );
+    }
+);
 
 function createClerkState(overrides = {}) {
   return {
@@ -93,6 +116,7 @@ describe('Badge creation page', () => {
   });
 
   it('submits the badge draft to the badge creation API with the course id', async () => {
+    const user = userEvent.setup();
     render(<BadgeCreationPage />);
 
     fireEvent.change(screen.getByLabelText('Badge Name'), {
@@ -119,9 +143,7 @@ describe('Badge creation page', () => {
     // Checkpoints are authored in a per-checkpoint modal opened from the rail
     // node or auto-opened when a new checkpoint is added via the video "+".
     fireEvent.click(screen.getByRole('button', { name: 'Add a checkpoint at the current time' }));
-    fireEvent.change(screen.getByLabelText('Question 1 prompt'), {
-      target: { value: 'What should you check first?' },
-    });
+    await user.type(screen.getByLabelText('Question 1 prompt'), 'What should you check first?');
     fireEvent.change(screen.getByPlaceholderText('Choice 1'), {
       target: { value: 'Gas valve is off' },
     });
@@ -137,9 +159,7 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add choice' }));
     expect(screen.getByRole('button', { name: 'Add choice' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Add question' }));
-    fireEvent.change(screen.getByLabelText('Question 2 prompt'), {
-      target: { value: 'What color should the flame be?' },
-    });
+    await user.type(screen.getByLabelText('Question 2 prompt'), 'What color should the flame be?');
     fireEvent.change(screen.getAllByPlaceholderText('Choice 1')[1], {
       target: { value: 'Orange' },
     });
@@ -149,9 +169,7 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Add a checkpoint at the current time' }));
-    fireEvent.change(screen.getByLabelText('Question 1 prompt'), {
-      target: { value: 'What temperature range is acceptable?' },
-    });
+    await user.type(screen.getByLabelText('Question 1 prompt'), 'What temperature range is acceptable?');
     fireEvent.change(screen.getByLabelText('Checkpoint 2 question 1 type'), {
       target: { value: 'shortAnswer' },
     });
@@ -427,6 +445,7 @@ describe('Badge creation page', () => {
   });
 
   it('captures skills and short-answer unit/feedback in the submitted draft', async () => {
+    const user = userEvent.setup();
     render(<BadgeCreationPage />);
 
     fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Pipetting' } });
@@ -438,7 +457,7 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
 
     fireEvent.click(screen.getByRole('button', { name: /Add checkpoint/i }));
-    fireEvent.change(screen.getByLabelText('Question 1 prompt'), { target: { value: 'What volume?' } });
+    await user.type(screen.getByLabelText('Question 1 prompt'), 'What volume?');
     fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 type'), { target: { value: 'shortAnswer' } });
     fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 exact numeric answer'), {
       target: { value: '10' },

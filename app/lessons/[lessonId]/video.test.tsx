@@ -92,11 +92,7 @@ describe('LessonVideoPage', () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) as unknown as typeof fetch;
   });
 
-  it('marks answered checkpoints as done when returning to a lesson', () => {
-    // checkpoint-1 was answered (a failed attempt — present in answered but not
-    // completed); checkpoint-2 was never reached. Answering retires a checkpoint
-    // regardless of pass/fail, so only checkpoint-1 renders as done and the
-    // student is not re-prompted for it.
+  it('does not mark an incorrectly answered checkpoint as completed', () => {
     render(
       <LessonVideoPage
         lesson={buildLesson({
@@ -110,6 +106,24 @@ describe('LessonVideoPage', () => {
       />
     );
 
-    expect(screen.getAllByText('✓')).toHaveLength(1);
+    expect(screen.queryByText('✓')).not.toBeInTheDocument();
+    expect(screen.getByText('×')).toBeInTheDocument();
+  });
+
+  it('marks a successfully completed checkpoint with a checkmark', () => {
+    render(
+      <LessonVideoPage
+        lesson={buildLesson({
+          completedCheckpointIds: ['checkpoint-1'],
+          answeredCheckpointIds: ['checkpoint-1'],
+        })}
+        studentEmail="student@example.edu"
+        studentId="student-1"
+        lessonSurvey={null}
+        resumeRequested={false}
+      />
+    );
+
+    expect(screen.getByText('✓')).toBeInTheDocument();
   });
 });

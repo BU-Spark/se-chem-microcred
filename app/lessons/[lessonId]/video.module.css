@@ -109,6 +109,19 @@
 .timelineCheckpointCompleted {
   background: #22c55e;
   border-color: #16a34a;
+  color: #ffffff;
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.timelineCheckpointFailed {
+  border-color: #dc2626;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 1.35rem;
+  font-weight: 900;
+  line-height: 1;
 }
 
 .timelineCheckpointActive {
@@ -522,6 +535,18 @@
   margin: 0 0 0.75rem;
   color: #1f2937;
   font-weight: 500;
+}
+
+.questionRichText {
+  line-height: 1.55;
+}
+
+.questionRichText > :first-child {
+  margin-top: 0;
+}
+
+.questionRichText > :last-child {
+  margin-bottom: 0;
 }
 
 .answerOptions {

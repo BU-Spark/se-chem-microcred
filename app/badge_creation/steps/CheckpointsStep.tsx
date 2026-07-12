@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import RichTextEditor from '@/app/_components/RichTextEditor';
 
 import QuestionModal from '../components/QuestionModal';
 import VideoCheckpointPlayer from '../components/VideoCheckpointPlayer';
@@ -175,17 +176,20 @@ export default function CheckpointsStep({
                     )}
                   </div>
 
-                  <label className={styles.fieldStack}>
+                  <div className={styles.fieldStack}>
                     <span>Question prompt</span>
-                    <textarea
-                      aria-label={`Question ${questionIndex + 1} prompt`}
-                      className={styles.textAreaCompact}
-                      value={question.question}
-                      onChange={(event) =>
-                        updateCheckpointQuestion(selectedCheckpoint.id, question.id, 'question', event.target.value)
+                    <RichTextEditor
+                      key={question.id}
+                      namespace={`CheckpointQuestion-${selectedCheckpoint.id}-${question.id}`}
+                      toolbar="inline"
+                      ariaLabel={`Question ${questionIndex + 1} prompt`}
+                      placeholder="Enter the question prompt…"
+                      initialHTML={question.question}
+                      onChange={(html) =>
+                        updateCheckpointQuestion(selectedCheckpoint.id, question.id, 'question', html)
                       }
                     />
-                  </label>
+                  </div>
 
                   <label className={styles.fieldStack}>
                     <span>Question type</span>
