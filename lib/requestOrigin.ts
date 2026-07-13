@@ -20,16 +20,16 @@ export function getConfiguredPublicOrigin() {
 }
 
 export function getPublicOrigin(request: Request) {
-  const configuredOrigin = getConfiguredPublicOrigin();
-  if (configuredOrigin) {
-    return configuredOrigin;
-  }
-
   const forwardedHost = firstHeaderValue(request.headers.get('x-forwarded-host'));
   const forwardedProto = firstHeaderValue(request.headers.get('x-forwarded-proto')) || 'https';
 
   if (forwardedHost) {
     return new URL(`${forwardedProto}://${forwardedHost}`).origin;
+  }
+
+  const configuredOrigin = getConfiguredPublicOrigin();
+  if (configuredOrigin) {
+    return configuredOrigin;
   }
 
   const host = request.headers.get('host')?.trim();
