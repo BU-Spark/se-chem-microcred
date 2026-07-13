@@ -973,9 +973,15 @@ export default function StudentRosterPage() {
                         </label>
                       );
                     })}
-                    <p className={styles.addHint}>
-                      Email or BUID is required. Separate multiple assessor sections with |.
-                    </p>
+                    {isCheckerRoster ? (
+                      <p className={styles.addHint}>
+                        Email or BUID is required. Separate multiple assessor sections with |.
+                      </p>
+                    ) : (
+                      <p className={styles.addHint}>
+                        Email or BUID is required. Students can only be assigned to one section.
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div className={styles.csvPanel}>
