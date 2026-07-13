@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import BackButton from '@/app/_components/BackButton';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import BackButton from '@/app/components/BackButton/BackButton';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 

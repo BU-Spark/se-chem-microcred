@@ -4,8 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
-import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
-import BackButton from '../_components/BackButton';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import BackButton from '@/app/components/BackButton/BackButton';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import styles from './page.module.css';
 

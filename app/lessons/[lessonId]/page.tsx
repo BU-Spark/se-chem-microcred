@@ -8,8 +8,8 @@ import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 import finishLogo from '../../../public/assets/lesson/lesson_preview/finish_logo.svg';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import BackButton from '@/app/_components/BackButton';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import BackButton from '@/app/components/BackButton/BackButton';
 
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;

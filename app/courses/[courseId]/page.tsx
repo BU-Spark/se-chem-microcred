@@ -7,7 +7,6 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
 import { LessonReminderModal } from './LessonReminderModal';
-import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
 import { youtubeUrlFromSummary } from '@/lib/video';
 import { useFocusTrap } from '@/app/hooks/useFocusTrap';
@@ -15,9 +14,10 @@ import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
 import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
 import rubyAvatar from '@/public/edit_avatar/ruby.svg';
 import sapphireAvatar from '@/public/edit_avatar/sapphire.svg';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import BackButton from '@/app/_components/BackButton';
-import ExportCsvDataButton from '@/app/_components/ExportToCsv';
+import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import BackButton from '@/app/components/BackButton/BackButton';
+import ExportCsvDataButton from '@/app/components/Export/ExportToCsv';
 import styles from './page.module.css';
 
 type CourseContact = {
