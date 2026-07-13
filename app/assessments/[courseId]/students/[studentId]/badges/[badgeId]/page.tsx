@@ -5,9 +5,10 @@ import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import BackButton from '@/app/_components/BackButton';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import BackButton from '@/app/components/BackButton/BackButton';
 import StudentProfileCard from '@/app/components/StudentProfileCard';
+import rosterStyles from '@/app/roster/[studentId]/page.module.css';
 import styles from './page.module.css';
 import { useAssessmentReadiness } from './hooks/useAssessmentReadiness';
 

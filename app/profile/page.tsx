@@ -11,9 +11,9 @@ import BadgeToken from '@/app/components/BadgeToken';
 import styles from './page.module.css';
 import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
-import { useDatabaseDisplayNameContext } from '../_components/DatabaseDisplayNameProvider';
+import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
 
 function parseName(fullName?: string | null) {
   if (!fullName) {

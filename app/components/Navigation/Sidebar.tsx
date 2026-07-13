@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useDatabaseDisplayNameContext } from './DatabaseDisplayNameProvider';
+import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
 import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import sapphire from '../../public/edit_avatar/sapphire.svg';
 import ruby from '../../public/edit_avatar/ruby.svg';

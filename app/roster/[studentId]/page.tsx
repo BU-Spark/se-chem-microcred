@@ -9,7 +9,8 @@ import CollapsibleSection from '@/app/components/CollapsibleSection';
 import BadgeGrid from '@/app/components/BadgeGrid';
 import StudentProfileCard from '@/app/components/StudentProfileCard';
 
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
 import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
 import { MessageComposeModal } from './MessageComposeModal';
