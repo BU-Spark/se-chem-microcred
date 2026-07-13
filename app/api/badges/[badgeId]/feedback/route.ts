@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { BadgeStatus } from '@prisma/client';
+import { normalizeEmail } from '@/lib/text/email';
 
 import prisma from '@/lib/prisma';
 
@@ -9,11 +10,6 @@ type RouteContext = {
     badgeId: string;
   }>;
 };
-
-function normalizeEmail(email?: string | null) {
-  const trimmed = email?.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-}
 
 async function getSignedInStudent() {
   const clerkUser = await currentUser();

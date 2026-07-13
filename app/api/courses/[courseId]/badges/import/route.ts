@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
+import { normalizeEmail } from '@/lib/text/email';
 
 import prisma from '@/lib/prisma';
 
@@ -45,11 +46,6 @@ type ImportBadgePayload = {
 
 function normalizeString(value?: string | null) {
   const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-function normalizeEmail(email?: string | null) {
-  const trimmed = email?.trim().toLowerCase();
   return trimmed ? trimmed : null;
 }
 
