@@ -12,21 +12,7 @@ import EditAvatarModal from '../edit_avatar/EditAvatarModal';
 import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
-
-function parseName(fullName?: string | null) {
-  if (!fullName) {
-    return { first: 'Student', last: '', isFallback: true };
-  }
-  const tokens = fullName.trim().split(/\s+/);
-  if (tokens.length === 1) {
-    return { first: tokens[0], last: '', isFallback: false };
-  }
-  return {
-    first: tokens[0],
-    last: tokens[tokens.length - 1],
-    isFallback: false,
-  };
-}
+import { splitName } from '@/lib/text/name';
 
 function avatarAsset(base?: string | null) {
   switch (base) {
@@ -287,7 +273,7 @@ export default function ProfilePage() {
     first: firstName,
     last: lastName,
     isFallback,
-  } = parseName(studentData?.student.name ?? user?.fullName ?? null);
+  } = splitName(studentData?.student.name ?? user?.fullName ?? null);
 
   const greetingName = isFallback ? 'Student' : firstName;
   const studentEmail = studentData?.student.email ?? user?.primaryEmailAddress?.emailAddress ?? 'Not provided';

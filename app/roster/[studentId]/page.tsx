@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
-
+import { generateInitials, getNameForProfile } from '@/lib/text/name';
 import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
@@ -115,48 +115,6 @@ function avatarAsset(base?: string | null) {
   }
 }
 
-function splitNameForProfile(name?: string | null) {
-  const trimmed = name?.trim();
-
-  if (!trimmed) {
-    return {
-      headlineTop: 'Student,',
-      headlineBottom: 'Profile',
-      initials: 'ST',
-    };
-  }
-
-  if (trimmed.includes(',')) {
-    const [last, ...rest] = trimmed.split(',');
-    const first = rest.join(',').trim();
-
-    return {
-      headlineTop: `${last.trim()},`,
-      headlineBottom: first || 'Student',
-      initials: `${last.trim().charAt(0)}${first.charAt(0)}`.toUpperCase(),
-    };
-  }
-
-  const parts = trimmed.split(/\s+/).filter(Boolean);
-
-  if (parts.length === 1) {
-    return {
-      headlineTop: `${parts[0]},`,
-      headlineBottom: '',
-      initials: parts[0].slice(0, 2).toUpperCase(),
-    };
-  }
-
-  const first = parts.slice(0, -1).join(' ');
-  const last = parts.at(-1) ?? '';
-
-  return {
-    headlineTop: `${last},`,
-    headlineBottom: first,
-    initials: `${first.charAt(0)}${last.charAt(0)}`.toUpperCase(),
-  };
-}
-
 function formatPellGrant(value: boolean | null) {
   if (value == null) {
     return 'Not provided';
@@ -176,10 +134,6 @@ function formatDate(value?: string | null) {
   }
 
   return parsed.toLocaleDateString();
-}
-
-function initialsFromName(name?: string | null) {
-  return splitNameForProfile(name).initials || 'ST';
 }
 
 function useInstructorStudentProfile(courseId?: string | null, studentId?: string | null, email?: string | null) {
@@ -484,7 +438,7 @@ export default function InstructorStudentProfilePage() {
 
   const sideContactTitle = currentRole === 'CHECKER' ? 'Instructor' : 'Checker';
   const emptyContactMessage = currentRole === 'CHECKER' ? 'No instructor assigned.' : 'No checker assigned.';
-  const memberDisplay = useMemo(() => splitNameForProfile(data?.member.name), [data?.member.name]);
+  const memberDisplay = useMemo(() => getNameForProfile(data?.member.name), [data?.member.name]);
   const memberAvatarSrc = avatarAsset(data?.member.avatar?.base);
   const displayName = data?.course.createdBy?.name || '';
 
@@ -554,7 +508,7 @@ export default function InstructorStudentProfilePage() {
                           className={styles.avatarImage}
                         />
                       ) : (
-                        <div className={styles.avatarFallback}>{initialsFromName(data.member.name)}</div>
+                        <div className={styles.avatarFallback}>{generateInitials(data.member.name)}</div>
                       )}
                     </div>
                   </div>
@@ -616,13 +570,13 @@ export default function InstructorStudentProfilePage() {
                               className={styles.contactAvatarImage}
                             />
                           ) : (
-                            <div className={styles.contactAvatarFallback}>{initialsFromName(sideContact.name)}</div>
+                            <div className={styles.contactAvatarFallback}>{generateInitials(sideContact.name)}</div>
                           )}
                         </div>
 
                         <div className={styles.contactInfo}>
-                          <p className={styles.contactName}>{splitNameForProfile(sideContact.name).headlineTop}</p>
-                          <p className={styles.contactName}>{splitNameForProfile(sideContact.name).headlineBottom}</p>
+                          <p className={styles.contactName}>{getNameForProfile(sideContact.name).headlineTop}</p>
+                          <p className={styles.contactName}>{getNameForProfile(sideContact.name).headlineBottom}</p>
                           <p className={styles.contactEmail}>{sideContact.email || 'Not provided'}</p>
                         </div>
                       </div>

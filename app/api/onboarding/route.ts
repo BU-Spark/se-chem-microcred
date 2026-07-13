@@ -38,7 +38,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
   }
 
-  const name = [clean(payload.firstName), clean(payload.lastName)].filter(Boolean).join(' ') || null;
+  const firstName = clean(payload.firstName);
+  const lastName = clean(payload.lastName);
+
+  if (!firstName || !lastName) {
+    return NextResponse.json({ error: 'First and last name are required.' }, { status: 400 });
+  }
+
+  const name = `${firstName} ${lastName}`;
   const demographics = {
     gender: clean(payload.gender),
     raceEthnicity: clean(payload.raceEthnicity),
@@ -54,7 +61,7 @@ export async function POST(request: Request) {
     const user = await prisma.user.upsert({
       where: { email },
       update: {
-        ...(name ? { name } : {}),
+        name,
         ...demographics,
       },
       create: {

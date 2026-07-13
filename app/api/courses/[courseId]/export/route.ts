@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BadgeStatus } from '@prisma/client';
 import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { splitName } from '@/lib/text/name';
 import prisma from '@/lib/prisma';
 
 function normalizeEmail(email?: string | null) {
@@ -11,16 +12,6 @@ function normalizeEmail(email?: string | null) {
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
   return trimmed ? trimmed : null;
-}
-
-// The roster only stores a single display name; split on the first space so the
-// export can present separate "First Name" / "Last Name" columns per issue #120.
-function splitName(name: string | null) {
-  const trimmed = (name ?? '').trim();
-  if (!trimmed) return { first: '', last: '' };
-  const spaceIndex = trimmed.indexOf(' ');
-  if (spaceIndex === -1) return { first: trimmed, last: '' };
-  return { first: trimmed.slice(0, spaceIndex), last: trimmed.slice(spaceIndex + 1).trim() };
 }
 
 export async function GET(req: NextRequest, context: { params: Promise<{ courseId: string }> }) {

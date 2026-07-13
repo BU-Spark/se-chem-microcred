@@ -45,17 +45,6 @@ export const SIDEBAR_NAV: NavItem[] = [
   { label: 'My Profile', href: '/profile' }, // In this combine the setting and profile features.
 ];
 
-export function initialsFromName(name?: string | null) {
-  if (!name) return 'ST';
-  const parts = name.trim().split(/\s+/);
-  return (
-    parts
-      .slice(0, 2)
-      .map((p) => p.charAt(0).toUpperCase())
-      .join('') || 'ST'
-  );
-}
-
 export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut }: SidebarProps) {
   const pathname = usePathname();
   const { isAdmin } = useCanCreateContent();

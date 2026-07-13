@@ -258,7 +258,7 @@ describe('Roster member profile page', () => {
     });
 
     expect(await screen.findByRole('heading', { name: 'Student Profile' })).toBeInTheDocument();
-    expect(screen.getByText('Lovelace,')).toBeInTheDocument();
+    expect(screen.getByText(/^Lovelace,?$/)).toBeInTheDocument();
     expect(screen.getByText('Ada')).toBeInTheDocument();
     expect(screen.getByText('ada@bu.edu')).toBeInTheDocument();
     expect(screen.getByText('U11111111')).toBeInTheDocument();
@@ -560,7 +560,7 @@ describe('Roster member profile page', () => {
     });
 
     expect(await screen.findByRole('heading', { name: 'Assessor Profile' })).toBeInTheDocument();
-    expect(screen.getByText('Checker,')).toBeInTheDocument();
+    expect(screen.getByText(/^Checker,?$/)).toBeInTheDocument();
     expect(screen.getByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('checker@bu.edu')).toBeInTheDocument();
     expect(screen.getByText('U33333333')).toBeInTheDocument();

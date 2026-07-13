@@ -12,6 +12,7 @@ import CourseImagePicker from './components/CourseImagePicker';
 import CourseTileImage from '@/app/components/Courses/CourseTileImage';
 import { CourseRole } from '@prisma/client';
 import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
+import { splitName } from '@/lib/text/name';
 
 const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Assessor Roster', 'Review'];
 
@@ -98,34 +99,17 @@ type EditableCourseResponse = {
   };
 };
 
-function splitName(fullName?: string | null) {
-  const parts = fullName?.trim().split(/\s+/).filter(Boolean) ?? [];
-
-  if (parts.length === 0) {
-    return { firstName: '', lastName: '' };
-  }
-
-  if (parts.length === 1) {
-    return { firstName: parts[0], lastName: '' };
-  }
-
-  return {
-    firstName: parts.slice(0, -1).join(' '),
-    lastName: parts.at(-1) ?? '',
-  };
-}
-
 function toRosterRow(person: {
   name?: string | null;
   email?: string | null;
   buid?: string | null;
   sections?: string[] | null;
 }): StudentRow {
-  const { firstName, lastName } = splitName(person.name);
+  const { first, last } = splitName(person.name);
 
   return {
-    firstName,
-    lastName,
+    firstName: first,
+    lastName: last,
     buid: person.buid?.trim() ?? '',
     email: person.email?.trim() ?? '',
     sections: (person.sections ?? []).join('|'),

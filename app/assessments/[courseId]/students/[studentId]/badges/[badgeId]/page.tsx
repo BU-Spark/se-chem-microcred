@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
-
+import { generateInitials, getNameForProfile } from '@/lib/text/name';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import rosterStyles from '@/app/roster/[studentId]/page.module.css';
@@ -22,8 +22,8 @@ type StudentProfileResponse = {
   memberRole: 'STUDENT' | 'CHECKER' | 'INSTRUCTOR';
   member: {
     id: string;
-    name: string | null;
-    email: string | null;
+    name: string;
+    email: string;
     buid: string | null;
     createdAt: string;
     avatar: {
@@ -117,41 +117,6 @@ function avatarAsset(base?: string | null) {
     default:
       return '/edit_avatar/sapphire.svg';
   }
-}
-
-function splitNameForProfile(name?: string | null) {
-  const trimmed = name?.trim();
-
-  if (!trimmed) {
-    return {
-      headlineTop: 'Student,',
-      headlineBottom: 'Profile',
-      initials: 'ST',
-    };
-  }
-
-  const parts = trimmed.split(/\s+/).filter(Boolean);
-
-  if (parts.length === 1) {
-    return {
-      headlineTop: `${parts[0]},`,
-      headlineBottom: '',
-      initials: parts[0].slice(0, 2).toUpperCase(),
-    };
-  }
-
-  const first = parts.slice(0, -1).join(' ');
-  const last = parts.at(-1) ?? '';
-
-  return {
-    headlineTop: `${last},`,
-    headlineBottom: first,
-    initials: `${first.charAt(0)}${last.charAt(0)}`.toUpperCase(),
-  };
-}
-
-function initialsFromName(name?: string | null) {
-  return splitNameForProfile(name).initials || 'ST';
 }
 
 function contactDisplayName(name?: string | null, email?: string | null) {
@@ -288,7 +253,8 @@ export default function AssessmentReadinessPage() {
     router.push(courseId ? `/courses/${courseId}` : '/');
   };
 
-  const memberDisplay = useMemo(() => splitNameForProfile(profile?.member.name), [profile?.member.name]);
+  // getNameForProfile should work with an unguarded name since we expect every user to have a name (guard stays until we can diagnose and fix backend)
+  const memberDisplay = useMemo(() => getNameForProfile(profile?.member.name), [profile?.member.name]);
   const instructor = profile?.course.createdBy ?? null;
   const sideContact = profile?.contacts.find((contact) => contact.type === 'INSTRUCTOR') ?? instructor;
   const canStartAssessment = badgeDetail?.progress.precheckComplete === true;
@@ -457,7 +423,7 @@ export default function AssessmentReadinessPage() {
                           className={rosterStyles.avatarImage}
                         />
                       ) : (
-                        <div className={rosterStyles.avatarFallback}>{initialsFromName(profile.member.name)}</div>
+                        <div className={rosterStyles.avatarFallback}>{generateInitials(profile.member.name)}</div>
                       )}
                     </div>
                   </div>
@@ -489,7 +455,7 @@ export default function AssessmentReadinessPage() {
                             />
                           ) : (
                             <div className={rosterStyles.contactAvatarFallback}>
-                              {initialsFromName(contactDisplayName(sideContact.name, sideContact.email))}
+                              {generateInitials(contactDisplayName(sideContact.name, sideContact.email))}
                             </div>
                           )}
                         </div>

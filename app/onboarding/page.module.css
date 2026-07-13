@@ -260,6 +260,12 @@
   filter: brightness(1.05);
 }
 
+.nextButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: none;
+}
+
 .error {
   margin: 0;
   color: #b42318;
