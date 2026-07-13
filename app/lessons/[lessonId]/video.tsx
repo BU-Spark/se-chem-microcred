@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { sanitizeQuestionRichText } from '@/app/lib/question-rich-text';
+import { sanitizeQuestionRichText } from '@/lib/question-rich-text';
 import SurveyModal from '@/app/components/SurveyModal';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 import type { LessonRecord } from '../../hooks/useStudentData';
