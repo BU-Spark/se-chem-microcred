@@ -32,6 +32,10 @@ interface RichTextEditorProps {
   onChange?: (html: string) => void;
   /** Focus the editor on mount. */
   autoFocus?: boolean;
+  /** Use the compact inline-format toolbar for question prompts. */
+  toolbar?: 'full' | 'inline';
+  /** Accessible name for the editable field. */
+  ariaLabel?: string;
 }
 
 /** Maps Lexical node/format types to the CSS classes defined in globals.css. */
@@ -58,6 +62,8 @@ const theme = {
     underline: 'rte-underline',
     strikethrough: 'rte-strikethrough',
     code: 'rte-inline-code',
+    subscript: 'rte-subscript',
+    superscript: 'rte-superscript',
   },
 };
 
@@ -67,6 +73,8 @@ export default function RichTextEditor({
   initialHTML,
   onChange,
   autoFocus = false,
+  toolbar = 'full',
+  ariaLabel,
 }: RichTextEditorProps) {
   const initialConfig: InitialConfigType = {
     namespace,
@@ -91,14 +99,15 @@ export default function RichTextEditor({
   );
 
   return (
-    <div className="rte-container">
+    <div className={`rte-container${toolbar === 'inline' ? ' rte-container--compact' : ''}`}>
       <LexicalComposer initialConfig={initialConfig}>
-        <ToolbarPlugin />
+        <ToolbarPlugin variant={toolbar} />
         <div className="rte-editor-shell">
           <RichTextPlugin
             contentEditable={
               <ContentEditable
                 className="rte-content-editable"
+                aria-label={ariaLabel}
                 aria-placeholder={placeholder}
                 placeholder={<div className="rte-placeholder">{placeholder}</div>}
               />

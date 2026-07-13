@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
@@ -38,6 +38,15 @@ type CourseRosterResponse = {
 };
 
 type RosterRole = 'STUDENT' | 'CHECKER';
+type AddMode = 'single' | 'csv';
+
+type NewRosterMember = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  buid: string;
+  sections: string;
+};
 
 type RosterMemberRow = {
   enrollmentId: string;
@@ -65,6 +74,44 @@ const EMPTY_FILTERS: RosterFilters = {
   email: '',
   section: '',
 };
+
+const EMPTY_NEW_MEMBER: NewRosterMember = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  buid: '',
+  sections: '',
+};
+
+function parseRosterCsv(csv: string): NewRosterMember[] {
+  const lines = csv
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length < 2) throw new Error('CSV must contain a header and at least one roster member.');
+  const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
+  const indexOf = (...names: string[]) => headers.findIndex((header) => names.includes(header));
+  const indices = {
+    lastName: indexOf('lastname'),
+    firstName: indexOf('firstname'),
+    buid: indexOf('buid'),
+    email: indexOf('email'),
+    sections: indexOf('sections', 'section'),
+  };
+  if (Object.values(indices).some((index) => index < 0)) {
+    throw new Error('CSV must contain headers: lastName, firstName, buid, email, sections.');
+  }
+  return lines.slice(1).map((line) => {
+    const columns = line.split(',').map((column) => column.trim());
+    return {
+      lastName: columns[indices.lastName] || '',
+      firstName: columns[indices.firstName] || '',
+      buid: columns[indices.buid] || '',
+      email: columns[indices.email] || '',
+      sections: columns[indices.sections] || '',
+    };
+  });
+}
 
 function splitName(fullName?: string | null) {
   const parts = fullName?.trim().split(/\s+/).filter(Boolean) ?? [];
@@ -176,6 +223,17 @@ export default function StudentRosterPage() {
   const [memberToRemove, setMemberToRemove] = useState<RosterMemberRow | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addMode, setAddMode] = useState<AddMode>('single');
+  const [newMember, setNewMember] = useState<NewRosterMember>(EMPTY_NEW_MEMBER);
+  const [selectedCsv, setSelectedCsv] = useState<File | null>(null);
+  const [addError, setAddError] = useState<string | null>(null);
+  const [isAdding, setIsAdding] = useState(false);
+  const [sectionMember, setSectionMember] = useState<RosterMemberRow | null>(null);
+  const [sectionValue, setSectionValue] = useState('');
+  const [sectionError, setSectionError] = useState<string | null>(null);
+  const [isSavingSection, setIsSavingSection] = useState(false);
+  const csvInputRef = useRef<HTMLInputElement | null>(null);
   const isCheckerRoster = rosterRole === 'CHECKER';
   const rosterLabel = isCheckerRoster ? 'Assessor' : 'Student';
   const rosterPluralLabel = isCheckerRoster ? 'assessors' : 'students';
@@ -215,7 +273,9 @@ export default function StudentRosterPage() {
   const course = data?.course ?? null;
   const isInstructor = data?.viewerRole === 'INSTRUCTOR';
   // Only instructors can remove students, and only on the student roster.
-  const canManageStudents = isInstructor && !isCheckerRoster;
+  const canRemoveMembers = isInstructor;
+  const canAddMembers = isInstructor;
+  const canManageSections = isInstructor;
   const displayName = course?.createdBy?.name || '';
 
   // Pending assessor requests an instructor can approve/decline (CHECKER roster only).
@@ -261,13 +321,79 @@ export default function StudentRosterPage() {
 
   const removeModalRef = useFocusTrap<HTMLDivElement>(Boolean(memberToRemove), closeRemoveModal);
 
+  const closeAddModal = useCallback(() => {
+    if (isAdding) return;
+    setIsAddModalOpen(false);
+    setAddMode('single');
+    setNewMember(EMPTY_NEW_MEMBER);
+    setSelectedCsv(null);
+    setAddError(null);
+  }, [isAdding]);
+
+  const addModalRef = useFocusTrap<HTMLDivElement>(isAddModalOpen, closeAddModal);
+
+  const openAddModal = () => {
+    setAddMode('single');
+    setNewMember(EMPTY_NEW_MEMBER);
+    setSelectedCsv(null);
+    setAddError(null);
+    setIsAddModalOpen(true);
+  };
+
+  const addRosterMembers = async (members: NewRosterMember[]) => {
+    if (!courseId) return;
+    setIsAdding(true);
+    setAddError(null);
+    try {
+      const response = await fetch(`/api/courses/${encodeURIComponent(courseId)}/members`, {
+        method: 'POST',
+        headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: rosterRole, members }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Unable to add roster members.');
+      setIsAddModalOpen(false);
+      setNewMember(EMPTY_NEW_MEMBER);
+      setSelectedCsv(null);
+      await refresh();
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Unable to add roster members.');
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
+  const handleAddSubmit = async () => {
+    if (addMode === 'single') {
+      if (!newMember.email.trim() && !newMember.buid.trim()) {
+        setAddError('Enter an email or BUID.');
+        return;
+      }
+      await addRosterMembers([newMember]);
+      return;
+    }
+    if (!selectedCsv) {
+      setAddError('Choose a CSV file to upload.');
+      return;
+    }
+    try {
+      const members = parseRosterCsv(await selectedCsv.text());
+      if (members.some((member) => !member.email.trim() && !member.buid.trim())) {
+        throw new Error('Every CSV row must include an email or BUID.');
+      }
+      await addRosterMembers(members);
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : 'Unable to read the CSV file.');
+    }
+  };
+
   const handleRemoveStudent = useCallback(async () => {
     if (!courseId || !memberToRemove) return;
     setRemovingId(memberToRemove.memberId);
     setRemoveError(null);
     try {
       const response = await fetch(
-        `/api/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(memberToRemove.memberId)}`,
+        `/api/courses/${encodeURIComponent(courseId)}/${isCheckerRoster ? 'assessors' : 'students'}/${encodeURIComponent(memberToRemove.memberId)}`,
         { method: 'DELETE', headers: { Accept: 'application/json' } }
       );
       if (!response.ok) {
@@ -281,7 +407,52 @@ export default function StudentRosterPage() {
     } finally {
       setRemovingId(null);
     }
-  }, [courseId, memberToRemove, refresh]);
+  }, [courseId, isCheckerRoster, memberToRemove, refresh]);
+
+  const closeSectionModal = useCallback(() => {
+    if (isSavingSection) return;
+    setSectionMember(null);
+    setSectionError(null);
+  }, [isSavingSection]);
+  const sectionModalRef = useFocusTrap<HTMLDivElement>(Boolean(sectionMember), closeSectionModal);
+
+  const openSectionModal = (member: RosterMemberRow) => {
+    setSectionMember(member);
+    setSectionValue(member.sections.join(' | '));
+    setSectionError(null);
+  };
+
+  const saveSections = async () => {
+    if (!courseId || !sectionMember) return;
+    const sections = sectionValue
+      .split('|')
+      .map((section) => section.trim())
+      .filter(Boolean);
+    if (!isCheckerRoster && sections.length > 1) {
+      setSectionError('Students can only belong to one section.');
+      return;
+    }
+    setIsSavingSection(true);
+    setSectionError(null);
+    try {
+      const response = await fetch(
+        `/api/courses/${encodeURIComponent(courseId)}/enrollments/${encodeURIComponent(sectionMember.enrollmentId)}/sections`,
+        {
+          method: 'PUT',
+          headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sections }),
+        }
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Unable to update sections.');
+      setSectionMember(null);
+      await refresh();
+    } catch (error) {
+      setSectionError(error instanceof Error ? error.message : 'Unable to update sections.');
+    } finally {
+      setIsSavingSection(false);
+    }
+  };
 
   const rosterRows = useMemo<RosterMemberRow[]>(() => {
     if (!course) return [];
@@ -462,6 +633,12 @@ export default function StudentRosterPage() {
                     <FilterIcon />
                   </button>
                 </label>
+
+                {canAddMembers ? (
+                  <button type="button" className={styles.addMembersButton} onClick={openAddModal}>
+                    + Add {isCheckerRoster ? 'assessors' : 'students'}
+                  </button>
+                ) : null}
 
                 <div className={styles.filters}>
                   <span className={styles.filtersLabel}>Filters applied:</span>
@@ -655,7 +832,7 @@ export default function StudentRosterPage() {
                         <th>BUID Number</th>
                         <th>Email</th>
                         <th>Section</th>
-                        {canManageStudents ? <th className={styles.actionsHeader}>Actions</th> : null}
+                        {canRemoveMembers ? <th className={styles.actionsHeader}>Actions</th> : null}
                       </tr>
                     </thead>
                     <tbody>
@@ -678,8 +855,28 @@ export default function StudentRosterPage() {
                             <td>{member.firstName || '—'}</td>
                             <td>{member.buid || '—'}</td>
                             <td>{member.email || '—'}</td>
-                            <td>{member.sectionLabel || '—'}</td>
-                            {canManageStudents ? (
+                            <td>
+                              {canManageSections ? (
+                                <div className={styles.sectionCell}>
+                                  {member.sectionLabel ? <span>{member.sectionLabel}</span> : null}
+                                  <button
+                                    type="button"
+                                    className={
+                                      member.sectionLabel ? styles.editSectionButton : styles.assignSectionButton
+                                    }
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      openSectionModal(member);
+                                    }}
+                                  >
+                                    {member.sectionLabel ? 'Edit' : 'Assign section'}
+                                  </button>
+                                </div>
+                              ) : (
+                                member.sectionLabel || '—'
+                              )}
+                            </td>
+                            {canRemoveMembers ? (
                               <td className={styles.actionsCell}>
                                 <button
                                   type="button"
@@ -699,7 +896,7 @@ export default function StudentRosterPage() {
                         ))
                       ) : (
                         <tr>
-                          <td className={styles.emptyCell} colSpan={canManageStudents ? 6 : 5}>
+                          <td className={styles.emptyCell} colSpan={canRemoveMembers ? 6 : 5}>
                             {emptyResultsMessage}
                           </td>
                         </tr>
@@ -709,6 +906,172 @@ export default function StudentRosterPage() {
                 </div>
               </section>
             </>
+          ) : null}
+
+          {isAddModalOpen ? (
+            <div className={styles.modalOverlay} role="presentation" onMouseDown={closeAddModal}>
+              <div
+                ref={addModalRef}
+                className={`${styles.modal} ${styles.addModal}`}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="add-members-title"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <h2 id="add-members-title" className={styles.modalTitle}>
+                  Add {isCheckerRoster ? 'assessors' : 'students'}
+                </h2>
+                <div className={styles.addModeTabs} role="tablist" aria-label="Add roster members">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={addMode === 'single'}
+                    className={`${styles.addModeTab} ${addMode === 'single' ? styles.addModeTabActive : ''}`}
+                    onClick={() => {
+                      setAddMode('single');
+                      setAddError(null);
+                    }}
+                  >
+                    Single user
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={addMode === 'csv'}
+                    className={`${styles.addModeTab} ${addMode === 'csv' ? styles.addModeTabActive : ''}`}
+                    onClick={() => {
+                      setAddMode('csv');
+                      setAddError(null);
+                    }}
+                  >
+                    CSV upload
+                  </button>
+                </div>
+
+                {addMode === 'single' ? (
+                  <div className={styles.addMemberGrid}>
+                    {(['firstName', 'lastName', 'email', 'buid', 'sections'] as const).map((field) => {
+                      const labels = {
+                        firstName: 'First name',
+                        lastName: 'Last name',
+                        email: 'Email',
+                        buid: 'BUID',
+                        sections: isCheckerRoster ? 'Sections' : 'Section',
+                      };
+                      return (
+                        <label key={field} className={styles.filterField}>
+                          <span className={styles.filterFieldLabel}>{labels[field]}</span>
+                          <input
+                            className={styles.filterInput}
+                            type={field === 'email' ? 'email' : 'text'}
+                            value={newMember[field]}
+                            placeholder={field === 'sections' ? (isCheckerRoster ? 'A1 | A2' : 'A1') : undefined}
+                            onChange={(event) =>
+                              setNewMember((current) => ({ ...current, [field]: event.target.value }))
+                            }
+                          />
+                        </label>
+                      );
+                    })}
+                    {isCheckerRoster ? (
+                      <p className={styles.addHint}>
+                        Email or BUID is required. Separate multiple assessor sections with |.
+                      </p>
+                    ) : (
+                      <p className={styles.addHint}>
+                        Email or BUID is required. Students can only be assigned to one section.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className={styles.csvPanel}>
+                    <p className={styles.modalBody}>
+                      Upload a CSV with headers: lastName, firstName, buid, email, sections.
+                    </p>
+                    <input
+                      ref={csvInputRef}
+                      type="file"
+                      accept=".csv,text/csv"
+                      className={styles.csvInput}
+                      onChange={(event) => setSelectedCsv(event.target.files?.[0] ?? null)}
+                    />
+                    {selectedCsv ? <p className={styles.selectedFile}>{selectedCsv.name}</p> : null}
+                  </div>
+                )}
+
+                {addError ? <p className={styles.modalError}>{addError}</p> : null}
+                <div className={styles.modalActions}>
+                  <button
+                    type="button"
+                    className={styles.clearFiltersButton}
+                    onClick={closeAddModal}
+                    disabled={isAdding}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.applyFiltersButton}
+                    disabled={isAdding}
+                    onClick={() => void handleAddSubmit()}
+                  >
+                    {isAdding ? 'Adding…' : addMode === 'single' ? `Add ${rosterLabel.toLowerCase()}` : 'Upload CSV'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          {sectionMember ? (
+            <div className={styles.modalOverlay} role="presentation" onMouseDown={closeSectionModal}>
+              <div
+                ref={sectionModalRef}
+                className={styles.modal}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="section-modal-title"
+                onMouseDown={(event) => event.stopPropagation()}
+              >
+                <h2 id="section-modal-title" className={styles.modalTitle}>
+                  {sectionMember.sectionLabel ? 'Change' : 'Assign'}{' '}
+                  {isCheckerRoster ? 'assessor sections' : 'student section'}
+                </h2>
+                <label className={styles.filterField}>
+                  <span className={styles.filterFieldLabel}>{isCheckerRoster ? 'Sections' : 'Section'}</span>
+                  <input
+                    className={styles.filterInput}
+                    value={sectionValue}
+                    onChange={(event) => setSectionValue(event.target.value)}
+                    placeholder={isCheckerRoster ? 'A1 | A2' : 'A1'}
+                    autoFocus
+                  />
+                </label>
+                <p className={styles.addHint}>
+                  {isCheckerRoster
+                    ? 'Separate multiple sections with |. You can enter a new section name.'
+                    : 'You can enter an existing or new section name.'}
+                </p>
+                {sectionError ? <p className={styles.modalError}>{sectionError}</p> : null}
+                <div className={styles.modalActions}>
+                  <button
+                    type="button"
+                    className={styles.clearFiltersButton}
+                    onClick={closeSectionModal}
+                    disabled={isSavingSection}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.applyFiltersButton}
+                    onClick={() => void saveSections()}
+                    disabled={isSavingSection}
+                  >
+                    {isSavingSection ? 'Saving…' : 'Save sections'}
+                  </button>
+                </div>
+              </div>
+            </div>
           ) : null}
         </div>
       </main>
@@ -720,18 +1083,18 @@ export default function StudentRosterPage() {
             className={styles.modal}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="remove-student-title"
+            aria-labelledby="remove-member-title"
             onClick={(event) => event.stopPropagation()}
           >
-            <h2 id="remove-student-title" className={styles.modalTitle}>
-              Remove student?
+            <h2 id="remove-member-title" className={styles.modalTitle}>
+              Remove {isCheckerRoster ? 'assessor' : 'student'}?
             </h2>
             <p className={styles.modalBody}>
               Remove{' '}
               <strong>
                 {[memberToRemove.firstName, memberToRemove.lastName].filter(Boolean).join(' ') ||
                   memberToRemove.email ||
-                  'this student'}
+                  `this ${isCheckerRoster ? 'assessor' : 'student'}`}
               </strong>{' '}
               from <strong>{course?.title}</strong>? They will lose access to this course. This cannot be undone.
             </p>
@@ -751,7 +1114,7 @@ export default function StudentRosterPage() {
                 disabled={Boolean(removingId)}
                 onClick={handleRemoveStudent}
               >
-                {removingId ? 'Removing…' : 'Remove student'}
+                {removingId ? 'Removing…' : `Remove ${isCheckerRoster ? 'assessor' : 'student'}`}
               </button>
             </div>
           </div>

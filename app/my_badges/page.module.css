@@ -100,12 +100,12 @@
 
 .badgeGrid {
   margin-top: 2.5rem;
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  align-items: flex-start;
   column-gap: 1.75rem;
   row-gap: 2.5rem;
-  align-items: start;
-  justify-items: center;
   max-width: 1180px;
 }
 
@@ -116,7 +116,8 @@
   flex-direction: column;
   align-items: center;
   gap: 0.6rem;
-  width: 100%;
+  width: 219px;
+  max-width: 100%;
 }
 
 .badgeDeleteButton {
@@ -285,12 +286,6 @@
   font-size: 0.92rem;
 }
 
-@media (max-width: 1180px) {
-  .badgeGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
 @media (max-width: 960px) {
   .page {
     flex-direction: column;
@@ -302,7 +297,6 @@
   }
 
   .badgeGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
     max-width: none;
   }
 

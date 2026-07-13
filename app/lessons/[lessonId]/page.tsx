@@ -194,6 +194,7 @@ function LessonDetailContent() {
   if (!isLoaded || signedOut) return null;
 
   const title = lessonRecord?.title ?? (isLoading ? 'Loading lesson…' : 'Lesson unavailable');
+  const skills = lessonRecord?.skills.map((skill) => skill.trim()).filter(Boolean) ?? [];
 
   return (
     <div className="page">
@@ -211,24 +212,27 @@ function LessonDetailContent() {
 
           {lessonRecord ? (
             <>
-              <section className={styles.section}>
-                <h2 className={styles.sectionHeading}>About this unit:</h2>
-                <p className={styles.body}>{lessonRecord.description}</p>
+              <section className={`${styles.section} ${styles.overviewCard}`}>
+                <h2 className={styles.sectionHeading}>About this unit</h2>
+                <p className={styles.body}>{lessonRecord.description || 'Get ready to explore this lesson.'}</p>
               </section>
 
-              <section className={styles.section}>
-                <h2 className={styles.sectionHeading}>Skills you’ll learn</h2>
-                <ul className={styles.bullets}>
-                  {lessonRecord.skills.map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
-                </ul>
-              </section>
+              {skills.length > 0 ? (
+                <section className={`${styles.section} ${styles.overviewCard}`}>
+                  <h2 className={styles.sectionHeading}>Skills you’ll learn</h2>
+                  <ul className={styles.bullets}>
+                    {skills.map((s) => (
+                      <li key={s}>{s}</li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
 
               {/* Lesson outline: checkpoint thumbnails + connectors */}
-              <section className={`${styles.section} ${styles.timelineSection}`}>
-                {timelineItems.length > 0 && (
-                  <div className={styles.timeline}>
+              {timelineItems.length > 0 ? (
+                <section className={`${styles.section} ${styles.timelineSection}`}>
+                  <h2 className={styles.sectionHeading}>Lesson outline</h2>
+                  <div className={styles.timeline} aria-label="Lesson outline">
                     {timelineItems.map((item) => (
                       <div key={item.id} className={styles.timelineGroup}>
                         <div className={styles.timelineItem}>
@@ -317,8 +321,8 @@ function LessonDetailContent() {
                       </div>
                     )}
                   </div>
-                )}
-              </section>
+                </section>
+              ) : null}
 
               <div className={styles.actionsRow}>
                 <Link

@@ -31,18 +31,18 @@ interface SidebarProps {
 }
 
 // Messages is a work-in-progress feature: show it only when explicitly enabled
-// via env (set NEXT_PUBLIC_SHOW_MESSAGES=true in .env.local for dev). Unset in
-// prod, so it stays hidden there. Must be NEXT_PUBLIC_* to be readable in this
-// client component.
+// via env (set NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV=true in .env.local for dev).
+// Unset in prod, so it stays hidden there. Must be NEXT_PUBLIC_* to be readable
+// in this client component.
 const CUR_ENV = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
 export const SIDEBAR_NAV: NavItem[] = [
-  { label: 'Home', href: '/' },
-  { label: 'Badges', href: '/my_badges' },
-  { label: 'Badge Wallet', href: '/badges' },
-  ...(CUR_ENV ? [{ label: 'Messages', href: '/messages' }] : []),
+  { label: 'Courses', href: '/' },
+  { label: 'Created Badges', href: '/my_badges' },
+  { label: 'Badge Passport', href: '/badges' },
+  ...(CUR_ENV ? [{ label: 'My Messages', href: '/messages' }] : []),
   { label: 'My Analytics', href: '/analytics' },
-  { label: 'Profile', href: '/profile' }, // In this combine the setting and profile features.
+  { label: 'My Profile', href: '/profile' }, // In this combine the setting and profile features.
 ];
 
 export function initialsFromName(name?: string | null) {

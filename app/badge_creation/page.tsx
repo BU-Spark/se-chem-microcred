@@ -293,7 +293,10 @@ export default function BadgeCreationPage() {
             correctSet.add(optionIndex);
           }
           const correctIndices = Array.from(correctSet).sort((left, right) => left - right);
-          return { ...question, correctIndices: correctIndices.length ? correctIndices : [0] };
+          // Allow zero selected options; the Checkpoints step blocks continuing
+          // until at least one is chosen (see handleNext). Forcing [0] here caused
+          // unchecking the last option to silently re-check the first (#116).
+          return { ...question, correctIndices };
         });
         return withMirroredFirstQuestion(checkpoint, nextQuestions);
       })
@@ -330,7 +333,7 @@ export default function BadgeCreationPage() {
       checkpoints.map((checkpoint) => {
         if (checkpoint.id !== checkpointId) return checkpoint;
         const nextQuestions = checkpoint.questions.map((question) =>
-          question.id === questionId && question.options.length < 4
+          question.id === questionId && question.options.length < 8
             ? { ...question, options: [...question.options, ''] }
             : question
         );
@@ -350,7 +353,7 @@ export default function BadgeCreationPage() {
             .filter((index) => index !== optionIndex)
             .map((index) => (index > optionIndex ? index - 1 : index))
             .filter((index) => index >= 0 && index < options.length);
-          return { ...question, options, correctIndices: correctIndices.length ? correctIndices : [0] };
+          return { ...question, options, correctIndices };
         });
         return withMirroredFirstQuestion(checkpoint, nextQuestions);
       })
@@ -513,6 +516,20 @@ export default function BadgeCreationPage() {
       const lengthInvalid = Boolean(draft.videoLength.trim()) && !isValidVideoLength(draft.videoLength);
       if (urlInvalid || lengthInvalid) {
         setSubmitError('Fix the highlighted video fields before continuing.');
+        return;
+      }
+    }
+
+    // Require every multiple-choice checkpoint question to have at least one
+    // correct option marked before leaving the Create Checkpoints step (#116).
+    if (currentStep === 2) {
+      const hasUnmarkedChoice = draft.checkpoints.some((checkpoint) =>
+        checkpoint.questions.some(
+          (question) => question.questionType === 'multipleChoice' && question.correctIndices.length === 0
+        )
+      );
+      if (hasUnmarkedChoice) {
+        setSubmitError('Mark at least one correct answer for each multiple-choice question before continuing.');
         return;
       }
     }

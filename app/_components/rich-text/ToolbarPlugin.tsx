@@ -29,13 +29,15 @@ import { $isLinkNode } from '@lexical/link';
 
 type BlockType = 'paragraph' | 'h1' | 'h2' | 'h3' | 'quote' | 'bullet' | 'number';
 
-export default function ToolbarPlugin() {
+export default function ToolbarPlugin({ variant = 'full' }: { variant?: 'full' | 'inline' }) {
   const [editor] = useLexicalComposerContext();
 
   const [isBold, setIsBold] = useState(false);
   const [isItalic, setIsItalic] = useState(false);
   const [isUnderline, setIsUnderline] = useState(false);
   const [isStrikethrough, setIsStrikethrough] = useState(false);
+  const [isSubscript, setIsSubscript] = useState(false);
+  const [isSuperscript, setIsSuperscript] = useState(false);
   const [isLink, setIsLink] = useState(false);
   const [blockType, setBlockType] = useState<BlockType>('paragraph');
   const [canUndo, setCanUndo] = useState(false);
@@ -49,6 +51,8 @@ export default function ToolbarPlugin() {
     setIsItalic(selection.hasFormat('italic'));
     setIsUnderline(selection.hasFormat('underline'));
     setIsStrikethrough(selection.hasFormat('strikethrough'));
+    setIsSubscript(selection.hasFormat('subscript'));
+    setIsSuperscript(selection.hasFormat('superscript'));
 
     // Detect if the selection sits inside a link
     const node = selection.anchor.getNode();
@@ -232,80 +236,114 @@ export default function ToolbarPlugin() {
       </button>
       <button
         type="button"
-        className={`rte-toolbar-btn${isLink ? ' rte-toolbar-btn--active' : ''}`}
-        onClick={insertLink}
-        aria-label="Insert link"
-        aria-pressed={isLink}
-        title="Insert link"
+        className={`rte-toolbar-btn${isSubscript ? ' rte-toolbar-btn--active' : ''}`}
+        onClick={() => formatText('subscript')}
+        aria-label="Subscript"
+        aria-pressed={isSubscript}
+        title="Subscript"
       >
-        <Icon icon="lucide:link" width={18} height={18} />
+        X<sub>2</sub>
       </button>
+      <button
+        type="button"
+        className={`rte-toolbar-btn${isSuperscript ? ' rte-toolbar-btn--active' : ''}`}
+        onClick={() => formatText('superscript')}
+        aria-label="Superscript"
+        aria-pressed={isSuperscript}
+        title="Superscript"
+      >
+        X<sup>2</sup>
+      </button>
+      {variant === 'full' ? (
+        <button
+          type="button"
+          className={`rte-toolbar-btn${isLink ? ' rte-toolbar-btn--active' : ''}`}
+          onClick={insertLink}
+          aria-label="Insert link"
+          aria-pressed={isLink}
+          title="Insert link"
+        >
+          <Icon icon="lucide:link" width={18} height={18} />
+        </button>
+      ) : null}
 
-      <span className="rte-toolbar-divider" aria-hidden="true" />
+      {variant === 'full' ? <span className="rte-toolbar-divider" aria-hidden="true" /> : null}
 
-      <button
-        type="button"
-        className={`rte-toolbar-btn${blockType === 'h1' ? ' rte-toolbar-btn--active' : ''}`}
-        onClick={() => formatBlock('h1')}
-        aria-label="Heading 1"
-        aria-pressed={blockType === 'h1'}
-        title="Heading 1"
-      >
-        <Icon icon="lucide:heading-1" width={18} height={18} />
-      </button>
-      <button
-        type="button"
-        className={`rte-toolbar-btn${blockType === 'h2' ? ' rte-toolbar-btn--active' : ''}`}
-        onClick={() => formatBlock('h2')}
-        aria-label="Heading 2"
-        aria-pressed={blockType === 'h2'}
-        title="Heading 2"
-      >
-        <Icon icon="lucide:heading-2" width={18} height={18} />
-      </button>
-      <button
-        type="button"
-        className={`rte-toolbar-btn${blockType === 'h3' ? ' rte-toolbar-btn--active' : ''}`}
-        onClick={() => formatBlock('h3')}
-        aria-label="Heading 3"
-        aria-pressed={blockType === 'h3'}
-        title="Heading 3"
-      >
-        <Icon icon="lucide:heading-3" width={18} height={18} />
-      </button>
+      {variant === 'full' ? (
+        <button
+          type="button"
+          className={`rte-toolbar-btn${blockType === 'h1' ? ' rte-toolbar-btn--active' : ''}`}
+          onClick={() => formatBlock('h1')}
+          aria-label="Heading 1"
+          aria-pressed={blockType === 'h1'}
+          title="Heading 1"
+        >
+          <Icon icon="lucide:heading-1" width={18} height={18} />
+        </button>
+      ) : null}
+      {variant === 'full' ? (
+        <button
+          type="button"
+          className={`rte-toolbar-btn${blockType === 'h2' ? ' rte-toolbar-btn--active' : ''}`}
+          onClick={() => formatBlock('h2')}
+          aria-label="Heading 2"
+          aria-pressed={blockType === 'h2'}
+          title="Heading 2"
+        >
+          <Icon icon="lucide:heading-2" width={18} height={18} />
+        </button>
+      ) : null}
+      {variant === 'full' ? (
+        <button
+          type="button"
+          className={`rte-toolbar-btn${blockType === 'h3' ? ' rte-toolbar-btn--active' : ''}`}
+          onClick={() => formatBlock('h3')}
+          aria-label="Heading 3"
+          aria-pressed={blockType === 'h3'}
+          title="Heading 3"
+        >
+          <Icon icon="lucide:heading-3" width={18} height={18} />
+        </button>
+      ) : null}
 
-      <span className="rte-toolbar-divider" aria-hidden="true" />
+      {variant === 'full' ? <span className="rte-toolbar-divider" aria-hidden="true" /> : null}
 
-      <button
-        type="button"
-        className={`rte-toolbar-btn${blockType === 'bullet' ? ' rte-toolbar-btn--active' : ''}`}
-        onClick={toggleBulletList}
-        aria-label="Bulleted list"
-        aria-pressed={blockType === 'bullet'}
-        title="Bulleted list"
-      >
-        <Icon icon="lucide:list" width={18} height={18} />
-      </button>
-      <button
-        type="button"
-        className={`rte-toolbar-btn${blockType === 'number' ? ' rte-toolbar-btn--active' : ''}`}
-        onClick={toggleNumberList}
-        aria-label="Numbered list"
-        aria-pressed={blockType === 'number'}
-        title="Numbered list"
-      >
-        <Icon icon="lucide:list-ordered" width={18} height={18} />
-      </button>
-      <button
-        type="button"
-        className={`rte-toolbar-btn${blockType === 'quote' ? ' rte-toolbar-btn--active' : ''}`}
-        onClick={() => formatBlock('quote')}
-        aria-label="Quote"
-        aria-pressed={blockType === 'quote'}
-        title="Quote"
-      >
-        <Icon icon="lucide:quote" width={18} height={18} />
-      </button>
+      {variant === 'full' ? (
+        <button
+          type="button"
+          className={`rte-toolbar-btn${blockType === 'bullet' ? ' rte-toolbar-btn--active' : ''}`}
+          onClick={toggleBulletList}
+          aria-label="Bulleted list"
+          aria-pressed={blockType === 'bullet'}
+          title="Bulleted list"
+        >
+          <Icon icon="lucide:list" width={18} height={18} />
+        </button>
+      ) : null}
+      {variant === 'full' ? (
+        <button
+          type="button"
+          className={`rte-toolbar-btn${blockType === 'number' ? ' rte-toolbar-btn--active' : ''}`}
+          onClick={toggleNumberList}
+          aria-label="Numbered list"
+          aria-pressed={blockType === 'number'}
+          title="Numbered list"
+        >
+          <Icon icon="lucide:list-ordered" width={18} height={18} />
+        </button>
+      ) : null}
+      {variant === 'full' ? (
+        <button
+          type="button"
+          className={`rte-toolbar-btn${blockType === 'quote' ? ' rte-toolbar-btn--active' : ''}`}
+          onClick={() => formatBlock('quote')}
+          aria-label="Quote"
+          aria-pressed={blockType === 'quote'}
+          title="Quote"
+        >
+          <Icon icon="lucide:quote" width={18} height={18} />
+        </button>
+      ) : null}
     </div>
   );
 }

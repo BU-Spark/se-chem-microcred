@@ -65,6 +65,32 @@
   border-color: #2e6aa9;
 }
 
+.input,
+.textarea {
+  border: 3px solid #d7d7d7;
+  border-radius: 1.05rem;
+  padding: 0.6rem 0.9rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.96rem;
+  color: #222222;
+  background: #ffffff;
+  outline: none;
+}
+
+.input {
+  min-height: 3rem;
+}
+
+.textarea {
+  min-height: 8rem;
+  resize: vertical;
+}
+
+.input:focus,
+.textarea:focus {
+  border-color: #2e6aa9;
+}
+
 .sliderRow {
   display: flex;
   align-items: center;

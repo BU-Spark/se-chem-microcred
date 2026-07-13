@@ -10,7 +10,12 @@ import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
 import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
+import { MessageComposeModal } from './MessageComposeModal';
 import styles from './page.module.css';
+
+// Messaging is a work-in-progress feature gated behind the same dev flag as the
+// Messages inbox nav item (see Sidebar). Only show the compose action when on.
+const MESSAGING_ENABLED = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
 type Contact = {
   id: string;
@@ -369,6 +374,7 @@ export default function InstructorStudentProfilePage() {
   const [isNotStartedOpen, setIsNotStartedOpen] = useState(false);
   const [isCompletedOpen, setIsCompletedOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isMessageOpen, setIsMessageOpen] = useState(false);
 
   const studentId = resolveParam(params?.studentId);
   const courseId = searchParams.get('courseId');
@@ -670,6 +676,15 @@ export default function InstructorStudentProfilePage() {
 
                       <div className={styles.badgesHeaderMeta}>
                         <span className={styles.badgesHint}>Select a badge to view details</span>
+                        {MESSAGING_ENABLED ? (
+                          <button
+                            type="button"
+                            className={styles.assessmentLink}
+                            onClick={() => setIsMessageOpen(true)}
+                          >
+                            Message student
+                          </button>
+                        ) : null}
                       </div>
                     </div>
 
@@ -753,6 +768,15 @@ export default function InstructorStudentProfilePage() {
           onSaved={() => {
             void refreshBadgeDetail();
           }}
+        />
+      ) : null}
+
+      {MESSAGING_ENABLED && isMessageOpen && courseId && studentId ? (
+        <MessageComposeModal
+          studentName={data?.member.name ?? 'Student'}
+          courseId={courseId}
+          studentId={studentId}
+          onClose={() => setIsMessageOpen(false)}
         />
       ) : null}
     </div>
