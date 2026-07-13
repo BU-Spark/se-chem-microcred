@@ -13,6 +13,7 @@ import CourseTileImage from '@/app/components/Courses/CourseTileImage';
 import { CourseRole } from '@prisma/client';
 import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
 import { splitName } from '@/lib/text/name';
+import { parseRosterCsv } from '@/lib/csv';
 
 const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Assessor Roster', 'Review'];
 
@@ -430,45 +431,6 @@ export default function CourseNewPage() {
     event.target.value = '';
   };
 
-  function parseCsv(text: string): StudentRow[] {
-    const lines = text
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    if (lines.length < 2) return [];
-
-    const headers = lines[0].split(',').map((h) => h.trim());
-
-    const lastNameIndex = headers.findIndex((h) => h.toLowerCase() === 'lastname');
-    const firstNameIndex = headers.findIndex((h) => h.toLowerCase() === 'firstname');
-    const buidIndex = headers.findIndex((h) => h.toLowerCase() === 'buid');
-    const emailIndex = headers.findIndex((h) => h.toLowerCase() === 'email');
-    const sectionsIndex = headers.findIndex((h) => h.toLowerCase() === 'sections' || h.toLowerCase() === 'section');
-
-    if (
-      lastNameIndex === -1 ||
-      firstNameIndex === -1 ||
-      buidIndex === -1 ||
-      emailIndex === -1 ||
-      sectionsIndex === -1
-    ) {
-      throw new Error('CSV must contain headers: lastName, firstName, buid, email, sections');
-    }
-
-    return lines.slice(1).map((line) => {
-      const cols = line.split(',').map((col) => col.trim());
-
-      return {
-        lastName: cols[lastNameIndex] || '',
-        firstName: cols[firstNameIndex] || '',
-        buid: cols[buidIndex] || '',
-        email: cols[emailIndex] || '',
-        sections: cols[sectionsIndex] || '',
-      };
-    });
-  }
-
   async function handleCreateCourse() {
     const payload = {
       id: editingCourseId ?? undefined,
@@ -737,7 +699,7 @@ export default function CourseNewPage() {
                 type="file"
                 accept=".csv,text/csv"
                 style={{ display: 'none' }}
-                onChange={(e) => handleRosterUpload(e, 'student', setStudentRows, parseCsv)}
+                onChange={(e) => handleRosterUpload(e, 'student', setStudentRows, parseRosterCsv)}
               />
             </div>
 
@@ -846,7 +808,7 @@ export default function CourseNewPage() {
                 type="file"
                 accept=".csv,text/csv"
                 style={{ display: 'none' }}
-                onChange={(e) => handleRosterUpload(e, 'assessor', setAssessorRows, parseCsv)}
+                onChange={(e) => handleRosterUpload(e, 'assessor', setAssessorRows, parseRosterCsv)}
               />
             </div>
 
