@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
+import { splitName } from '@/lib/text/name';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
@@ -85,23 +86,6 @@ function parseRosterCsv(csv: string): NewRosterMember[] {
       sections: columns[indices.sections] || '',
     };
   });
-}
-
-function splitName(fullName?: string | null) {
-  const parts = fullName?.trim().split(/\s+/).filter(Boolean) ?? [];
-
-  if (parts.length === 0) {
-    return { firstName: '', lastName: '' };
-  }
-
-  if (parts.length === 1) {
-    return { firstName: parts[0], lastName: '' };
-  }
-
-  return {
-    firstName: parts.slice(0, -1).join(' '),
-    lastName: parts.at(-1) ?? '',
-  };
 }
 
 function resolveRosterRole(role?: string | null): RosterRole {
@@ -213,10 +197,10 @@ export default function StudentRosterPage() {
     return course.enrollments
       .filter((enrollment) => enrollment.role === 'CHECKER' && enrollment.status === 'PENDING')
       .map((enrollment) => {
-        const { firstName, lastName } = splitName(enrollment.student.name);
+        const { first, last } = splitName(enrollment.student.name);
         return {
           enrollmentId: enrollment.id,
-          name: [firstName, lastName].filter(Boolean).join(' ') || enrollment.student.email || 'Unknown',
+          name: [first, last].filter(Boolean).join(' ') || enrollment.student.email || 'Unknown',
           email: enrollment.student.email?.trim() ?? '',
         };
       });
@@ -389,13 +373,13 @@ export default function StudentRosterPage() {
     return course.enrollments
       .filter((enrollment) => enrollment.role === rosterRole && enrollment.status !== 'PENDING')
       .map((enrollment) => {
-        const { firstName, lastName } = splitName(enrollment.student.name);
+        const { first, last } = splitName(enrollment.student.name);
 
         return {
           enrollmentId: enrollment.id,
           memberId: enrollment.student.id,
-          firstName,
-          lastName,
+          firstName: first,
+          lastName: last,
           email: enrollment.student.email?.trim() ?? '',
           buid: enrollment.student.buid?.trim() ?? '',
           sections: enrollment.sections,

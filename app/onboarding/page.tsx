@@ -77,10 +77,18 @@ export default function OnboardingPage() {
 
   const selectedAvatar = useMemo(() => AVATARS.find((a) => a.base === avatarBase) ?? AVATARS[0], [avatarBase]);
   const fullName = useMemo(() => [firstName.trim(), lastName.trim()].filter(Boolean).join(' '), [firstName, lastName]);
+  const isNameValid = firstName.trim().length > 0 && lastName.trim().length > 0;
 
   if (!isLoaded || !isSignedIn) return null;
 
-  const goNext = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
+  const goNext = () => {
+    if (step === 0 && !isNameValid) {
+      setError('First and last name are required.');
+      return;
+    }
+    setError('');
+    setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
+  };
   const goBack = () => setStep((s) => Math.max(s - 1, 0));
 
   const toggleRace = (value: string) => {
@@ -89,6 +97,11 @@ export default function OnboardingPage() {
 
   const handleFinish = async () => {
     if (isSubmitting) return;
+    if (!isNameValid) {
+      setStep(0);
+      setError('First and last name are required.');
+      return;
+    }
     setIsSubmitting(true);
     setError('');
     try {
@@ -129,15 +142,22 @@ export default function OnboardingPage() {
                 className={styles.underlineInput}
                 placeholder="First Name"
                 value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
+                onChange={(e) => {
+                  setFirstName(e.target.value);
+                  setError('');
+                }}
               />
               <input
                 className={styles.underlineInput}
                 placeholder="Last Name"
                 value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
+                onChange={(e) => {
+                  setLastName(e.target.value);
+                  setError('');
+                }}
               />
             </div>
+            {error ? <p className={styles.error}>{error}</p> : null}
           </>
         ) : null}
 
@@ -245,7 +265,7 @@ export default function OnboardingPage() {
         {step < 4 ? (
           <div className={styles.cardFooter}>
             {step > 0 ? <BackButton inline onClick={goBack} /> : null}
-            <button type="button" className={styles.nextButton} onClick={goNext}>
+            <button type="button" className={styles.nextButton} onClick={goNext} disabled={step === 0 && !isNameValid}>
               Next
             </button>
           </div>

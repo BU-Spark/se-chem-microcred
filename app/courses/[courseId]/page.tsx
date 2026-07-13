@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
+import { generateInitials, getNameForProfile } from '@/lib/text/name';
 
 import { LessonReminderModal } from './LessonReminderModal';
 import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
@@ -71,41 +72,6 @@ function resolveCourseId(value: string | string[] | undefined) {
   return value ?? null;
 }
 
-function formatPersonName(name?: string | null, email?: string | null) {
-  if (name?.trim()) return name.trim();
-  if (email?.trim()) return email.trim();
-  return 'Unassigned';
-}
-
-function initialsFor(name?: string | null, email?: string | null) {
-  const source = formatPersonName(name, email);
-  const parts = source
-    .replace(/@.*/, '')
-    .split(/[\s._-]+/)
-    .filter(Boolean);
-
-  if (parts.length === 0) return 'NA';
-
-  return parts
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
-}
-
-function formatLastFirst(name?: string | null, email?: string | null) {
-  const resolved = formatPersonName(name, email);
-  const parts = resolved.split(/\s+/).filter(Boolean);
-
-  if (parts.length <= 1) {
-    return resolved;
-  }
-
-  const last = parts[parts.length - 1];
-  const first = parts.slice(0, parts.length - 1).join(' ');
-
-  return `${last}, ${first}`;
-}
-
 function PersonCard({
   label,
   name,
@@ -117,7 +83,8 @@ function PersonCard({
   email?: string | null;
   avatarSrc?: StaticImageData;
 }) {
-  const display = formatLastFirst(name, email);
+  const source = name?.trim() || email?.trim() || 'Unassigned';
+  const display = getNameForProfile(source);
 
   return (
     <div className={styles.personCard}>
@@ -128,12 +95,14 @@ function PersonCard({
             <Image src={avatarSrc} alt="" width={88} height={88} className={styles.personAvatarImage} />
           ) : (
             <div className={styles.personAvatarFallback} aria-hidden="true">
-              {initialsFor(name, email)}
+              {generateInitials(source)}
             </div>
           )}
         </div>
         <div className={styles.personInfo}>
-          <p className={styles.personName}>{display}</p>
+          <p className={styles.personName}>
+            {display.headlineBottom ? `${display.headlineTop} ${display.headlineBottom}` : display.headlineTop}
+          </p>
           <p className={styles.personEmail}>{email?.trim() || 'Email unavailable'}</p>
         </div>
       </div>

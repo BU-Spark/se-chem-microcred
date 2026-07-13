@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
+import { generateInitials, getNameForProfile } from '@/lib/text/name';
 import CollapsibleSection from '@/app/components/CollapsibleSection';
 import BadgeGrid from '@/app/components/BadgeGrid';
 import StudentProfileCard from '@/app/components/StudentProfileCard';
@@ -118,48 +119,6 @@ function avatarAsset(base?: string | null) {
   }
 }
 
-function splitNameForProfile(name?: string | null) {
-  const trimmed = name?.trim();
-
-  if (!trimmed) {
-    return {
-      headlineTop: 'Student,',
-      headlineBottom: 'Profile',
-      initials: 'ST',
-    };
-  }
-
-  if (trimmed.includes(',')) {
-    const [last, ...rest] = trimmed.split(',');
-    const first = rest.join(',').trim();
-
-    return {
-      headlineTop: `${last.trim()},`,
-      headlineBottom: first || 'Student',
-      initials: `${last.trim().charAt(0)}${first.charAt(0)}`.toUpperCase(),
-    };
-  }
-
-  const parts = trimmed.split(/\s+/).filter(Boolean);
-
-  if (parts.length === 1) {
-    return {
-      headlineTop: `${parts[0]},`,
-      headlineBottom: '',
-      initials: parts[0].slice(0, 2).toUpperCase(),
-    };
-  }
-
-  const first = parts.slice(0, -1).join(' ');
-  const last = parts.at(-1) ?? '';
-
-  return {
-    headlineTop: `${last},`,
-    headlineBottom: first,
-    initials: `${first.charAt(0)}${last.charAt(0)}`.toUpperCase(),
-  };
-}
-
 function formatPellGrant(value: boolean | null) {
   if (value == null) {
     return 'Not provided';
@@ -179,10 +138,6 @@ function formatDate(value?: string | null) {
   }
 
   return parsed.toLocaleDateString();
-}
-
-function initialsFromName(name?: string | null) {
-  return splitNameForProfile(name).initials || 'ST';
 }
 
 function useInstructorStudentProfile(courseId?: string | null, studentId?: string | null, email?: string | null) {
@@ -413,7 +368,7 @@ export default function InstructorStudentProfilePage() {
 
   const sideContactTitle = currentRole === 'CHECKER' ? 'Instructor' : 'Checker';
   const emptyContactMessage = currentRole === 'CHECKER' ? 'No instructor assigned.' : 'No checker assigned.';
-  const memberDisplay = useMemo(() => splitNameForProfile(data?.member.name), [data?.member.name]);
+  const memberDisplay = useMemo(() => getNameForProfile(data?.member.name), [data?.member.name]);
   const memberAvatarSrc = avatarAsset(data?.member.avatar?.base);
   const displayName = data?.course.createdBy?.name || '';
 
@@ -453,7 +408,7 @@ export default function InstructorStudentProfilePage() {
                 buid={data.member.buid}
                 avatarSrc={data.member.avatar ? memberAvatarSrc : null}
                 avatarAlt={`${currentProfileLabel} avatar`}
-                avatarFallback={initialsFromName(data.member.name)}
+                avatarFallback={generateInitials(data.member.name)}
                 courseTitle={data.course.title}
                 courseSectionsLabel={`${data.course.sections.length > 1 ? 'Sections' : 'Section'}: ${
                   courseSectionsLabel || 'Not provided'
@@ -462,15 +417,15 @@ export default function InstructorStudentProfilePage() {
                 contactName={
                   sideContact ? (
                     <>
-                      <p>{splitNameForProfile(sideContact.name).headlineTop}</p>
-                      <p>{splitNameForProfile(sideContact.name).headlineBottom}</p>
+                      <p>{getNameForProfile(sideContact.name).headlineTop}</p>
+                      <p>{getNameForProfile(sideContact.name).headlineBottom}</p>
                     </>
                   ) : null
                 }
                 contactEmail={sideContact?.email}
                 contactAvatarSrc={sideContact?.avatarUrl}
                 contactAvatarAlt={sideContact?.name}
-                contactFallback={sideContact ? initialsFromName(sideContact.name) : ''}
+                contactFallback={sideContact ? generateInitials(sideContact.name) : ''}
                 emptyContactMessage={emptyContactMessage}
                 sideTop={
                   <CollapsibleSection

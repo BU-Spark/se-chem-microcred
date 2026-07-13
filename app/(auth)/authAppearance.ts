@@ -18,5 +18,9 @@ export const authAppearance: Appearance = {
     card: { boxShadow: '0 12px 40px rgba(31, 42, 58, 0.10)', borderRadius: '20px' },
     formButtonPrimary: { textTransform: 'none', fontSize: '15px', fontWeight: 600 },
     footerActionLink: { color: '#2f5596' },
+    // Name is collected as required on our onboarding step regardless of Clerk's own
+    // (optional) instance setting, so hide the "Optional" hint to avoid contradicting that.
+    formFieldHintText__firstName: { display: 'none' },
+    formFieldHintText__lastName: { display: 'none' },
   },
 };
