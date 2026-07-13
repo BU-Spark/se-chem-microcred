@@ -2,7 +2,7 @@
 import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import './globals.css';
-import { DatabaseDisplayNameProvider } from './_components/DatabaseDisplayNameProvider';
+import { DatabaseDisplayNameProvider } from '@/app/components/Profile/DatabaseDisplayNameProvider';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { GlobalHeader } from './components/GlobalHeader'; // 👈 NEW
 

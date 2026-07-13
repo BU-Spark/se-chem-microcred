@@ -5,8 +5,8 @@ import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import BackButton from '@/app/_components/BackButton';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import BackButton from '@/app/components/BackButton/BackButton';
 import rosterStyles from '@/app/roster/[studentId]/page.module.css';
 import styles from './page.module.css';
 

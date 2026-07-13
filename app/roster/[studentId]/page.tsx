@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
 
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
+import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
 import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
 import { MessageComposeModal } from './MessageComposeModal';

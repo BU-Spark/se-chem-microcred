@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 
 export default function SettingsPage() {
   const router = useRouter();

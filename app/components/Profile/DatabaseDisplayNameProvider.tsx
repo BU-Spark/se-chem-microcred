@@ -3,7 +3,7 @@
 import { createContext, useContext } from 'react';
 import { useUser } from '@clerk/nextjs';
 
-import { useDatabaseDisplayName } from '../hooks/useDatabaseDisplayName';
+import { useDatabaseDisplayName } from '@/app/hooks/useDatabaseDisplayName';
 
 type ProfileContextValue = {
   displayName: string | null | undefined;

@@ -20,9 +20,9 @@ import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unha
 import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
 import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
 import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import BackButton from '@/app/_components/BackButton';
-import CourseTileImage from '@/app/_components/CourseTileImage';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import BackButton from '@/app/components/BackButton/BackButton';
+import CourseTileImage from '@/app/components/Courses/CourseTileImage';
 import type { CourseImageFields } from '@/lib/courseImage';
 
 interface EnrolledCourseCardData extends CourseImageFields {

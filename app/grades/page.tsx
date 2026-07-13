@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useAuth, useUser } from '@clerk/nextjs';
 import { useStudentData } from '../hooks/useStudentData';
 import shellStyles from '../page.module.css';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 
 export default function GradesPage() {
   const router = useRouter();
