@@ -3,12 +3,8 @@ import { CourseRole } from '@prisma/client';
 import { fetchAccessibleCourseMemberDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import prisma from '@/lib/prisma';
+import { normalizeEmail } from '@/lib/text/email';
 import { youtubeUrlFromSummary } from '@/lib/video';
-
-function normalizeEmail(email?: string | null) {
-  const trimmed = email?.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-}
 
 function normalizeId(value?: string | null) {
   const trimmed = value?.trim();

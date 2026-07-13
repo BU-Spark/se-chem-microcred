@@ -4,6 +4,7 @@ import {
   fetchAccessibleBadgeDetail,
   fetchUserByEmail,
 } from '@/app/api/courses/lib/course-queries';
+import { normalizeEmail } from '@/lib/text/email';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'COMPLETED';
 
@@ -22,11 +23,6 @@ type AssessmentSummary = {
     segmentLabel?: string | null;
   }>;
 };
-
-function normalizeEmail(email?: string | null) {
-  const trimmed = email?.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-}
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();

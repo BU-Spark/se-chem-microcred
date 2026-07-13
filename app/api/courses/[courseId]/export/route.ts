@@ -3,11 +3,7 @@ import { BadgeStatus } from '@prisma/client';
 import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import { splitName } from '@/lib/text/name';
 import prisma from '@/lib/prisma';
-
-function normalizeEmail(email?: string | null) {
-  const trimmed = email?.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-}
+import { normalizeEmail } from '@/lib/text/email';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
