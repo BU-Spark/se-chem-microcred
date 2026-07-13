@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { sanitizeQuestionRichText } from '@/app/lib/question-rich-text';
+import { sanitizeQuestionRichText } from '@/lib/question-rich-text';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
 import veryUnhappyFace from '../../../public/assets/survey_faces/very_unhappy.svg';
