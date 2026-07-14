@@ -6,153 +6,27 @@ import { randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 import { canCreateContent } from '@/lib/adminAccess';
 import { hasVisibleQuestionText, sanitizeQuestionRichText } from '@/lib/question-rich-text';
+import { CheckpointPayload, CheckpointQuestionPayload } from '@/lib/checkpoints/types';
+import {
+  normalizeString,
+  normalizeSkills,
+  normalizeRichText,
+  parseTimeToSeconds,
+  parseFiniteNumber,
+} from '@/lib/utils';
+import { extractYouTubeId } from '@/lib/video';
+import { RubricGoalPayload } from '@/lib/rubric/types';
+import { CreateBadgePayload, UpdateBadgePayload } from '@/lib/badges/types';
+import { slugify } from '@/lib/utils';
 
-type CheckpointQuestionPayload = {
-  id?: string | null;
-  prompt?: string | null;
-  question?: string | null;
-  questionType?: 'multipleChoice' | 'shortAnswer' | string | null;
-  options?: string[] | null;
-  correctIndex?: number | null;
-  correctIndices?: number[] | null;
-  numericAnswer?: string | number | null;
-  numericRangeMin?: string | number | null;
-  numericRangeMax?: string | number | null;
-  unit?: string | null;
-  incorrectFeedback?: string | null;
-  incorrectFeedbackEnabled?: boolean | null;
-};
-
-type CheckpointPayload = CheckpointQuestionPayload & {
-  title?: string | null;
-  time?: string | null;
-  points?: number | string | null;
-  segmentLabel?: string | null;
-  questions?: CheckpointQuestionPayload[] | null;
-};
-
-type RubricTaskPayload = {
-  id?: string;
-  text?: string | null;
-  points?: number | string | null;
-};
-
-type RubricSubgoalPayload = {
-  id?: string;
-  text?: string | null;
-  passThreshold?: number | string | null;
-  tasks?: RubricTaskPayload[] | null;
-};
-
-type RubricGoalPayload = {
-  name?: string | null;
-  taInstructions?: string | null;
-  subgoals?: RubricSubgoalPayload[] | null;
-};
-
-type CreateBadgePayload = {
-  courseId?: string | null;
-  badgeName?: string | null;
-  badgeDescription?: string | null;
-  skills?: string[] | null;
-  availableOn?: string | null;
-  closesOn?: string | null;
-  neverCloses?: boolean | null;
-  youtubeUrl?: string | null;
-  videoTitle?: string | null;
-  videoLength?: string | null;
-  passingPercent?: number | string | null;
-  checkpoints?: CheckpointPayload[] | null;
-  rubricGoal?: RubricGoalPayload | null;
-};
-
-type UpdateBadgePayload = {
-  id?: string | null;
-  badgeName?: string | null;
-  badgeDescription?: string | null;
-  skills?: string[] | null;
-  availableOn?: string | null;
-  closesOn?: string | null;
-  neverCloses?: boolean | null;
-  rubricGoal?: RubricGoalPayload | null;
-  checkpoints?: CheckpointPayload[] | null;
-  youtubeUrl?: string | null;
-  videoTitle?: string | null;
-  videoLength?: string | null;
-  passingPercent?: number | string | null;
-};
-
-function normalizeString(value?: string | null) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
+const DEFAULT_PASSING_PERCENT = 70;
 
 // Rich-text (HTML) fields are stored verbatim, but an "empty" editor still
 // serializes to markup like `<p><br></p>`. Treat markup with no visible text
 // or embedded media as empty so it persists as null.
-function normalizeRichText(value?: string | null) {
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  const textContent = trimmed
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .trim();
-  const hasEmbeddedContent = /<(img|iframe|video|audio|hr)\b/i.test(trimmed);
-  return textContent || hasEmbeddedContent ? trimmed : null;
-}
-
-// Trim, drop empties, case-insensitive de-dupe, cap at 5. The API is the
-// authoritative gate even though the client also limits to 5.
-function normalizeSkills(skills?: string[] | null) {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const raw of skills ?? []) {
-    const value = normalizeString(raw);
-    if (!value) continue;
-    const key = value.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(value);
-    if (result.length >= 5) break;
-  }
-  return result;
-}
 
 function formatQuestionCount(count: number) {
   return `${count} question${count === 1 ? '' : 's'}`;
-}
-
-function slugify(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 70);
-}
-
-function parseTimeToSeconds(value?: string | null) {
-  const trimmed = normalizeString(value);
-  if (!trimmed) return 0;
-
-  const parts = trimmed.split(':').map((part) => Number(part));
-  if (parts.some((part) => Number.isNaN(part) || part < 0)) return 0;
-
-  if (parts.length === 3) {
-    const [hours, minutes, seconds] = parts;
-    return hours * 3600 + minutes * 60 + seconds;
-  }
-
-  if (parts.length === 2) {
-    const [minutes, seconds] = parts;
-    return minutes * 60 + seconds;
-  }
-
-  if (parts.length === 1) {
-    return parts[0];
-  }
-
-  return 0;
 }
 
 function parseDate(value?: string | null) {
@@ -161,36 +35,6 @@ function parseDate(value?: string | null) {
 
   const date = new Date(`${trimmed}T00:00:00.000Z`);
   return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function extractYouTubeId(url?: string | null) {
-  const trimmed = normalizeString(url);
-  if (!trimmed) return null;
-
-  try {
-    const parsed = new URL(trimmed);
-    if (parsed.hostname.includes('youtu.be')) {
-      return parsed.pathname.replace('/', '') || null;
-    }
-
-    const queryId = parsed.searchParams.get('v');
-    if (queryId) return queryId;
-
-    const parts = parsed.pathname.split('/');
-    const embedIndex = parts.indexOf('embed');
-    if (embedIndex >= 0) {
-      return parts[embedIndex + 1] ?? null;
-    }
-
-    const shortsIndex = parts.indexOf('shorts');
-    if (shortsIndex >= 0) {
-      return parts[shortsIndex + 1] ?? null;
-    }
-  } catch {
-    return null;
-  }
-
-  return null;
 }
 
 function normalizeOptions(options?: string[] | null) {
@@ -203,18 +47,6 @@ function normalizeOptions(options?: string[] | null) {
     capped.push(capped.length === 0 ? 'Yes' : 'No');
   }
   return capped;
-}
-
-function parseFiniteNumber(value?: string | number | null) {
-  if (typeof value === 'number') {
-    return Number.isFinite(value) ? value : null;
-  }
-
-  const trimmed = normalizeString(value);
-  if (!trimmed) return null;
-
-  const parsed = Number(trimmed);
-  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function normalizeCorrectIndices(question: CheckpointQuestionPayload, optionCount: number) {
@@ -321,7 +153,7 @@ function normalizePoints(value: number | string | null | undefined, fallback: nu
 
 // Lesson passing threshold: percent of checkpoint questions a student must get
 // correct to pass the lesson. Clamped to 0–100, defaults to the schema default.
-const DEFAULT_PASSING_PERCENT = 70;
+
 function normalizePassingPercent(value: number | string | null | undefined) {
   const parsed = typeof value === 'string' ? Number(value) : value;
   if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return DEFAULT_PASSING_PERCENT;
