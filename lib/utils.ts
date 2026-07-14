@@ -63,6 +63,14 @@ export function parseTimeToSeconds(value?: string | null) {
   return 0;
 }
 
+export function parseDate(value?: string | null) {
+  const trimmed = normalizeString(value);
+  if (!trimmed) return null;
+
+  const date = new Date(`${trimmed}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
 export function parseFiniteNumber(value?: string | number | null) {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : null;
