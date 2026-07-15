@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth, useUser } from '@clerk/nextjs';
+import { isInstructor } from '@/lib/roles';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
@@ -238,7 +239,7 @@ export default function CourseBadgeProgress() {
   const course = data?.course ?? null;
   const summary = data?.summary ?? null;
   const assessment = data?.assessment ?? null;
-  const isInstructor = data?.viewerRole === 'INSTRUCTOR';
+  const isInstructorFlag = isInstructor(data?.viewerRole);
   const displayName = course?.createdBy?.name || user?.fullName || '';
 
   // Progress breakdown bars driven by the real summary percentages.
@@ -419,7 +420,7 @@ export default function CourseBadgeProgress() {
                           Length: <strong>{videoLength}</strong>
                         </p>
                       </div>
-                      {isInstructor ? (
+                      {isInstructorFlag ? (
                         <button
                           type="button"
                           className={styles.editButton}

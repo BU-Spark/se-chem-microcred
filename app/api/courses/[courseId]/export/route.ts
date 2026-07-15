@@ -39,10 +39,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       );
     }
 
+    // Find a better way to figure out if user is instructor
     // Exporting course-wide student data is an instructor-only action.
-    const isInstructor = course.createdById === user.id;
+    const isInstructorFlag = course.createdById === user.id;
 
-    if (!isInstructor) {
+    if (!isInstructorFlag) {
       return NextResponse.json({ error: 'You do not have permission to export this course.' }, { status: 403 });
     }
 

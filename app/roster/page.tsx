@@ -10,6 +10,7 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import styles from './page.module.css';
 import { parseRosterCsv } from '@/lib/csv';
 import { EnrollmentRole, EnrollmentSummary, RosterRole } from '@/lib/enrollment/types';
+import { isInstructor } from '@/lib/roles';
 
 type CourseRoster = {
   id: string;
@@ -212,16 +213,16 @@ export default function StudentRosterPage() {
   };
 
   const course = data?.course ?? null;
-  const isInstructor = data?.viewerRole === 'INSTRUCTOR';
+  const isInstructorFlag = isInstructor(data?.viewerRole);
   // Only instructors can remove students, and only on the student roster.
-  const canRemoveMembers = isInstructor;
-  const canAddMembers = isInstructor;
-  const canManageSections = isInstructor;
+  const canRemoveMembers = isInstructorFlag;
+  const canAddMembers = isInstructorFlag;
+  const canManageSections = isInstructorFlag;
   const displayName = course?.createdBy?.name || '';
 
   // Pending assessor requests an instructor can approve/decline (CHECKER roster only).
   const pendingAssessors = useMemo(() => {
-    if (!course || !isCheckerRoster || !isInstructor) return [];
+    if (!course || !isCheckerRoster || !isInstructorFlag) return [];
     return course.enrollments
       .filter((enrollment) => enrollment.role === 'CHECKER' && enrollment.status === 'PENDING')
       .map((enrollment) => {
@@ -232,7 +233,7 @@ export default function StudentRosterPage() {
           email: enrollment.student.email?.trim() ?? '',
         };
       });
-  }, [course, isCheckerRoster, isInstructor]);
+  }, [course, isCheckerRoster, isInstructorFlag]);
 
   const handleAssessorDecision = useCallback(
     async (enrollmentId: string, action: 'approve' | 'decline') => {
