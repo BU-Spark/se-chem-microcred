@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import useSWR from 'swr';
+
+import { fetcher } from './lib/fetcher';
 
 type ProfileSummary = {
   displayName: string | null;
@@ -45,6 +48,14 @@ type DisplayNameResponse = {
   error?: string;
 };
 
+async function fetchProfile(url: string): Promise<ProfileSummary> {
+  const payload = await fetcher<DisplayNameResponse>(url);
+  return {
+    displayName: payload.user?.name?.trim() || null,
+    avatarBase: payload.user?.avatarBase ?? null,
+  };
+}
+
 export function useDatabaseDisplayName(email?: string | null, enabled = true) {
   const normalizedEmail = email?.trim().toLowerCase() ?? null;
   // Seed from the in-memory cache only. localStorage is read in the effect (post-mount)
@@ -55,50 +66,38 @@ export function useDatabaseDisplayName(email?: string | null, enabled = true) {
       : { displayName: null, avatarBase: null }
   );
 
-  // Tracks whether the consuming component is still mounted so a slow fetch
-  // (mount revalidation or a manual refresh) can't setState after unmount.
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-    };
-  }, []);
-
-  // Fetches the latest name/avatar from the server and updates every cache layer
-  // plus local state. Exposed as `refresh` so callers (e.g. after saving a new
-  // name) can force the sidebar to repaint without a full page reload.
-  const refresh = useCallback(async () => {
-    if (!normalizedEmail) {
-      return;
-    }
-    try {
-      const response = await fetch('/api/profile/display-name', {
-        headers: {
-          Accept: 'application/json',
-        },
-      });
-
-      const payload = (await response.json().catch(() => ({}))) as DisplayNameResponse;
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? `Request failed with status ${response.status}`);
-      }
-
-      const resolved: ProfileSummary = {
-        displayName: payload.user?.name?.trim() || null,
-        avatarBase: payload.user?.avatarBase ?? null,
-      };
+  const updateProfile = useCallback(
+    (resolved: ProfileSummary) => {
+      if (!normalizedEmail) return;
       profileCache.set(normalizedEmail, resolved);
       writeStored(normalizedEmail, resolved);
+      setProfile(resolved);
+    },
+    [normalizedEmail]
+  );
 
-      if (mountedRef.current) {
-        setProfile(resolved);
-      }
+  const { mutate } = useSWR<ProfileSummary>(
+    enabled && normalizedEmail ? ['/api/profile/display-name', normalizedEmail] : null,
+    ([url]: [string, string]) => fetchProfile(url),
+    {
+      revalidateOnFocus: false,
+      onSuccess: updateProfile,
+      // Failed revalidation must leave the already-painted cached profile intact.
+      shouldRetryOnError: false,
+    }
+  );
+
+  // Exposed so callers can repaint after saving a profile change. When the hook
+  // is disabled, preserve the previous behavior by allowing an explicit refresh.
+  const refresh = useCallback(async () => {
+    if (!normalizedEmail) return;
+    try {
+      const resolved = enabled ? await mutate() : await fetchProfile('/api/profile/display-name');
+      if (resolved) updateProfile(resolved);
     } catch {
       // Keep whatever we already painted from cache on failure.
     }
-  }, [normalizedEmail]);
+  }, [enabled, mutate, normalizedEmail, updateProfile]);
 
   useEffect(() => {
     if (!enabled || !normalizedEmail) {
@@ -117,9 +116,8 @@ export function useDatabaseDisplayName(email?: string | null, enabled = true) {
       }
     }
 
-    // 2. Always revalidate in the background so a freshly chosen avatar/name shows up.
-    void refresh();
-  }, [enabled, normalizedEmail, refresh]);
+    // SWR revalidates in the background after this cached value paints.
+  }, [enabled, normalizedEmail]);
 
   // Optimistic update: paint a freshly-chosen avatar everywhere immediately and
   // keep the caches warm, so the change doesn't wait on the background refetch.
@@ -130,11 +128,12 @@ export function useDatabaseDisplayName(email?: string | null, enabled = true) {
         if (normalizedEmail) {
           profileCache.set(normalizedEmail, next);
           writeStored(normalizedEmail, next);
+          void mutate(next, { revalidate: false });
         }
         return next;
       });
     },
-    [normalizedEmail]
+    [mutate, normalizedEmail]
   );
 
   return { displayName: profile.displayName, avatarBase: profile.avatarBase, setAvatarBase, refresh };
