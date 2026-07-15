@@ -1,7 +1,6 @@
 export async function fetcher<Data>(url: string): Promise<Data> {
   const response = await fetch(url, {
     headers: { Accept: 'application/json' },
-    credentials: 'include',
   });
 
   const payload = (await response.json().catch(() => null)) as Data | { error?: unknown } | null;
