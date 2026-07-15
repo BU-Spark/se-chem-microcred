@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { sanitizeQuestionRichText } from '@/app/lib/question-rich-text';
+import SurveyModal from '@/app/components/SurveyModal';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
 import veryUnhappyFace from '../../../public/assets/survey_faces/very_unhappy.svg';
@@ -1707,50 +1708,32 @@ export function LessonVideoPage({
           ) : null}
         </div>
       </div>
-      {effectiveLessonSurvey && modalState === 'lessonSurvey' && (
-        <div className={styles.lessonSurveyOverlay}>
-          <div className={styles.lessonSurveyModal}>
-            <h2 className={styles.lessonSurveyTitle}>Tell us about this lesson</h2>
-            <p className={styles.lessonSurveyQuestion}>{effectiveLessonSurvey.question}</p>
-            {lessonSurveyError ? <p className={styles.lessonSurveyError}>{lessonSurveyError}</p> : null}
-            <div className={styles.lessonSurveyFaces}>
-              {LESSON_SURVEY_FACES.map((face) => {
-                const isSelected = lessonSurveyRating === face.value;
-                const imgClassNames = [
-                  styles.lessonSurveyFaceImage,
-                  isSelected ? styles.lessonSurveyFaceImageSelected : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ');
-                const iconSrc = isSelected ? (face.selectedIcon ?? face.icon) : face.icon;
-                const faceClass = [styles.lessonSurveyFace, isSelected ? styles.lessonSurveyFaceSelected : '']
-                  .filter(Boolean)
-                  .join(' ');
-
-                return (
-                  <button
-                    key={face.value}
-                    type="button"
-                    className={faceClass}
-                    onClick={() => handleLessonSurveyFaceSelect(face.value)}
-                    aria-pressed={isSelected}
-                  >
-                    <Image src={iconSrc} alt={face.label} className={imgClassNames} />
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              className={styles.lessonSurveySubmit}
-              onClick={submitLessonSurvey}
-              disabled={lessonSurveySubmitting || assessingLesson}
-            >
-              {lessonSurveySubmitting || assessingLesson ? 'Submitting…' : 'Submit feedback'}
-            </button>
-          </div>
-        </div>
-      )}
+      {effectiveLessonSurvey && modalState === 'lessonSurvey' ? (
+        <SurveyModal
+          title="Tell us about this lesson"
+          question={effectiveLessonSurvey.question}
+          options={LESSON_SURVEY_FACES}
+          value={lessonSurveyRating}
+          onChange={handleLessonSurveyFaceSelect}
+          onSubmit={submitLessonSurvey}
+          submitLabel="Submit feedback"
+          isSubmitting={lessonSurveySubmitting || assessingLesson}
+          error={lessonSurveyError}
+          classNames={{
+            overlay: styles.lessonSurveyOverlay,
+            modal: styles.lessonSurveyModal,
+            title: styles.lessonSurveyTitle,
+            question: styles.lessonSurveyQuestion,
+            error: styles.lessonSurveyError,
+            options: styles.lessonSurveyFaces,
+            option: styles.lessonSurveyFace,
+            selectedOption: styles.lessonSurveyFaceSelected,
+            optionImage: styles.lessonSurveyFaceImage,
+            selectedOptionImage: styles.lessonSurveyFaceImageSelected,
+            submit: styles.lessonSurveySubmit,
+          }}
+        />
+      ) : null}
       {showLessonQr ? (
         <div className={styles.overlay}>
           <div className={styles.qrModal} role="dialog" aria-modal="true">
