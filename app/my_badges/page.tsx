@@ -9,6 +9,7 @@ import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import { useBadgesCatalog, type BadgeCatalogItem } from '@/app/hooks/useBadgesCatalog';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
+import BadgeToken from '@/app/components/BadgeToken';
 import styles from './page.module.css';
 
 // A badge's "main page" lives at /courses/[courseId]/[badgeId], so we need the course it's
@@ -125,13 +126,13 @@ export default function MyBadgesPage() {
               return (
                 <div key={badge.id} className={styles.badgeCardItem}>
                   <Link href={resolveBadgeHref(badge)} className={styles.badgeCard}>
-                    <span className={styles.badgeToken}>
+                    <BadgeToken as="span" className={styles.badgeToken}>
                       <YoutubeThumbnail
                         videoUrl={videoUrl}
                         alt={`${badge.name} thumbnail`}
                         className={styles.badgeTokenImage}
                       />
-                    </span>
+                    </BadgeToken>
                     <span className={styles.badgeName}>{badge.name}</span>
                   </Link>
                   {canCreateContent ? (
