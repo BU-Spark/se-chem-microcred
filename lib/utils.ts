@@ -1,4 +1,5 @@
 // File for frequently used functions
+import { normalizeString } from './checkpoints/normalizeWrite';
 
 export function toTitleCase(text: string): string {
   return text
@@ -6,37 +7,6 @@ export function toTitleCase(text: string): string {
     .split(' ')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
-}
-
-export function normalizeString(value?: string | null) {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
-
-export function normalizeSkills(skills?: string[] | null) {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const raw of skills ?? []) {
-    const value = normalizeString(raw);
-    if (!value) continue;
-    const key = value.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    result.push(value);
-    if (result.length >= 5) break;
-  }
-  return result;
-}
-
-export function normalizeRichText(value?: string | null) {
-  const trimmed = value?.trim();
-  if (!trimmed) return null;
-  const textContent = trimmed
-    .replace(/<[^>]*>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .trim();
-  const hasEmbeddedContent = /<(img|iframe|video|audio|hr)\b/i.test(trimmed);
-  return textContent || hasEmbeddedContent ? trimmed : null;
 }
 
 export function parseTimeToSeconds(value?: string | null) {
@@ -90,4 +60,8 @@ export function slugify(value: string) {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 70);
+}
+
+export function formatQuestionCount(count: number) {
+  return `${count} question${count === 1 ? '' : 's'}`;
 }

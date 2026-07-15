@@ -4,7 +4,8 @@ import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { canCreateContent } from '@/lib/adminAccess';
 import { normalizeRubricGoal, normalizePassingPercent } from '@/lib/badges/badge.service';
-import { normalizeString, normalizeSkills, parseTimeToSeconds, parseDate } from '@/lib/utils';
+import { parseTimeToSeconds, parseDate } from '@/lib/utils';
+import { normalizeString, normalizeSkills } from '@/lib/checkpoints/normalizeWrite';
 import { CreateBadgePayload, UpdateBadgePayload } from '@/lib/badges/types';
 import {
   executeBadgeCreationTx,

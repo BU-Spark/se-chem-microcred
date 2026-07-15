@@ -1,7 +1,7 @@
 // Shared YouTube helpers: id extraction, thumbnail-URL building, and pulling a
 // video URL out of a BadgeRequirement summary. Kept dependency-free so both
 // client components and server routes can import it.
-import { normalizeString } from '@/lib/utils';
+import { normalizeString } from '@/lib/checkpoints/normalizeWrite';
 
 export type YoutubeThumbnailQuality = 'maxresdefault' | 'sddefault' | 'hqdefault' | 'mqdefault' | 'default';
 

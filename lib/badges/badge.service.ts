@@ -5,94 +5,25 @@ import { extractYouTubeId } from '@/lib/video';
 import { BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
-import { normalizeString, normalizeRichText, parseFiniteNumber, parseTimeToSeconds, slugify } from '@/lib/utils';
+import {
+  normalizeCorrectIndices,
+  normalizeOptions,
+  normalizeRichText,
+  normalizeString,
+  buildQuestionOptions,
+} from '@/lib/checkpoints/normalizeWrite';
+import { parseFiniteNumber, parseTimeToSeconds, slugify, formatQuestionCount } from '@/lib/utils';
 
 // --Constants--
 const DEFAULT_PASSING_PERCENT = 70;
 
 // --Helper Functions--
-function formatQuestionCount(count: number) {
-  return `${count} question${count === 1 ? '' : 's'}`;
-}
-
-function normalizeOptions(options?: string[] | null) {
-  const normalized = (options ?? [])
-    .map((option) => normalizeString(option))
-    .filter((option): option is string => Boolean(option));
-
-  const capped = normalized.slice(0, 8);
-  while (capped.length < 2) {
-    capped.push(capped.length === 0 ? 'Yes' : 'No');
-  }
-  return capped;
-}
-
-function normalizeCorrectIndices(question: CheckpointQuestionPayload, optionCount: number) {
-  const rawIndices =
-    Array.isArray(question.correctIndices) && question.correctIndices.length > 0
-      ? question.correctIndices
-      : question.correctIndex != null
-        ? [question.correctIndex]
-        : [];
-
-  return Array.from(
-    new Set(rawIndices.filter((index) => Number.isInteger(index) && index >= 0 && index < optionCount))
-  ).sort((left, right) => left - right);
-}
-
-function buildQuestionOptions(question: CheckpointQuestionPayload) {
-  const questionType = question.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice';
-
-  // Stored only when populated, so badges without a unit / feedback keep the
-  // exact prior shape (blank unit => no unit assigned, per the design note).
-  const unit = normalizeString(question.unit);
-  const incorrectFeedback = normalizeString(question.incorrectFeedback);
-  const feedbackEntry = incorrectFeedback ? { incorrectFeedback } : {};
-
-  if (questionType === 'shortAnswer') {
-    const expectedAnswer = parseFiniteNumber(question.numericAnswer);
-    const rawMin = parseFiniteNumber(question.numericRangeMin);
-    const rawMax = parseFiniteNumber(question.numericRangeMax);
-    const baseRange =
-      rawMin != null && rawMax != null
-        ? {
-            min: Math.min(rawMin, rawMax),
-            max: Math.max(rawMin, rawMax),
-          }
-        : null;
-    const acceptedRange = baseRange ? (unit ? { ...baseRange, unit } : baseRange) : unit ? { unit } : null;
-
-    return {
-      options: {
-        type: 'shortAnswer',
-        expectedAnswer,
-        acceptedRange,
-        ...feedbackEntry,
-      },
-      correctIndex: null,
-    };
-  }
-
-  const options = normalizeOptions(question.options);
-  const correctIndices = normalizeCorrectIndices(question, options.length);
-
-  return {
-    options: {
-      type: 'multipleChoice',
-      options,
-      correctIndices: correctIndices.length > 0 ? correctIndices : [0],
-      ...feedbackEntry,
-    },
-    correctIndex: correctIndices[0] ?? 0,
-  };
-}
-
 function getQuestionPrompt(question: CheckpointQuestionPayload) {
   const value = question.question ?? question.prompt;
   return hasVisibleQuestionText(value) ? sanitizeQuestionRichText(value) : null;
 }
 
-function normalizeCheckpointQuestions(checkpoint: CheckpointPayload) {
+function buildCheckpointQuestionsWithSummary(checkpoint: CheckpointPayload) {
   const rawQuestions =
     Array.isArray(checkpoint.questions) && checkpoint.questions.length > 0 ? checkpoint.questions : [checkpoint];
 
@@ -264,7 +195,7 @@ function buildRequirementSummary({
     passingPercent: passingPercent ?? null,
     checkpoints: checkpoints
       .map((checkpoint, index) => {
-        const questions = normalizeCheckpointQuestions(checkpoint).map((question) => question.summary);
+        const questions = buildCheckpointQuestionsWithSummary(checkpoint).map((question) => question.summary);
         const firstQuestion = questions[0];
         return {
           number: index + 1,
@@ -288,51 +219,7 @@ function buildRequirementSummary({
       .filter((checkpoint) => checkpoint.questions.length > 0),
   });
 }
-//to be moved at a later time
-export function parseRequirementSummary(summary?: string | null) {
-  if (!summary) {
-    return {
-      displayText: 'Independent badge requirement',
-      skills: [] as string[],
-      checkpoints: [] as CheckpointPayload[],
-      youtubeUrl: null as string | null,
-      videoTitle: null as string | null,
-      videoLength: null as string | null,
-      passingPercent: null as number | null,
-    };
-  }
-
-  try {
-    const parsed = JSON.parse(summary) as {
-      skills?: string[];
-      checkpoints?: CheckpointPayload[];
-      youtubeUrl?: string | null;
-      videoTitle?: string | null;
-      videoLength?: string | null;
-      passingPercent?: number | null;
-    };
-
-    return {
-      displayText: 'Independent badge requirement',
-      skills: Array.isArray(parsed.skills) ? parsed.skills.filter((skill): skill is string => Boolean(skill)) : [],
-      checkpoints: parsed.checkpoints ?? [],
-      youtubeUrl: normalizeString(parsed.youtubeUrl),
-      videoTitle: normalizeString(parsed.videoTitle),
-      videoLength: normalizeString(parsed.videoLength),
-      passingPercent: typeof parsed.passingPercent === 'number' ? parsed.passingPercent : null,
-    };
-  } catch {
-    return {
-      displayText: summary,
-      skills: [] as string[],
-      checkpoints: [] as CheckpointPayload[],
-      youtubeUrl: null as string | null,
-      videoTitle: null as string | null,
-      videoLength: null as string | null,
-      passingPercent: null as number | null,
-    };
-  }
-}
+export { parseRequirementSummary } from '@/lib/badges/requirement-summary';
 
 // --Get Badge Args--
 export interface FetchBadgesArgs {
@@ -575,7 +462,7 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
 
         const checkpointPlans = checkpoints.map((checkpoint, checkpointIndex) => {
           const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
-          const questions = normalizeCheckpointQuestions(checkpoint);
+          const questions = buildCheckpointQuestionsWithSummary(checkpoint);
           return {
             sortOrder: checkpointIndex,
             questions,
@@ -806,7 +693,7 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
             const firstSegmentId = firstSegmentIdByLesson.get(lessonId) ?? null;
             for (const [checkpointIndex, checkpoint] of checkpoints.entries()) {
               const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
-              const questions = normalizeCheckpointQuestions(checkpoint);
+              const questions = buildCheckpointQuestionsWithSummary(checkpoint);
               const lessonCheckpoint = await tx.lessonCheckpoint.upsert({
                 where: { lessonId_sortOrder: { lessonId, sortOrder: checkpointIndex } },
                 create: {
