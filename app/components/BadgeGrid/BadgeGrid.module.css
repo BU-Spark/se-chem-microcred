@@ -1,0 +1,64 @@
+.badgeGrid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 0.85rem 1.15rem;
+}
+.badgeItem {
+  display: flex;
+  justify-content: center;
+  width: 8.35rem;
+}
+.badgeTokenButton,
+.badgeTokenStatic {
+  padding: 0;
+  border: none;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  font: inherit;
+  color: inherit;
+}
+.badgeTokenButton {
+  cursor: pointer;
+}
+.badgeBubble {
+  position: relative;
+  overflow: hidden;
+  width: 8.35rem;
+  height: 8.35rem;
+  border-radius: 50%;
+  background: #2e6aa9;
+  border: 3px solid transparent;
+  transition:
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+.badgeBubbleImage {
+  object-fit: cover;
+}
+.badgeBubbleInteractive:hover,
+.badgeTokenButton:hover .badgeBubbleInteractive {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 22px rgba(46, 106, 169, 0.18);
+}
+.badgeBubbleCompleted {
+  background: #94bf66;
+}
+.badgeName {
+  margin: 0;
+  max-width: 8.6rem;
+  text-align: center;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.82rem;
+  line-height: 1.2;
+  color: #303030;
+}
+.emptyState {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+  color: #666666;
+}

@@ -19,6 +19,7 @@ import sapphireAvatar from '@/public/edit_avatar/sapphire.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import BackButton from '@/app/_components/BackButton';
 import ExportCsvDataButton from '@/app/_components/ExportToCsv';
+import BadgeToken from '@/app/components/BadgeToken';
 import { useCreatedCourseDetail, type CourseBadge } from './hooks/useCreatedCourseDetail';
 import styles from './page.module.css';
 
@@ -575,7 +576,7 @@ export default function CreatedCourseDetailPage() {
                       return (
                         <div key={badge.id} className={styles.badgeItem}>
                           <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
-                            <div className={styles.badgeToken}>
+                            <BadgeToken className={styles.badgeToken}>
                               <YoutubeThumbnail
                                 videoUrl={badge.videoUrl}
                                 fallbackThumbnailUrl={fallbackImage}
@@ -583,7 +584,7 @@ export default function CreatedCourseDetailPage() {
                                 alt={`${badge.name.replace(/ Badge$/i, '')} thumbnail`}
                                 className={styles.badgeTokenImage}
                               />
-                            </div>
+                            </BadgeToken>
                             <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
                           </Link>
                           {isInstructor ? (

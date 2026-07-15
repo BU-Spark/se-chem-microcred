@@ -1,14 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
+import CollapsibleSection from '@/app/components/CollapsibleSection';
+import BadgeGrid from '@/app/components/BadgeGrid';
+import StudentProfileCard from '@/app/components/StudentProfileCard';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
 import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
 import { MessageComposeModal } from './MessageComposeModal';
@@ -288,80 +289,6 @@ function useInstructorStudentBadgeDetail(
   return { data, isLoading, error, refresh: fetchData };
 }
 
-function Chevron({ isOpen }: { isOpen: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width="18"
-      height="18"
-      aria-hidden="true"
-      className={[styles.chevron, isOpen ? styles.chevronOpen : ''].join(' ')}
-    >
-      <path
-        d="M3 6.25 8 11l5-4.75"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-function BadgeGrid({
-  badges,
-  tone = 'progress',
-  onSelectBadge,
-}: {
-  badges: StudentProfileBadge[];
-  tone?: 'progress' | 'pending' | 'completed';
-  onSelectBadge?: (badgeId: string) => void;
-}) {
-  if (badges.length === 0) {
-    return <p className={styles.emptyState}>No badges in this section.</p>;
-  }
-
-  const isInteractive = tone !== 'pending' && typeof onSelectBadge === 'function';
-
-  return (
-    <div className={styles.badgeGrid}>
-      {badges.map((badge) => {
-        const badgeBubbleClass = [
-          styles.badgeBubble,
-          tone === 'completed' ? styles.badgeBubbleCompleted : '',
-          isInteractive ? styles.badgeBubbleInteractive : '',
-        ].join(' ');
-
-        const badgeMarkup = (
-          <>
-            <div className={badgeBubbleClass}>
-              <YoutubeThumbnail
-                videoUrl={badge.youtubeUrl}
-                alt={`${badge.name} thumbnail`}
-                className={styles.badgeBubbleImage}
-              />
-            </div>
-            <p className={styles.badgeName}>{badge.name}</p>
-          </>
-        );
-
-        return (
-          <div key={badge.id} className={styles.badgeItem}>
-            {isInteractive ? (
-              <button type="button" className={styles.badgeTokenButton} onClick={() => onSelectBadge?.(badge.id)}>
-                {badgeMarkup}
-              </button>
-            ) : (
-              <div className={styles.badgeTokenStatic}>{badgeMarkup}</div>
-            )}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 export default function InstructorStudentProfilePage() {
   const params = useParams<{ studentId: string }>();
   const pathname = usePathname();
@@ -515,124 +442,65 @@ export default function InstructorStudentProfilePage() {
 
           {!isLoading && !error && data ? (
             <>
-              <section className={styles.profileCard}>
-                <div className={styles.profileMain}>
-                  <div className={styles.infoColumn}>
-                    <p className={styles.sectionKicker}>{currentProfileLabel} Info:</p>
-
-                    <div className={styles.nameBlock}>
-                      <h2 className={styles.studentName}>
-                        <span>{memberDisplay.headlineTop}</span>
-                        {memberDisplay.headlineBottom ? <span>{memberDisplay.headlineBottom}</span> : null}
-                      </h2>
-
-                      <div className={styles.metaBlock}>
-                        <p className={styles.roleLabel}>{currentProfileLabel}</p>
-                        <p className={styles.createdAt}>Date Created: {formatDate(data.member.createdAt)}</p>
-                      </div>
-                    </div>
-
-                    <div className={styles.detailGrid}>
-                      <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>Email:</span>
-                        <span className={styles.detailValue}>{data.member.email || 'Not provided'}</span>
-                      </div>
-                      <div className={styles.detailItem}>
-                        <span className={styles.detailLabel}>BUID:</span>
-                        <span className={styles.detailValue}>{data.member.buid || 'Not provided'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={styles.avatarColumn}>
-                    <div className={styles.avatarFrame}>
-                      {data.member.avatar ? (
-                        <Image
-                          src={memberAvatarSrc}
-                          alt={`${currentProfileLabel} avatar`}
-                          width={196}
-                          height={196}
-                          className={styles.avatarImage}
-                        />
-                      ) : (
-                        <div className={styles.avatarFallback}>{initialsFromName(data.member.name)}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <aside className={styles.profileSide}>
-                  <button
-                    type="button"
-                    className={styles.dropdownToggle}
-                    onClick={() => setIsDemographicOpen((current) => !current)}
+              <StudentProfileCard
+                kicker={`${currentProfileLabel} Info:`}
+                headlineTop={memberDisplay.headlineTop}
+                headlineBottom={memberDisplay.headlineBottom}
+                roleLabel={currentProfileLabel}
+                createdAt={`Date Created: ${formatDate(data.member.createdAt)}`}
+                email={data.member.email}
+                buid={data.member.buid}
+                avatarSrc={data.member.avatar ? memberAvatarSrc : null}
+                avatarAlt={`${currentProfileLabel} avatar`}
+                avatarFallback={initialsFromName(data.member.name)}
+                courseTitle={data.course.title}
+                courseSectionsLabel={`${data.course.sections.length > 1 ? 'Sections' : 'Section'}: ${
+                  courseSectionsLabel || 'Not provided'
+                }`}
+                contactTitle={sideContactTitle}
+                contactName={
+                  sideContact ? (
+                    <>
+                      <p>{splitNameForProfile(sideContact.name).headlineTop}</p>
+                      <p>{splitNameForProfile(sideContact.name).headlineBottom}</p>
+                    </>
+                  ) : null
+                }
+                contactEmail={sideContact?.email}
+                contactAvatarSrc={sideContact?.avatarUrl}
+                contactAvatarAlt={sideContact?.name}
+                contactFallback={sideContact ? initialsFromName(sideContact.name) : ''}
+                emptyContactMessage={emptyContactMessage}
+                sideTop={
+                  <CollapsibleSection
+                    title="Demographic Info"
+                    isOpen={isDemographicOpen}
+                    onToggle={() => setIsDemographicOpen((current) => !current)}
+                    panelId="demographic-info"
+                    buttonClassName={styles.dropdownToggle}
+                    panelClassName={styles.demographicGrid}
+                    chevronClassName={styles.chevron}
+                    chevronOpenClassName={styles.chevronOpen}
                   >
-                    <span>Demographic Info</span>
-                    <Chevron isOpen={isDemographicOpen} />
-                  </button>
-
-                  {isDemographicOpen ? (
-                    <div className={styles.demographicGrid}>
-                      <div className={styles.demographicItem}>
-                        <span className={styles.detailLabel}>Gender</span>
-                        <span className={styles.detailValue}>{data.member.gender || 'Not provided'}</span>
-                      </div>
-                      <div className={styles.demographicItem}>
-                        <span className={styles.detailLabel}>Race / Ethnicity</span>
-                        <span className={styles.detailValue}>{data.member.raceEthnicity || 'Not provided'}</span>
-                      </div>
-                      <div className={styles.demographicItem}>
-                        <span className={styles.detailLabel}>Parental Education</span>
-                        <span className={styles.detailValue}>{data.member.parentalEducation || 'Not provided'}</span>
-                      </div>
-                      <div className={styles.demographicItem}>
-                        <span className={styles.detailLabel}>Pell Grant Qualified</span>
-                        <span className={styles.detailValue}>{formatPellGrant(data.member.pellGrantQualified)}</span>
-                      </div>
+                    <div className={styles.demographicItem}>
+                      <span className={styles.detailLabel}>Gender</span>
+                      <span className={styles.detailValue}>{data.member.gender || 'Not provided'}</span>
                     </div>
-                  ) : null}
-
-                  <section className={styles.sideSection}>
-                    <p className={styles.sideTitle}>Course Info:</p>
-                    <p className={styles.sideMeta}>
-                      {data.course.title}
-                      <br />
-                      {data.course.sections.length > 1 ? 'Sections' : 'Section'}:{' '}
-                      {courseSectionsLabel || 'Not provided'}
-                    </p>
-                  </section>
-
-                  <section className={styles.sideSection}>
-                    <p className={styles.sideTitle}>{sideContactTitle}</p>
-
-                    {sideContact ? (
-                      <div className={styles.contactCard}>
-                        <div className={styles.contactAvatarShell}>
-                          {sideContact.avatarUrl ? (
-                            <Image
-                              src={sideContact.avatarUrl}
-                              alt={sideContact.name}
-                              width={86}
-                              height={86}
-                              className={styles.contactAvatarImage}
-                            />
-                          ) : (
-                            <div className={styles.contactAvatarFallback}>{initialsFromName(sideContact.name)}</div>
-                          )}
-                        </div>
-
-                        <div className={styles.contactInfo}>
-                          <p className={styles.contactName}>{splitNameForProfile(sideContact.name).headlineTop}</p>
-                          <p className={styles.contactName}>{splitNameForProfile(sideContact.name).headlineBottom}</p>
-                          <p className={styles.contactEmail}>{sideContact.email || 'Not provided'}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className={styles.emptyState}>{emptyContactMessage}</p>
-                    )}
-                  </section>
-                </aside>
-              </section>
+                    <div className={styles.demographicItem}>
+                      <span className={styles.detailLabel}>Race / Ethnicity</span>
+                      <span className={styles.detailValue}>{data.member.raceEthnicity || 'Not provided'}</span>
+                    </div>
+                    <div className={styles.demographicItem}>
+                      <span className={styles.detailLabel}>Parental Education</span>
+                      <span className={styles.detailValue}>{data.member.parentalEducation || 'Not provided'}</span>
+                    </div>
+                    <div className={styles.demographicItem}>
+                      <span className={styles.detailLabel}>Pell Grant Qualified</span>
+                      <span className={styles.detailValue}>{formatPellGrant(data.member.pellGrantQualified)}</span>
+                    </div>
+                  </CollapsibleSection>
+                }
+              />
 
               {showBadgesSection ? (
                 selectedBadgeId && selectedBadgeTone ? (
@@ -704,45 +572,33 @@ export default function InstructorStudentProfilePage() {
                     </section>
 
                     <section className={styles.badgeSection}>
-                      <button
-                        type="button"
-                        className={styles.accordionRow}
-                        onClick={() => setIsNotStartedOpen((current) => !current)}
-                        aria-expanded={isNotStartedOpen}
-                        aria-controls="not-started-badges"
+                      <CollapsibleSection
+                        title="Not yet started"
+                        isOpen={isNotStartedOpen}
+                        onToggle={() => setIsNotStartedOpen((current) => !current)}
+                        panelId="not-started-badges"
+                        buttonClassName={styles.accordionRow}
+                        panelClassName={styles.accordionPanel}
+                        chevronClassName={styles.chevron}
+                        chevronOpenClassName={styles.chevronOpen}
                       >
-                        <span>Not yet started</span>
-                        <Chevron isOpen={isNotStartedOpen} />
-                      </button>
-
-                      {isNotStartedOpen ? (
-                        <div id="not-started-badges" className={styles.accordionPanel}>
-                          <BadgeGrid badges={data.badges.notStarted} tone="pending" />
-                        </div>
-                      ) : null}
+                        <BadgeGrid badges={data.badges.notStarted} tone="pending" />
+                      </CollapsibleSection>
                     </section>
 
                     <section className={styles.badgeSection}>
-                      <button
-                        type="button"
-                        className={styles.accordionRow}
-                        onClick={() => setIsCompletedOpen((current) => !current)}
-                        aria-expanded={isCompletedOpen}
-                        aria-controls="completed-badges"
+                      <CollapsibleSection
+                        title="Completed"
+                        isOpen={isCompletedOpen}
+                        onToggle={() => setIsCompletedOpen((current) => !current)}
+                        panelId="completed-badges"
+                        buttonClassName={styles.accordionRow}
+                        panelClassName={styles.accordionPanel}
+                        chevronClassName={styles.chevron}
+                        chevronOpenClassName={styles.chevronOpen}
                       >
-                        <span>Completed</span>
-                        <Chevron isOpen={isCompletedOpen} />
-                      </button>
-
-                      {isCompletedOpen ? (
-                        <div id="completed-badges" className={styles.accordionPanel}>
-                          <BadgeGrid
-                            badges={data.badges.completed}
-                            tone="completed"
-                            onSelectBadge={handleBadgeSelect}
-                          />
-                        </div>
-                      ) : null}
+                        <BadgeGrid badges={data.badges.completed} tone="completed" onSelectBadge={handleBadgeSelect} />
+                      </CollapsibleSection>
                     </section>
                   </section>
                 )

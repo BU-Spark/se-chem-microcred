@@ -7,6 +7,7 @@ import { useUser, useReverification } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../hooks/useStudentData';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import BadgeToken from '@/app/components/BadgeToken';
 import styles from './page.module.css';
 import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
@@ -431,7 +432,7 @@ export default function ProfilePage() {
                 <div className={styles.emptyState}>No badges in progress.</div>
               ) : (
                 learningBadges.map((badge) => (
-                  <div key={badge.id} className={styles.badgeToken}>
+                  <BadgeToken key={badge.id} className={styles.badgeToken}>
                     <div className={styles.badgeCircle}>
                       <YoutubeThumbnail
                         videoUrl={badge.youtubeUrl}
@@ -440,7 +441,7 @@ export default function ProfilePage() {
                       />
                     </div>
                     <div className={styles.badgeName}>{badge.name}</div>
-                  </div>
+                  </BadgeToken>
                 ))
               )}
             </div>
@@ -464,7 +465,7 @@ export default function ProfilePage() {
                     <div className={styles.emptyState}>No badges to show.</div>
                   ) : (
                     notStartedBadges.map((badge) => (
-                      <div key={badge.id} className={styles.badgeToken}>
+                      <BadgeToken key={badge.id} className={styles.badgeToken}>
                         <div className={styles.badgeCircle}>
                           <YoutubeThumbnail
                             videoUrl={badge.youtubeUrl}
@@ -473,7 +474,7 @@ export default function ProfilePage() {
                           />
                         </div>
                         <div className={styles.badgeName}>{badge.name}</div>
-                      </div>
+                      </BadgeToken>
                     ))
                   )}
                 </div>
@@ -499,7 +500,7 @@ export default function ProfilePage() {
                     <div className={styles.emptyState}>No completed badges yet.</div>
                   ) : (
                     completedBadges.map((badge) => (
-                      <div key={badge.id} className={styles.badgeToken}>
+                      <BadgeToken key={badge.id} className={styles.badgeToken}>
                         <div className={styles.badgeCircle}>
                           <YoutubeThumbnail
                             videoUrl={badge.youtubeUrl}
@@ -508,7 +509,7 @@ export default function ProfilePage() {
                           />
                         </div>
                         <div className={styles.badgeName}>{badge.name}</div>
-                      </div>
+                      </BadgeToken>
                     ))
                   )}
                 </div>

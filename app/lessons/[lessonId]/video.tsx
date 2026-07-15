@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { sanitizeQuestionRichText } from '@/app/lib/question-rich-text';
 import SurveyModal from '@/app/components/SurveyModal';
+import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
 import veryUnhappyFace from '../../../public/assets/survey_faces/very_unhappy.svg';
@@ -301,8 +302,6 @@ export function LessonVideoPage({
   const [lessonSurveyError, setLessonSurveyError] = useState<string | null>(null);
   const [lessonSurveyCompleted, setLessonSurveyCompleted] = useState(effectiveLessonSurvey?.completed ?? false);
   const [showLessonQr, setShowLessonQr] = useState(false);
-  const [assessmentCode, setAssessmentCode] = useState<string | null>(null);
-  const [assessmentCodeError, setAssessmentCodeError] = useState<string | null>(null);
 
   const suppressCheckpointIdRef = useRef<string | null>(null);
   const suppressArmedRef = useRef(false);
@@ -394,58 +393,6 @@ export function LessonVideoPage({
   }, [lesson.id]);
 
   const assessmentBadge = useMemo(() => lesson.badgeRequirements[0] ?? null, [lesson.badgeRequirements]);
-  const lessonAssessmentQrUrl = useMemo(() => {
-    if (typeof window === 'undefined' || !courseId || !studentId || !assessmentBadge?.badgeId) {
-      return null;
-    }
-
-    const url = new URL('/qr/assessment', window.location.origin);
-    url.searchParams.set('courseId', courseId);
-    url.searchParams.set('studentId', studentId);
-    url.searchParams.set('badgeId', assessmentBadge.badgeId);
-    return url.toString();
-  }, [assessmentBadge?.badgeId, courseId, studentId]);
-
-  const lessonQrImageSrc = lessonAssessmentQrUrl
-    ? `/api/qr?size=360&data=${encodeURIComponent(lessonAssessmentQrUrl)}`
-    : null;
-
-  useEffect(() => {
-    if (!showLessonQr || !courseId || !assessmentBadge?.badgeId) {
-      setAssessmentCode(null);
-      setAssessmentCodeError(null);
-      return;
-    }
-
-    let isCancelled = false;
-    setAssessmentCode(null);
-    setAssessmentCodeError(null);
-
-    fetch('/api/assessment-codes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ courseId, badgeId: assessmentBadge.badgeId }),
-    })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload.error ?? 'Unable to create assessment code.');
-        }
-        if (!isCancelled) {
-          setAssessmentCode(typeof payload.code === 'string' ? payload.code : null);
-        }
-      })
-      .catch((error) => {
-        if (!isCancelled) {
-          setAssessmentCodeError(error instanceof Error ? error.message : 'Unable to create assessment code.');
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [assessmentBadge?.badgeId, courseId, showLessonQr]);
-
   const resolveMaxSeekableTime = useCallback(() => {
     const limit = furthestTimeRef.current;
     if (!Number.isFinite(duration)) {
@@ -1734,48 +1681,15 @@ export function LessonVideoPage({
           }}
         />
       ) : null}
-      {showLessonQr ? (
-        <div className={styles.overlay}>
-          <div className={styles.qrModal} role="dialog" aria-modal="true">
-            <button type="button" className={styles.qrCloseButton} onClick={() => setShowLessonQr(false)}>
-              &times;
-            </button>
-            <h2 className={styles.modalTitle}>{assessmentBadge?.badgeName ?? 'Badge'} Skill Check</h2>
-            {lessonQrImageSrc ? (
-              <div className={styles.qrCodeFrame}>
-                <div className={styles.qrCodeCanvas}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={lessonQrImageSrc}
-                    alt={`${assessmentBadge?.badgeName ?? 'Badge'} QR code`}
-                    className={styles.qrCodeImage}
-                    width={360}
-                    height={360}
-                  />
-                  <div className={styles.qrCodeLogo}>
-                    <Image
-                      src="/assets/badge_wallet/QR/qr_logo.svg"
-                      alt="Checkd logo"
-                      width={74}
-                      height={74}
-                      className={styles.qrCodeLogoImage}
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className={styles.modalError}>We could not build the assessment QR code for this lesson.</p>
-            )}
-            <div className={styles.assessmentCodeBox}>
-              <span className={styles.assessmentCodeLabel}>Assessment code</span>
-              <strong className={styles.assessmentCodeValue}>{assessmentCode ?? 'Generating...'}</strong>
-              {assessmentCodeError ? <p className={styles.assessmentCodeError}>{assessmentCodeError}</p> : null}
-            </div>
-            <p className={styles.modalDescription}>
-              Have your assessor scan this code to open the assessment for this student and badge.
-            </p>
-          </div>
-        </div>
+      {showLessonQr && assessmentBadge ? (
+        <AssessmentCodeModal
+          badgeId={assessmentBadge.badgeId}
+          badgeName={assessmentBadge.badgeName ?? 'Badge'}
+          courseId={courseId}
+          studentId={studentId}
+          onClose={() => setShowLessonQr(false)}
+          variant="lesson"
+        />
       ) : null}
     </div>
   );
