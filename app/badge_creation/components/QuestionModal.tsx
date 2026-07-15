@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import Modal from '../../components/Modal';
 import styles from './QuestionModal.module.css';
 
 // Focus-trapped modal shell for editing a checkpoint question. Content is
@@ -17,26 +17,15 @@ export default function QuestionModal({
   onClose: () => void;
   children: ReactNode;
 }) {
-  const modalRef = useFocusTrap<HTMLDivElement>(true, onClose);
-
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div
-        ref={modalRef}
-        className={styles.modal}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        onClick={(event) => event.stopPropagation()}
-      >
-        <div className={styles.header}>
-          <h2 className={styles.title}>{title}</h2>
-          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close question editor">
-            ×
-          </button>
-        </div>
-        {children}
+    <Modal overlayClassName={styles.overlay} className={styles.modal} onClose={onClose} ariaLabel={title}>
+      <div className={styles.header}>
+        <h2 className={styles.title}>{title}</h2>
+        <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close question editor">
+          ×
+        </button>
       </div>
-    </div>
+      {children}
+    </Modal>
   );
 }

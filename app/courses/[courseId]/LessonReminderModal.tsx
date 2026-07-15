@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { useFocusTrap } from '../../hooks/useFocusTrap';
+import Modal from '../../components/Modal';
 import styles from './LessonReminderModal.module.css';
 
 function defaultReminderBody(courseName: string, cleanName: string) {
@@ -22,7 +22,6 @@ export function LessonReminderModal({
   courseName: string;
   onClose: () => void;
 }) {
-  const modalRef = useFocusTrap<HTMLDivElement>(true, onClose);
   const cleanName = badgeName.replace(/ Badge$/i, '').trim();
 
   const [body, setBody] = useState(() => defaultReminderBody(courseName, cleanName));
@@ -56,56 +55,52 @@ export function LessonReminderModal({
   };
 
   return (
-    <div className={styles.overlay} onClick={onClose}>
-      <div
-        ref={modalRef}
-        className={styles.modal}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Send a lesson reminder"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close reminder">
-          ×
-        </button>
+    <Modal
+      overlayClassName={styles.overlay}
+      className={styles.modal}
+      onClose={onClose}
+      ariaLabel="Send a lesson reminder"
+    >
+      <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Close reminder">
+        ×
+      </button>
 
-        <h2 className={styles.title}>Send a lesson reminder</h2>
-        <p className={styles.subtitle}>
-          To: <strong>Students with {cleanName} Badge</strong>
-        </p>
+      <h2 className={styles.title}>Send a lesson reminder</h2>
+      <p className={styles.subtitle}>
+        To: <strong>Students with {cleanName} Badge</strong>
+      </p>
 
-        {result === null ? (
-          <>
-            <p className={styles.fieldLabel}>Automated lesson reminder</p>
-            <textarea
-              className={styles.bodyInput}
-              value={body}
-              onChange={(event) => setBody(event.target.value)}
-              aria-label="Reminder message"
-              rows={8}
-            />
-            {error ? <p className={styles.error}>{error}</p> : null}
-            <div className={styles.actions}>
-              <button type="button" className={styles.sendButton} onClick={handleSend} disabled={isSending}>
-                {isSending ? 'Sending…' : 'Send'}
-              </button>
-            </div>
-          </>
-        ) : (
-          <div className={styles.resultBlock}>
-            <p className={styles.resultText}>
-              {result === 0
-                ? 'No students currently have this badge incomplete — nothing was sent.'
-                : `Reminder sent to ${result} student${result === 1 ? '' : 's'} with this badge incomplete.`}
-            </p>
-            <div className={styles.actions}>
-              <button type="button" className={styles.sendButton} onClick={onClose}>
-                Done
-              </button>
-            </div>
+      {result === null ? (
+        <>
+          <p className={styles.fieldLabel}>Automated lesson reminder</p>
+          <textarea
+            className={styles.bodyInput}
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
+            aria-label="Reminder message"
+            rows={8}
+          />
+          {error ? <p className={styles.error}>{error}</p> : null}
+          <div className={styles.actions}>
+            <button type="button" className={styles.sendButton} onClick={handleSend} disabled={isSending}>
+              {isSending ? 'Sending…' : 'Send'}
+            </button>
           </div>
-        )}
-      </div>
-    </div>
+        </>
+      ) : (
+        <div className={styles.resultBlock}>
+          <p className={styles.resultText}>
+            {result === 0
+              ? 'No students currently have this badge incomplete — nothing was sent.'
+              : `Reminder sent to ${result} student${result === 1 ? '' : 's'} with this badge incomplete.`}
+          </p>
+          <div className={styles.actions}>
+            <button type="button" className={styles.sendButton} onClick={onClose}>
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
