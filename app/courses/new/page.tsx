@@ -30,21 +30,21 @@ const STEP_REVIEW = 4;
 // Sidebar.tsx and the lesson video player.
 const SHOW_ASSESSOR_CONFIGS = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
-type StudentRow = {
+// Old Student row and assessor row types were the exact same colsolidating
+type RosterRow = {
   lastName: string;
   firstName: string;
   buid: string;
   email: string;
-  sections: string;
+  sections: string[] | null;
 };
-
-type AssessorRow = {
-  lastName: string;
-  firstName: string;
-  buid: string;
+// General declaration a person that could be a part of a course
+interface Person {
+  name: string;
   email: string;
-  sections: string;
-};
+  buid: string | null;
+  sections: string[] | null;
+}
 
 type UploadTarget = 'student' | 'assessor';
 
@@ -91,9 +91,9 @@ type EditableCourseResponse = {
       sections: string[];
       student: {
         id: string;
-        name: string | null;
-        email: string | null;
-        buid: string | null;
+        name: string;
+        email: string;
+        buid: string;
       };
     }>;
   };
@@ -116,20 +116,15 @@ function splitName(fullName?: string | null) {
   };
 }
 
-function toRosterRow(person: {
-  name?: string | null;
-  email?: string | null;
-  buid?: string | null;
-  sections?: string[] | null;
-}): StudentRow {
+function toRosterRow(person: Person): RosterRow {
   const { firstName, lastName } = splitName(person.name);
 
   return {
     firstName,
     lastName,
     buid: person.buid?.trim() ?? '',
-    email: person.email?.trim() ?? '',
-    sections: (person.sections ?? []).join('|'),
+    email: person.email.trim(),
+    sections: person.sections,
   };
 }
 
@@ -140,7 +135,35 @@ function parseSections(sectionValue?: string | null): string[] {
     .filter(Boolean);
 }
 
-function mergeAssessorRows(rows: AssessorRow[]) {
+// Stable identity for a roster row: prefer email, fall back to BUID, then name.
+// Used to dedupe on CSV upload so re-uploading (or uploading in edit mode) never
+// creates duplicate enrollments for the same person.
+function rosterKey(row: RosterRow): string {
+  return row.email.trim().toLowerCase() || row.buid.trim() || `${row.firstName.trim()}|${row.lastName.trim()}`;
+}
+
+// Append incoming rows to the existing roster instead of replacing it. If a person
+// already exists (by rosterKey), keep the existing row untouched and skip the
+// incoming duplicate. This is the fix for #168: uploading a CSV in edit mode must
+// not wipe students already enrolled in the course.
+function mergeRosterRows(existing: RosterRow[], incoming: RosterRow[]): RosterRow[] {
+  const seen = new Map<string, RosterRow>();
+  for (const row of existing) {
+    seen.set(rosterKey(row), row);
+  }
+
+  const merged = [...existing];
+  for (const row of incoming) {
+    const key = rosterKey(row);
+    if (seen.has(key)) continue;
+    seen.set(key, row);
+    merged.push(row);
+  }
+  return merged;
+}
+
+// made change to remove putting multiple sections for an assessor in the during the csv upload going to give that responsiblity to an assessor update in the future
+function mergeAssessorRows(rows: RosterRow[]) {
   return Array.from(
     rows.reduce((map, row) => {
       const email = row.email.trim().toLowerCase();
@@ -153,15 +176,12 @@ function mergeAssessorRows(rows: AssessorRow[]) {
           ...row,
           email,
           buid,
-          sections: Array.from(new Set(parseSections(row.sections))).join('|'),
+          sections: Array.from(new Set(row.sections ?? [])),
         });
         return map;
       }
-
-      const nextSections = new Set([...parseSections(existing.sections), ...parseSections(row.sections)]);
-      existing.sections = Array.from(nextSections).join('|');
       return map;
-    }, new Map<string, AssessorRow>())
+    }, new Map<string, RosterRow>())
   ).map(([, row]) => row);
 }
 
@@ -181,6 +201,10 @@ export default function CourseNewPage() {
   // existing course opens on the review screen rather than walking the wizard from step 0.
   const [currentStep, setCurrentStep] = useState(isEditMode ? STEP_REVIEW : STEP_INFO);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
+  // Guards against the preload effect re-running (e.g. when Clerk's `user` object
+  // identity changes) and overwriting rosters the user has since uploaded/edited.
+  // Tracks which course id we've already hydrated so we only load once. (#168)
+  const loadedCourseIdRef = useRef<string | null>(null);
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
   const [loadError, setLoadError] = useState('');
 
@@ -200,8 +224,8 @@ export default function CourseNewPage() {
   const [allowCrossSectionView, setAllowCrossSectionView] = useState(true);
 
   // csv upload
-  const [studentRows, setStudentRows] = useState<StudentRow[]>([]);
-  const [assessorRows, setAssessorRows] = useState<AssessorRow[]>([]);
+  const [studentRows, setStudentRows] = useState<RosterRow[]>([]);
+  const [assessorRows, setAssessorRows] = useState<RosterRow[]>([]);
 
   const [visibleCount, setVisibleCount] = useState(10);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -237,6 +261,11 @@ export default function CourseNewPage() {
       return;
     }
 
+    // Already hydrated this course — don't refetch and clobber in-progress edits.
+    if (loadedCourseIdRef.current === editCourseId) {
+      return;
+    }
+
     let isCancelled = false;
 
     const preloadCourse = async () => {
@@ -261,7 +290,9 @@ export default function CourseNewPage() {
 
         if (isCancelled) return;
 
+        loadedCourseIdRef.current = editCourseId;
         const course = payload.course;
+
         const studentEnrollments = course.enrollments.filter((enrollment) => enrollment.role === 'STUDENT');
         const checkerEnrollments = course.enrollments.filter((enrollment) => enrollment.role === 'CHECKER');
 
@@ -421,19 +452,21 @@ export default function CourseNewPage() {
     setCurrentStep(stepIndex);
   };
 
-  const handleRosterUpload = async <T,>(
+  const handleRosterUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
     target: UploadTarget,
-    setRows: React.Dispatch<React.SetStateAction<T[]>>,
-    parser: (text: string) => T[]
+    setRows: React.Dispatch<React.SetStateAction<RosterRow[]>>
   ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     try {
       const text = await file.text();
-      const parsedRows = parser(text);
-      setRows((target === 'assessor' ? mergeAssessorRows(parsedRows as AssessorRow[]) : parsedRows) as T[]);
+      const parsedRows = parseCsv(text);
+      const incoming = target === 'assessor' ? mergeAssessorRows(parsedRows) : parsedRows;
+      // Append to whatever's already loaded (DB roster in edit mode, or a prior
+      // upload) rather than replacing it, deduping by person. (#168)
+      setRows((prev) => mergeRosterRows(prev, incoming));
     } catch (error) {
       console.error('Failed to parse CSV:', error);
       const message = error instanceof Error ? error.message : 'Failed to read CSV file.';
@@ -447,7 +480,7 @@ export default function CourseNewPage() {
     event.target.value = '';
   };
 
-  function parseCsv(text: string): StudentRow[] {
+  function parseCsv(text: string): RosterRow[] {
     const lines = text
       .split(/\r?\n/)
       .map((line) => line.trim())
@@ -481,7 +514,7 @@ export default function CourseNewPage() {
         firstName: cols[firstNameIndex] || '',
         buid: cols[buidIndex] || '',
         email: cols[emailIndex] || '',
-        sections: cols[sectionsIndex] || '',
+        sections: parseSections(cols[sectionsIndex]),
       };
     });
   }
@@ -512,14 +545,14 @@ export default function CourseNewPage() {
           name: `${student.firstName} ${student.lastName}`.trim(),
           buid: student.buid || null,
           role: CourseRole.STUDENT,
-          sections: parseSections(student.sections),
+          sections: student.sections ?? [],
         })),
         ...assessorRows.map((assessor) => ({
           email: assessor.email.trim().toLowerCase(),
           name: `${assessor.firstName} ${assessor.lastName}`.trim(),
           buid: assessor.buid || null,
           role: CourseRole.CHECKER,
-          sections: parseSections(assessor.sections),
+          sections: assessor.sections ?? [],
         })),
       ],
     };
@@ -565,21 +598,19 @@ export default function CourseNewPage() {
 
   // Unique section names found across the uploaded roster — populates the per-student
   // section dropdowns so the prof can reassign a student's section inline.
-  const availableSections = Array.from(
-    new Set(studentRows.flatMap((student) => parseSections(student.sections)))
-  ).sort();
+  const availableSections = Array.from(new Set(studentRows.flatMap((student) => student.sections ?? []))).sort();
 
   const updateStudentSection = (index: number, value: string) => {
-    setStudentRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value } : row)));
+    setStudentRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value ? [value] : [] } : row)));
   };
 
   // Same inline-section-reassignment for the assessor roster.
   const availableAssessorSections = Array.from(
-    new Set(assessorRows.flatMap((assessor) => parseSections(assessor.sections)))
+    new Set(assessorRows.flatMap((assessor) => assessor.sections ?? []))
   ).sort();
 
   const updateAssessorSection = (index: number, value: string) => {
-    setAssessorRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value } : row)));
+    setAssessorRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value ? [value] : [] } : row)));
   };
 
   function ConfigRow({ label, checked, onChange, infoText }: ConfigRowProps) {
@@ -754,7 +785,7 @@ export default function CourseNewPage() {
                 type="file"
                 accept=".csv,text/csv"
                 style={{ display: 'none' }}
-                onChange={(e) => handleRosterUpload(e, 'student', setStudentRows, parseCsv)}
+                onChange={(e) => handleRosterUpload(e, 'student', setStudentRows)}
               />
             </div>
 
@@ -782,7 +813,7 @@ export default function CourseNewPage() {
                     </thead>
                     <tbody>
                       {studentRows.slice(0, visibleCount).map((student, index) => {
-                        const primarySection = parseSections(student.sections)[0] ?? '';
+                        const primarySection = student.sections?.[0] ?? '';
                         const sectionOptions = Array.from(
                           new Set([...availableSections, primarySection].filter(Boolean))
                         );
@@ -863,7 +894,7 @@ export default function CourseNewPage() {
                 type="file"
                 accept=".csv,text/csv"
                 style={{ display: 'none' }}
-                onChange={(e) => handleRosterUpload(e, 'assessor', setAssessorRows, parseCsv)}
+                onChange={(e) => handleRosterUpload(e, 'assessor', setAssessorRows)}
               />
             </div>
 
@@ -892,7 +923,7 @@ export default function CourseNewPage() {
                       </thead>
                       <tbody>
                         {assessorRows.slice(0, assessorVisibleCount).map((assessor, index) => {
-                          const primarySection = parseSections(assessor.sections)[0] ?? '';
+                          const primarySection = assessor.sections?.[0] ?? '';
                           const sectionOptions = Array.from(
                             new Set([...availableAssessorSections, primarySection].filter(Boolean))
                           );
