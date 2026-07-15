@@ -9,19 +9,7 @@ import BackButton from '@/app/components/BackButton/BackButton';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import styles from './page.module.css';
 import { parseRosterCsv } from '@/lib/csv';
-
-type EnrollmentSummary = {
-  id: string;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-  status: 'PENDING' | 'ACTIVE';
-  sections: string[];
-  student: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    buid: string | null;
-  };
-};
+import { EnrollmentRole, EnrollmentSummary, RosterRole } from '@/lib/enrollment/types';
 
 type CourseRoster = {
   id: string;
@@ -34,11 +22,10 @@ type CourseRoster = {
 };
 
 type CourseRosterResponse = {
-  viewerRole?: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
+  viewerRole?: EnrollmentRole;
   course: CourseRoster;
 };
 
-type RosterRole = 'STUDENT' | 'CHECKER';
 type AddMode = 'single' | 'csv';
 
 export type NewRosterMember = {

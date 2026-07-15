@@ -12,6 +12,7 @@ import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from 
 import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
 import { MessageComposeModal } from './MessageComposeModal';
 import styles from './page.module.css';
+import { EnrollmentRole } from '@/lib/enrollment/types';
 
 // Messaging is a work-in-progress feature gated behind the same dev flag as the
 // Messages inbox nav item (see Sidebar). Only show the compose action when on.
@@ -37,10 +38,8 @@ type StudentProfileBadge = {
   youtubeUrl?: string | null;
 };
 
-type ProfileRole = 'STUDENT' | 'CHECKER' | 'INSTRUCTOR';
-
 type InstructorMemberProfileResponse = {
-  memberRole: ProfileRole;
+  memberRole: EnrollmentRole;
   member: {
     id: string;
     name: string | null;
@@ -85,7 +84,7 @@ function resolveParam(value: string | string[] | undefined) {
   return value ?? null;
 }
 
-function profileLabel(role?: ProfileRole | null) {
+function profileLabel(role?: EnrollmentRole | null) {
   if (role === 'CHECKER') {
     return 'Assessor';
   }

@@ -9,17 +9,18 @@ import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import rosterStyles from '@/app/roster/[studentId]/page.module.css';
 import styles from './page.module.css';
+import { CourseRole, EnrollmentRole } from '@/lib/enrollment/types';
 
 type Contact = {
   id: string;
-  type: 'INSTRUCTOR' | 'CHECKER';
+  type: CourseRole;
   name: string;
   email: string;
   avatarUrl: string | null;
 };
 
 type StudentProfileResponse = {
-  memberRole: 'STUDENT' | 'CHECKER' | 'INSTRUCTOR';
+  memberRole: EnrollmentRole;
   member: {
     id: string;
     name: string;
