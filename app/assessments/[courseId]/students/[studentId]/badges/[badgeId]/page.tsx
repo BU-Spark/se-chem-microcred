@@ -1,14 +1,13 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import BackButton from '@/app/_components/BackButton';
-import rosterStyles from '@/app/roster/[studentId]/page.module.css';
+import StudentProfileCard from '@/app/components/StudentProfileCard';
 import styles from './page.module.css';
 import { useAssessmentReadiness } from './hooks/useAssessmentReadiness';
 
@@ -265,127 +264,67 @@ export default function AssessmentReadinessPage() {
   }
 
   return (
-    <div className={rosterStyles.page}>
+    <div className={styles.page}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
-      <main className={rosterStyles.main}>
-        <div className={rosterStyles.content}>
+      <main className={styles.main}>
+        <div className={styles.content}>
           <BackButton onClick={handleBack} />
 
-          <header className={rosterStyles.header}>
-            <h1 className={rosterStyles.pageTitle}>{badgeDetail?.badge.name ?? 'Assessment'}</h1>
+          <header className={styles.header}>
+            <h1 className={styles.pageTitle}>{badgeDetail?.badge.name ?? 'Assessment'}</h1>
           </header>
 
-          {isLoading ? <p className={rosterStyles.statusMessage}>Loading assessment readiness...</p> : null}
-          {!isLoading && error ? <p className={rosterStyles.statusMessage}>{error}</p> : null}
+          {isLoading ? <p className={styles.statusMessage}>Loading assessment readiness...</p> : null}
+          {!isLoading && error ? <p className={styles.statusMessage}>{error}</p> : null}
 
           {!isLoading && !error && profile && badgeDetail ? (
             <>
-              <section className={rosterStyles.profileCard}>
-                <div className={rosterStyles.profileMain}>
-                  <div className={rosterStyles.infoColumn}>
-                    <p className={rosterStyles.sectionKicker}>Student Info:</p>
-                    <div className={rosterStyles.nameBlock}>
-                      <h2 className={rosterStyles.studentName}>
-                        <span>{memberDisplay.headlineTop}</span>
-                        {memberDisplay.headlineBottom ? <span>{memberDisplay.headlineBottom}</span> : null}
-                      </h2>
-                    </div>
+              <StudentProfileCard
+                kicker="Student Info:"
+                headlineTop={memberDisplay.headlineTop}
+                headlineBottom={memberDisplay.headlineBottom}
+                email={profile.member.email}
+                buid={profile.member.buid}
+                avatarSrc={profile.member.avatar ? avatarAsset(profile.member.avatar.base) : null}
+                avatarAlt="Student avatar"
+                avatarFallback={initialsFromName(profile.member.name)}
+                courseTitle={profile.course.title}
+                courseSectionsLabel={`${profile.course.sections.length > 1 ? 'Sections' : 'Section'}: ${
+                  profile.course.sections.join(', ') || 'Not provided'
+                }`}
+                contactTitle="Instructor"
+                contactName={sideContact ? contactDisplayName(sideContact.name, sideContact.email) : null}
+                contactEmail={sideContact?.email}
+                contactAvatarSrc={sideContact && 'avatarUrl' in sideContact ? sideContact.avatarUrl : null}
+                contactAvatarAlt={sideContact ? contactDisplayName(sideContact.name, sideContact.email) : ''}
+                contactFallback={
+                  sideContact ? initialsFromName(contactDisplayName(sideContact.name, sideContact.email)) : ''
+                }
+                emptyContactMessage="No instructor assigned."
+              />
 
-                    <div className={rosterStyles.detailGrid}>
-                      <div className={rosterStyles.detailItem}>
-                        <span className={rosterStyles.detailLabel}>Email:</span>
-                        <span className={rosterStyles.detailValue}>{profile.member.email || 'Not provided'}</span>
-                      </div>
-                      <div className={rosterStyles.detailItem}>
-                        <span className={rosterStyles.detailLabel}>BUID:</span>
-                        <span className={rosterStyles.detailValue}>{profile.member.buid || 'Not provided'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={rosterStyles.avatarColumn}>
-                    <div className={rosterStyles.avatarFrame}>
-                      {profile.member.avatar ? (
-                        <Image
-                          src={avatarAsset(profile.member.avatar.base)}
-                          alt="Student avatar"
-                          width={196}
-                          height={196}
-                          className={rosterStyles.avatarImage}
-                        />
-                      ) : (
-                        <div className={rosterStyles.avatarFallback}>{initialsFromName(profile.member.name)}</div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                <aside className={rosterStyles.profileSide}>
-                  <section className={rosterStyles.sideSection}>
-                    <p className={rosterStyles.sideTitle}>Course Info:</p>
-                    <p className={rosterStyles.sideMeta}>
-                      {profile.course.title}
-                      <br />
-                      {profile.course.sections.length > 1 ? 'Sections' : 'Section'}:{' '}
-                      {profile.course.sections.join(', ') || 'Not provided'}
-                    </p>
-                  </section>
-
-                  <section className={rosterStyles.sideSection}>
-                    <p className={rosterStyles.sideTitle}>Instructor</p>
-                    {sideContact ? (
-                      <div className={rosterStyles.contactCard}>
-                        <div className={rosterStyles.contactAvatarShell}>
-                          {'avatarUrl' in sideContact && sideContact.avatarUrl ? (
-                            <Image
-                              src={sideContact.avatarUrl}
-                              alt={contactDisplayName(sideContact.name, sideContact.email)}
-                              width={86}
-                              height={86}
-                              className={rosterStyles.contactAvatarImage}
-                            />
-                          ) : (
-                            <div className={rosterStyles.contactAvatarFallback}>
-                              {initialsFromName(contactDisplayName(sideContact.name, sideContact.email))}
-                            </div>
-                          )}
-                        </div>
-                        <div className={rosterStyles.contactInfo}>
-                          <p className={rosterStyles.contactName}>
-                            {contactDisplayName(sideContact.name, sideContact.email)}
-                          </p>
-                          <p className={rosterStyles.contactEmail}>{sideContact.email || 'Not provided'}</p>
-                        </div>
-                      </div>
-                    ) : (
-                      <p className={rosterStyles.emptyState}>No instructor assigned.</p>
-                    )}
-                  </section>
-                </aside>
-              </section>
-
-              <section className={rosterStyles.detailCard}>
-                <div className={rosterStyles.detailCardHeader}>
-                  <span className={rosterStyles.detailCardKicker}>Student Progress for:</span>
-                  <span className={rosterStyles.detailCardHeading}>{badgeDetail.badge.name}</span>
+              <section className={styles.detailCard}>
+                <div className={styles.detailCardHeader}>
+                  <span className={styles.detailCardKicker}>Student Progress for:</span>
+                  <span className={styles.detailCardHeading}>{badgeDetail.badge.name}</span>
                 </div>
 
                 <div className={styles.readinessBody}>
-                  <div className={rosterStyles.progressStatusColumn}>
-                    <p className={rosterStyles.progressStatusLine}>
-                      <span className={rosterStyles.progressStatusLabel}>Precheck status:</span>{' '}
-                      <span className={rosterStyles.progressStatusValue}>
+                  <div className={styles.progressStatusColumn}>
+                    <p className={styles.progressStatusLine}>
+                      <span className={styles.progressStatusLabel}>Precheck status:</span>{' '}
+                      <span className={styles.progressStatusValue}>
                         {badgeDetail.progress.precheckComplete ? 'Complete' : 'Incomplete'}
                       </span>
                     </p>
-                    <p className={rosterStyles.progressStatusLine}>
-                      <span className={rosterStyles.progressStatusLabel}>Assessment status:</span>{' '}
-                      <span className={rosterStyles.progressStatusValue}>{assessmentStatus}</span>
+                    <p className={styles.progressStatusLine}>
+                      <span className={styles.progressStatusLabel}>Assessment status:</span>{' '}
+                      <span className={styles.progressStatusValue}>{assessmentStatus}</span>
                     </p>
-                    <p className={rosterStyles.progressStatusLine}>
-                      <span className={rosterStyles.progressStatusLabel}>Currently at:</span>{' '}
-                      <span className={rosterStyles.progressStatusValue}>{currentStep}</span>
+                    <p className={styles.progressStatusLine}>
+                      <span className={styles.progressStatusLabel}>Currently at:</span>{' '}
+                      <span className={styles.progressStatusValue}>{currentStep}</span>
                     </p>
                   </div>
 
