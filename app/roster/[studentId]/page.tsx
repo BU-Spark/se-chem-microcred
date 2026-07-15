@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
@@ -367,7 +368,7 @@ export default function InstructorStudentProfilePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isDemographicOpen, setIsDemographicOpen] = useState(false);

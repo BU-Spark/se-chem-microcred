@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 
 import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
 import BackButton from '../_components/BackButton';
@@ -206,7 +207,7 @@ export default function StudentRosterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [searchValue, setSearchValue] = useState('');
