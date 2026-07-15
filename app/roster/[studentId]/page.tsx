@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
+import CollapsibleSection from '@/app/components/CollapsibleSection';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
@@ -288,27 +289,6 @@ function useInstructorStudentBadgeDetail(
   return { data, isLoading, error, refresh: fetchData };
 }
 
-function Chevron({ isOpen }: { isOpen: boolean }) {
-  return (
-    <svg
-      viewBox="0 0 16 16"
-      width="18"
-      height="18"
-      aria-hidden="true"
-      className={[styles.chevron, isOpen ? styles.chevronOpen : ''].join(' ')}
-    >
-      <path
-        d="M3 6.25 8 11l5-4.75"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.9"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
 function BadgeGrid({
   badges,
   tone = 'progress',
@@ -562,35 +542,33 @@ export default function InstructorStudentProfilePage() {
                 </div>
 
                 <aside className={styles.profileSide}>
-                  <button
-                    type="button"
-                    className={styles.dropdownToggle}
-                    onClick={() => setIsDemographicOpen((current) => !current)}
+                  <CollapsibleSection
+                    title="Demographic Info"
+                    isOpen={isDemographicOpen}
+                    onToggle={() => setIsDemographicOpen((current) => !current)}
+                    panelId="demographic-info"
+                    buttonClassName={styles.dropdownToggle}
+                    panelClassName={styles.demographicGrid}
+                    chevronClassName={styles.chevron}
+                    chevronOpenClassName={styles.chevronOpen}
                   >
-                    <span>Demographic Info</span>
-                    <Chevron isOpen={isDemographicOpen} />
-                  </button>
-
-                  {isDemographicOpen ? (
-                    <div className={styles.demographicGrid}>
-                      <div className={styles.demographicItem}>
-                        <span className={styles.detailLabel}>Gender</span>
-                        <span className={styles.detailValue}>{data.member.gender || 'Not provided'}</span>
-                      </div>
-                      <div className={styles.demographicItem}>
-                        <span className={styles.detailLabel}>Race / Ethnicity</span>
-                        <span className={styles.detailValue}>{data.member.raceEthnicity || 'Not provided'}</span>
-                      </div>
-                      <div className={styles.demographicItem}>
-                        <span className={styles.detailLabel}>Parental Education</span>
-                        <span className={styles.detailValue}>{data.member.parentalEducation || 'Not provided'}</span>
-                      </div>
-                      <div className={styles.demographicItem}>
-                        <span className={styles.detailLabel}>Pell Grant Qualified</span>
-                        <span className={styles.detailValue}>{formatPellGrant(data.member.pellGrantQualified)}</span>
-                      </div>
+                    <div className={styles.demographicItem}>
+                      <span className={styles.detailLabel}>Gender</span>
+                      <span className={styles.detailValue}>{data.member.gender || 'Not provided'}</span>
                     </div>
-                  ) : null}
+                    <div className={styles.demographicItem}>
+                      <span className={styles.detailLabel}>Race / Ethnicity</span>
+                      <span className={styles.detailValue}>{data.member.raceEthnicity || 'Not provided'}</span>
+                    </div>
+                    <div className={styles.demographicItem}>
+                      <span className={styles.detailLabel}>Parental Education</span>
+                      <span className={styles.detailValue}>{data.member.parentalEducation || 'Not provided'}</span>
+                    </div>
+                    <div className={styles.demographicItem}>
+                      <span className={styles.detailLabel}>Pell Grant Qualified</span>
+                      <span className={styles.detailValue}>{formatPellGrant(data.member.pellGrantQualified)}</span>
+                    </div>
+                  </CollapsibleSection>
 
                   <section className={styles.sideSection}>
                     <p className={styles.sideTitle}>Course Info:</p>
@@ -704,45 +682,33 @@ export default function InstructorStudentProfilePage() {
                     </section>
 
                     <section className={styles.badgeSection}>
-                      <button
-                        type="button"
-                        className={styles.accordionRow}
-                        onClick={() => setIsNotStartedOpen((current) => !current)}
-                        aria-expanded={isNotStartedOpen}
-                        aria-controls="not-started-badges"
+                      <CollapsibleSection
+                        title="Not yet started"
+                        isOpen={isNotStartedOpen}
+                        onToggle={() => setIsNotStartedOpen((current) => !current)}
+                        panelId="not-started-badges"
+                        buttonClassName={styles.accordionRow}
+                        panelClassName={styles.accordionPanel}
+                        chevronClassName={styles.chevron}
+                        chevronOpenClassName={styles.chevronOpen}
                       >
-                        <span>Not yet started</span>
-                        <Chevron isOpen={isNotStartedOpen} />
-                      </button>
-
-                      {isNotStartedOpen ? (
-                        <div id="not-started-badges" className={styles.accordionPanel}>
-                          <BadgeGrid badges={data.badges.notStarted} tone="pending" />
-                        </div>
-                      ) : null}
+                        <BadgeGrid badges={data.badges.notStarted} tone="pending" />
+                      </CollapsibleSection>
                     </section>
 
                     <section className={styles.badgeSection}>
-                      <button
-                        type="button"
-                        className={styles.accordionRow}
-                        onClick={() => setIsCompletedOpen((current) => !current)}
-                        aria-expanded={isCompletedOpen}
-                        aria-controls="completed-badges"
+                      <CollapsibleSection
+                        title="Completed"
+                        isOpen={isCompletedOpen}
+                        onToggle={() => setIsCompletedOpen((current) => !current)}
+                        panelId="completed-badges"
+                        buttonClassName={styles.accordionRow}
+                        panelClassName={styles.accordionPanel}
+                        chevronClassName={styles.chevron}
+                        chevronOpenClassName={styles.chevronOpen}
                       >
-                        <span>Completed</span>
-                        <Chevron isOpen={isCompletedOpen} />
-                      </button>
-
-                      {isCompletedOpen ? (
-                        <div id="completed-badges" className={styles.accordionPanel}>
-                          <BadgeGrid
-                            badges={data.badges.completed}
-                            tone="completed"
-                            onSelectBadge={handleBadgeSelect}
-                          />
-                        </div>
-                      ) : null}
+                        <BadgeGrid badges={data.badges.completed} tone="completed" onSelectBadge={handleBadgeSelect} />
+                      </CollapsibleSection>
                     </section>
                   </section>
                 )
