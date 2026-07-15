@@ -9,6 +9,7 @@ import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
+import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 
 type BadgeStatus = 'completed' | 'assessment' | 'finalization' | 'learning';
 
@@ -71,22 +72,6 @@ function formatBadgeStatus(status: BadgeRecord['status']) {
   return BADGE_STATUS_LABEL[status];
 }
 
-function buildAssessmentQrUrl(
-  courseId: string | null | undefined,
-  studentId: string | null | undefined,
-  badgeId: string
-) {
-  if (typeof window === 'undefined' || !courseId || !studentId) {
-    return null;
-  }
-
-  const url = new URL('/qr/assessment', window.location.origin);
-  url.searchParams.set('courseId', courseId);
-  url.searchParams.set('studentId', studentId);
-  url.searchParams.set('badgeId', badgeId);
-  return url.toString();
-}
-
 type PopoverAnchor = {
   // position relative to the card the badge lives in
   top: number;
@@ -104,8 +89,6 @@ export default function BadgeWalletPage() {
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
   const [popoverAnchor, setPopoverAnchor] = useState<PopoverAnchor | null>(null);
   const [qrBadge, setQrBadge] = useState<BadgeRecord | null>(null);
-  const [assessmentCode, setAssessmentCode] = useState<string | null>(null);
-  const [assessmentCodeError, setAssessmentCodeError] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
 
@@ -178,47 +161,6 @@ export default function BadgeWalletPage() {
   );
 
   const activeBadge = allBadges.find((b) => b.id === activeBadgeId) ?? null;
-
-  const qrAssessmentUrl = qrBadge
-    ? buildAssessmentQrUrl(qrBadge.courseId ?? studentData?.course?.id, studentData?.student.id, qrBadge.id)
-    : null;
-  const qrCourseId = qrBadge?.courseId ?? studentData?.course?.id ?? null;
-
-  useEffect(() => {
-    if (!qrBadge || !qrCourseId) {
-      setAssessmentCode(null);
-      setAssessmentCodeError(null);
-      return;
-    }
-
-    let isCancelled = false;
-    setAssessmentCode(null);
-    setAssessmentCodeError(null);
-
-    fetch('/api/assessment-codes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ courseId: qrCourseId, badgeId: qrBadge.id }),
-    })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload.error ?? 'Unable to create assessment code.');
-        }
-        if (!isCancelled) {
-          setAssessmentCode(typeof payload.code === 'string' ? payload.code : null);
-        }
-      })
-      .catch((error) => {
-        if (!isCancelled) {
-          setAssessmentCodeError(error instanceof Error ? error.message : 'Unable to create assessment code.');
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [qrBadge, qrCourseId]);
 
   if (!isLoaded || !isSignedIn) return null;
 
@@ -566,55 +508,13 @@ export default function BadgeWalletPage() {
           </div>
 
           {qrBadge ? (
-            <div className={styles.modalOverlay}>
-              <div className={styles.qrModal} role="dialog" aria-modal="true">
-                <button type="button" className={styles.modalClose} onClick={() => setQrBadge(null)} aria-label="Close">
-                  ×
-                </button>
-                <div className={styles.qrCodeBox}>
-                  {qrAssessmentUrl ? (
-                    <div className={styles.qrCodeWrapper}>
-                      <div className={styles.qrCodeCanvas}>
-                        {/* Plain <img> on purpose: next/image's optimizer fetches /api/qr
-                            server-side without the Clerk session cookie, so the route 401s.
-                            A direct browser request carries auth and renders the code. */}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={`/api/qr?size=360&data=${encodeURIComponent(qrAssessmentUrl)}`}
-                          alt={`${qrBadge.name} QR code`}
-                          width={360}
-                          height={360}
-                          className={styles.qrCodeImage}
-                        />
-                        <div className={styles.qrCodeLogo}>
-                          <Image
-                            src="/assets/badge_wallet/QR/qr_logo.svg"
-                            alt="Checkd logo"
-                            width={74}
-                            height={74}
-                            className={styles.qrCodeLogoImage}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className={styles.popoverHelperText}>
-                      We could not build the assessment QR code for this badge.
-                    </p>
-                  )}
-                  <div className={styles.qrCaption}>{qrBadge.name} Skill Check</div>
-                  <div className={styles.assessmentCodeBox}>
-                    <span className={styles.assessmentCodeLabel}>Assessment code</span>
-                    <strong className={styles.assessmentCodeValue}>{assessmentCode ?? 'Generating...'}</strong>
-                    {assessmentCodeError ? <p className={styles.assessmentCodeError}>{assessmentCodeError}</p> : null}
-                  </div>
-                  <p>
-                    Show your assessor this QR code to complete the in-person assessment. Don&apos;t forget to bring
-                    your student ID for verification.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <AssessmentCodeModal
+              badgeId={qrBadge.id}
+              badgeName={qrBadge.name}
+              courseId={qrBadge.courseId ?? studentData?.course?.id}
+              studentId={studentData?.student.id}
+              onClose={() => setQrBadge(null)}
+            />
           ) : null}
         </div>
       </main>
