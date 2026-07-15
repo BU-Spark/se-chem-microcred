@@ -1,84 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
+import { useBadgesCatalog, type BadgeCatalogItem } from '@/app/hooks/useBadgesCatalog';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import styles from './page.module.css';
-
-type BadgeCatalogItem = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-  createdAt: string;
-  assignedStudentCount: number;
-  requirements: Array<{
-    id: string;
-    summary: string | null;
-    displayText: string;
-    youtubeUrl?: string | null;
-    lesson: {
-      id: string;
-      title: string;
-      course: {
-        id: string;
-        title: string;
-      } | null;
-    } | null;
-  }>;
-};
-
-type BadgesResponse = {
-  count: number;
-  badges: BadgeCatalogItem[];
-};
-
-function useBadgesCatalog(enabled: boolean) {
-  const [data, setData] = useState<BadgesResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchBadges = useCallback(async () => {
-    if (!enabled) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch('/api/badges', {
-        headers: { Accept: 'application/json' },
-      });
-      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load badges.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load badges.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [enabled]);
-
-  useEffect(() => {
-    void fetchBadges();
-  }, [fetchBadges]);
-
-  return { data, isLoading, error, refresh: fetchBadges };
-}
 
 // A badge's "main page" lives at /courses/[courseId]/[badgeId], so we need the course it's
 // attached to (via any of its requirement lessons). Unassigned badges have no detail page,
