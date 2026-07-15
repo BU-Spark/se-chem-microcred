@@ -40,7 +40,11 @@ export function useBadgesCatalog(enabled: boolean) {
     isLoading,
     isValidating,
     mutate,
-  } = useSWR<BadgesResponse>(enabled ? '/api/badges' : null, fetcher<BadgesResponse>, { revalidateOnFocus: false });
+  } = useSWR<BadgesResponse>(
+    enabled ? '/api/badges' : null,
+    (url: string) => fetcher<BadgesResponse>(url, undefined, false),
+    { revalidateOnFocus: false }
+  );
 
   const refresh = useCallback(async () => {
     try {

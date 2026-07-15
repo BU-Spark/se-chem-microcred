@@ -49,7 +49,7 @@ type DisplayNameResponse = {
 };
 
 async function fetchProfile(url: string): Promise<ProfileSummary> {
-  const payload = await fetcher<DisplayNameResponse>(url);
+  const payload = await fetcher<DisplayNameResponse>(url, undefined, false);
   return {
     displayName: payload.user?.name?.trim() || null,
     avatarBase: payload.user?.avatarBase ?? null,

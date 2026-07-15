@@ -20,6 +20,7 @@ describe('fetcher', () => {
     await expect(fetcher<typeof payload>('/api/course')).resolves.toEqual(payload);
     expect(global.fetch).toHaveBeenCalledWith('/api/course', {
       headers: { Accept: 'application/json' },
+      credentials: 'include',
     });
   });
 

@@ -1,6 +1,8 @@
-export async function fetcher<Data>(url: string): Promise<Data> {
+export async function fetcher<Data>(url: string, init?: RequestInit, includeCredentials = true): Promise<Data> {
   const response = await fetch(url, {
-    headers: { Accept: 'application/json' },
+    ...init,
+    ...(includeCredentials ? { credentials: 'include' as const } : {}),
+    headers: { Accept: 'application/json', ...(init?.headers as Record<string, string> | undefined) },
   });
 
   const payload = (await response.json().catch(() => null)) as Data | { error?: unknown } | null;
