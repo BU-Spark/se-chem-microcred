@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 import finishLogo from '../../../public/assets/lesson/lesson_preview/finish_logo.svg';
@@ -31,7 +32,7 @@ function LessonDetailContent() {
   const courseId = searchParams.get('courseId');
 
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const { data: studentData, isLoading } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null, courseId);
   const [isSigningOut, setIsSigningOut] = useState(false);
   // Redirect only after hooks have run
