@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { normalizeEmail } from '@/lib/text/email';
 import { ImportBadgePayload } from '@/lib/badges/types';
-import { normalizeString } from '@/lib/utils';
+import { normalizeString } from '@/lib/checkpoints/normalizeWrite';
 import prisma from '@/lib/prisma';
 
 import { executeBadgeImportTx } from '@/lib/badges/badge-import.service';

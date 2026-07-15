@@ -1,90 +1,17 @@
 import { BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
-import { normalizeString, normalizeSkills, parseTimeToSeconds, parseFiniteNumber, slugify } from '@/lib/utils';
+import { parseTimeToSeconds, slugify, formatQuestionCount } from '@/lib/utils';
 import { CheckpointPayload, CheckpointQuestionPayload } from '@/lib/checkpoints/types';
-
-type RequirementSummary = {
-  lessonTitle?: string | null;
-  skills?: string[];
-  checkpoints?: CheckpointPayload[];
-  passingPercent?: number | null;
-};
-
-function formatQuestionCount(count: number) {
-  return `${count} question${count === 1 ? '' : 's'}`;
-}
-
-function normalizeOptions(options?: string[] | null) {
-  const normalized = (options ?? [])
-    .map((option) => normalizeString(option))
-    .filter((option): option is string => Boolean(option));
-
-  return normalized.length > 0 ? normalized : ['Yes', 'No'];
-}
-
-function normalizeCorrectIndices(question: CheckpointQuestionPayload, optionCount: number) {
-  const rawIndices =
-    Array.isArray(question.correctIndices) && question.correctIndices.length > 0
-      ? question.correctIndices
-      : question.correctIndex != null
-        ? [question.correctIndex]
-        : [];
-
-  return Array.from(
-    new Set(rawIndices.filter((index) => Number.isInteger(index) && index >= 0 && index < optionCount))
-  ).sort((left, right) => left - right);
-}
-
-function buildQuestionOptions(question: CheckpointQuestionPayload) {
-  const questionType = question.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice';
-  const unit = normalizeString(question.unit);
-  const incorrectFeedback = normalizeString(question.incorrectFeedback);
-  const feedbackEntry = incorrectFeedback ? { incorrectFeedback } : {};
-
-  if (questionType === 'shortAnswer') {
-    const expectedAnswer = parseFiniteNumber(question.numericAnswer);
-    const rawMin = parseFiniteNumber(question.numericRangeMin);
-    const rawMax = parseFiniteNumber(question.numericRangeMax);
-    const baseRange =
-      rawMin != null && rawMax != null
-        ? {
-            min: Math.min(rawMin, rawMax),
-            max: Math.max(rawMin, rawMax),
-          }
-        : null;
-    const acceptedRange = baseRange ? (unit ? { ...baseRange, unit } : baseRange) : unit ? { unit } : null;
-
-    return {
-      options: {
-        type: 'shortAnswer',
-        expectedAnswer,
-        acceptedRange,
-        ...feedbackEntry,
-      },
-      correctIndex: null,
-    };
-  }
-
-  const options = normalizeOptions(question.options);
-  const correctIndices = normalizeCorrectIndices(question, options.length);
-
-  return {
-    options: {
-      type: 'multipleChoice',
-      options,
-      correctIndices: correctIndices.length > 0 ? correctIndices : [0],
-      ...feedbackEntry,
-    },
-    correctIndex: correctIndices[0] ?? 0,
-  };
-}
+import { buildQuestionOptions, normalizeString, normalizeSkills } from '../checkpoints/normalizeWrite';
+import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
+import { buildYoutubeThumbnail } from '@/lib/video';
 
 function getQuestionPrompt(question: CheckpointQuestionPayload) {
   return normalizeString(question.question) ?? normalizeString(question.prompt);
 }
 
-function normalizeCheckpointQuestions(checkpoint: CheckpointPayload) {
+function buildCheckpointQuestionsForImport(checkpoint: CheckpointPayload) {
   const rawQuestions =
     Array.isArray(checkpoint.questions) && checkpoint.questions.length > 0 ? checkpoint.questions : [checkpoint];
 
@@ -97,17 +24,6 @@ function normalizeCheckpointQuestions(checkpoint: CheckpointPayload) {
     .filter((question) => Boolean(question.prompt));
 }
 
-function parseRequirementSummary(summary?: string | null): RequirementSummary {
-  if (!summary) return {};
-
-  try {
-    const parsed = JSON.parse(summary) as RequirementSummary;
-    return parsed && typeof parsed === 'object' ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
 function secondsToTimestamp(seconds: number) {
   const hours = Math.floor(seconds / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
@@ -115,7 +31,7 @@ function secondsToTimestamp(seconds: number) {
 
   return [hours, minutes, remainingSeconds].map((part) => String(part).padStart(2, '0')).join(':');
 }
-
+// --Import Badge Args--
 interface BadgeImportArgs {
   creatorId: string;
   courseId: string;
@@ -124,6 +40,8 @@ interface BadgeImportArgs {
   closesOn?: Date | null;
   neverCloses?: boolean | null;
 }
+
+// --Import Badge--
 
 export async function executeBadgeImportTx(args: BadgeImportArgs) {
   const { creatorId, courseId, sourceBadgeId, availableOn, closesOn, neverCloses } = args;
@@ -277,7 +195,7 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
           title: sourceLesson?.title ?? summary.lessonTitle ?? sourceBadge.name,
           summary: sourceLesson?.summary ?? sourceBadge.description ?? `Lesson for ${sourceBadge.name}`,
           description: sourceLesson?.description ?? sourceBadge.description,
-          thumbnailUrl: sourceLesson?.thumbnailUrl ?? null,
+          thumbnailUrl: sourceLesson?.thumbnailUrl ?? buildYoutubeThumbnail(summary.youtubeUrl),
           dueDate: closesOn,
           estimatedMinutes: sourceLesson?.estimatedMinutes ?? null,
           passingPercent: sourceLesson?.passingPercent ?? summary.passingPercent ?? 70,
@@ -329,12 +247,18 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
           if (newId) segmentIdBySourceId.set(segment.id, newId);
         }
       } else {
+        // No real Lesson/segment rows to copy — this source badge is "independent"
+        // (its video lives only in the requirement summary JSON), so rehydrate the
+        // segment from there instead of dropping the video.
         const copiedSegment = await tx.lessonSegment.create({
           data: {
             lessonId: lesson.id,
             sortOrder: 0,
-            title: lesson.title,
+            title: summary.videoTitle ?? lesson.title,
             summary: sourceBadge.description,
+            duration: summary.videoLength ? parseTimeToSeconds(summary.videoLength) : null,
+            videoUrl: summary.youtubeUrl,
+            thumbnailUrl: buildYoutubeThumbnail(summary.youtubeUrl),
           },
           select: { id: true },
         });
@@ -386,7 +310,7 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
         // read back ids via (lessonId, sortOrder), then batch questions.
         const checkpointPlans = (summary.checkpoints ?? []).map((checkpoint, checkpointIndex) => {
           const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
-          const questions = normalizeCheckpointQuestions(checkpoint);
+          const questions = buildCheckpointQuestionsForImport(checkpoint);
 
           return {
             sortOrder: checkpointIndex,
