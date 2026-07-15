@@ -7,6 +7,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { generateInitials, getNameForProfile } from '@/lib/text/name';
+import { isInstructor } from '@/lib/roles';
 
 import { LessonReminderModal } from './LessonReminderModal';
 import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
@@ -245,10 +246,10 @@ export default function CreatedCourseDetailPage() {
   const course = data?.course ?? null;
   const viewerRole = data?.viewerRole ?? null;
   const isAssessorView = searchParams.get('view') === 'assessor';
-  const isInstructor = viewerRole === 'INSTRUCTOR' && !isAssessorView;
+  const isInstructorFlag = isInstructor(viewerRole) && !isAssessorView;
   const canAssess = isAssessorView && viewerRole !== 'STUDENT';
   const isStudent = viewerRole === 'STUDENT';
-  const displayName = isInstructor ? course?.createdBy?.name || '' : user?.fullName || '';
+  const displayName = isInstructorFlag ? course?.createdBy?.name || '' : user?.fullName || '';
 
   const studentCount = useMemo(
     () => course?.enrollments.filter((enrollment) => enrollment.role === 'STUDENT').length ?? 0,
@@ -320,7 +321,7 @@ export default function CreatedCourseDetailPage() {
   );
 
   const loadBadgeLibrary = useCallback(async () => {
-    if (!isInstructor) return;
+    if (!isInstructorFlag) return;
 
     setIsLoadingBadgeLibrary(true);
     setBadgeImportError('');
@@ -343,7 +344,7 @@ export default function CreatedCourseDetailPage() {
     } finally {
       setIsLoadingBadgeLibrary(false);
     }
-  }, [isInstructor]);
+  }, [isInstructorFlag]);
 
   const openImportPanel = () => {
     setIsImportPanelOpen(true);
@@ -456,7 +457,7 @@ export default function CreatedCourseDetailPage() {
                   <h2 className={styles.courseHeading}>{course.title}</h2>
 
                   <PersonCard
-                    label={isInstructor ? 'Instructor (You)' : 'Instructor'}
+                    label={isInstructorFlag ? 'Instructor (You)' : 'Instructor'}
                     name={course.createdBy?.name}
                     email={course.createdBy?.email}
                     avatarSrc={avatarFor(course.createdBy?.avatarBase)}
@@ -465,12 +466,12 @@ export default function CreatedCourseDetailPage() {
                   <div className={styles.statLines}>
                     <p className={styles.statLine}>Number of Sections: {course.sectionCount}</p>
                     <p className={styles.statLine}>Number of Students Enrolled: {studentCount}</p>
-                    {isInstructor && course.code ? (
+                    {isInstructorFlag && course.code ? (
                       <p className={styles.statLine}>
                         Course Code: <span className={styles.courseCode}>{course.code}</span>
                       </p>
                     ) : null}
-                    {isInstructor && course.assessorCode ? (
+                    {isInstructorFlag && course.assessorCode ? (
                       <p className={styles.statLine}>
                         Assessor Code: <span className={styles.courseCode}>{course.assessorCode}</span>
                       </p>
@@ -490,7 +491,7 @@ export default function CreatedCourseDetailPage() {
                           Assess Student
                         </button>
                       ) : null}
-                      {isInstructor && email ? (
+                      {isInstructorFlag && email ? (
                         <ExportCsvDataButton courseId={course.id} email={email} className={styles.primaryButton} />
                       ) : null}
                     </div>
@@ -512,7 +513,7 @@ export default function CreatedCourseDetailPage() {
                     <p className={styles.emptyMessage}>No checkers assigned yet.</p>
                   )}
 
-                  {isInstructor ? (
+                  {isInstructorFlag ? (
                     <div className={styles.sideActionRow}>
                       <Link href={`/roster?courseId=${course.id}&role=CHECKER`} className={styles.primaryButton}>
                         View Assessor Roster
@@ -556,7 +557,7 @@ export default function CreatedCourseDetailPage() {
                             </BadgeToken>
                             <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
                           </Link>
-                          {isInstructor ? (
+                          {isInstructorFlag ? (
                             <>
                               <button
                                 type="button"
@@ -586,7 +587,7 @@ export default function CreatedCourseDetailPage() {
                   <p className={styles.emptyMessage}>No badges assigned yet.</p>
                 )}
 
-                {isInstructor ? (
+                {isInstructorFlag ? (
                   <div className={styles.badgeActionRow}>
                     <button type="button" className={styles.primaryButton} onClick={openImportPanel}>
                       Import Existing Badge
@@ -609,7 +610,7 @@ export default function CreatedCourseDetailPage() {
         />
       ) : null}
 
-      {isInstructor && isImportPanelOpen ? (
+      {isInstructorFlag && isImportPanelOpen ? (
         <div className={styles.importOverlay} onClick={closeImportModal}>
           <div
             ref={importModalRef}
