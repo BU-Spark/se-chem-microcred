@@ -2,7 +2,8 @@
 
 import { Suspense, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
@@ -21,7 +22,7 @@ function LessonVideoRouteContent() {
   const courseId = searchParams.get('courseId');
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const { data: studentData, isLoading, error } = useStudentData(user?.primaryEmailAddress?.emailAddress, courseId);
   const [isSigningOut, setIsSigningOut] = useState(false);
 

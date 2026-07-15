@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser, useReverification } from '@clerk/nextjs';
+import { useUser, useReverification } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../hooks/useStudentData';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import styles from './page.module.css';
@@ -63,7 +64,7 @@ const SENSITIVE_TIMEOUT_MS = 10 * 60 * 1000;
 export default function ProfilePage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   // commenting out here again use for clerk is not needed here anymore without the change password feature
   // const clerk = useClerk();
 

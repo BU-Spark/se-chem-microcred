@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import BackButton from '@/app/_components/BackButton';
@@ -234,7 +235,7 @@ export default function AssessmentReadinessPage() {
   const params = useParams<{ courseId: string; studentId: string; badgeId: string }>();
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isAssessmentStarted, setIsAssessmentStarted] = useState(false);
   // Two-step flow (issue #119): grade every task, then confirm the outcome.

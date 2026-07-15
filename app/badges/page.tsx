@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
@@ -96,7 +97,7 @@ type PopoverAnchor = {
 export default function BadgeWalletPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
 
   const [isSigningOut, setIsSigningOut] = useState(false);

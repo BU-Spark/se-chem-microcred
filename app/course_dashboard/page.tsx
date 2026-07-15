@@ -4,8 +4,10 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import SurveyModal from '@/app/components/SurveyModal';
 import { useStudentData, type LessonRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 import veryUnhappy from '../../public/assets/survey_faces/very_unhappy.svg';
@@ -182,7 +184,7 @@ function HomePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const courseId = searchParams.get('courseId');
   const { data: studentData, isLoading, refresh } = useStudentData(user?.primaryEmailAddress?.emailAddress, courseId);
   const pathname = usePathname();
@@ -533,44 +535,33 @@ function HomePageContent() {
       </main>
 
       {activeSurvey ? (
-        <div className={styles.surveyOverlay} role="dialog" aria-modal="true">
-          <div className={styles.surveyModal}>
-            <button type="button" className={styles.surveyClose} onClick={closeSurveyModal}>
-              Do this later
-            </button>
-            <h2 className={styles.surveyTitle}>Tell us about your experience.</h2>
-            <p className={styles.surveyQuestion}>{activeSurvey.question}</p>
-            <div className={styles.surveyFaces}>
-              {[1, 2, 3, 4, 5].map((value) => {
-                const isSelected = surveyRating === value;
-                const buttonClass = [styles.surveyFace, isSelected ? styles.surveyFaceSelected : '']
-                  .filter(Boolean)
-                  .join(' ');
-                const imgClassNames = [styles.surveyFaceImage, isSelected ? styles.surveyFaceImageSelected : '']
-                  .filter(Boolean)
-                  .join(' ');
-                const iconSrc = isSelected ? FACE_IMAGES_SELECTED[value] : FACE_IMAGES[value];
-
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    className={buttonClass}
-                    onClick={() => setSurveyRating(value)}
-                    aria-pressed={isSelected}
-                    aria-label={FACE_ALTS[value]}
-                  >
-                    <Image src={iconSrc} alt={FACE_ALTS[value]} className={imgClassNames} />
-                  </button>
-                );
-              })}
-            </div>
-
-            <button type="button" className={styles.surveySubmit} onClick={handleSubmitSurvey}>
-              Submit
-            </button>
-          </div>
-        </div>
+        <SurveyModal
+          title="Tell us about your experience."
+          question={activeSurvey.question}
+          options={[1, 2, 3, 4, 5].map((value) => ({
+            value,
+            label: FACE_ALTS[value],
+            icon: FACE_IMAGES[value],
+            selectedIcon: FACE_IMAGES_SELECTED[value],
+          }))}
+          value={surveyRating}
+          onChange={setSurveyRating}
+          onSubmit={handleSubmitSurvey}
+          onClose={closeSurveyModal}
+          classNames={{
+            overlay: styles.surveyOverlay,
+            modal: styles.surveyModal,
+            close: styles.surveyClose,
+            title: styles.surveyTitle,
+            question: styles.surveyQuestion,
+            options: styles.surveyFaces,
+            option: styles.surveyFace,
+            selectedOption: styles.surveyFaceSelected,
+            optionImage: styles.surveyFaceImage,
+            selectedOptionImage: styles.surveyFaceImageSelected,
+            submit: styles.surveySubmit,
+          }}
+        />
       ) : null}
     </div>
   );
