@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
@@ -90,7 +91,7 @@ function resolveBadgeHref(badge: BadgeCatalogItem) {
 export default function MyBadgesPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { data, isLoading, error, refresh } = useBadgesCatalog(isLoaded && Boolean(isSignedIn));
   const { canCreateContent } = useCanCreateContent(isLoaded && Boolean(isSignedIn));

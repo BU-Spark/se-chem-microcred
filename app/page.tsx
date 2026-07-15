@@ -6,7 +6,8 @@ import { useCanCreateContent } from './hooks/useCanCreateContent';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type StudentData } from './hooks/useStudentData';
 import styles from './page.module.css';
 import courseStyles from './courses/page.module.css';
@@ -239,7 +240,7 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
 
   const { data: studentData, refresh } = useStudentData(email);
