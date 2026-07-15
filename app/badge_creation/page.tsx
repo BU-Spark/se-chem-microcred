@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import BackButton from '@/app/_components/BackButton';
 import { useStudentData } from '../hooks/useStudentData';
@@ -98,7 +99,7 @@ export default function BadgeCreationPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isLoaded, isSignedIn } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   const courseId = searchParams.get('courseId');
   const editBadgeId = searchParams.get('badgeId');
