@@ -559,7 +559,10 @@ export default function AssessmentReadinessPage() {
                         <h2>{rubric?.goalName || 'Assessor Grading'}</h2>
                       </div>
 
-                      {rubric?.instructions ? (
+                      {/* Instructions guide the assessor while grading, not the outcome
+                          review — hide them once the assessor moves to the confirm step
+                          so they don't linger over the pass/fail result (bug #177). */}
+                      {phase === 'grading' && rubric?.instructions ? (
                         <div className={styles.taInstructions}>
                           <h3 className={styles.taInstructionsTitle}>Instructions for the assessor</h3>
                           {/* Instructions are authored in the badge editor's rich-text field and
