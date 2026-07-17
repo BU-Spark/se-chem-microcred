@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
+import { LessonStatus } from '@prisma/client';
 import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 import finishLogo from '../../../public/assets/lesson/lesson_preview/finish_logo.svg';
@@ -334,7 +335,7 @@ function LessonDetailContent() {
                   }
                   className={styles.primaryButton}
                 >
-                  Start Lesson
+                  {lessonRecord.status === LessonStatus.COMPLETED ? 'Review Lesson' : 'Start Lesson'}
                 </Link>
               </div>
             </>

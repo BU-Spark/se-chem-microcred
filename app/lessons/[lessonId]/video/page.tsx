@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useMemo, useState } from 'react';
+import { LessonStatus } from '@prisma/client';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
@@ -116,6 +117,9 @@ function LessonVideoRouteContent() {
   const studentAvatar = studentData.student.avatar || null;
   const avatarUrl = buildAvatarUrlFromAvatar(studentAvatar);
   const lessonSurvey = studentData.surveys.lesson.find((survey) => survey.lessonSlug === lessonRecord.slug) ?? null;
+  // A completed lesson is re-entered in "review" mode: free rewatch from the start,
+  // unlocked scrubber, non-blocking checkpoints the student may re-open for practice.
+  const reviewMode = lessonRecord.status === LessonStatus.COMPLETED;
 
   if (!studentEmail) {
     return (
@@ -150,6 +154,7 @@ function LessonVideoRouteContent() {
           studentEmail={studentEmail}
           lessonSurvey={lessonSurvey}
           resumeRequested={false}
+          reviewMode={reviewMode}
           studentAvatarUrl={avatarUrl}
           studentId={studentData.student.id}
           courseId={studentData.course?.id ?? null}

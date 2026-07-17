@@ -13,6 +13,10 @@ import {
 
 interface AttemptRequestBody {
   email?: string;
+  // When true, the answers are graded and returned but nothing is persisted:
+  // used by the lesson "review" (rewatch) flow so re-answering a checkpoint is
+  // practice only and never changes the recorded grade, badge, or attempt history.
+  practice?: boolean;
   answers?: Array<{
     questionId: string;
     selectedIndex: number | null;
@@ -120,6 +124,17 @@ export async function POST(request: Request, context: RouteContext) {
   const normalizedQuestions = checkpoint.questions.map((question) => normalizeCheckpointQuestion(question));
   const evaluation = evaluateAttempt(payload.answers, normalizedQuestions);
   const isPassing = normalizedQuestions.length === 0 || evaluation.every((entry) => entry.isCorrect === true);
+
+  // Practice (review/rewatch) submissions are graded for feedback only — skip all
+  // persistence and badge syncing so the student's recorded grade stays untouched.
+  if (payload.practice) {
+    return NextResponse.json({
+      attemptId: null,
+      isPassing,
+      questions: evaluation,
+      practice: true,
+    });
+  }
 
   const attempt = await prisma.$transaction(async (tx) => {
     const existingLessonProgress = await tx.lessonProgress.findUnique({
