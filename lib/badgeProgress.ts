@@ -141,9 +141,16 @@ export async function syncLessonBadgesForStudent(
       continue;
     }
 
+    // QEV is cleared: leave LEARNING for READY_FOR_ASSESSMENT and stamp the
+    // milestone. qevPassedAt is what makes the badge status honest under Model B —
+    // from here on the status means something, and a later failed assessment keeps
+    // the student at READY_FOR_ASSESSMENT rather than lying with LEARNING.
     await tx.studentBadge.update({
       where: { id: studentBadge.id },
-      data: { status: BadgeStatus.READY_FOR_ASSESSMENT },
+      data: {
+        status: BadgeStatus.READY_FOR_ASSESSMENT,
+        qevPassedAt: studentBadge.qevPassedAt ?? new Date(),
+      },
     });
     readyForAssessment = true;
   }
