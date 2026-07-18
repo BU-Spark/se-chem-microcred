@@ -4,6 +4,7 @@ import { currentUser } from '@clerk/nextjs/server';
 
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import { normalizeCheckpointQuestion, type NormalizedCheckpointQuestion } from '@/lib/checkpointQuestions';
+import { resolveEffectiveBadgePolicy } from '@/lib/badgePolicy';
 import prisma from '@/lib/prisma';
 
 function normalizeEmail(email?: string | null) {
@@ -374,12 +375,20 @@ export async function GET(
                     reassessmentLimit: true,
                     cooldownDays: true,
                     reassessmentRequired: true,
+                    qevPassedAt: true,
+                    cooldownUntil: true,
+                    feedbackReviewedAt: true,
                     badge: {
                       select: {
                         id: true,
                         slug: true,
                         name: true,
                         description: true,
+                        // Badge-level policy defaults; the effective policy for this
+                        // student resolves overrides against them (lib/badgePolicy).
+                        reassessmentLimit: true,
+                        cooldownDays: true,
+                        reassessmentRequired: true,
                       },
                     },
                   },
@@ -461,9 +470,11 @@ export async function GET(
     const precheckComplete = badgeProgress.status !== 'LEARNING';
     const latestPassingAssessment = [...assessmentAttempts].reverse().find((attempt) => attempt.passed);
     const latestAssessment = assessmentAttempts.at(-1) ?? null;
+    // IN_REVIEW covers both the pass-pending-acknowledge and fail-pending-acknowledge
+    // states; a passing attempt (or COMPLETED) is what marks the assessment done.
     const assessmentComplete =
       badgeProgress.status === 'COMPLETED' ||
-      badgeProgress.status === 'READY_FOR_FINALIZATION' ||
+      (badgeProgress.status === 'IN_REVIEW' && Boolean(latestPassingAssessment)) ||
       Boolean(latestPassingAssessment);
     const percentComplete =
       totalCheckpoints === 0
@@ -560,9 +571,15 @@ export async function GET(
           status: badgeProgress.status,
           awardedAt: badgeProgress.awardedAt?.toISOString() ?? null,
           score: badgeProgress.score ?? null,
+          qevPassedAt: badgeProgress.qevPassedAt?.toISOString() ?? null,
+          cooldownUntil: badgeProgress.cooldownUntil?.toISOString() ?? null,
+          feedbackReviewedAt: badgeProgress.feedbackReviewedAt?.toISOString() ?? null,
+          // Raw per-student overrides (null = inherit) for the config editor …
           reassessmentLimit: badgeProgress.reassessmentLimit ?? null,
           cooldownDays: badgeProgress.cooldownDays ?? null,
           reassessmentRequired: badgeProgress.reassessmentRequired ?? null,
+          // … and the resolved policy that actually applies to this student.
+          effectivePolicy: resolveEffectiveBadgePolicy(badgeProgress, badgeProgress.badge),
           allowCooldownOverride: course.settings?.allowCooldownOverride ?? false,
         },
         progress: {
@@ -783,7 +800,11 @@ export async function POST(
     const score = pointsPossible > 0 ? Math.round((pointsEarned / pointsPossible) * 100) : passed ? 100 : 0;
 
     const completedAt = new Date();
-    const nextStatus = passed ? BadgeStatus.READY_FOR_FINALIZATION : BadgeStatus.LEARNING;
+    // Submitting an attempt always lands the badge in IN_REVIEW — pass or fail. The
+    // pass/fail outcome is derived from the latest attempt, not stored in the enum,
+    // and the badge only leaves IN_REVIEW once the student acknowledges feedback
+    // (pass-path rate → COMPLETED, fail-path acknowledge → READY_FOR_ASSESSMENT/LOCKED).
+    const nextStatus = BadgeStatus.IN_REVIEW;
 
     type TaskResponseData = {
       taskId: string | null;
