@@ -554,8 +554,9 @@ const badgeSeeds = [
     description: 'Set up and maintain a compliant lab notebook.',
 
     lessonSlug: 'lab-notebook',
-    // Ready for the assessor to grade — this is the assessor's queue.
-    studentStatus: { status: BadgeStatus.READY_FOR_ASSESSMENT },
+    // Ready for the assessor to grade — this is the assessor's queue. QEV is
+    // cleared, so qevPassedAt is stamped.
+    studentStatus: { status: BadgeStatus.READY_FOR_ASSESSMENT, qevPassedAt: new Date('2025-02-18T15:00:00.000Z') },
   },
   {
     slug: 'volumetric-stock-badge',
@@ -563,8 +564,14 @@ const badgeSeeds = [
     description: 'Prepare accurate stock solutions with volumetric glassware.',
 
     lessonSlug: 'volumetric-stock-solutions',
-    // Passed assessment — student still owes the finalization survey.
-    studentStatus: { status: BadgeStatus.READY_FOR_FINALIZATION, score: 92 },
+    // Passed assessment, awaiting the student's acknowledge + rating — a passing
+    // IN_REVIEW badge. Seed the passing attempt so the pass/fail split derives.
+    studentStatus: {
+      status: BadgeStatus.IN_REVIEW,
+      score: 92,
+      qevPassedAt: new Date('2025-02-18T15:00:00.000Z'),
+      attempt: { passed: true, score: 92 },
+    },
   },
   {
     slug: 'general-waste-badge',
@@ -576,6 +583,9 @@ const badgeSeeds = [
       status: BadgeStatus.COMPLETED,
       awardedAt: new Date('2025-02-20T17:00:00.000Z'),
       score: 96,
+      qevPassedAt: new Date('2025-02-18T15:00:00.000Z'),
+      feedbackReviewedAt: new Date('2025-02-20T17:00:00.000Z'),
+      attempt: { passed: true, score: 96, completedAt: new Date('2025-02-19T16:00:00.000Z') },
     },
   },
 ];
@@ -974,7 +984,7 @@ async function buildLessonProgress(student, lessonBySlug) {
   }
 }
 
-async function buildBadges(student, lessonBySlug) {
+async function buildBadges(student, lessonBySlug, { course, assessor }) {
   const badgeBySlug = new Map();
 
   for (const badgeSeed of badgeSeeds) {
@@ -998,13 +1008,34 @@ async function buildBadges(student, lessonBySlug) {
       });
     }
 
+    const seededStatus = badgeSeed.studentStatus;
+
+    // Seed the assessment attempt first so the badge's pass/fail sub-state (used to
+    // split IN_REVIEW) derives from real attempt history.
+    if (seededStatus.attempt) {
+      await prisma.assessmentAttempt.create({
+        data: {
+          courseId: course.id,
+          badgeId: badge.id,
+          studentId: student.id,
+          assessorId: assessor.id,
+          passed: seededStatus.attempt.passed,
+          score: seededStatus.attempt.score ?? seededStatus.score ?? null,
+          completedAt: seededStatus.attempt.completedAt ?? new Date(),
+        },
+      });
+    }
+
     await prisma.studentBadge.create({
       data: {
         studentId: student.id,
         badgeId: badge.id,
-        status: badgeSeed.studentStatus.status,
-        awardedAt: badgeSeed.studentStatus.awardedAt,
-        score: badgeSeed.studentStatus.score,
+        status: seededStatus.status,
+        awardedAt: seededStatus.awardedAt,
+        score: seededStatus.score,
+        qevPassedAt: seededStatus.qevPassedAt,
+        cooldownUntil: seededStatus.cooldownUntil,
+        feedbackReviewedAt: seededStatus.feedbackReviewedAt,
       },
     });
   }
@@ -1133,7 +1164,7 @@ async function main() {
 
   const lessonBySlug = await buildLessons(course);
   await buildLessonProgress(people.student, lessonBySlug);
-  const badgeBySlug = await buildBadges(people.student, lessonBySlug);
+  const badgeBySlug = await buildBadges(people.student, lessonBySlug, { course, assessor: people.checker });
   await buildCourseContacts(course);
   await buildSurveys(people.student, lessonBySlug, badgeBySlug);
   await ensureAnalytics(people);
