@@ -3,6 +3,8 @@ import { currentUser } from '@clerk/nextjs/server';
 import { BadgeStatus } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
+import { resolveEffectiveBadgePolicy } from '@/lib/badgePolicy';
+import { resolveFailAcknowledge } from '@/lib/badgeState';
 
 type RouteContext = {
   params: Promise<{
@@ -189,6 +191,18 @@ export async function POST(_request: Request, context: RouteContext) {
     select: {
       id: true,
       status: true,
+      cooldownUntil: true,
+      feedbackReviewedAt: true,
+      reassessmentLimit: true,
+      cooldownDays: true,
+      reassessmentRequired: true,
+      badge: {
+        select: {
+          reassessmentLimit: true,
+          cooldownDays: true,
+          reassessmentRequired: true,
+        },
+      },
     },
   });
 
@@ -196,32 +210,50 @@ export async function POST(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Badge enrollment not found.' }, { status: 404 });
   }
 
-  if (studentBadge.status === BadgeStatus.READY_FOR_ASSESSMENT) {
+  // Acknowledging a failed attempt is idempotent: once the fail path has already
+  // routed the badge to READY_FOR_ASSESSMENT (retry) or LOCKED (terminal), replay
+  // the current status instead of erroring.
+  if (studentBadge.status === BadgeStatus.READY_FOR_ASSESSMENT || studentBadge.status === BadgeStatus.LOCKED) {
     return NextResponse.json({ status: studentBadge.status }, { status: 200 });
   }
 
-  if (studentBadge.status !== BadgeStatus.LEARNING) {
+  if (studentBadge.status !== BadgeStatus.IN_REVIEW) {
     return NextResponse.json({ error: 'Badge feedback is not reviewable in its current status.' }, { status: 409 });
   }
 
-  const latestAttempt = await prisma.assessmentAttempt.findFirst({
-    where: {
-      studentId: student.id,
-      badgeId,
-    },
-    orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
-    select: { passed: true },
-  });
+  const [latestAttempt, failedAttempts] = await Promise.all([
+    prisma.assessmentAttempt.findFirst({
+      where: { studentId: student.id, badgeId },
+      orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
+      select: { passed: true },
+    }),
+    prisma.assessmentAttempt.count({
+      where: { studentId: student.id, badgeId, passed: false },
+    }),
+  ]);
 
+  // The pass path acknowledges + rates through the survey route → COMPLETED; the
+  // feedback route only handles the fail path.
   if (latestAttempt?.passed !== false) {
     return NextResponse.json({ error: 'No failed assessment feedback is available to review.' }, { status: 409 });
   }
 
+  const policy = resolveEffectiveBadgePolicy(studentBadge, studentBadge.badge);
+  const now = new Date();
+  const transition = resolveFailAcknowledge(failedAttempts, policy, now);
+
   const updated = await prisma.studentBadge.update({
     where: { id: studentBadge.id },
-    data: { status: BadgeStatus.READY_FOR_ASSESSMENT },
-    select: { status: true },
+    data: {
+      status: transition.status,
+      cooldownUntil: transition.cooldownUntil,
+      feedbackReviewedAt: studentBadge.feedbackReviewedAt ?? now,
+    },
+    select: { status: true, cooldownUntil: true },
   });
 
-  return NextResponse.json({ status: updated.status }, { status: 200 });
+  return NextResponse.json(
+    { status: updated.status, cooldownUntil: updated.cooldownUntil?.toISOString() ?? null },
+    { status: 200 }
+  );
 }
