@@ -116,6 +116,10 @@ export async function POST(_request: Request, context: RouteContext) {
         },
       });
 
+      // Failing a required lesson un-clears QEV: knock the badge back to LEARNING
+      // and drop qevPassedAt so the milestone doesn't claim a pass the student no
+      // longer has. Only badges still waiting to be assessed are affected — an
+      // already-assessed badge (IN_REVIEW/COMPLETED/LOCKED) isn't reset here.
       await tx.studentBadge.updateMany({
         where: {
           studentId: user.id,
@@ -126,7 +130,7 @@ export async function POST(_request: Request, context: RouteContext) {
             },
           },
         },
-        data: { status: BadgeStatus.LEARNING },
+        data: { status: BadgeStatus.LEARNING, qevPassedAt: null, cooldownUntil: null },
       });
     }
 
