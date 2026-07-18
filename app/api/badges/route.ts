@@ -64,6 +64,9 @@ type CreateBadgePayload = {
   passingPercent?: number | string | null;
   checkpoints?: CheckpointPayload[] | null;
   rubricGoal?: RubricGoalPayload | null;
+  reassessmentLimit?: number | string | null;
+  cooldownDays?: number | string | null;
+  reassessmentRequired?: boolean | null;
 };
 
 type UpdateBadgePayload = {
@@ -80,6 +83,9 @@ type UpdateBadgePayload = {
   videoTitle?: string | null;
   videoLength?: string | null;
   passingPercent?: number | string | null;
+  reassessmentLimit?: number | string | null;
+  cooldownDays?: number | string | null;
+  reassessmentRequired?: boolean | null;
 };
 
 function normalizeString(value?: string | null) {
@@ -120,6 +126,33 @@ function normalizeSkills(skills?: string[] | null) {
 
 function formatQuestionCount(count: number) {
   return `${count} question${count === 1 ? '' : 's'}`;
+}
+
+// Authored assessment-policy defaults stored on the Badge. Mirrors the clamps the
+// per-student override route applies (reassessmentLimit >= 0, cooldownDays 0–14).
+// Returns Prisma-ready values; an omitted field stays out of the write entirely.
+function normalizeBadgePolicy(payload: {
+  reassessmentLimit?: number | string | null;
+  cooldownDays?: number | string | null;
+  reassessmentRequired?: boolean | null;
+}) {
+  const data: { reassessmentLimit?: number; cooldownDays?: number; reassessmentRequired?: boolean } = {};
+
+  const limit = parseFiniteNumber(payload.reassessmentLimit);
+  if (limit !== null) {
+    data.reassessmentLimit = Math.max(0, Math.round(limit));
+  }
+
+  const cooldown = parseFiniteNumber(payload.cooldownDays);
+  if (cooldown !== null) {
+    data.cooldownDays = Math.min(14, Math.max(0, Math.round(cooldown)));
+  }
+
+  if (typeof payload.reassessmentRequired === 'boolean') {
+    data.reassessmentRequired = payload.reassessmentRequired;
+  }
+
+  return data;
 }
 
 function slugify(value: string) {
@@ -719,6 +752,7 @@ export async function PATCH(req: NextRequest) {
     const videoLength = normalizeString(body.videoLength);
     const videoDurationSeconds = parseTimeToSeconds(videoLength);
     const passingPercent = normalizePassingPercent(body.passingPercent);
+    const badgePolicy = normalizeBadgePolicy(body);
     const videoId = extractYouTubeId(youtubeUrl);
     const thumbnailUrl = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
 
@@ -741,6 +775,7 @@ export async function PATCH(req: NextRequest) {
           availableOn,
           closesOn,
           neverCloses,
+          ...badgePolicy,
         },
         select: {
           id: true,
@@ -761,7 +796,7 @@ export async function PATCH(req: NextRequest) {
           OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }],
           NOT: { id: badge.id },
         },
-        data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses },
+        data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses, ...badgePolicy },
       });
 
       const firstRequirement = await tx.badgeRequirement.findFirst({
@@ -1014,6 +1049,10 @@ export async function POST(req: NextRequest) {
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
     const passingPercent = normalizePassingPercent(body.passingPercent);
+    // Authored assessment-policy defaults live on the Badge and flow to students
+    // via inheritance (lib/badgePolicy). Previously the form collected these but
+    // the create route dropped them, so the policy never reached the student.
+    const badgePolicy = normalizeBadgePolicy(body);
     // Per-badge content window (shared across students). neverCloses === true
     // means the badge never closes; closesOn is ignored and dueDate is null.
     const neverCloses = body.neverCloses ?? null;
@@ -1090,6 +1129,7 @@ export async function POST(req: NextRequest) {
             closesOn,
             neverCloses,
             createdById: creator.id,
+            ...badgePolicy,
           },
           select: {
             id: true,
@@ -1130,6 +1170,7 @@ export async function POST(req: NextRequest) {
               neverCloses,
               createdById: creator.id,
               sourceBadgeId: sourceBadge.id,
+              ...badgePolicy,
             },
             select: {
               id: true,
