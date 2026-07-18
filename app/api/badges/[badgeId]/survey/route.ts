@@ -65,7 +65,20 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ status: studentBadge.status }, { status: 200 });
   }
 
-  if (studentBadge.status !== BadgeStatus.READY_FOR_FINALIZATION) {
+  // Finalization is the pass-path acknowledge+rate: it applies only while the badge
+  // sits in IN_REVIEW on a passing attempt. A failed IN_REVIEW attempt acknowledges
+  // through the feedback route instead, so guard against finalizing a fail.
+  if (studentBadge.status !== BadgeStatus.IN_REVIEW) {
+    return NextResponse.json({ error: 'Badge is not ready for finalization.' }, { status: 409 });
+  }
+
+  const latestAttempt = await prisma.assessmentAttempt.findFirst({
+    where: { studentId: user.id, badgeId },
+    orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
+    select: { passed: true },
+  });
+
+  if (latestAttempt?.passed !== true) {
     return NextResponse.json({ error: 'Badge is not ready for finalization.' }, { status: 409 });
   }
 
@@ -103,11 +116,15 @@ export async function POST(request: Request, context: RouteContext) {
       }
     }
 
+    // Submitting the rating is the single action that finalizes: it acknowledges
+    // the feedback and awards the badge together (pass-path acknowledge + rate).
+    const finalizedAt = new Date();
     return tx.studentBadge.update({
       where: { id: studentBadge.id },
       data: {
         status: BadgeStatus.COMPLETED,
-        awardedAt: studentBadge.awardedAt ?? new Date(),
+        awardedAt: studentBadge.awardedAt ?? finalizedAt,
+        feedbackReviewedAt: studentBadge.feedbackReviewedAt ?? finalizedAt,
       },
     });
   });
