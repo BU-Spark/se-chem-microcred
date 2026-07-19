@@ -14,9 +14,53 @@ import { toTitleCase } from '@/lib/utils';
 const BADGE_STATUS_LABEL: Record<string, string> = {
   LEARNING: 'Still learning',
   READY_FOR_ASSESSMENT: 'Ready for assessment',
-  READY_FOR_FINALIZATION: 'Ready to be finalized',
+  IN_REVIEW: 'In review',
   COMPLETED: 'Completed',
+  LOCKED: 'Locked',
 };
+
+function formatDate(iso: string | null) {
+  if (!iso) return null;
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Derive the cooldown panel from real data: the last attempt time, the cooldown
+// end (now < cooldownUntil == blocked), and a fill fraction across the window.
+function describeCooldown({
+  cooldownUntil,
+  lastCompletedAt,
+  now = Date.now(),
+}: {
+  cooldownUntil: string | null;
+  lastCompletedAt: string | null;
+  now?: number;
+}) {
+  const lastLabel = formatDate(lastCompletedAt) ?? 'N/A';
+  const until = cooldownUntil ? new Date(cooldownUntil).getTime() : null;
+  const active = until !== null && !Number.isNaN(until) && now < until;
+
+  if (!active || until === null) {
+    return { active: false, lastLabel, remainingLabel: 'Available now', nextLabel: 'Now', progressPercent: 100 };
+  }
+
+  const msRemaining = until - now;
+  const dayMs = 24 * 60 * 60 * 1000;
+  const daysRemaining = Math.ceil(msRemaining / dayMs);
+  const remainingLabel =
+    daysRemaining >= 1
+      ? `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} remaining`
+      : `${Math.max(1, Math.ceil(msRemaining / (60 * 60 * 1000)))} hour${msRemaining <= 60 * 60 * 1000 ? '' : 's'} remaining`;
+
+  const start = lastCompletedAt ? new Date(lastCompletedAt).getTime() : null;
+  const progressPercent =
+    start !== null && !Number.isNaN(start) && until > start
+      ? Math.min(100, Math.max(0, Math.round(((now - start) / (until - start)) * 100)))
+      : 0;
+
+  return { active: true, lastLabel, remainingLabel, nextLabel: formatDate(cooldownUntil) ?? 'TBD', progressPercent };
+}
 
 type FeedbackDetail = {
   badge: {
@@ -27,6 +71,8 @@ type FeedbackDetail = {
     status: BadgeRecord['status'];
     score: number | null;
     awardedAt: string | null;
+    cooldownUntil: string | null;
+    cooldownDays: number;
   };
   rubric: {
     goalId: string;
@@ -77,6 +123,9 @@ export default function BadgeFeedbackPage() {
   const [feedbackDetail, setFeedbackDetail] = useState<FeedbackDetail | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [reviewedStatus, setReviewedStatus] = useState<BadgeRecord['status'] | null>(null);
+  // cooldownUntil returned by the acknowledge POST — the freshest value, since the
+  // fail-path transition computes it at acknowledge time.
+  const [reviewedCooldownUntil, setReviewedCooldownUntil] = useState<string | null>(null);
   const [reviewRequestState, setReviewRequestState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress, requestedCourseId);
 
@@ -87,7 +136,8 @@ export default function BadgeFeedbackPage() {
     return [
       ...studentData.badges.learning,
       ...studentData.badges.readyForAssessment,
-      ...studentData.badges.readyForFinalization,
+      ...studentData.badges.inReview,
+      ...studentData.badges.locked,
       ...studentData.badges.completed,
     ];
   }, [studentData]);
@@ -98,7 +148,6 @@ export default function BadgeFeedbackPage() {
     return {
       title: badge.name,
       feedback: badge.description ?? 'We are still preparing detailed feedback for this badge.',
-      cooldown: { last: 'N/A', remaining: 'Feedback pending', next: 'TBD' },
       lessonSummary:
         'We are preparing detailed review points for this badge. In the meantime, revisit your lesson checkpoints.',
       checkpoints: [] as Array<{ title: string; image: string; subtitle: string; duration: string }>,
@@ -121,6 +170,7 @@ export default function BadgeFeedbackPage() {
       setFeedbackDetail(null);
       setFeedbackError(null);
       setReviewedStatus(null);
+      setReviewedCooldownUntil(null);
       setReviewRequestState('idle');
       return;
     }
@@ -129,6 +179,7 @@ export default function BadgeFeedbackPage() {
     setFeedbackDetail(null);
     setFeedbackError(null);
     setReviewedStatus(null);
+    setReviewedCooldownUntil(null);
     setReviewRequestState('idle');
 
     fetch(`/api/badges/${badge.id}/feedback`)
@@ -153,10 +204,13 @@ export default function BadgeFeedbackPage() {
   }, [badge]);
 
   useEffect(() => {
+    // A failed attempt sits at IN_REVIEW until the student acknowledges it here.
+    // Acknowledging routes the badge to READY_FOR_ASSESSMENT (retry, gated by
+    // cooldown) or LOCKED. The pass path acknowledges + rates via the survey modal.
     if (
       !badge ||
       !feedbackDetail ||
-      feedbackDetail.badge.status !== 'LEARNING' ||
+      feedbackDetail.badge.status !== 'IN_REVIEW' ||
       feedbackDetail.latestAttempt?.passed !== false ||
       reviewRequestState !== 'idle'
     ) {
@@ -174,6 +228,7 @@ export default function BadgeFeedbackPage() {
         }
         if (!isCancelled) {
           setReviewedStatus(payload.status as BadgeRecord['status']);
+          setReviewedCooldownUntil((payload.cooldownUntil as string | null) ?? null);
           setReviewRequestState('done');
         }
       })
@@ -259,6 +314,13 @@ export default function BadgeFeedbackPage() {
   const displayedStatus = reviewedStatus ?? feedbackDetail?.badge.status ?? badge.status;
   const latestAttempt = feedbackDetail?.latestAttempt ?? null;
   const rubric = feedbackDetail?.rubric ?? null;
+  // Prefer the freshest cooldown: the acknowledge POST computes it at review time,
+  // then the feedback GET, then the (possibly stale) student-data snapshot.
+  const cooldownUntil = reviewedCooldownUntil ?? feedbackDetail?.badge.cooldownUntil ?? badge.cooldownUntil ?? null;
+  const cooldown = describeCooldown({
+    cooldownUntil,
+    lastCompletedAt: latestAttempt?.completedAt ?? null,
+  });
   const responseByKey = new Map(
     latestAttempt?.responses.map((response) => [`${response.subgoalText}::${response.taskText}`, response]) ?? []
   );
@@ -283,7 +345,11 @@ export default function BadgeFeedbackPage() {
             <p>{content.feedback}</p>
             {reviewRequestState === 'pending' ? <p>Marking feedback reviewed...</p> : null}
             {reviewRequestState === 'done' ? (
-              <p>Your feedback has been reviewed. This badge is ready for reassessment.</p>
+              <p>
+                {reviewedStatus === 'LOCKED'
+                  ? "Your feedback has been reviewed. You've used every assessment attempt for this badge."
+                  : 'Your feedback has been reviewed. This badge is ready for reassessment.'}
+              </p>
             ) : null}
             {feedbackError ? <p>{feedbackError}</p> : null}
           </div>
@@ -344,18 +410,20 @@ export default function BadgeFeedbackPage() {
             )}
           </div>
 
-          {badge.status === 'READY_FOR_ASSESSMENT' ? (
+          {displayedStatus === 'READY_FOR_ASSESSMENT' ? (
             <div className={styles.cooldown}>
               <h3>Cooldown</h3>
-              <div className={styles.cooldownBar} />
+              <div className={styles.cooldownBar}>
+                <div className={styles.cooldownBarFill} style={{ width: `${cooldown.progressPercent}%` }} />
+              </div>
               <div className={styles.cooldownMeta}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{content.cooldown.last}</div>
+                  <div style={{ fontWeight: 600 }}>{cooldown.lastLabel}</div>
                   <div style={{ opacity: 0.7, fontSize: '0.9rem' }}>Last assessment</div>
                 </div>
-                <div style={{ textAlign: 'center' }}>{content.cooldown.remaining}</div>
+                <div style={{ textAlign: 'center' }}>{cooldown.remainingLabel}</div>
                 <div>
-                  <div style={{ fontWeight: 600 }}>{content.cooldown.next}</div>
+                  <div style={{ fontWeight: 600 }}>{cooldown.nextLabel}</div>
                   <div style={{ opacity: 0.7, fontSize: '0.9rem' }}>Next attempt window</div>
                 </div>
               </div>
