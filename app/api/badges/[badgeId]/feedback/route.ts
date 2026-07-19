@@ -87,12 +87,20 @@ export async function GET(_request: Request, context: RouteContext) {
       status: true,
       score: true,
       awardedAt: true,
+      cooldownUntil: true,
+      // Per-student policy overrides, resolved against the badge defaults below.
+      reassessmentLimit: true,
+      cooldownDays: true,
+      reassessmentRequired: true,
       badge: {
         select: {
           id: true,
           slug: true,
           name: true,
           description: true,
+          reassessmentLimit: true,
+          cooldownDays: true,
+          reassessmentRequired: true,
           rubricGoal: {
             select: {
               id: true,
@@ -135,6 +143,8 @@ export async function GET(_request: Request, context: RouteContext) {
     select: latestAttemptSelect(),
   });
 
+  const effectivePolicy = resolveEffectiveBadgePolicy(studentBadge, studentBadge.badge);
+
   return NextResponse.json({
     badge: {
       id: studentBadge.badge.id,
@@ -144,6 +154,9 @@ export async function GET(_request: Request, context: RouteContext) {
       status: studentBadge.status,
       score: studentBadge.score,
       awardedAt: studentBadge.awardedAt?.toISOString() ?? null,
+      cooldownUntil: studentBadge.cooldownUntil?.toISOString() ?? null,
+      // Effective cooldown length (days), so the client can render the full window.
+      cooldownDays: effectivePolicy.cooldownDays,
     },
     rubric: studentBadge.badge.rubricGoal
       ? {

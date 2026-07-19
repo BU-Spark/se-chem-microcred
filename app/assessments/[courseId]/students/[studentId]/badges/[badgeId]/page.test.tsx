@@ -130,7 +130,7 @@ describe('Assessment readiness page', () => {
               score: 100,
               completedAt: '2026-06-24T20:00:00.000Z',
             },
-            status: 'READY_FOR_FINALIZATION',
+            status: 'IN_REVIEW',
           }),
         };
       }
@@ -304,7 +304,7 @@ describe('Assessment readiness page', () => {
             ...createBadgePayload(),
             badge: {
               ...createBadgePayload().badge,
-              status: 'READY_FOR_FINALIZATION',
+              status: 'IN_REVIEW',
             },
             progress: {
               ...createBadgePayload().progress,

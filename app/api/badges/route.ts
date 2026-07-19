@@ -596,6 +596,9 @@ export async function GET(req: NextRequest) {
         availableOn: true,
         closesOn: true,
         neverCloses: true,
+        reassessmentLimit: true,
+        cooldownDays: true,
+        reassessmentRequired: true,
         createdAt: true,
         rubricGoal: {
           select: {
@@ -668,6 +671,10 @@ export async function GET(req: NextRequest) {
           availableOn: badge.availableOn?.toISOString() ?? null,
           closesOn: badge.closesOn?.toISOString() ?? null,
           neverCloses: badge.neverCloses ?? null,
+          // Authored assessment policy, so the editor can rehydrate these on edit.
+          reassessmentLimit: badge.reassessmentLimit ?? null,
+          cooldownDays: badge.cooldownDays ?? null,
+          reassessmentRequired: badge.reassessmentRequired ?? null,
           createdAt: badge.createdAt.toISOString(),
           assignedStudentCount: badge._count.studentProgress,
           rubricGoal: badge.rubricGoal,
