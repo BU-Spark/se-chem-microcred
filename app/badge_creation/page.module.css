@@ -334,6 +334,20 @@
   color: #000000;
 }
 
+/* Inline checkbox + label pairing (e.g. "Re-assessment Required"). */
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.checkboxRow input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
 .underlineInput {
   width: 486px;
   max-width: 100%;
