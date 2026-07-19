@@ -288,6 +288,8 @@ function createStudentData(): StudentData {
           status: 'COMPLETED',
           awardedAt: '2024-01-01T00:00:00.000Z',
           score: 95,
+          latestAttemptPassed: true,
+          cooldownUntil: null,
           requirements: [{ summary: 'Req', lessonSlug: 'lesson-1', lessonTitle: 'Lesson 1' }],
         },
       ],
@@ -303,10 +305,12 @@ function createStudentData(): StudentData {
           status: 'READY_FOR_ASSESSMENT',
           awardedAt: null,
           score: null,
+          latestAttemptPassed: null,
+          cooldownUntil: null,
           requirements: [{ summary: 'Req', lessonSlug: 'lesson-2', lessonTitle: 'Lesson 2' }],
         },
       ],
-      readyForFinalization: [
+      inReview: [
         {
           id: 'b3',
           slug: 'final-badge',
@@ -315,9 +319,12 @@ function createStudentData(): StudentData {
           name: 'Finalize Badge',
           description: 'Needs survey',
 
-          status: 'READY_FOR_FINALIZATION',
+          status: 'IN_REVIEW',
           awardedAt: null,
           score: null,
+          // Pass path: awaiting the student's acknowledge + rating to finalize.
+          latestAttemptPassed: true,
+          cooldownUntil: null,
           requirements: [{ summary: 'Req', lessonSlug: null, lessonTitle: null }],
         },
       ],
@@ -333,9 +340,12 @@ function createStudentData(): StudentData {
           status: 'LEARNING',
           awardedAt: null,
           score: null,
+          latestAttemptPassed: null,
+          cooldownUntil: null,
           requirements: [{ summary: 'Req', lessonSlug: null, lessonTitle: null }],
         },
       ],
+      locked: [],
       notStarted: [],
     },
     surveys: {
@@ -402,7 +412,7 @@ describe('Badge Wallet page', () => {
     render(<BadgeWalletPage />);
 
     expect(screen.getByText(/Completed Badges/i)).toBeInTheDocument();
-    expect(screen.getByText(/Ready to be Finalized/i)).toBeInTheDocument();
+    expect(screen.getByText(/In Review/i)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Bunsen Burner/i }));
     expect(screen.getByText(/Badge finalized/i)).toBeInTheDocument();

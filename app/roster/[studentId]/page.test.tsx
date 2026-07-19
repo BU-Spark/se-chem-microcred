@@ -83,7 +83,7 @@ function createStudentProfilePayload() {
           description: null,
         },
       ],
-      readyForFinalization: [] as Array<{
+      inReview: [] as Array<{
         id: string;
         slug: string;
         name: string;
@@ -371,10 +371,10 @@ describe('Roster member profile page', () => {
   it('shows assessment history for a badge ready for finalization', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
     const profilePayload = createStudentProfilePayload();
-    profilePayload.badges.readyForFinalization = [
+    profilePayload.badges.inReview = [
       {
         ...profilePayload.badges.inProgress[0],
-        status: 'READY_FOR_FINALIZATION',
+        status: 'IN_REVIEW',
       },
     ];
     profilePayload.badges.inProgress = [];
@@ -382,7 +382,7 @@ describe('Roster member profile page', () => {
     detailPayload.badge.id = 'badge-1';
     detailPayload.badge.slug = 'waste-handling';
     detailPayload.badge.name = 'Waste Handling';
-    detailPayload.badge.status = 'READY_FOR_FINALIZATION';
+    detailPayload.badge.status = 'IN_REVIEW';
 
     mockFetch.mockImplementation(async (input) => {
       const url = String(input);
@@ -410,10 +410,10 @@ describe('Roster member profile page', () => {
 
   it('lists assessment-passed badges in the ready for finalization section', async () => {
     const profilePayload = createStudentProfilePayload();
-    profilePayload.badges.readyForFinalization = [
+    profilePayload.badges.inReview = [
       {
         ...profilePayload.badges.inProgress[0],
-        status: 'READY_FOR_FINALIZATION',
+        status: 'IN_REVIEW',
       },
     ];
     profilePayload.badges.inProgress = [];
@@ -425,7 +425,7 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByRole('heading', { name: 'Ready for finalization' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'In review' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Waste Handling' })).toBeInTheDocument();
   });
 
@@ -545,7 +545,7 @@ describe('Roster member profile page', () => {
               description: null,
             },
           ],
-          readyForFinalization: [],
+          inReview: [],
           completed: [],
         },
       }),

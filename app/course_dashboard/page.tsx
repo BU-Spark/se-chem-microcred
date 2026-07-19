@@ -228,7 +228,13 @@ function HomePageContent() {
   const courseDescription = studentData?.course?.description ?? '';
   const courseContacts = studentData?.course?.contacts ?? [];
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
-  const readyForFinalization = useMemo(() => studentData?.badges?.readyForFinalization ?? [], [studentData]);
+  // Finalization is the pass-path of IN_REVIEW: a passing attempt awaiting the
+  // student's acknowledge + rating. Fail-path IN_REVIEW badges are handled on the
+  // feedback page, not here.
+  const readyForFinalization = useMemo(
+    () => (studentData?.badges?.inReview ?? []).filter((badge) => badge.latestAttemptPassed === true),
+    [studentData]
+  );
 
   // Merge both "ready" sources so neither hides the other, deduping by badgeId.
   // Pending survey entries win — they carry the real promptId/question.

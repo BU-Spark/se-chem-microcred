@@ -155,7 +155,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
   });
 
   it('rejects stale assessment submissions after a badge has already been assessed', async () => {
-    mockPrisma.course.findFirst.mockResolvedValue(courseFixture('READY_FOR_FINALIZATION'));
+    mockPrisma.course.findFirst.mockResolvedValue(courseFixture('IN_REVIEW'));
 
     const response = await POST(assessmentRequest({ tasks: allTasksPassed, override: null }), submitParams());
 
@@ -186,7 +186,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(body.attempt).toEqual(
       expect.objectContaining({ passed: true, score: 80, pointsEarned: 4, pointsPossible: 5 })
     );
-    expect(body.status).toBe('READY_FOR_FINALIZATION');
+    expect(body.status).toBe('IN_REVIEW');
 
     const createCall = mockTx.assessmentAttempt.create.mock.calls[0][0];
     expect(createCall.data.responses.create).toEqual([
@@ -224,7 +224,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(mockTx.studentBadge.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'progress-1' },
-        data: { status: 'READY_FOR_FINALIZATION', score: 80 },
+        data: { status: 'IN_REVIEW', score: 80 },
       })
     );
   });
@@ -250,7 +250,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(body.attempt).toEqual(
       expect.objectContaining({ passed: false, score: 40, pointsEarned: 2, pointsPossible: 5 })
     );
-    expect(body.status).toBe('LEARNING');
+    expect(body.status).toBe('IN_REVIEW');
   });
 
   it('rejects an override to still learning without feedback', async () => {
@@ -306,7 +306,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(body.attempt).toEqual(
       expect.objectContaining({ passed: false, score: 100, pointsEarned: 5, pointsPossible: 5 })
     );
-    expect(body.status).toBe('LEARNING');
+    expect(body.status).toBe('IN_REVIEW');
 
     const createCall = mockTx.assessmentAttempt.create.mock.calls[0][0];
     expect(createCall.data.feedback).toBe('Spilled acid and did not report it.');
@@ -334,7 +334,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
 
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.status).toBe('READY_FOR_FINALIZATION');
+    expect(body.status).toBe('IN_REVIEW');
     expect(mockPrisma.$transaction).toHaveBeenCalled();
   });
 

@@ -5,7 +5,7 @@ import { fetcher } from './lib/fetcher';
 
 type LessonStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 type SegmentStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
-type BadgeStatus = 'COMPLETED' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'LEARNING' | 'NOT_STARTED';
+type BadgeStatus = 'COMPLETED' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'LEARNING' | 'LOCKED' | 'NOT_STARTED';
 
 export interface StudentData {
   student: {
@@ -56,8 +56,11 @@ export interface StudentData {
   badges: {
     completed: BadgeRecord[];
     readyForAssessment: BadgeRecord[];
-    readyForFinalization: BadgeRecord[];
+    // IN_REVIEW badges (both pass-pending-rate and fail-pending-acknowledge). Split
+    // on BadgeRecord.latestAttemptPassed at the call site.
+    inReview: BadgeRecord[];
     learning: BadgeRecord[];
+    locked: BadgeRecord[];
     notStarted: BadgeRecord[];
   };
   surveys: {
@@ -157,6 +160,10 @@ export interface BadgeRecord {
   status: BadgeStatus;
   awardedAt: string | null;
   score: number | null;
+  // Latest assessment outcome, used to split IN_REVIEW into its pass/fail sub-states.
+  latestAttemptPassed: boolean | null;
+  // Reassessment cooldown end; assessment is blocked while now < cooldownUntil.
+  cooldownUntil: string | null;
   youtubeUrl: string | null;
   requirements: Array<{
     summary: string | null;

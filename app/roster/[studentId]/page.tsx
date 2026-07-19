@@ -74,7 +74,7 @@ type InstructorMemberProfileResponse = {
   badges: {
     inProgress: StudentProfileBadge[];
     notStarted: StudentProfileBadge[];
-    readyForFinalization: StudentProfileBadge[];
+    inReview: StudentProfileBadge[];
     completed: StudentProfileBadge[];
   };
 };
@@ -317,9 +317,9 @@ export default function InstructorStudentProfilePage() {
 
   const selectedBadgeTone: BadgeDetailTone | null = useMemo(() => {
     if (!selectedBadgeId || !data) return null;
-    const { inProgress, completed, readyForFinalization } = data.badges;
+    const { inProgress, completed, inReview } = data.badges;
     const matches = (list: { id: string }[]) => list.some((badge) => badge.id === selectedBadgeId);
-    if (matches(completed) || matches(readyForFinalization)) return 'completed';
+    if (matches(completed) || matches(inReview)) return 'completed';
     if (matches(inProgress)) return 'progress';
     return null;
   }, [data, selectedBadgeId]);
@@ -563,12 +563,8 @@ export default function InstructorStudentProfilePage() {
                     </section>
 
                     <section className={styles.badgeSection}>
-                      <h3 className={styles.badgeSectionTitle}>Ready for finalization</h3>
-                      <BadgeGrid
-                        badges={data.badges.readyForFinalization}
-                        tone="completed"
-                        onSelectBadge={handleBadgeSelect}
-                      />
+                      <h3 className={styles.badgeSectionTitle}>In review</h3>
+                      <BadgeGrid badges={data.badges.inReview} tone="completed" onSelectBadge={handleBadgeSelect} />
                     </section>
 
                     <section className={styles.badgeSection}>

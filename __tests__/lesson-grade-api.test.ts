@@ -110,7 +110,7 @@ describe('POST /api/lessons/[lessonId]/grade', () => {
           },
         },
       },
-      data: { status: BadgeStatus.LEARNING },
+      data: { status: BadgeStatus.LEARNING, qevPassedAt: null, cooldownUntil: null },
     });
   });
 });

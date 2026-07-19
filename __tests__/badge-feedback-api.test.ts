@@ -22,6 +22,7 @@ jest.mock('../lib/prisma', () => ({
     },
     assessmentAttempt: {
       findFirst: jest.fn(),
+      count: jest.fn(),
     },
   },
 }));
@@ -30,7 +31,7 @@ const mockCurrentUser = currentUser as jest.MockedFunction<typeof currentUser>;
 const mockPrisma = prisma as unknown as {
   user: { findUnique: jest.Mock };
   studentBadge: { findUnique: jest.Mock; update: jest.Mock };
-  assessmentAttempt: { findFirst: jest.Mock };
+  assessmentAttempt: { findFirst: jest.Mock; count: jest.Mock };
 };
 
 function routeContext() {
@@ -41,14 +42,24 @@ function routeContext() {
 
 const studentBadge = {
   id: 'student-badge-1',
-  status: BadgeStatus.LEARNING,
+  status: BadgeStatus.IN_REVIEW,
   score: 60,
   awardedAt: null,
+  cooldownUntil: null,
+  feedbackReviewedAt: null,
+  // Per-student override that allows retries so a single fail routes back to
+  // READY_FOR_ASSESSMENT rather than immediately LOCKED (systemDefault limit is 0).
+  reassessmentLimit: 2,
+  cooldownDays: 0,
+  reassessmentRequired: false,
   badge: {
     id: 'badge-1',
     slug: 'burner-badge',
     name: 'Burner Badge',
     description: 'Use a burner safely.',
+    reassessmentLimit: null,
+    cooldownDays: null,
+    reassessmentRequired: null,
     rubricGoal: {
       id: 'goal-1',
       name: 'Operate safely',
@@ -93,7 +104,11 @@ describe('/api/badges/[badgeId]/feedback', () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'student-1' });
     mockPrisma.studentBadge.findUnique.mockResolvedValue(studentBadge);
     mockPrisma.assessmentAttempt.findFirst.mockResolvedValue(failedAttempt);
-    mockPrisma.studentBadge.update.mockResolvedValue({ status: BadgeStatus.READY_FOR_ASSESSMENT });
+    mockPrisma.assessmentAttempt.count.mockResolvedValue(1);
+    mockPrisma.studentBadge.update.mockResolvedValue({
+      status: BadgeStatus.READY_FOR_ASSESSMENT,
+      cooldownUntil: null,
+    });
   });
 
   it('returns the latest assessor rubric feedback for the signed-in student', async () => {
@@ -102,27 +117,52 @@ describe('/api/badges/[badgeId]/feedback', () => {
 
     expect(response.status).toBe(200);
     expect(body.rubric.goalName).toBe('Operate safely');
+    // Cooldown + resolved effective policy travel to the client for the panel.
+    expect(body.badge).toEqual(expect.objectContaining({ cooldownUntil: null, cooldownDays: 0 }));
     expect(body.latestAttempt.passed).toBe(false);
     expect(body.latestAttempt.responses).toEqual([
       expect.objectContaining({ subgoalText: 'Wear PPE', feedback: 'Goggles were missing.' }),
     ]);
   });
 
-  it('moves a failed learning badge back to ready after feedback review', async () => {
+  it('acknowledges a failed in-review badge back to ready when retries remain', async () => {
     const response = await POST(new Request('http://localhost/api/badges/badge-1/feedback'), routeContext());
     const body = await response.json();
 
     expect(response.status).toBe(200);
     expect(body.status).toBe(BadgeStatus.READY_FOR_ASSESSMENT);
-    expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith({
-      where: { id: 'student-badge-1' },
-      data: { status: BadgeStatus.READY_FOR_ASSESSMENT },
-      select: { status: true },
-    });
+    expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'student-badge-1' },
+        data: expect.objectContaining({
+          status: BadgeStatus.READY_FOR_ASSESSMENT,
+          cooldownUntil: null,
+          feedbackReviewedAt: expect.any(Date),
+        }),
+      })
+    );
   });
 
-  it('does not move ordinary learning badges without failed assessment feedback', async () => {
+  it('locks the badge when the failed attempt exhausts the reassessment budget', async () => {
+    // reassessmentLimit 2 => total allowed 3; the 3rd failed attempt (count 3) locks.
+    mockPrisma.assessmentAttempt.count.mockResolvedValue(3);
+    mockPrisma.studentBadge.update.mockResolvedValue({ status: BadgeStatus.LOCKED, cooldownUntil: null });
+
+    const response = await POST(new Request('http://localhost/api/badges/badge-1/feedback'), routeContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe(BadgeStatus.LOCKED);
+    expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: BadgeStatus.LOCKED, cooldownUntil: null }),
+      })
+    );
+  });
+
+  it('does not acknowledge a badge with no failed assessment feedback', async () => {
     mockPrisma.assessmentAttempt.findFirst.mockResolvedValue(null);
+    mockPrisma.assessmentAttempt.count.mockResolvedValue(0);
 
     const response = await POST(new Request('http://localhost/api/badges/badge-1/feedback'), routeContext());
 

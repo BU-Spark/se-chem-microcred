@@ -64,9 +64,10 @@ describe('syncLessonBadgesForStudent', () => {
     const result = await syncLessonBadgesForStudent(tx as never, { studentId: 'student-1', lessonId: 'lesson-1' });
 
     expect(result.readyForAssessment).toBe(true);
+    // Clearing QEV stamps qevPassedAt alongside the status flip.
     expect(tx.studentBadge.update).toHaveBeenCalledWith({
       where: { id: 'student-badge-1' },
-      data: { status: BadgeStatus.READY_FOR_ASSESSMENT },
+      data: { status: BadgeStatus.READY_FOR_ASSESSMENT, qevPassedAt: expect.any(Date) },
     });
   });
 });
