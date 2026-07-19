@@ -303,6 +303,8 @@ export default function InstructorStudentProfilePage() {
   const [isCompletedOpen, setIsCompletedOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
+  const [isOverridingCooldown, setIsOverridingCooldown] = useState(false);
+  const [overrideError, setOverrideError] = useState<string | null>(null);
 
   const studentId = resolveParam(params?.studentId);
   const courseId = searchParams.get('courseId');
@@ -337,6 +339,41 @@ export default function InstructorStudentProfilePage() {
   );
   const selectedBadgeDisplayTone: BadgeDetailTone | null =
     selectedBadgeDetail?.progress.assessmentComplete === true ? 'completed' : selectedBadgeTone;
+
+  // A badge is in cooldown only after a failed in-person assessment: it sits at
+  // READY_FOR_ASSESSMENT with a future cooldownUntil. The assessor can clear that
+  // block with one click when the course allows cooldown overrides.
+  const selectedCooldownUntil = selectedBadgeDetail?.badge.cooldownUntil ?? null;
+  const isBadgeInCooldown =
+    selectedBadgeDetail?.badge.status === 'READY_FOR_ASSESSMENT' &&
+    Boolean(selectedCooldownUntil) &&
+    new Date(selectedCooldownUntil as string).getTime() > Date.now();
+  const canOverrideCooldown = isBadgeInCooldown && (selectedBadgeDetail?.badge.allowCooldownOverride ?? false);
+
+  const handleOverrideCooldown = useCallback(async () => {
+    if (!courseId || !studentId || !selectedBadgeId || !email) return;
+    setIsOverridingCooldown(true);
+    setOverrideError(null);
+    try {
+      const response = await fetch(
+        `/api/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(studentId)}/badges/${encodeURIComponent(selectedBadgeId)}?email=${encodeURIComponent(email)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ overrideCooldown: true }),
+        }
+      );
+      const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to override cooldown.');
+      }
+      void refreshBadgeDetail();
+    } catch (err) {
+      setOverrideError(err instanceof Error ? err.message : 'Unable to override cooldown.');
+    } finally {
+      setIsOverridingCooldown(false);
+    }
+  }, [courseId, studentId, selectedBadgeId, email, refreshBadgeDetail]);
 
   const buildProfileHref = useCallback(
     (badgeId?: string | null) => {
@@ -524,6 +561,16 @@ export default function InstructorStudentProfilePage() {
                           <button type="button" className={styles.assessmentLink} onClick={() => setIsConfigOpen(true)}>
                             Edit configurations
                           </button>
+                          {canOverrideCooldown ? (
+                            <button
+                              type="button"
+                              className={styles.assessmentLink}
+                              onClick={handleOverrideCooldown}
+                              disabled={isOverridingCooldown}
+                            >
+                              {isOverridingCooldown ? 'Overriding…' : 'Override cooldown — allow retake now'}
+                            </button>
+                          ) : null}
                           {selectedBadgeDisplayTone === 'progress' ? (
                             <Link
                               href={`/assessments/${courseId}/students/${studentId}/badges/${selectedBadgeId}`}
@@ -533,6 +580,7 @@ export default function InstructorStudentProfilePage() {
                             </Link>
                           ) : null}
                         </div>
+                        {overrideError ? <p className={styles.statusMessage}>{overrideError}</p> : null}
                       </>
                     ) : null}
                   </>
@@ -613,9 +661,7 @@ export default function InstructorStudentProfilePage() {
           email={email}
           initial={{
             reassessmentLimit: selectedBadgeDetail.badge.reassessmentLimit ?? null,
-            cooldownDays: selectedBadgeDetail.badge.cooldownDays ?? null,
             reassessmentRequired: selectedBadgeDetail.badge.reassessmentRequired ?? null,
-            allowCooldownOverride: selectedBadgeDetail.badge.allowCooldownOverride ?? false,
           }}
           onClose={() => setIsConfigOpen(false)}
           onSaved={() => {

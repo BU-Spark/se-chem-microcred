@@ -125,6 +125,28 @@ describe('/api/badges/[badgeId]/feedback', () => {
     ]);
   });
 
+  it('applies the badge-authored cooldown automatically when the student has no override', async () => {
+    // The instructor set a 3-day cooldown at badge creation; the student has no
+    // per-student override, so the effective cooldown inherits the badge's value.
+    mockPrisma.studentBadge.findUnique.mockResolvedValue({
+      ...studentBadge,
+      cooldownDays: null,
+      badge: { ...studentBadge.badge, cooldownDays: 3 },
+    });
+
+    const before = Date.now();
+    const response = await POST(new Request('http://localhost/api/badges/badge-1/feedback'), routeContext());
+
+    expect(response.status).toBe(200);
+    const updateArg = mockPrisma.studentBadge.update.mock.calls[0][0];
+    expect(updateArg.data.status).toBe(BadgeStatus.READY_FOR_ASSESSMENT);
+    // cooldownUntil lands ~3 days out (allow a little slack for test execution).
+    const dayMs = 24 * 60 * 60 * 1000;
+    const cooldownMs = new Date(updateArg.data.cooldownUntil).getTime() - before;
+    expect(cooldownMs).toBeGreaterThan(3 * dayMs - 5000);
+    expect(cooldownMs).toBeLessThanOrEqual(3 * dayMs + 5000);
+  });
+
   it('acknowledges a failed in-review badge back to ready when retries remain', async () => {
     const response = await POST(new Request('http://localhost/api/badges/badge-1/feedback'), routeContext());
     const body = await response.json();

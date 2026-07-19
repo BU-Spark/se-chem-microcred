@@ -7,9 +7,7 @@ import styles from './StudentBadgeConfigModal.module.css';
 
 export type StudentBadgeConfig = {
   reassessmentLimit: number | null;
-  cooldownDays: number | null;
   reassessmentRequired: boolean | null;
-  allowCooldownOverride: boolean;
 };
 
 const REASSESSMENT_OPTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -34,7 +32,6 @@ export function StudentBadgeConfigModal({
   onSaved: () => void;
 }) {
   const [reassessmentLimit, setReassessmentLimit] = useState<number>(initial.reassessmentLimit ?? 0);
-  const [cooldownDays, setCooldownDays] = useState<number>(initial.cooldownDays ?? 0);
   const [reassessmentRequired, setReassessmentRequired] = useState<boolean>(initial.reassessmentRequired ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,12 +46,7 @@ export function StudentBadgeConfigModal({
       const body: {
         reassessmentLimit: number;
         reassessmentRequired: boolean;
-        cooldownDays?: number;
       } = { reassessmentLimit, reassessmentRequired };
-      // Only send cooldown when the course allows overriding it.
-      if (initial.allowCooldownOverride) {
-        body.cooldownDays = cooldownDays;
-      }
 
       const response = await fetch(
         `/api/courses/${encodeURIComponent(courseId)}/students/${encodeURIComponent(studentId)}/badges/${encodeURIComponent(badgeId)}?email=${encodeURIComponent(email)}`,
@@ -107,28 +99,6 @@ export function StudentBadgeConfigModal({
               </option>
             ))}
           </select>
-        </div>
-
-        <div className={styles.field}>
-          <span className={styles.label}>Cooldown between reassessments</span>
-          <div className={styles.sliderRow}>
-            <input
-              className={styles.slider}
-              type="range"
-              min={0}
-              max={14}
-              value={cooldownDays}
-              disabled={!initial.allowCooldownOverride}
-              aria-label="Cooldown days"
-              onChange={(event) => setCooldownDays(Number(event.target.value))}
-            />
-            <span className={styles.sliderValue}>
-              {cooldownDays} day{cooldownDays === 1 ? '' : 's'}
-            </span>
-          </div>
-          {!initial.allowCooldownOverride && (
-            <p className={styles.hint}>Cooldown overrides are disabled for this course.</p>
-          )}
         </div>
 
         <div className={styles.field}>

@@ -904,12 +904,15 @@ export async function POST(
 
 type StudentBadgeConfigPayload = {
   reassessmentLimit?: unknown;
-  cooldownDays?: unknown;
   reassessmentRequired?: unknown;
+  // One-click assessor action: clear the cooldown so a student who failed the
+  // in-person assessment can re-assess immediately. The cooldown *length* is
+  // authored on the badge, not set per student here.
+  overrideCooldown?: unknown;
 };
 
-// Update per-student badge configuration (reassessment count, cooldown, and
-// whether reassessment is mandatory). Instructor/checker only.
+// Update per-student badge configuration (reassessment count, whether reassessment
+// is mandatory) and/or override an active cooldown. Instructor/checker only.
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ courseId: string; studentId: string; badgeId: string }> }
@@ -923,18 +926,16 @@ export async function PATCH(
 
     const body = ((await req.json().catch(() => null)) ?? {}) as StudentBadgeConfigPayload;
 
-    const data: { reassessmentLimit?: number; cooldownDays?: number; reassessmentRequired?: boolean } = {};
+    const data: { reassessmentLimit?: number; reassessmentRequired?: boolean; cooldownUntil?: null } = {};
     if (typeof body.reassessmentLimit === 'number' && Number.isFinite(body.reassessmentLimit)) {
       data.reassessmentLimit = Math.max(0, Math.round(body.reassessmentLimit));
-    }
-    if (typeof body.cooldownDays === 'number' && Number.isFinite(body.cooldownDays)) {
-      data.cooldownDays = Math.min(14, Math.max(0, Math.round(body.cooldownDays)));
     }
     if (typeof body.reassessmentRequired === 'boolean') {
       data.reassessmentRequired = body.reassessmentRequired;
     }
+    const wantsCooldownOverride = body.overrideCooldown === true;
 
-    if (Object.keys(data).length === 0) {
+    if (Object.keys(data).length === 0 && !wantsCooldownOverride) {
       return NextResponse.json({ error: 'No configuration fields provided.' }, { status: 400 });
     }
 
@@ -1006,9 +1007,14 @@ export async function PATCH(
       return gate.error;
     }
 
-    // Cooldown overrides require the course to opt in.
-    if (data.cooldownDays !== undefined && !course.settings?.allowCooldownOverride) {
-      return NextResponse.json({ error: 'Cooldown overrides are disabled for this course.' }, { status: 403 });
+    // Overriding the cooldown requires the course to opt in. When allowed, clearing
+    // cooldownUntil lets the student re-assess immediately (the QR/access-code gates
+    // read this same timestamp).
+    if (wantsCooldownOverride) {
+      if (!course.settings?.allowCooldownOverride) {
+        return NextResponse.json({ error: 'Cooldown overrides are disabled for this course.' }, { status: 403 });
+      }
+      data.cooldownUntil = null;
     }
 
     const badgeProgress = gate.badgeProgress;
@@ -1024,10 +1030,14 @@ export async function PATCH(
         reassessmentLimit: true,
         cooldownDays: true,
         reassessmentRequired: true,
+        cooldownUntil: true,
       },
     });
 
-    return NextResponse.json({ config: updated }, { status: 200 });
+    return NextResponse.json(
+      { config: { ...updated, cooldownUntil: updated.cooldownUntil?.toISOString() ?? null } },
+      { status: 200 }
+    );
   } catch (error) {
     console.error('PATCH /api/courses/[courseId]/students/[studentId]/badges/[badgeId] failed:', error);
 

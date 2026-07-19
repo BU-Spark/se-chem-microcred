@@ -3,7 +3,7 @@
 import { NextRequest } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 
-import { GET, POST } from '../app/api/courses/[courseId]/students/[studentId]/badges/[badgeId]/route';
+import { GET, PATCH, POST } from '../app/api/courses/[courseId]/students/[studentId]/badges/[badgeId]/route';
 import { fetchUserByEmail } from '../app/api/courses/lib/course-queries';
 import prisma from '../lib/prisma';
 
@@ -32,6 +32,9 @@ jest.mock('../lib/prisma', () => ({
     assessmentAttempt: {
       findMany: jest.fn(),
     },
+    studentBadge: {
+      update: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -42,6 +45,7 @@ const mockPrisma = prisma as unknown as {
   course: { findFirst: jest.Mock };
   rubricGoal: { findUnique: jest.Mock };
   assessmentAttempt: { findMany: jest.Mock };
+  studentBadge: { update: jest.Mock };
   $transaction: jest.Mock;
 };
 
@@ -527,5 +531,101 @@ describe('GET /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', ()
     expect(answeredTextByQuestionId.get('question-multi')).toBe('Goggles, Tie hair back');
     expect(answeredTextByQuestionId.get('question-numeric')).toBe('24.5');
     expect(answeredTextByQuestionId.get('question-numeric-legacy')).toBe('No answer recorded');
+  });
+});
+
+// Per-student config edits (reassessment count, cooldown, whether reassessment is
+// mandatory). The cooldown override is the assessor feature gated by the course's
+// allowCooldownOverride setting.
+function configRequest(body: unknown) {
+  return new NextRequest(
+    'http://localhost/api/courses/course-1/students/student-1/badges/badge-1?email=assessor@example.edu',
+    {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
+}
+
+// Course whose viewer (assessor-1) is an active CHECKER who may edit the student's
+// badge config. `allowCooldownOverride` toggles the cooldown-override gate.
+function configCourseFixture(allowCooldownOverride: boolean) {
+  return {
+    id: 'course-1',
+    createdById: 'creator-1',
+    settings: { allowCrossSectionView: true, allowCooldownOverride },
+    enrollments: [
+      {
+        role: 'CHECKER',
+        status: 'ACTIVE',
+        sections: [{ section: 'A1' }],
+        student: { id: 'assessor-1', badgeProgress: [] },
+      },
+      {
+        role: 'STUDENT',
+        status: 'ACTIVE',
+        sections: [{ section: 'A1' }],
+        student: { id: 'student-1', badgeProgress: [{ id: 'progress-1' }] },
+      },
+    ],
+  };
+}
+
+describe('PATCH /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCurrentUser.mockResolvedValue({
+      emailAddresses: [{ emailAddress: 'assessor@example.edu' }],
+    } as Awaited<ReturnType<typeof currentUser>>);
+    mockFetchUserByEmail.mockResolvedValue({ id: 'assessor-1' } as Awaited<ReturnType<typeof fetchUserByEmail>>);
+    mockPrisma.studentBadge.update.mockImplementation(({ data }) => Promise.resolve(data));
+  });
+
+  it('rejects a cooldown override when the course has not enabled it', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(configCourseFixture(false));
+
+    const response = await PATCH(configRequest({ overrideCooldown: true }), submitParams());
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: 'Cooldown overrides are disabled for this course.' });
+    expect(mockPrisma.studentBadge.update).not.toHaveBeenCalled();
+  });
+
+  it('clears the cooldown when overriding is allowed so the student can retake now', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(configCourseFixture(true));
+
+    const response = await PATCH(configRequest({ overrideCooldown: true }), submitParams());
+
+    expect(response.status).toBe(200);
+    expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'progress-1' },
+        data: { cooldownUntil: null },
+      })
+    );
+  });
+
+  it('updates the per-student config without touching the cooldown', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(configCourseFixture(false));
+
+    const response = await PATCH(configRequest({ reassessmentLimit: 2, reassessmentRequired: true }), submitParams());
+
+    expect(response.status).toBe(200);
+    expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'progress-1' },
+        data: { reassessmentLimit: 2, reassessmentRequired: true },
+      })
+    );
+  });
+
+  it('rejects a request with neither config fields nor an override', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(configCourseFixture(true));
+
+    const response = await PATCH(configRequest({}), submitParams());
+
+    expect(response.status).toBe(400);
+    expect(mockPrisma.studentBadge.update).not.toHaveBeenCalled();
   });
 });

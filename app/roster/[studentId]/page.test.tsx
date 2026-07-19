@@ -473,10 +473,72 @@ describe('Roster member profile page', () => {
       const patchCall = mockFetch.mock.calls.find((call) => call[1]?.method === 'PATCH');
       expect(patchCall).toBeTruthy();
       const body = JSON.parse(patchCall![1].body as string);
-      expect(body).toEqual(
-        expect.objectContaining({ reassessmentLimit: 3, reassessmentRequired: true, cooldownDays: 2 })
-      );
+      // The assessor sets reassessment count + requirement, but NOT the cooldown length.
+      expect(body).toEqual({ reassessmentLimit: 3, reassessmentRequired: true });
+      expect(body).not.toHaveProperty('cooldownDays');
     });
+  });
+
+  it('lets the assessor override an active cooldown so the student can retake now', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    const detailPayload = createInProgressBadgeDetailPayload() as ReturnType<
+      typeof createInProgressBadgeDetailPayload
+    > & {
+      badge: Record<string, unknown>;
+    };
+    // Failed the in-person assessment: READY_FOR_ASSESSMENT with a future cooldown.
+    detailPayload.badge.status = 'READY_FOR_ASSESSMENT';
+    detailPayload.badge.cooldownUntil = '2099-01-01T00:00:00.000Z';
+    detailPayload.badge.allowCooldownOverride = true;
+
+    mockFetch.mockImplementation(async (input: unknown, init?: { method?: string; body?: string }) => {
+      const url = String(input);
+
+      if (init?.method === 'PATCH') {
+        return { ok: true, json: async () => ({ config: { cooldownUntil: null } }) } as Response;
+      }
+      if (url.includes('/badges/badge-1')) {
+        return { ok: true, json: async () => detailPayload } as Response;
+      }
+      return { ok: true, json: async () => createStudentProfilePayload() } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByText('Answer History')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Override cooldown/i }));
+
+    await waitFor(() => {
+      const patchCall = mockFetch.mock.calls.find((call) => call[1]?.method === 'PATCH');
+      expect(patchCall).toBeTruthy();
+      expect(JSON.parse(patchCall![1].body as string)).toEqual({ overrideCooldown: true });
+    });
+  });
+
+  it('hides the cooldown override when the badge is not in cooldown', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    const detailPayload = createInProgressBadgeDetailPayload() as ReturnType<
+      typeof createInProgressBadgeDetailPayload
+    > & {
+      badge: Record<string, unknown>;
+    };
+    detailPayload.badge.status = 'READY_FOR_ASSESSMENT';
+    detailPayload.badge.cooldownUntil = null;
+    detailPayload.badge.allowCooldownOverride = true;
+
+    mockFetch.mockImplementation(async (input: unknown) => {
+      const url = String(input);
+      if (url.includes('/badges/badge-1')) {
+        return { ok: true, json: async () => detailPayload } as Response;
+      }
+      return { ok: true, json: async () => createStudentProfilePayload() } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByText('Answer History')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Override cooldown/i })).not.toBeInTheDocument();
   });
 
   it('loads and displays the selected assessor profile', async () => {
