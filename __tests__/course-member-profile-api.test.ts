@@ -5,16 +5,28 @@ import { BadgeStatus, CourseRole, EnrollmentStatus, LessonStatus } from '@prisma
 
 import { GET } from '../app/api/courses/[courseId]/students/[studentId]/route';
 import { fetchAccessibleCourseMemberDetail, fetchUserByEmail } from '../app/api/courses/lib/course-queries';
+import { prisma } from '../lib/prisma';
 
 jest.mock('../app/api/courses/lib/course-queries', () => ({
   fetchAccessibleCourseMemberDetail: jest.fn(),
   fetchUserByEmail: jest.fn(),
 }));
 
+jest.mock('../lib/prisma', () => {
+  const prisma = {
+    enrollment: {
+      findMany: jest.fn(),
+    },
+  };
+
+  return { __esModule: true, default: prisma, prisma };
+});
+
 const mockFetchAccessibleCourseMemberDetail = fetchAccessibleCourseMemberDetail as jest.MockedFunction<
   typeof fetchAccessibleCourseMemberDetail
 >;
 const mockFetchUserByEmail = fetchUserByEmail as jest.MockedFunction<typeof fetchUserByEmail>;
+const mockFindManyEnrollments = prisma.enrollment.findMany as jest.MockedFunction<typeof prisma.enrollment.findMany>;
 
 function profileRequest() {
   return new NextRequest('http://localhost/api/courses/course-1/students/student-1?email=prof%40example.edu');
@@ -153,6 +165,7 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
 describe('course member profile API badge grouping', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockFindManyEnrollments.mockResolvedValue([]);
     mockFetchUserByEmail.mockResolvedValue({
       id: 'prof-1',
       email: 'prof@example.edu',
