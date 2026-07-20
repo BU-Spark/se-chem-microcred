@@ -426,9 +426,6 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
           buid: true,
         },
       },
-      contacts: {
-        orderBy: [{ type: 'asc' }, { name: 'asc' }],
-      },
       lessons: {
         orderBy: { sortOrder: 'asc' },
         select: {

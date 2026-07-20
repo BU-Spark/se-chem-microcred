@@ -3,13 +3,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
+import { useDatabaseDisplayNameContext } from './DatabaseDisplayNameProvider';
 import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
-import sapphire from '@/public/edit_avatar/sapphire.svg';
-import ruby from '@/public/edit_avatar/ruby.svg';
-import emerald from '@/public/edit_avatar/emerald.svg';
-import amethyst from '@/public/edit_avatar/amethyst.svg';
-import styles from '@/app/page.module.css';
+import sapphire from '../../public/edit_avatar/sapphire.svg';
+import ruby from '../../public/edit_avatar/ruby.svg';
+import emerald from '../../public/edit_avatar/emerald.svg';
+import amethyst from '../../public/edit_avatar/amethyst.svg';
+import styles from '../page.module.css';
 
 const AVATAR_SRC: Record<string, typeof sapphire> = {
   SAPPHIRE: sapphire,

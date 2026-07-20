@@ -9,7 +9,9 @@ const customJestConfig: Config = {
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   testEnvironment: 'jest-environment-jsdom',
   moduleNameMapper: {
-    '^@/(.*)$': '<rootDir>/$1',
+    '^@/components/(.*)$': '<rootDir>/app/components/$1',
+    '^@/utils/(.*)$': '<rootDir>/app/utils/$1',
+    '^@/hooks/(.*)$': '<rootDir>/app/hooks/$1',
   },
   testMatch: ['**/__tests__/**/*.test.[jt]s?(x)', '**/?(*.)+(spec|test).[jt]s?(x)'],
   collectCoverageFrom: [

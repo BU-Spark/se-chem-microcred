@@ -4,9 +4,10 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import styles from './page.module.css';
 import { toTitleCase } from '@/lib/utils';
 
@@ -68,7 +69,7 @@ type FeedbackDetail = {
 export default function BadgeFeedbackPage() {
   const params = useParams<{ badgeSlug: string }>();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const router = useRouter();
   const searchParams = useSearchParams();
   const requestedCourseId = searchParams.get('courseId')?.trim() || null;

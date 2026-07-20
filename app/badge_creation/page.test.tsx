@@ -28,7 +28,7 @@ jest.mock('../hooks/useStudentData', () => ({
 }));
 
 jest.mock(
-  '@/app/components/RichText/RichTextEditor',
+  '../_components/RichTextEditor',
   () =>
     function MockRichTextEditor({
       ariaLabel,

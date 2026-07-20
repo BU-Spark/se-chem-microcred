@@ -19,7 +19,7 @@ import { LinkNode, AutoLinkNode } from '@lexical/link';
 import { $generateHtmlFromNodes, $generateNodesFromDOM } from '@lexical/html';
 import { $getRoot, $insertNodes, type EditorState, type LexicalEditor } from 'lexical';
 
-import ToolbarPlugin from '@/app/components/RichText/ToolbarPlugin';
+import ToolbarPlugin from './rich-text/ToolbarPlugin';
 
 interface RichTextEditorProps {
   /** Lexical namespace — keep unique if multiple editors share a page. */

@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import useSWR from 'swr';
+
+import { fetcher } from './lib/fetcher';
 
 type LessonStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 type SegmentStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -171,69 +174,53 @@ interface StudentApiResponse {
   surveys: StudentData['surveys'];
 }
 
-export function useStudentData(email?: string | null, courseId?: string | null) {
-  const [data, setData] = useState<StudentData | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+async function fetchStudentData(url: string): Promise<StudentApiResponse> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15000);
 
-  const fetchData = useCallback(async () => {
-    if (!email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 15000);
-
-      const params = new URLSearchParams({ email });
-      if (courseId) {
-        params.set('courseId', courseId);
-      }
-
-      const response = await fetch(`/api/demo/student?${params.toString()}`, {
+  try {
+    return await fetcher<StudentApiResponse>(
+      url,
+      {
         method: 'GET',
         signal: controller.signal,
-        headers: {
-          Accept: 'application/json',
-        },
-      });
+      },
+      false
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
-      clearTimeout(timeout);
+export function useStudentData(email?: string | null, courseId?: string | null) {
+  const key = useMemo(() => {
+    if (!email) return null;
+    const params = new URLSearchParams({ email });
+    if (courseId) params.set('courseId', courseId);
+    return `/api/demo/student?${params.toString()}`;
+  }, [courseId, email]);
 
-      if (!response.ok) {
-        const message = await response.json().catch(() => ({ error: `Request failed with status ${response.status}` }));
-        throw new Error(message.error ?? 'Unable to load student data.');
-      }
-
-      const payload = (await response.json()) as StudentApiResponse;
-      setData(payload);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error while loading student data.');
-      setData(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [email, courseId]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
+  const {
+    data,
+    error: swrError,
+    isLoading,
+    isValidating,
+    mutate,
+  } = useSWR<StudentApiResponse>(key, fetchStudentData, {
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+  });
 
   const refresh = useCallback(() => {
-    void fetchData();
-  }, [fetchData]);
+    void mutate();
+  }, [mutate]);
 
-  const memoizedData = useMemo(() => data, [data]);
+  const error =
+    swrError instanceof Error ? swrError.message : swrError ? 'Unknown error while loading student data.' : null;
 
   return {
-    data: memoizedData,
-    isLoading,
+    data: error ? null : (data ?? null),
+    isLoading: isLoading || isValidating,
     error,
     refresh,
   };

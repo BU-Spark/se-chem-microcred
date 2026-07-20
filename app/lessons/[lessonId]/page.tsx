@@ -4,12 +4,14 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useParams, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
+import { LessonStatus } from '@prisma/client';
 import { useStudentData, type LessonRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 import finishLogo from '../../../public/assets/lesson/lesson_preview/finish_logo.svg';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import BackButton from '@/app/components/BackButton/BackButton';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
 
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
@@ -31,7 +33,7 @@ function LessonDetailContent() {
   const courseId = searchParams.get('courseId');
 
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const { data: studentData, isLoading } = useStudentData(user?.primaryEmailAddress?.emailAddress ?? null, courseId);
   const [isSigningOut, setIsSigningOut] = useState(false);
   // Redirect only after hooks have run
@@ -333,7 +335,7 @@ function LessonDetailContent() {
                   }
                   className={styles.primaryButton}
                 >
-                  Start Lesson
+                  {lessonRecord.status === LessonStatus.COMPLETED ? 'Review Lesson' : 'Start Lesson'}
                 </Link>
               </div>
             </>

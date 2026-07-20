@@ -2,40 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import BackButton from '@/app/components/BackButton/BackButton';
+import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
+import BackButton from '../_components/BackButton';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useCourseRoster } from './hooks/useCourseRoster';
 import styles from './page.module.css';
-
-type EnrollmentSummary = {
-  id: string;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-  status: 'PENDING' | 'ACTIVE';
-  sections: string[];
-  student: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    buid: string | null;
-  };
-};
-
-type CourseRoster = {
-  id: string;
-  title: string;
-  createdBy: {
-    name: string | null;
-    email: string | null;
-  } | null;
-  enrollments: EnrollmentSummary[];
-};
-
-type CourseRosterResponse = {
-  viewerRole?: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-  course: CourseRoster;
-};
 
 type RosterRole = 'STUDENT' | 'CHECKER';
 type AddMode = 'single' | 'csv';
@@ -140,51 +114,6 @@ function buildMemberProfileHref(courseId: string, memberId: string) {
   return `/roster/${encodeURIComponent(memberId)}?${params.toString()}`;
 }
 
-function useCourseRoster(courseId?: string | null, email?: string | null) {
-  const [data, setData] = useState<CourseRosterResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!courseId || !email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/${encodeURIComponent(courseId)}?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({
-        error: `Request failed: ${response.status}`,
-      }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load course roster.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load course roster.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [courseId, email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error, refresh: fetchData };
-}
-
 function SearchIcon() {
   return (
     <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
@@ -206,7 +135,7 @@ export default function StudentRosterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [searchValue, setSearchValue] = useState('');

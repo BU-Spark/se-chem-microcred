@@ -1,3 +1,99 @@
+.page {
+  display: flex;
+  min-height: calc(100vh - 80px);
+  background: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.main {
+  flex: 1;
+  min-height: 100vh;
+  padding: 1.5rem 1.65rem 1.85rem;
+  background: #ffffff;
+}
+
+.content {
+  width: 100%;
+}
+.header {
+  margin-bottom: 0.9rem;
+}
+.pageTitle {
+  margin: 0;
+  font-family: Lato, sans-serif;
+  font-size: 48px;
+  line-height: 1.05;
+  font-weight: 700;
+  color: #111111;
+}
+.statusMessage {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  color: #5b6470;
+}
+.detailCard {
+  border: 3px solid #d9d9d9;
+  border-radius: 1.85rem;
+  background: #ffffff;
+  padding: 1rem 1.45rem 1.25rem;
+}
+.detailCardHeader {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: #1b1b1b;
+}
+.detailCardKicker,
+.detailCardHeading {
+  font-family: Lato, sans-serif;
+  font-size: 1.12rem;
+}
+.detailCardKicker {
+  font-weight: 400;
+}
+.detailCardHeading {
+  font-weight: 700;
+}
+.progressStatusColumn {
+  display: grid;
+  gap: 0.55rem;
+  align-content: center;
+}
+.progressStatusLine {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.98rem;
+  color: #252525;
+}
+.progressStatusLabel {
+  font-family: Lato, sans-serif;
+  font-weight: 600;
+}
+.progressStatusValue {
+  font-family: Lato, sans-serif;
+  font-weight: 700;
+}
+
+@media (max-width: 900px) {
+  .page {
+    flex-direction: column;
+  }
+  .main {
+    min-height: auto;
+    padding: 1rem;
+  }
+  .detailCard {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .pageTitle {
+    font-size: 38px;
+  }
+}
+
 .readinessBody {
   display: grid;
   gap: 1.45rem;
@@ -131,7 +227,7 @@
 }
 
 .toggleButtonActive {
-  background: #2E6AA9;
+  background: #2e6aa9;
   color: #ffffff;
 }
 
@@ -379,7 +475,7 @@
   border: none;
   border-radius: 0.9rem;
   padding: 0.85rem 1.35rem;
-  background: #2E6AA9;
+  background: #2e6aa9;
   color: #ffffff;
   font: inherit;
   font-family: 'Lato', sans-serif;

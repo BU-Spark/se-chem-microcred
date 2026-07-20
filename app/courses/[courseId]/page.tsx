@@ -4,9 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 
 import { LessonReminderModal } from './LessonReminderModal';
+import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
 import { youtubeUrlFromSummary } from '@/lib/video';
 import { useFocusTrap } from '@/app/hooks/useFocusTrap';
@@ -14,85 +16,12 @@ import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
 import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
 import rubyAvatar from '@/public/edit_avatar/ruby.svg';
 import sapphireAvatar from '@/public/edit_avatar/sapphire.svg';
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import BackButton from '@/app/components/BackButton/BackButton';
-import ExportCsvDataButton from '@/app/components/Export/ExportToCsv';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
+import ExportCsvDataButton from '@/app/_components/ExportToCsv';
+import BadgeToken from '@/app/components/BadgeToken';
+import { useCreatedCourseDetail, type CourseBadge } from './hooks/useCreatedCourseDetail';
 import styles from './page.module.css';
-
-type CourseContact = {
-  id: string;
-  type: 'INSTRUCTOR' | 'CHECKER';
-  name: string;
-  email: string;
-  avatarUrl: string | null;
-  avatarBase: string | null;
-};
-
-type EnrollmentSummary = {
-  id: string;
-  role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-  status: 'PENDING' | 'ACTIVE';
-  sections: string[];
-  student: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    buid: string | null;
-  };
-};
-
-type CourseBadge = {
-  id: string;
-  slug: string;
-  name: string;
-  description: string | null;
-};
-
-type CourseLesson = {
-  id: string;
-  slug: string;
-  title: string;
-  summary: string;
-  thumbnailUrl: string | null;
-  sortOrder: number;
-  segments?: Array<{ videoUrl: string | null }>;
-  badgeRequirements: Array<{
-    id: string;
-    summary: string | null;
-    badge: CourseBadge;
-  }>;
-};
-
-type CourseDetail = {
-  id: string;
-  code: string | null;
-  assessorCode: string | null;
-  title: string;
-  description: string | null;
-  sectionCount: number;
-  createdAt: string;
-  createdBy: {
-    id: string;
-    name: string | null;
-    email: string | null;
-    buid: string | null;
-    avatarBase: string | null;
-  } | null;
-  settings: {
-    allowCooldownOverride: boolean;
-    allowAssessorMessages: boolean;
-    allowCrossSectionView: boolean;
-  } | null;
-  contacts: CourseContact[];
-  enrollments: EnrollmentSummary[];
-  lessons: CourseLesson[];
-};
-
-type CourseDetailResponse = {
-  viewerRole: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
-  course: CourseDetail;
-};
 
 type AssignedBadge = CourseBadge & {
   lessonCount: number;
@@ -177,51 +106,6 @@ function formatLastFirst(name?: string | null, email?: string | null) {
   return `${last}, ${first}`;
 }
 
-function useCreatedCourseDetail(courseId?: string | null, email?: string | null) {
-  const [data, setData] = useState<CourseDetailResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!courseId || !email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/${encodeURIComponent(courseId)}?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({
-        error: `Request failed: ${response.status}`,
-      }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load course details.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load course details.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [courseId, email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error, refresh: fetchData };
-}
-
 function PersonCard({
   label,
   name,
@@ -277,7 +161,7 @@ export default function CreatedCourseDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [reminderBadge, setReminderBadge] = useState<{ id: string; name: string } | null>(null);
@@ -692,7 +576,7 @@ export default function CreatedCourseDetailPage() {
                       return (
                         <div key={badge.id} className={styles.badgeItem}>
                           <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
-                            <div className={styles.badgeToken}>
+                            <BadgeToken className={styles.badgeToken}>
                               <YoutubeThumbnail
                                 videoUrl={badge.videoUrl}
                                 fallbackThumbnailUrl={fallbackImage}
@@ -700,7 +584,7 @@ export default function CreatedCourseDetailPage() {
                                 alt={`${badge.name.replace(/ Badge$/i, '')} thumbnail`}
                                 className={styles.badgeTokenImage}
                               />
-                            </div>
+                            </BadgeToken>
                             <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
                           </Link>
                           {isInstructor ? (
