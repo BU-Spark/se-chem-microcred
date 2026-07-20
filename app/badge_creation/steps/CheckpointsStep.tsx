@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import RichTextEditor from '@/app/components/RichText/RichTextEditor';
+import RichTextEditor from '@/app/_components/RichTextEditor';
 
 import QuestionModal from '../components/QuestionModal';
 import VideoCheckpointPlayer from '../components/VideoCheckpointPlayer';

@@ -3,7 +3,6 @@ import { currentUser } from '@clerk/nextjs/server';
 import { CourseContactType, CourseRole, Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { canCreateContent } from '@/lib/adminAccess';
-import { normalizeEmail } from '@/lib/text/email';
 
 type CreateOrUpdateCoursePayload = {
   id?: string;
@@ -40,6 +39,11 @@ type CreateOrUpdateCoursePayload = {
 
 function normalizeString(value?: string | null) {
   const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function normalizeEmail(email?: string | null) {
+  const trimmed = email?.trim().toLowerCase();
   return trimmed ? trimmed : null;
 }
 

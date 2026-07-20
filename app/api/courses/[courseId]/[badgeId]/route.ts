@@ -4,10 +4,29 @@ import {
   fetchAccessibleBadgeDetail,
   fetchUserByEmail,
 } from '@/app/api/courses/lib/course-queries';
-import { normalizeEmail } from '@/lib/text/email';
-import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'COMPLETED';
+
+type AssessmentSummary = {
+  displayText: string;
+  videoTitle?: string | null;
+  youtubeUrl?: string | null;
+  videoLength?: string | null;
+  checkpoints: Array<{
+    number?: number;
+    title?: string | null;
+    question?: string | null;
+    questionType?: string | null;
+    points?: number | string | null;
+    time?: string | null;
+    segmentLabel?: string | null;
+  }>;
+};
+
+function normalizeEmail(email?: string | null) {
+  const trimmed = email?.trim().toLowerCase();
+  return trimmed ? trimmed : null;
+}
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -17,6 +36,39 @@ function normalizeCourseId(courseId?: string | null) {
 function normalizeBadgeId(badgeId?: string | null) {
   const trimmed = badgeId?.trim();
   return trimmed ? trimmed : null;
+}
+
+function parseRequirementSummary(summary?: string | null): AssessmentSummary {
+  if (!summary) {
+    return {
+      displayText: 'No assessment details recorded yet.',
+      videoTitle: null,
+      youtubeUrl: null,
+      videoLength: null,
+      checkpoints: [],
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(summary) as Partial<AssessmentSummary>;
+
+    return {
+      displayText: 'Assessment details recorded.',
+      videoTitle: typeof parsed.videoTitle === 'string' && parsed.videoTitle.trim() ? parsed.videoTitle.trim() : null,
+      youtubeUrl: typeof parsed.youtubeUrl === 'string' && parsed.youtubeUrl.trim() ? parsed.youtubeUrl.trim() : null,
+      videoLength:
+        typeof parsed.videoLength === 'string' && parsed.videoLength.trim() ? parsed.videoLength.trim() : null,
+      checkpoints: parsed.checkpoints ?? [],
+    };
+  } catch {
+    return {
+      displayText: summary,
+      videoTitle: null,
+      youtubeUrl: null,
+      videoLength: null,
+      checkpoints: [],
+    };
+  }
 }
 
 function formatTimestamp(seconds?: number | null) {

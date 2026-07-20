@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
-import { generateInitials, getNameForProfile } from '@/lib/text/name';
-import { isInstructor } from '@/lib/roles';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 
 import { LessonReminderModal } from './LessonReminderModal';
+import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
 import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
 import { youtubeUrlFromSummary } from '@/lib/video';
 import { useFocusTrap } from '@/app/hooks/useFocusTrap';
@@ -16,12 +16,12 @@ import amethystAvatar from '@/public/edit_avatar/amethyst.svg';
 import emeraldAvatar from '@/public/edit_avatar/emerald.svg';
 import rubyAvatar from '@/public/edit_avatar/ruby.svg';
 import sapphireAvatar from '@/public/edit_avatar/sapphire.svg';
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import BackButton from '@/app/components/BackButton/BackButton';
-import ExportCsvDataButton from '@/app/components/Export/ExportToCsv';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
+import ExportCsvDataButton from '@/app/_components/ExportToCsv';
+import BadgeToken from '@/app/components/BadgeToken';
+import { useCreatedCourseDetail, type CourseBadge } from './hooks/useCreatedCourseDetail';
 import styles from './page.module.css';
-import { CourseBadge, CourseDetailResponse } from '@/lib/courses/types';
 
 type AssignedBadge = CourseBadge & {
   lessonCount: number;
@@ -71,49 +71,39 @@ function resolveCourseId(value: string | string[] | undefined) {
   return value ?? null;
 }
 
-function useCreatedCourseDetail(courseId?: string | null, email?: string | null) {
-  const [data, setData] = useState<CourseDetailResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+function formatPersonName(name?: string | null, email?: string | null) {
+  if (name?.trim()) return name.trim();
+  if (email?.trim()) return email.trim();
+  return 'Unassigned';
+}
 
-  const fetchData = useCallback(async () => {
-    if (!courseId || !email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
+function initialsFor(name?: string | null, email?: string | null) {
+  const source = formatPersonName(name, email);
+  const parts = source
+    .replace(/@.*/, '')
+    .split(/[\s._-]+/)
+    .filter(Boolean);
 
-    setIsLoading(true);
-    setError(null);
+  if (parts.length === 0) return 'NA';
 
-    try {
-      const response = await fetch(`/api/courses/${encodeURIComponent(courseId)}?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
+  return parts
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+}
 
-      const payload = await response.json().catch(() => ({
-        error: `Request failed: ${response.status}`,
-      }));
+function formatLastFirst(name?: string | null, email?: string | null) {
+  const resolved = formatPersonName(name, email);
+  const parts = resolved.split(/\s+/).filter(Boolean);
 
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load course details.');
-      }
+  if (parts.length <= 1) {
+    return resolved;
+  }
 
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load course details.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [courseId, email]);
+  const last = parts[parts.length - 1];
+  const first = parts.slice(0, parts.length - 1).join(' ');
 
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error, refresh: fetchData };
+  return `${last}, ${first}`;
 }
 
 function PersonCard({
@@ -127,7 +117,8 @@ function PersonCard({
   email?: string | null;
   avatarSrc?: StaticImageData;
 }) {
-  const { headlineTop, headlineBottom } = getNameForProfile(name);
+  const display = formatLastFirst(name, email);
+
   return (
     <div className={styles.personCard}>
       {label ? <p className={styles.personLabel}>{label}</p> : null}
@@ -137,12 +128,12 @@ function PersonCard({
             <Image src={avatarSrc} alt="" width={88} height={88} className={styles.personAvatarImage} />
           ) : (
             <div className={styles.personAvatarFallback} aria-hidden="true">
-              {generateInitials(`${headlineTop}, ${headlineBottom}`)}
+              {initialsFor(name, email)}
             </div>
           )}
         </div>
         <div className={styles.personInfo}>
-          <p className={styles.personName}>{`${headlineTop}, ${headlineBottom}`}</p>
+          <p className={styles.personName}>{display}</p>
           <p className={styles.personEmail}>{email?.trim() || 'Email unavailable'}</p>
         </div>
       </div>
@@ -170,7 +161,7 @@ export default function CreatedCourseDetailPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [reminderBadge, setReminderBadge] = useState<{ id: string; name: string } | null>(null);
@@ -285,10 +276,10 @@ export default function CreatedCourseDetailPage() {
   const course = data?.course ?? null;
   const viewerRole = data?.viewerRole ?? null;
   const isAssessorView = searchParams.get('view') === 'assessor';
-  const isInstructorFlag = isInstructor(viewerRole) && !isAssessorView;
+  const isInstructor = viewerRole === 'INSTRUCTOR' && !isAssessorView;
   const canAssess = isAssessorView && viewerRole !== 'STUDENT';
   const isStudent = viewerRole === 'STUDENT';
-  const displayName = isInstructorFlag ? course?.createdBy?.name || '' : user?.fullName || '';
+  const displayName = isInstructor ? course?.createdBy?.name || '' : user?.fullName || '';
 
   const studentCount = useMemo(
     () => course?.enrollments.filter((enrollment) => enrollment.role === 'STUDENT').length ?? 0,
@@ -360,7 +351,7 @@ export default function CreatedCourseDetailPage() {
   );
 
   const loadBadgeLibrary = useCallback(async () => {
-    if (!isInstructorFlag) return;
+    if (!isInstructor) return;
 
     setIsLoadingBadgeLibrary(true);
     setBadgeImportError('');
@@ -383,7 +374,7 @@ export default function CreatedCourseDetailPage() {
     } finally {
       setIsLoadingBadgeLibrary(false);
     }
-  }, [isInstructorFlag]);
+  }, [isInstructor]);
 
   const openImportPanel = () => {
     setIsImportPanelOpen(true);
@@ -496,7 +487,7 @@ export default function CreatedCourseDetailPage() {
                   <h2 className={styles.courseHeading}>{course.title}</h2>
 
                   <PersonCard
-                    label={isInstructorFlag ? 'Instructor (You)' : 'Instructor'}
+                    label={isInstructor ? 'Instructor (You)' : 'Instructor'}
                     name={course.createdBy?.name}
                     email={course.createdBy?.email}
                     avatarSrc={avatarFor(course.createdBy?.avatarBase)}
@@ -505,12 +496,12 @@ export default function CreatedCourseDetailPage() {
                   <div className={styles.statLines}>
                     <p className={styles.statLine}>Number of Sections: {course.sectionCount}</p>
                     <p className={styles.statLine}>Number of Students Enrolled: {studentCount}</p>
-                    {isInstructorFlag && course.code ? (
+                    {isInstructor && course.code ? (
                       <p className={styles.statLine}>
                         Course Code: <span className={styles.courseCode}>{course.code}</span>
                       </p>
                     ) : null}
-                    {isInstructorFlag && course.assessorCode ? (
+                    {isInstructor && course.assessorCode ? (
                       <p className={styles.statLine}>
                         Assessor Code: <span className={styles.courseCode}>{course.assessorCode}</span>
                       </p>
@@ -530,7 +521,7 @@ export default function CreatedCourseDetailPage() {
                           Assess Student
                         </button>
                       ) : null}
-                      {isInstructorFlag && email ? (
+                      {isInstructor && email ? (
                         <ExportCsvDataButton courseId={course.id} email={email} className={styles.primaryButton} />
                       ) : null}
                     </div>
@@ -552,7 +543,7 @@ export default function CreatedCourseDetailPage() {
                     <p className={styles.emptyMessage}>No checkers assigned yet.</p>
                   )}
 
-                  {isInstructorFlag ? (
+                  {isInstructor ? (
                     <div className={styles.sideActionRow}>
                       <Link href={`/roster?courseId=${course.id}&role=CHECKER`} className={styles.primaryButton}>
                         View Assessor Roster
@@ -585,7 +576,7 @@ export default function CreatedCourseDetailPage() {
                       return (
                         <div key={badge.id} className={styles.badgeItem}>
                           <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
-                            <div className={styles.badgeToken}>
+                            <BadgeToken className={styles.badgeToken}>
                               <YoutubeThumbnail
                                 videoUrl={badge.videoUrl}
                                 fallbackThumbnailUrl={fallbackImage}
@@ -593,10 +584,10 @@ export default function CreatedCourseDetailPage() {
                                 alt={`${badge.name.replace(/ Badge$/i, '')} thumbnail`}
                                 className={styles.badgeTokenImage}
                               />
-                            </div>
+                            </BadgeToken>
                             <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
                           </Link>
-                          {isInstructorFlag ? (
+                          {isInstructor ? (
                             <>
                               <button
                                 type="button"
@@ -626,7 +617,7 @@ export default function CreatedCourseDetailPage() {
                   <p className={styles.emptyMessage}>No badges assigned yet.</p>
                 )}
 
-                {isInstructorFlag ? (
+                {isInstructor ? (
                   <div className={styles.badgeActionRow}>
                     <button type="button" className={styles.primaryButton} onClick={openImportPanel}>
                       Import Existing Badge
@@ -649,7 +640,7 @@ export default function CreatedCourseDetailPage() {
         />
       ) : null}
 
-      {isInstructorFlag && isImportPanelOpen ? (
+      {isInstructor && isImportPanelOpen ? (
         <div className={styles.importOverlay} onClick={closeImportModal}>
           <div
             ref={importModalRef}

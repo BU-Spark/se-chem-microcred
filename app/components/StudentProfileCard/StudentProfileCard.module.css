@@ -1,0 +1,213 @@
+.profileCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 285px;
+  gap: 0;
+  margin-bottom: 0.95rem;
+  overflow: hidden;
+  border: 3px solid #d9d9d9;
+  border-radius: 1.85rem;
+  background: #ffffff;
+}
+.profileMain {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 238px;
+  gap: 1.1rem;
+  align-items: center;
+  padding: 1.25rem 1.9rem 1.15rem 1.8rem;
+  min-height: 242px;
+}
+.infoColumn {
+  min-width: 0;
+}
+.sectionKicker {
+  margin: 0 0 0.7rem;
+  font-family: Lato, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #232323;
+}
+.nameBlock {
+  margin-bottom: 1rem;
+}
+.studentName {
+  margin: 0 0 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  font-family: Lato, sans-serif;
+  font-size: clamp(2.15rem, 3.2vw, 2.65rem);
+  line-height: 0.95;
+  font-weight: 700;
+  color: #111111;
+}
+.metaBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+.roleLabel {
+  margin: 0;
+  font-family: Lato, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #222222;
+}
+.createdAt {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #4f4f4f;
+}
+.detailGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.7rem 2rem;
+  max-width: 455px;
+}
+.detailItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.detailLabel {
+  font-family: Lato, sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #161616;
+}
+.detailValue {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  color: #333333;
+  word-break: break-word;
+}
+.avatarColumn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.avatarFrame {
+  width: 194px;
+  height: 194px;
+  border: 4px solid #2e6aa9;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: #ffffff;
+}
+.avatarImage {
+  width: 150px;
+  height: 150px;
+  object-fit: contain;
+}
+.avatarFallback,
+.contactAvatarFallback {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2e6aa9;
+  color: #ffffff;
+  font-family: Lato, sans-serif;
+  font-weight: 700;
+}
+.avatarFallback {
+  font-size: 3rem;
+}
+.profileSide {
+  border-left: 3px solid #e1e1e1;
+  padding: 0.8rem 1.35rem 0.85rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+}
+.sideSection {
+  margin-top: 0.95rem;
+}
+.sideTitle {
+  margin: 0 0 0.5rem;
+  font-family: Lato, sans-serif;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #161616;
+}
+.sideMeta {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.88rem;
+  line-height: 1.32;
+  color: #333333;
+}
+.contactCard {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr);
+  gap: 0.8rem;
+  align-items: center;
+}
+.contactAvatarShell {
+  width: 82px;
+  height: 82px;
+  border: 3px solid #d7d7d7;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+}
+.contactAvatarImage {
+  width: 62px;
+  height: 62px;
+  object-fit: contain;
+}
+.contactAvatarFallback {
+  font-size: 1.55rem;
+}
+.contactInfo {
+  min-width: 0;
+}
+.contactName {
+  margin: 0;
+  font-family: Lato, sans-serif;
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.15;
+  color: #2a2a2a;
+}
+.contactName p {
+  margin: 0;
+}
+.contactEmail {
+  margin: 0.3rem 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.86rem;
+  color: #3a3a3a;
+  word-break: break-word;
+}
+.emptyState {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+  color: #666666;
+}
+@media (max-width: 1180px) {
+  .profileCard {
+    grid-template-columns: 1fr;
+  }
+  .profileSide {
+    border-left: none;
+    border-top: 3px solid #e1e1e1;
+  }
+}
+@media (max-width: 900px) {
+  .profileMain {
+    grid-template-columns: 1fr;
+    justify-items: flex-start;
+  }
+  .detailGrid {
+    grid-template-columns: 1fr;
+  }
+}

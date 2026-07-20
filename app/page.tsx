@@ -6,7 +6,8 @@ import { useCanCreateContent } from './hooks/useCanCreateContent';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type StudentData } from './hooks/useStudentData';
 import styles from './page.module.css';
 import courseStyles from './courses/page.module.css';
@@ -20,9 +21,10 @@ import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unha
 import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
 import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
 import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import BackButton from '@/app/components/BackButton/BackButton';
-import CourseTileImage from '@/app/components/Courses/CourseTileImage';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import BackButton from '@/app/_components/BackButton';
+import CourseTileImage from '@/app/_components/CourseTileImage';
+import SurveyModal from '@/app/components/SurveyModal';
 import type { CourseImageFields } from '@/lib/courseImage';
 
 interface EnrolledCourseCardData extends CourseImageFields {
@@ -238,7 +240,7 @@ function HomeContent() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
 
   const { data: studentData, refresh } = useStudentData(email);
@@ -812,59 +814,37 @@ function HomeContent() {
       ) : null}
 
       {activeSurvey ? (
-        <div className={styles.surveyOverlay} role="dialog" aria-modal="true">
-          <div className={styles.surveyModal}>
-            <button type="button" className={styles.surveyClose} onClick={closeSurveyModal}>
-              Do this later
-            </button>
-
-            <h2 className={styles.surveyTitle}>Tell us about your experience.</h2>
-            <p className={styles.surveyQuestion}>{activeSurvey.question}</p>
-
-            <div className={styles.surveyFaces}>
-              {[1, 2, 3, 4, 5].map((value) => {
-                const isSelected = surveyRating === value;
-                const buttonClass = [styles.surveyFace, isSelected ? styles.surveyFaceSelected : '']
-                  .filter(Boolean)
-                  .join(' ');
-
-                const imgClassNames = [styles.surveyFaceImage, isSelected ? styles.surveyFaceImageSelected : '']
-                  .filter(Boolean)
-                  .join(' ');
-
-                const iconSrc = isSelected ? FACE_IMAGES_SELECTED[value] : FACE_IMAGES[value];
-
-                return (
-                  <button
-                    key={value}
-                    type="button"
-                    className={buttonClass}
-                    onClick={() => setSurveyRating(value)}
-                    aria-pressed={isSelected}
-                    aria-label={FACE_ALTS[value]}
-                  >
-                    <Image src={iconSrc} alt={FACE_ALTS[value]} className={imgClassNames} />
-                  </button>
-                );
-              })}
-            </div>
-
-            {surveyError ? (
-              <p className={styles.surveyError} role="alert">
-                {surveyError}
-              </p>
-            ) : null}
-
-            <button
-              type="button"
-              className={styles.surveySubmit}
-              onClick={handleSubmitSurvey}
-              disabled={isSubmittingSurvey}
-            >
-              {isSubmittingSurvey ? 'Submitting…' : 'Submit'}
-            </button>
-          </div>
-        </div>
+        <SurveyModal
+          title="Tell us about your experience."
+          question={activeSurvey.question}
+          options={[1, 2, 3, 4, 5].map((value) => ({
+            value,
+            label: FACE_ALTS[value],
+            icon: FACE_IMAGES[value],
+            selectedIcon: FACE_IMAGES_SELECTED[value],
+          }))}
+          value={surveyRating}
+          onChange={setSurveyRating}
+          onSubmit={handleSubmitSurvey}
+          onClose={closeSurveyModal}
+          isSubmitting={isSubmittingSurvey}
+          error={surveyError}
+          errorAfterOptions
+          classNames={{
+            overlay: styles.surveyOverlay,
+            modal: styles.surveyModal,
+            close: styles.surveyClose,
+            title: styles.surveyTitle,
+            question: styles.surveyQuestion,
+            error: styles.surveyError,
+            options: styles.surveyFaces,
+            option: styles.surveyFace,
+            selectedOption: styles.surveyFaceSelected,
+            optionImage: styles.surveyFaceImage,
+            selectedOptionImage: styles.surveyFaceImageSelected,
+            submit: styles.surveySubmit,
+          }}
+        />
       ) : null}
     </div>
   );

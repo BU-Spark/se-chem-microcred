@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { normalizeEmail } from '@/lib/text/email';
 
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import prisma from '@/lib/prisma';
+
+function normalizeEmail(email?: string | null) {
+  const trimmed = email?.trim().toLowerCase();
+  return trimmed ? trimmed : null;
+}
 
 function normalizeId(value?: string | null) {
   const trimmed = value?.trim();

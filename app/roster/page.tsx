@@ -2,34 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
-import { splitName } from '@/lib/text/name';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import BackButton from '@/app/components/BackButton/BackButton';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
+
+import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
+import BackButton from '../_components/BackButton';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import { useCourseRoster } from './hooks/useCourseRoster';
 import styles from './page.module.css';
-import { parseRosterCsv } from '@/lib/csv';
-import { EnrollmentRole, EnrollmentSummary, RosterRole } from '@/lib/enrollment/types';
-import { isInstructor } from '@/lib/roles';
 
-type CourseRoster = {
-  id: string;
-  title: string;
-  createdBy: {
-    name: string | null;
-    email: string | null;
-  } | null;
-  enrollments: EnrollmentSummary[];
-};
-
-type CourseRosterResponse = {
-  viewerRole?: EnrollmentRole;
-  course: CourseRoster;
-};
-
+type RosterRole = 'STUDENT' | 'CHECKER';
 type AddMode = 'single' | 'csv';
 
-export type NewRosterMember = {
+type NewRosterMember = {
   firstName: string;
   lastName: string;
   email: string;
@@ -72,6 +57,53 @@ const EMPTY_NEW_MEMBER: NewRosterMember = {
   sections: '',
 };
 
+function parseRosterCsv(csv: string): NewRosterMember[] {
+  const lines = csv
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length < 2) throw new Error('CSV must contain a header and at least one roster member.');
+  const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
+  const indexOf = (...names: string[]) => headers.findIndex((header) => names.includes(header));
+  const indices = {
+    lastName: indexOf('lastname'),
+    firstName: indexOf('firstname'),
+    buid: indexOf('buid'),
+    email: indexOf('email'),
+    sections: indexOf('sections', 'section'),
+  };
+  if (Object.values(indices).some((index) => index < 0)) {
+    throw new Error('CSV must contain headers: lastName, firstName, buid, email, sections.');
+  }
+  return lines.slice(1).map((line) => {
+    const columns = line.split(',').map((column) => column.trim());
+    return {
+      lastName: columns[indices.lastName] || '',
+      firstName: columns[indices.firstName] || '',
+      buid: columns[indices.buid] || '',
+      email: columns[indices.email] || '',
+      sections: columns[indices.sections] || '',
+    };
+  });
+}
+
+function splitName(fullName?: string | null) {
+  const parts = fullName?.trim().split(/\s+/).filter(Boolean) ?? [];
+
+  if (parts.length === 0) {
+    return { firstName: '', lastName: '' };
+  }
+
+  if (parts.length === 1) {
+    return { firstName: parts[0], lastName: '' };
+  }
+
+  return {
+    firstName: parts.slice(0, -1).join(' '),
+    lastName: parts.at(-1) ?? '',
+  };
+}
+
 function resolveRosterRole(role?: string | null): RosterRole {
   return role === 'CHECKER' ? 'CHECKER' : 'STUDENT';
 }
@@ -80,51 +112,6 @@ function buildMemberProfileHref(courseId: string, memberId: string) {
   const params = new URLSearchParams({ courseId });
 
   return `/roster/${encodeURIComponent(memberId)}?${params.toString()}`;
-}
-
-function useCourseRoster(courseId?: string | null, email?: string | null) {
-  const [data, setData] = useState<CourseRosterResponse | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!courseId || !email) {
-      setData(null);
-      setError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/courses/${encodeURIComponent(courseId)}?email=${encodeURIComponent(email)}`, {
-        headers: { Accept: 'application/json' },
-      });
-
-      const payload = await response.json().catch(() => ({
-        error: `Request failed: ${response.status}`,
-      }));
-
-      if (!response.ok) {
-        throw new Error(payload.error ?? 'Unable to load course roster.');
-      }
-
-      setData(payload);
-    } catch (err) {
-      setData(null);
-      setError(err instanceof Error ? err.message : 'Unable to load course roster.');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [courseId, email]);
-
-  useEffect(() => {
-    void fetchData();
-  }, [fetchData]);
-
-  return { data, isLoading, error, refresh: fetchData };
 }
 
 function SearchIcon() {
@@ -148,7 +135,7 @@ export default function StudentRosterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [searchValue, setSearchValue] = useState('');
@@ -213,27 +200,27 @@ export default function StudentRosterPage() {
   };
 
   const course = data?.course ?? null;
-  const isInstructorFlag = isInstructor(data?.viewerRole);
+  const isInstructor = data?.viewerRole === 'INSTRUCTOR';
   // Only instructors can remove students, and only on the student roster.
-  const canRemoveMembers = isInstructorFlag;
-  const canAddMembers = isInstructorFlag;
-  const canManageSections = isInstructorFlag;
+  const canRemoveMembers = isInstructor;
+  const canAddMembers = isInstructor;
+  const canManageSections = isInstructor;
   const displayName = course?.createdBy?.name || '';
 
   // Pending assessor requests an instructor can approve/decline (CHECKER roster only).
   const pendingAssessors = useMemo(() => {
-    if (!course || !isCheckerRoster || !isInstructorFlag) return [];
+    if (!course || !isCheckerRoster || !isInstructor) return [];
     return course.enrollments
       .filter((enrollment) => enrollment.role === 'CHECKER' && enrollment.status === 'PENDING')
       .map((enrollment) => {
-        const { first, last } = splitName(enrollment.student.name);
+        const { firstName, lastName } = splitName(enrollment.student.name);
         return {
           enrollmentId: enrollment.id,
-          name: [first, last].filter(Boolean).join(' ') || enrollment.student.email || 'Unknown',
+          name: [firstName, lastName].filter(Boolean).join(' ') || enrollment.student.email || 'Unknown',
           email: enrollment.student.email?.trim() ?? '',
         };
       });
-  }, [course, isCheckerRoster, isInstructorFlag]);
+  }, [course, isCheckerRoster, isInstructor]);
 
   const handleAssessorDecision = useCallback(
     async (enrollmentId: string, action: 'approve' | 'decline') => {
@@ -402,13 +389,13 @@ export default function StudentRosterPage() {
     return course.enrollments
       .filter((enrollment) => enrollment.role === rosterRole && enrollment.status !== 'PENDING')
       .map((enrollment) => {
-        const { first, last } = splitName(enrollment.student.name);
+        const { firstName, lastName } = splitName(enrollment.student.name);
 
         return {
           enrollmentId: enrollment.id,
           memberId: enrollment.student.id,
-          firstName: first,
-          lastName: last,
+          firstName,
+          lastName,
           email: enrollment.student.email?.trim() ?? '',
           buid: enrollment.student.buid?.trim() ?? '',
           sections: enrollment.sections,

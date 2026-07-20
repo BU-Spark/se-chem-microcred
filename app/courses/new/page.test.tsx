@@ -331,7 +331,7 @@ describe('Course new page edit mode', () => {
 
     expect(
       within(screen.getByRole('dialog')).getByText(
-        'CSV must contain headers: lastName, firstName, buid, email, sections.'
+        'CSV must contain headers: lastName, firstName, buid, email, sections'
       )
     ).toBeInTheDocument();
 

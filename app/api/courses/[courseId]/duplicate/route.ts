@@ -2,8 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
-import { normalizeEmail } from '@/lib/text/email';
+
 import prisma from '@/lib/prisma';
+
+function normalizeEmail(email?: string | null) {
+  const trimmed = email?.trim().toLowerCase();
+  return trimmed ? trimmed : null;
+}
 
 /**
  * Deep-copies a course the caller owns into a brand-new course owned by the caller.

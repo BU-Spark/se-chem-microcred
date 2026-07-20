@@ -2,22 +2,11 @@
 
 import useSWR from 'swr';
 
+import { fetcher } from './lib/fetcher';
+
 interface AccessResponse {
   canCreateContent: boolean;
   isAdmin: boolean;
-}
-
-async function fetcher(url: string): Promise<AccessResponse> {
-  const response = await fetch(url, {
-    headers: { Accept: 'application/json' },
-    credentials: 'include',
-  });
-
-  if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
-  }
-
-  return (await response.json()) as AccessResponse;
 }
 
 /**
@@ -29,7 +18,7 @@ async function fetcher(url: string): Promise<AccessResponse> {
  * gated UI stays hidden until access is confirmed.
  */
 export function useCanCreateContent(enabled: boolean = true) {
-  const { data, isLoading } = useSWR<AccessResponse>(enabled ? '/api/me/access' : null, fetcher, {
+  const { data, isLoading } = useSWR<AccessResponse>(enabled ? '/api/me/access' : null, fetcher<AccessResponse>, {
     revalidateOnFocus: false,
     dedupingInterval: 30000,
   });

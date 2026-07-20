@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { sanitizeQuestionRichText } from '@/lib/question-rich-text';
+import { sanitizeQuestionRichText } from '@/app/lib/question-rich-text';
+import SurveyModal from '@/app/components/SurveyModal';
+import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
 import veryUnhappyFace from '../../../public/assets/survey_faces/very_unhappy.svg';
@@ -121,6 +123,9 @@ interface LessonVideoPageProps {
   courseId?: string | null;
   lessonSurvey: LessonSurveyPrompt | null;
   resumeRequested: boolean;
+  // Completed-lesson "review" flow: start from the beginning, unlocked scrubber,
+  // non-blocking checkpoints that can be re-opened for ungraded practice.
+  reviewMode?: boolean;
   studentAvatarUrl?: string | null;
 }
 
@@ -239,6 +244,7 @@ export function LessonVideoPage({
   courseId,
   lessonSurvey,
   resumeRequested,
+  reviewMode = false,
 }: LessonVideoPageProps) {
   // const resolvedStudentName = studentName && studentName.trim().length > 0 ? studentName : 'Student Demo';
   // const [firstName, lastName] = useMemo(() => {
@@ -273,10 +279,13 @@ export function LessonVideoPage({
   );
 
   const resumeBaseTime = useMemo(() => {
+    // Review is a free rewatch: always start from the beginning, never resume to
+    // the derived "just past the last checkpoint" position.
+    if (reviewMode) return 0;
     const recorded = Math.max(0, lesson.resumeTimeSeconds ?? 0);
     if (recorded > 0) return recorded;
     return resumeRequested ? recorded : 0;
-  }, [lesson.resumeTimeSeconds, resumeRequested]);
+  }, [lesson.resumeTimeSeconds, resumeRequested, reviewMode]);
 
   const [modalState, setModalState] = useState<ModalState>('none');
   const [activeCheckpointId, setActiveCheckpointId] = useState<string | null>(null);
@@ -300,8 +309,6 @@ export function LessonVideoPage({
   const [lessonSurveyError, setLessonSurveyError] = useState<string | null>(null);
   const [lessonSurveyCompleted, setLessonSurveyCompleted] = useState(effectiveLessonSurvey?.completed ?? false);
   const [showLessonQr, setShowLessonQr] = useState(false);
-  const [assessmentCode, setAssessmentCode] = useState<string | null>(null);
-  const [assessmentCodeError, setAssessmentCodeError] = useState<string | null>(null);
 
   const suppressCheckpointIdRef = useRef<string | null>(null);
   const suppressArmedRef = useRef(false);
@@ -385,6 +392,14 @@ export function LessonVideoPage({
     durationRef.current = duration;
   }, [duration]);
 
+  // In review mode the entire timeline is unlocked; keep the seek ceiling at the
+  // full duration so both the scrubber clamp and seekTo() allow free scrubbing.
+  useEffect(() => {
+    if (reviewMode && duration > 0) {
+      updateFurthestTime(duration, true);
+    }
+  }, [reviewMode, duration, updateFurthestTime]);
+
   useEffect(() => {
     gradingTriggeredRef.current = false;
     setLessonAssessment(null);
@@ -393,65 +408,17 @@ export function LessonVideoPage({
   }, [lesson.id]);
 
   const assessmentBadge = useMemo(() => lesson.badgeRequirements[0] ?? null, [lesson.badgeRequirements]);
-  const lessonAssessmentQrUrl = useMemo(() => {
-    if (typeof window === 'undefined' || !courseId || !studentId || !assessmentBadge?.badgeId) {
-      return null;
-    }
-
-    const url = new URL('/qr/assessment', window.location.origin);
-    url.searchParams.set('courseId', courseId);
-    url.searchParams.set('studentId', studentId);
-    url.searchParams.set('badgeId', assessmentBadge.badgeId);
-    return url.toString();
-  }, [assessmentBadge?.badgeId, courseId, studentId]);
-
-  const lessonQrImageSrc = lessonAssessmentQrUrl
-    ? `/api/qr?size=360&data=${encodeURIComponent(lessonAssessmentQrUrl)}`
-    : null;
-
-  useEffect(() => {
-    if (!showLessonQr || !courseId || !assessmentBadge?.badgeId) {
-      setAssessmentCode(null);
-      setAssessmentCodeError(null);
-      return;
-    }
-
-    let isCancelled = false;
-    setAssessmentCode(null);
-    setAssessmentCodeError(null);
-
-    fetch('/api/assessment-codes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ courseId, badgeId: assessmentBadge.badgeId }),
-    })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload.error ?? 'Unable to create assessment code.');
-        }
-        if (!isCancelled) {
-          setAssessmentCode(typeof payload.code === 'string' ? payload.code : null);
-        }
-      })
-      .catch((error) => {
-        if (!isCancelled) {
-          setAssessmentCodeError(error instanceof Error ? error.message : 'Unable to create assessment code.');
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [assessmentBadge?.badgeId, courseId, showLessonQr]);
-
   const resolveMaxSeekableTime = useCallback(() => {
+    // Review unlocks the whole timeline — the student can scrub anywhere.
+    if (reviewMode) {
+      return Number.isFinite(duration) ? duration : furthestTimeRef.current;
+    }
     const limit = furthestTimeRef.current;
     if (!Number.isFinite(duration)) {
       return limit;
     }
     return Math.min(limit, duration);
-  }, [duration]);
+  }, [duration, reviewMode]);
 
   const clearHideTimer = useCallback(() => {
     if (visibilityTimerRef.current != null && typeof window !== 'undefined') {
@@ -625,6 +592,26 @@ export function LessonVideoPage({
     [ensurePlayerPaused, orderedCheckpoints, seekTo, updateFurthestTime]
   );
 
+  // Review-mode opener for the clickable checkpoint markers: pause and show the
+  // question for ungraded practice without seeking or re-locking the scrubber
+  // (unlike openCheckpointModal, which forces the seek ceiling back down).
+  const openCheckpointForReview = useCallback(
+    (checkpointId: string) => {
+      const checkpoint = orderedCheckpoints.find((item) => item.id === checkpointId) ?? null;
+      if (!checkpoint || checkpoint.questions.length === 0) {
+        return;
+      }
+      ensurePlayerPaused();
+      setActiveCheckpointId(checkpointId);
+      setSelectedAnswers({});
+      setAttemptSummary(null);
+      setNetworkError(null);
+      setActiveQuestionIndex(0);
+      setModalState('question');
+    },
+    [ensurePlayerPaused, orderedCheckpoints]
+  );
+
   useEffect(() => {
     let cancelled = false;
 
@@ -751,7 +738,9 @@ export function LessonVideoPage({
   }, [lessonSurveyCompleted]);
 
   useEffect(() => {
-    if (!effectiveLessonSurvey || lessonSurveyCompleted) {
+    // Review is a rewatch of an already-completed lesson: never re-open the survey
+    // or re-grade at the end.
+    if (reviewMode || !effectiveLessonSurvey || lessonSurveyCompleted) {
       return;
     }
     if (lessonReadyForSurvey && !lessonSurveyTriggeredRef.current) {
@@ -759,7 +748,7 @@ export function LessonVideoPage({
       ensurePlayerPaused();
       setModalState('lessonSurvey');
     }
-  }, [ensurePlayerPaused, effectiveLessonSurvey, lessonReadyForSurvey, lessonSurveyCompleted]);
+  }, [ensurePlayerPaused, effectiveLessonSurvey, lessonReadyForSurvey, lessonSurveyCompleted, reviewMode]);
 
   useEffect(() => {
     if (!playerReady) {
@@ -801,7 +790,7 @@ export function LessonVideoPage({
           }
         }
 
-        if (firstIncompleteCheckpoint && playing && modalState === 'none') {
+        if (!reviewMode && firstIncompleteCheckpoint && playing && modalState === 'none') {
           const trigger = firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD;
           if (suppressCheckpointIdRef.current === firstIncompleteCheckpoint.id) {
             // Suppression stays active until we observe playback actually land
@@ -834,7 +823,16 @@ export function LessonVideoPage({
     }, 250);
 
     return () => window.clearInterval(interval);
-  }, [duration, firstIncompleteCheckpoint, modalState, openCheckpointModal, playerReady, seekTo, updateFurthestTime]);
+  }, [
+    duration,
+    firstIncompleteCheckpoint,
+    modalState,
+    openCheckpointModal,
+    playerReady,
+    reviewMode,
+    seekTo,
+    updateFurthestTime,
+  ]);
 
   useEffect(() => {
     if (modalState === 'none') {
@@ -990,6 +988,9 @@ export function LessonVideoPage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           email: studentEmail,
+          // In review, submissions are practice only: the server grades for feedback
+          // but records nothing, so the lesson grade/badge stay untouched.
+          practice: reviewMode,
           answers: currentCheckpoint.questions.map((question) => {
             const selected = selectedAnswers[question.id];
             return {
@@ -1010,20 +1011,24 @@ export function LessonVideoPage({
       const payload = (await response.json()) as AttemptSummary;
       setAttemptSummary(payload);
 
-      if (currentCheckpoint) {
-        scheduleCheckpointSuppression(currentCheckpoint.id);
-      }
-      const baseTime = currentCheckpoint.timeOffsetSeconds;
-      lastCheckpointResumeRef.current = baseTime;
-      // Answering retires the checkpoint regardless of pass/fail — the student is
-      // not asked it again. Whether they passed only affects the server-side grade.
-      setAnsweredCheckpointIds((prev) =>
-        prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
-      );
-      if (payload.isPassing) {
-        setCompletedCheckpointIds((prev) =>
+      // Practice attempts leave recorded progress untouched — don't retire the
+      // checkpoint or mark it completed; just show the feedback.
+      if (!reviewMode) {
+        if (currentCheckpoint) {
+          scheduleCheckpointSuppression(currentCheckpoint.id);
+        }
+        const baseTime = currentCheckpoint.timeOffsetSeconds;
+        lastCheckpointResumeRef.current = baseTime;
+        // Answering retires the checkpoint regardless of pass/fail — the student is
+        // not asked it again. Whether they passed only affects the server-side grade.
+        setAnsweredCheckpointIds((prev) =>
           prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
         );
+        if (payload.isPassing) {
+          setCompletedCheckpointIds((prev) =>
+            prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
+          );
+        }
       }
       setModalState('result');
       setActiveQuestionIndex(0);
@@ -1033,7 +1038,7 @@ export function LessonVideoPage({
     } finally {
       setIsSubmitting(false);
     }
-  }, [currentCheckpoint, scheduleCheckpointSuppression, selectedAnswers, studentEmail]);
+  }, [currentCheckpoint, reviewMode, scheduleCheckpointSuppression, selectedAnswers, studentEmail]);
 
   const handleAdvance = useCallback(() => {
     if (!currentCheckpoint) {
@@ -1059,14 +1064,24 @@ export function LessonVideoPage({
   }, [activeQuestionIndex, currentCheckpoint, selectedAnswers, submitAttempt]);
 
   const handleContinueAfterResult = useCallback(() => {
-    const resumeBaseTime = lastCheckpointResumeRef.current ?? undefined;
     setAttemptSummary(null);
     setNetworkError(null);
     setSelectedAnswers({});
     setActiveQuestionIndex(0);
+    // In review, don't rewind to the checkpoint — just dismiss the practice result
+    // and resume the rewatch from wherever the student was.
+    if (reviewMode) {
+      setActiveCheckpointId(null);
+      setModalState('none');
+      requestAnimationFrame(() => {
+        playerRef.current?.playVideo?.();
+      });
+      return;
+    }
+    const resumeBaseTime = lastCheckpointResumeRef.current ?? undefined;
     lastCheckpointResumeRef.current = null;
     resetAfterCheckpoint(resumeBaseTime);
-  }, [resetAfterCheckpoint]);
+  }, [resetAfterCheckpoint, reviewMode]);
 
   const handleRewatch = useCallback(() => {
     console.log('[handleRewatch]');
@@ -1227,6 +1242,10 @@ export function LessonVideoPage({
   const isFinalQuestion = currentQuestion ? activeQuestionIndex === totalCheckpointQuestions - 1 : false;
 
   const handleSkipToNextCheckpoint = useCallback(() => {
+    // No grading path during review — this dev control is a no-op there.
+    if (reviewMode) {
+      return;
+    }
     if (firstIncompleteCheckpoint) {
       updateFurthestTime(firstIncompleteCheckpoint.timeOffsetSeconds, true);
       seekTo(firstIncompleteCheckpoint.timeOffsetSeconds, true, true);
@@ -1250,6 +1269,7 @@ export function LessonVideoPage({
     effectiveLessonSurvey,
     lessonSurveyCompleted,
     openCheckpointModal,
+    reviewMode,
     seekTo,
     updateFurthestTime,
     handleLessonCompletion,
@@ -1282,6 +1302,14 @@ export function LessonVideoPage({
 
     router.push(`/lessons/${lesson.slug}`);
   }, [lesson.slug, router]);
+
+  // Review end-card action: dismiss and let the student keep rewatching/scrubbing.
+  const handleBackToReview = useCallback(() => {
+    setModalState('none');
+    requestAnimationFrame(() => {
+      playerRef.current?.playVideo?.();
+    });
+  }, []);
 
   const handleUnlockProgressForTesting = useCallback(() => {
     if (duration <= 0) {
@@ -1366,6 +1394,19 @@ export function LessonVideoPage({
                       const cls = [styles.qevBreak, done ? styles.qevBreakDone : '', curr ? styles.qevBreakCurrent : '']
                         .filter(Boolean)
                         .join(' ');
+                      if (reviewMode && cp.questions.length > 0) {
+                        return (
+                          <button
+                            key={cp.id}
+                            type="button"
+                            className={cls}
+                            style={{ left: `${leftPct}%` }}
+                            title={`Review: ${cp.title}`}
+                            aria-label={`Review checkpoint: ${cp.title}`}
+                            onClick={() => openCheckpointForReview(cp.id)}
+                          />
+                        );
+                      }
                       return <span key={cp.id} className={cls} style={{ left: `${leftPct}%` }} />;
                     })}
 
@@ -1391,6 +1432,7 @@ export function LessonVideoPage({
                       }
 
                       if (
+                        !reviewMode &&
                         modalState === 'none' &&
                         firstIncompleteCheckpoint &&
                         val >= firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD
@@ -1661,34 +1703,50 @@ export function LessonVideoPage({
                   ) : null}
 
                   {modalState === 'lessonComplete' ? (
-                    <>
-                      <h2 className={styles.modalTitle}>Lesson Completed</h2>
-                      <p className={styles.modalDescription}>
-                        You’re all set! Show your assessor the QR code to finalize this lesson.
-                      </p>
-                      <div className={styles.modalStats}>
-                        <div className={styles.modalStat}>
-                          Grade
-                          <span className={styles.modalStatValue}>
-                            {lessonAssessment ? `${lessonAssessment.gradePercent.toFixed(1)}%` : '—'}
-                          </span>
+                    reviewMode ? (
+                      // Review has no assessment QR — the lesson is already finalized.
+                      <>
+                        <h2 className={styles.modalTitle}>Review complete</h2>
+                        <p className={styles.modalDescription}>You’ve reached the end of your review.</p>
+                        <div className={styles.modalActions}>
+                          <button type="button" className={styles.modalSecondary} onClick={handleBackToReview}>
+                            Back to review
+                          </button>
+                          <button type="button" className={styles.modalSecondary} onClick={handleBackToLessonDetail}>
+                            See feedback
+                          </button>
                         </div>
-                        <div className={styles.modalStat}>
-                          Required to pass
-                          <span className={styles.modalStatValue}>
-                            {lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}
-                          </span>
+                      </>
+                    ) : (
+                      <>
+                        <h2 className={styles.modalTitle}>Lesson Completed</h2>
+                        <p className={styles.modalDescription}>
+                          You’re all set! Show your assessor the QR code to finalize this lesson.
+                        </p>
+                        <div className={styles.modalStats}>
+                          <div className={styles.modalStat}>
+                            Grade
+                            <span className={styles.modalStatValue}>
+                              {lessonAssessment ? `${lessonAssessment.gradePercent.toFixed(1)}%` : '—'}
+                            </span>
+                          </div>
+                          <div className={styles.modalStat}>
+                            Required to pass
+                            <span className={styles.modalStatValue}>
+                              {lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}
+                            </span>
+                          </div>
                         </div>
-                      </div>
-                      <div className={styles.modalActions}>
-                        <button type="button" className={styles.modalSecondary} onClick={handleShowQrCode}>
-                          Show QR code
-                        </button>
-                        <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
-                          Home
-                        </button>
-                      </div>
-                    </>
+                        <div className={styles.modalActions}>
+                          <button type="button" className={styles.modalSecondary} onClick={handleShowQrCode}>
+                            Show QR code
+                          </button>
+                          <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
+                            Home
+                          </button>
+                        </div>
+                      </>
+                    )
                   ) : null}
                 </div>
               </div>
@@ -1707,92 +1765,41 @@ export function LessonVideoPage({
           ) : null}
         </div>
       </div>
-      {effectiveLessonSurvey && modalState === 'lessonSurvey' && (
-        <div className={styles.lessonSurveyOverlay}>
-          <div className={styles.lessonSurveyModal}>
-            <h2 className={styles.lessonSurveyTitle}>Tell us about this lesson</h2>
-            <p className={styles.lessonSurveyQuestion}>{effectiveLessonSurvey.question}</p>
-            {lessonSurveyError ? <p className={styles.lessonSurveyError}>{lessonSurveyError}</p> : null}
-            <div className={styles.lessonSurveyFaces}>
-              {LESSON_SURVEY_FACES.map((face) => {
-                const isSelected = lessonSurveyRating === face.value;
-                const imgClassNames = [
-                  styles.lessonSurveyFaceImage,
-                  isSelected ? styles.lessonSurveyFaceImageSelected : '',
-                ]
-                  .filter(Boolean)
-                  .join(' ');
-                const iconSrc = isSelected ? (face.selectedIcon ?? face.icon) : face.icon;
-                const faceClass = [styles.lessonSurveyFace, isSelected ? styles.lessonSurveyFaceSelected : '']
-                  .filter(Boolean)
-                  .join(' ');
-
-                return (
-                  <button
-                    key={face.value}
-                    type="button"
-                    className={faceClass}
-                    onClick={() => handleLessonSurveyFaceSelect(face.value)}
-                    aria-pressed={isSelected}
-                  >
-                    <Image src={iconSrc} alt={face.label} className={imgClassNames} />
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              className={styles.lessonSurveySubmit}
-              onClick={submitLessonSurvey}
-              disabled={lessonSurveySubmitting || assessingLesson}
-            >
-              {lessonSurveySubmitting || assessingLesson ? 'Submitting…' : 'Submit feedback'}
-            </button>
-          </div>
-        </div>
-      )}
-      {showLessonQr ? (
-        <div className={styles.overlay}>
-          <div className={styles.qrModal} role="dialog" aria-modal="true">
-            <button type="button" className={styles.qrCloseButton} onClick={() => setShowLessonQr(false)}>
-              &times;
-            </button>
-            <h2 className={styles.modalTitle}>{assessmentBadge?.badgeName ?? 'Badge'} Skill Check</h2>
-            {lessonQrImageSrc ? (
-              <div className={styles.qrCodeFrame}>
-                <div className={styles.qrCodeCanvas}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={lessonQrImageSrc}
-                    alt={`${assessmentBadge?.badgeName ?? 'Badge'} QR code`}
-                    className={styles.qrCodeImage}
-                    width={360}
-                    height={360}
-                  />
-                  <div className={styles.qrCodeLogo}>
-                    <Image
-                      src="/assets/badge_wallet/QR/qr_logo.svg"
-                      alt="Checkd logo"
-                      width={74}
-                      height={74}
-                      className={styles.qrCodeLogoImage}
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <p className={styles.modalError}>We could not build the assessment QR code for this lesson.</p>
-            )}
-            <div className={styles.assessmentCodeBox}>
-              <span className={styles.assessmentCodeLabel}>Assessment code</span>
-              <strong className={styles.assessmentCodeValue}>{assessmentCode ?? 'Generating...'}</strong>
-              {assessmentCodeError ? <p className={styles.assessmentCodeError}>{assessmentCodeError}</p> : null}
-            </div>
-            <p className={styles.modalDescription}>
-              Have your assessor scan this code to open the assessment for this student and badge.
-            </p>
-          </div>
-        </div>
+      {effectiveLessonSurvey && modalState === 'lessonSurvey' ? (
+        <SurveyModal
+          title="Tell us about this lesson"
+          question={effectiveLessonSurvey.question}
+          options={LESSON_SURVEY_FACES}
+          value={lessonSurveyRating}
+          onChange={handleLessonSurveyFaceSelect}
+          onSubmit={submitLessonSurvey}
+          submitLabel="Submit feedback"
+          isSubmitting={lessonSurveySubmitting || assessingLesson}
+          error={lessonSurveyError}
+          classNames={{
+            overlay: styles.lessonSurveyOverlay,
+            modal: styles.lessonSurveyModal,
+            title: styles.lessonSurveyTitle,
+            question: styles.lessonSurveyQuestion,
+            error: styles.lessonSurveyError,
+            options: styles.lessonSurveyFaces,
+            option: styles.lessonSurveyFace,
+            selectedOption: styles.lessonSurveyFaceSelected,
+            optionImage: styles.lessonSurveyFaceImage,
+            selectedOptionImage: styles.lessonSurveyFaceImageSelected,
+            submit: styles.lessonSurveySubmit,
+          }}
+        />
+      ) : null}
+      {showLessonQr && assessmentBadge && !reviewMode ? (
+        <AssessmentCodeModal
+          badgeId={assessmentBadge.badgeId}
+          badgeName={assessmentBadge.badgeName ?? 'Badge'}
+          courseId={courseId}
+          studentId={studentId}
+          onClose={() => setShowLessonQr(false)}
+          variant="lesson"
+        />
       ) : null}
     </div>
   );

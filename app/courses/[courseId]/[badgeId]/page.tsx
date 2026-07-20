@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
-import { isInstructor } from '@/lib/roles';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import BackButton from '@/app/components/BackButton/BackButton';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+
+import BackButton from '@/app/_components/BackButton';
 import styles from './page.module.css';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'COMPLETED' | 'NOT_STARTED';
@@ -199,7 +200,7 @@ export default function CourseBadgeProgress() {
   const params = useParams<{ courseId: string; badgeId: string }>();
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const courseId = resolveParam(params?.courseId);
@@ -239,7 +240,7 @@ export default function CourseBadgeProgress() {
   const course = data?.course ?? null;
   const summary = data?.summary ?? null;
   const assessment = data?.assessment ?? null;
-  const isInstructorFlag = isInstructor(data?.viewerRole);
+  const isInstructor = data?.viewerRole === 'INSTRUCTOR';
   const displayName = course?.createdBy?.name || user?.fullName || '';
 
   // Progress breakdown bars driven by the real summary percentages.
@@ -420,7 +421,7 @@ export default function CourseBadgeProgress() {
                           Length: <strong>{videoLength}</strong>
                         </p>
                       </div>
-                      {isInstructorFlag ? (
+                      {isInstructor ? (
                         <button
                           type="button"
                           className={styles.editButton}

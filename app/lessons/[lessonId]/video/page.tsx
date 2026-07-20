@@ -1,11 +1,13 @@
 'use client';
 
 import { Suspense, useMemo, useState } from 'react';
+import { LessonStatus } from '@prisma/client';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
 function buildAvatarUrlFromAvatar(
   avatar?: { base: string; face: string; accessory: string | null } | null
@@ -21,7 +23,7 @@ function LessonVideoRouteContent() {
   const courseId = searchParams.get('courseId');
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const { data: studentData, isLoading, error } = useStudentData(user?.primaryEmailAddress?.emailAddress, courseId);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
@@ -115,6 +117,9 @@ function LessonVideoRouteContent() {
   const studentAvatar = studentData.student.avatar || null;
   const avatarUrl = buildAvatarUrlFromAvatar(studentAvatar);
   const lessonSurvey = studentData.surveys.lesson.find((survey) => survey.lessonSlug === lessonRecord.slug) ?? null;
+  // A completed lesson is re-entered in "review" mode: free rewatch from the start,
+  // unlocked scrubber, non-blocking checkpoints the student may re-open for practice.
+  const reviewMode = lessonRecord.status === LessonStatus.COMPLETED;
 
   if (!studentEmail) {
     return (
@@ -149,6 +154,7 @@ function LessonVideoRouteContent() {
           studentEmail={studentEmail}
           lessonSurvey={lessonSurvey}
           resumeRequested={false}
+          reviewMode={reviewMode}
           studentAvatarUrl={avatarUrl}
           studentId={studentData.student.id}
           courseId={studentData.course?.id ?? null}
