@@ -157,6 +157,37 @@ function createInProgressBadgeDetailPayload() {
         ],
       },
     ],
+    qevAttempts: [
+      {
+        id: 'run-current',
+        label: 'Attempt 1',
+        lessonTitle: 'Waste Handling Lesson',
+        passed: null,
+        gradePercent: null,
+        correctAnswers: null,
+        totalQuestions: null,
+        completedAt: null,
+        inProgress: true,
+        checkpoints: [
+          {
+            id: 'checkpoint-1',
+            title: 'Checkpoint 1',
+            timeCompleted: null,
+            questions: [
+              {
+                id: 'question-1',
+                title: 'Question 1',
+                prompt: 'Which container should be used?',
+                answers: [
+                  { answeredText: 'Flask', isCorrect: false },
+                  { answeredText: 'Beaker', isCorrect: true },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
     assessment: {
       completedOn: null,
       attemptCount: 0,
@@ -187,6 +218,20 @@ function createCompletedBadgeDetailPayload() {
       completedCheckpoints: 3,
     },
     checkpoints: [],
+    qevAttempts: [
+      {
+        id: 'run-1',
+        label: 'Attempt 1',
+        lessonTitle: 'Vent Hood Lesson',
+        passed: true,
+        gradePercent: 100,
+        correctAnswers: 3,
+        totalQuestions: 3,
+        completedAt: '2026-03-20T10:00:00.000Z',
+        inProgress: false,
+        checkpoints: [],
+      },
+    ],
     assessment: {
       completedOn: '2026-03-22T10:00:00.000Z',
       attemptCount: 1,
@@ -207,6 +252,16 @@ function createCompletedBadgeDetailPayload() {
           passed: true,
           feedback: 'Student demonstrated safe setup and shutdown.',
           assessorName: 'Alex Checker',
+          responses: [
+            {
+              id: 'resp-1',
+              title: 'Setup › Correct hood setup',
+              points: 1,
+              passed: true,
+              feedback: null,
+              isOverride: false,
+            },
+          ],
         },
       ],
     },
@@ -326,12 +381,11 @@ describe('Roster member profile page', () => {
       );
     });
 
-    expect(await screen.findByText('Answer History')).toBeInTheDocument();
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+    // In-progress badges default to the Precheck answer history tab (run-grouped).
     // The ring renders the number and "%" as separate spans inside .progressRingCenter.
     expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('70%');
     expect(screen.getByText('Checkpoint 3')).toBeInTheDocument();
-    expect(screen.getByText('Which container should be used?')).toBeInTheDocument();
-    expect(screen.getByText('Answered: Beaker')).toBeInTheDocument();
   });
 
   it('renders the completed badge detail layout when a completed badge is selected', async () => {
@@ -354,17 +408,16 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByText('Assessment Info')).toBeInTheDocument();
-    expect(screen.getByText('Assessor Grading')).toBeInTheDocument();
-    expect(screen.getByText('Assessment History')).toBeInTheDocument();
+    // Completed badges default to the Assessment history tab.
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Assessment history' })).toBeInTheDocument();
     expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('100%');
 
     fireEvent.click(screen.getByRole('button', { name: 'Attempt 1' }));
 
     expect(screen.getByText('Score: 95%')).toBeInTheDocument();
-    expect(screen.getByText('Outcome:')).toBeInTheDocument();
-    expect(screen.getByText('Passed')).toBeInTheDocument();
-    expect(screen.getByText('Assessor: Alex Checker')).toBeInTheDocument();
+    expect(screen.getByText('Assessment result:')).toBeInTheDocument();
+    expect(screen.getByText('Checker: Alex Checker')).toBeInTheDocument();
     expect(screen.getByText('Student demonstrated safe setup and shutdown.')).toBeInTheDocument();
   });
 
@@ -402,9 +455,10 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByText('Assessment Info')).toBeInTheDocument();
-    expect(screen.getByText('Assessment History')).toBeInTheDocument();
-    expect(screen.queryByText('Answer History')).not.toBeInTheDocument();
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+    // Assessment history tab is default; the Precheck tab is available but not active.
+    expect(screen.getByRole('button', { name: 'Attempt 1' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Precheck answer history' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Open Assessment View' })).not.toBeInTheDocument();
   });
 
@@ -460,7 +514,7 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByText('Answer History')).toBeInTheDocument();
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit configurations' }));
     expect(screen.getByText('Editing badge configurations for: Ada Lovelace')).toBeInTheDocument();
@@ -505,7 +559,7 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByText('Answer History')).toBeInTheDocument();
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Override cooldown/i }));
 
@@ -537,7 +591,7 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByText('Answer History')).toBeInTheDocument();
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Override cooldown/i })).not.toBeInTheDocument();
   });
 

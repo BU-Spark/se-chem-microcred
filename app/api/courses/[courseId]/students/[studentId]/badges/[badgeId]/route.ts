@@ -314,6 +314,8 @@ export async function GET(
                   },
                 },
                 attempts: {
+                  // Instructor view: include ALL runs (archived failed runs too),
+                  // grouped by lessonAttemptId into "Attempt N" further below.
                   where: {
                     userId: studentId,
                   },
@@ -325,6 +327,7 @@ export async function GET(
                     createdAt: true,
                     completedAt: true,
                     isPassing: true,
+                    lessonAttemptId: true,
                     responses: {
                       orderBy: {
                         createdAt: 'asc',
@@ -538,6 +541,115 @@ export async function GET(
       }))
     );
 
+    // Precheck (QEV) attempt history, grouped run-by-run like the in-person
+    // assessment attempts. Each graded watch-through is a LessonAttempt; a trailing
+    // "in progress" run collects any answers not yet graded (lessonAttemptId null).
+    const lessonAttemptRecords = await prisma.lessonAttempt.findMany({
+      where: { studentId, lessonId: { in: course.lessons.map((lesson) => lesson.id) } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        lessonId: true,
+        passed: true,
+        gradePercent: true,
+        correctAnswers: true,
+        totalQuestions: true,
+        completedAt: true,
+      },
+    });
+
+    type QevRunView = {
+      id: string;
+      label: string;
+      lessonTitle: string;
+      passed: boolean | null;
+      gradePercent: number | null;
+      correctAnswers: number | null;
+      totalQuestions: number | null;
+      completedAt: string | null;
+      inProgress: boolean;
+      checkpoints: Array<{
+        id: string;
+        title: string;
+        timeCompleted: string | null;
+        questions: Array<{
+          id: string;
+          title: string;
+          prompt: string | null;
+          answers: Array<{ answeredText: string; isCorrect: boolean | null }>;
+        }>;
+      }>;
+    };
+
+    const qevAttempts: QevRunView[] = course.lessons.flatMap((lesson) => {
+      const buildRunCheckpoints = (runId: string | null) =>
+        lesson.checkpoints
+          .map((checkpoint) => {
+            const runAttempts = checkpoint.attempts.filter((attempt) => attempt.lessonAttemptId === runId);
+            if (runAttempts.length === 0) return null;
+            const latestCompletedAt = runAttempts
+              .map((attempt) => attempt.completedAt)
+              .filter((value): value is Date => Boolean(value))
+              .sort((a, b) => a.getTime() - b.getTime())
+              .at(-1);
+            const questions = checkpoint.questions
+              .map((question, questionIndex) => {
+                const normalizedQuestion = normalizeCheckpointQuestion(question);
+                const answers = runAttempts
+                  .map((attempt) => {
+                    const response = attempt.responses.find((entry) => entry.questionId === question.id);
+                    if (!response) return null;
+                    return {
+                      answeredText: answerTextFromResponse(normalizedQuestion, response),
+                      isCorrect: response.isCorrect,
+                    };
+                  })
+                  .filter((entry): entry is { answeredText: string; isCorrect: boolean | null } => Boolean(entry));
+                return { id: question.id, title: `Question ${questionIndex + 1}`, prompt: question.prompt, answers };
+              })
+              .filter((question) => question.answers.length > 0);
+            return {
+              id: checkpoint.id,
+              title: formatCheckpointLabel(checkpoint.label, checkpoint.sortOrder),
+              timeCompleted: latestCompletedAt?.toISOString() ?? null,
+              questions,
+            };
+          })
+          .filter((checkpoint): checkpoint is NonNullable<typeof checkpoint> => Boolean(checkpoint));
+
+      const runs = lessonAttemptRecords.filter((record) => record.lessonId === lesson.id);
+      const views: QevRunView[] = runs.map((run, index) => ({
+        id: run.id,
+        label: `Attempt ${index + 1}`,
+        lessonTitle: lesson.title,
+        passed: run.passed,
+        gradePercent: Math.round(run.gradePercent),
+        correctAnswers: run.correctAnswers,
+        totalQuestions: run.totalQuestions,
+        completedAt: run.completedAt.toISOString(),
+        inProgress: false,
+        checkpoints: buildRunCheckpoints(run.id),
+      }));
+
+      const currentCheckpoints = buildRunCheckpoints(null);
+      if (currentCheckpoints.length > 0) {
+        views.push({
+          id: `${lesson.id}-current`,
+          label: `Attempt ${runs.length + 1}`,
+          lessonTitle: lesson.title,
+          passed: null,
+          gradePercent: null,
+          correctAnswers: null,
+          totalQuestions: null,
+          completedAt: null,
+          inProgress: true,
+          checkpoints: currentCheckpoints,
+        });
+      }
+
+      return views;
+    });
+
     const gradingRows =
       latestAssessment?.responses && latestAssessment.responses.length > 0
         ? latestAssessment.responses.map((response) => ({
@@ -591,6 +703,8 @@ export async function GET(
           completedCheckpoints,
         },
         checkpoints,
+        // Precheck answer history grouped by watch-through (run) for the viewer.
+        qevAttempts,
         assessment: {
           completedOn:
             latestPassingAssessment?.completedAt?.toISOString() ?? badgeProgress.awardedAt?.toISOString() ?? null,
@@ -614,6 +728,17 @@ export async function GET(
             passed: attempt.passed,
             feedback: attempt.feedback,
             assessorName: attempt.assessor.name ?? attempt.assessor.email ?? null,
+            // Per-attempt rubric breakdown for the "Assessment history" dropdown.
+            responses: attempt.responses.map((response) => ({
+              id: response.id,
+              title: response.isOverride ? 'Assessor override' : `${response.subgoalText} › ${response.taskText}`,
+              subgoalText: response.subgoalText,
+              taskText: response.taskText,
+              points: response.points,
+              passed: response.passed,
+              feedback: response.feedback,
+              isOverride: response.isOverride,
+            })),
           })),
         },
       },

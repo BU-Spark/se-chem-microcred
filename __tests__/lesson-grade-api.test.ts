@@ -58,23 +58,19 @@ describe('POST /api/lessons/[lessonId]/grade', () => {
 
   it('keeps the badge learning when the QEV grade is below the passing threshold', async () => {
     const tx = {
-      surveyPrompt: {
-        findMany: jest.fn().mockResolvedValue([{ id: 'prompt-1' }]),
-      },
       lessonProgress: {
         upsert: jest.fn().mockResolvedValue({ id: 'progress-1' }),
         update: jest.fn().mockResolvedValue({ id: 'progress-1' }),
         findMany: jest.fn().mockResolvedValue([{ lessonId: 'lesson-1', status: 'IN_PROGRESS', percentComplete: 0 }]),
       },
-      surveyResponse: {
-        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
-        findMany: jest.fn().mockResolvedValue([]),
+      lessonAttempt: {
+        create: jest.fn().mockResolvedValue({ id: 'lesson-attempt-1' }),
       },
       checkpointResponse: {
-        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       checkpointAttempt: {
-        deleteMany: jest.fn().mockResolvedValue({ count: 1 }),
+        updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       segmentProgress: {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
@@ -100,6 +96,19 @@ describe('POST /api/lessons/[lessonId]/grade', () => {
         passingPercent: 70,
       })
     );
+
+    // The failed run is sealed into a LessonAttempt and archived (not deleted), so
+    // it stays as history for the instructor while the student retries fresh.
+    expect(tx.lessonAttempt.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ passed: false, gradePercent: 60 }) })
+    );
+    expect(tx.checkpointAttempt.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { archivedAt: expect.any(Date) } })
+    );
+    expect(tx.checkpointResponse.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { archivedAt: expect.any(Date) } })
+    );
+
     expect(tx.studentBadge.updateMany).toHaveBeenCalledWith({
       where: {
         studentId: 'student-1',

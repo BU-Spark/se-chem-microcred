@@ -21,7 +21,9 @@ export async function computeLessonGrade(
     include: {
       questions: true,
       attempts: {
-        where: { userId },
+        // archivedAt: null keeps grading scoped to the current (unsealed) run, so a
+        // retry regrades against the fresh answers rather than a past failed run.
+        where: { userId, archivedAt: null },
         orderBy: [{ completedAt: 'desc' }, { createdAt: 'desc' }],
         take: 1,
         include: {

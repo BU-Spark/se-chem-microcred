@@ -26,6 +26,7 @@ model User {
   surveyResponses     SurveyResponse[]
   analytics           StudentAnalytics?
   checkpointAttempts  CheckpointAttempt[]
+  lessonAttempts      LessonAttempt[]
   createdCourses      Course[]             @relation("CourseCreator")
   createdBadges       Badge[]              @relation("BadgeCreator")
   assessmentAttempts  AssessmentAttempt[]  @relation("AssessmentStudent")
@@ -206,6 +207,7 @@ model Lesson {
   badgeRequirements BadgeRequirement[] @relation("BadgeLessonRequirement")
   progress          LessonProgress[]
   surveys           SurveyPrompt[]
+  lessonAttempts    LessonAttempt[]
 
   @@index([courseId])
 }
@@ -341,6 +343,9 @@ model CheckpointResponse {
   selectedIndices  Json?
   numericAnswer    Float?
   isCorrect        Boolean?
+  // Set when a failed QEV run is sealed — hides this answer from the student's
+  // fresh-slate retry while keeping it for the instructor history view.
+  archivedAt       DateTime?
   createdAt        DateTime @default(now())
 
   attempt        CheckpointAttempt?  @relation(fields: [attemptId], references: [id])
@@ -355,6 +360,11 @@ model CheckpointAttempt {
   checkpointId     String
   userId           String
   lessonProgressId String?
+  // Groups this answer into a QEV run (LessonAttempt), set when the run is graded.
+  // Null = the in-progress run that hasn't been graded yet.
+  lessonAttemptId  String?
+  // Set when a failed run is sealed — hides it from the student's fresh retry.
+  archivedAt       DateTime?
   startedAt        DateTime  @default(now())
   completedAt      DateTime?
   isPassing        Boolean?
@@ -364,7 +374,31 @@ model CheckpointAttempt {
   checkpoint     LessonCheckpoint     @relation(fields: [checkpointId], references: [id])
   user           User                 @relation(fields: [userId], references: [id])
   lessonProgress LessonProgress?      @relation(fields: [lessonProgressId], references: [id])
+  lessonAttempt  LessonAttempt?       @relation(fields: [lessonAttemptId], references: [id])
   responses      CheckpointResponse[]
+
+  @@index([lessonAttemptId])
+}
+
+// One graded QEV watch-through ("precheck attempt"), the online-lesson analog of
+// AssessmentAttempt. Created on every grade submission; owns that run's checkpoint
+// answers. See docs — surfaced run-by-run in the instructor badge viewer.
+model LessonAttempt {
+  id             String   @id @default(cuid())
+  studentId      String
+  lessonId       String
+  passed         Boolean
+  gradePercent   Float
+  correctAnswers Int?
+  totalQuestions Int?
+  completedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  student            User                @relation(fields: [studentId], references: [id])
+  lesson             Lesson              @relation(fields: [lessonId], references: [id])
+  checkpointAttempts CheckpointAttempt[]
+
+  @@index([studentId, lessonId])
 }
 
 model Badge {

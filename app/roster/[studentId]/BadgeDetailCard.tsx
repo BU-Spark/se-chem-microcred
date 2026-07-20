@@ -29,19 +29,33 @@ export type BadgeDetailResponse = {
     totalCheckpoints: number;
     completedCheckpoints: number;
   };
-  checkpoints: Array<{
+  // Legacy flat checkpoint view — superseded by qevAttempts (kept for back-compat).
+  checkpoints?: Array<{
     id: string;
     title: string;
     lessonTitle: string;
-    questions: Array<{
+    questions: Array<{ id: string; title: string; prompt: string; attempts: unknown[] }>;
+  }>;
+  // Precheck (QEV) answers grouped by watch-through (run), like the in-person attempts.
+  qevAttempts: Array<{
+    id: string;
+    label: string;
+    lessonTitle: string;
+    passed: boolean | null;
+    gradePercent: number | null;
+    correctAnswers: number | null;
+    totalQuestions: number | null;
+    completedAt: string | null;
+    inProgress: boolean;
+    checkpoints: Array<{
       id: string;
       title: string;
-      prompt: string;
-      attempts: Array<{
+      timeCompleted: string | null;
+      questions: Array<{
         id: string;
-        label: string;
-        answeredText: string;
-        isCorrect: boolean | null;
+        title: string;
+        prompt: string | null;
+        answers: Array<{ answeredText: string; isCorrect: boolean | null }>;
       }>;
     }>;
   }>;
@@ -62,9 +76,23 @@ export type BadgeDetailResponse = {
       passed?: boolean;
       feedback?: string | null;
       assessorName?: string | null;
+      responses?: Array<{
+        id: string;
+        title: string;
+        points: number;
+        passed: boolean;
+        feedback?: string | null;
+        isOverride: boolean;
+      }>;
     }>;
   };
 };
+
+const ORDINAL_SUFFIXES = ['th', 'st', 'nd', 'rd'];
+function ordinal(n: number) {
+  const v = n % 100;
+  return `${n}${ORDINAL_SUFFIXES[(v - 20) % 10] ?? ORDINAL_SUFFIXES[v] ?? ORDINAL_SUFFIXES[0]}`;
+}
 
 function formatDate(value?: string | null) {
   if (!value) {
@@ -147,24 +175,30 @@ function ProgressRing({ percent }: { percent: number }) {
 }
 
 export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse; tone: BadgeDetailTone }) {
-  const [openCheckpointId, setOpenCheckpointId] = useState<string | null>(detail.checkpoints[0]?.id ?? null);
-  const [openQuestionKey, setOpenQuestionKey] = useState<string | null>(() => {
-    const firstCheckpoint = detail.checkpoints[0];
-    const firstQuestion = firstCheckpoint?.questions[0];
-    return firstCheckpoint && firstQuestion ? `${firstCheckpoint.id}:${firstQuestion.id}` : null;
-  });
-  const [isGradingOpen, setIsGradingOpen] = useState(true);
+  const [activeTab, setActiveTab] = useState<'assessment' | 'precheck'>(
+    tone === 'completed' ? 'assessment' : 'precheck'
+  );
   const [openAssessmentAttemptId, setOpenAssessmentAttemptId] = useState<string | null>(null);
+  const latestRunId = detail.qevAttempts.at(-1)?.id ?? null;
+  const [openRunId, setOpenRunId] = useState<string | null>(latestRunId);
+  const [openRunCheckpointKey, setOpenRunCheckpointKey] = useState<string | null>(null);
 
   useEffect(() => {
-    const firstCheckpoint = detail.checkpoints[0];
-    const firstQuestion = firstCheckpoint?.questions[0];
-
-    setOpenCheckpointId(firstCheckpoint?.id ?? null);
-    setOpenQuestionKey(firstCheckpoint && firstQuestion ? `${firstCheckpoint.id}:${firstQuestion.id}` : null);
-    setIsGradingOpen(true);
     setOpenAssessmentAttemptId(null);
+    const latestRun = detail.qevAttempts.at(-1) ?? null;
+    setOpenRunId(latestRun?.id ?? null);
+    const firstCheckpoint = latestRun?.checkpoints[0];
+    setOpenRunCheckpointKey(latestRun && firstCheckpoint ? `${latestRun.id}:${firstCheckpoint.id}` : null);
   }, [detail]);
+
+  // "Currently at": before precheck is cleared, the current checkpoint; after,
+  // the in-person attempt state (e.g. "1st attempt: still learning").
+  const latestAssessment = detail.assessment.attempts.at(-1) ?? null;
+  const currentlyAt = detail.progress.precheckComplete
+    ? detail.assessment.attemptCount > 0
+      ? `${ordinal(detail.assessment.attemptCount)} attempt: ${latestAssessment?.passed ? 'proficient' : 'still learning'}`
+      : 'Not yet assessed'
+    : detail.progress.currentCheckpoint || '--';
 
   return (
     <section className={styles.detailCard}>
@@ -195,164 +229,192 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
           </p>
           <p className={styles.progressStatusLine}>
             <span className={styles.progressStatusLabel}>Currently at:</span>{' '}
-            <span className={styles.progressStatusValue}>{detail.progress.currentCheckpoint || '--'}</span>
+            <span className={styles.progressStatusValue}>{currentlyAt}</span>
           </p>
         </div>
       </div>
 
       <div className={styles.detailDivider} />
 
-      {tone === 'completed' ? (
-        <div className={styles.detailContent}>
-          <section className={styles.detailSection}>
-            <h3 className={styles.detailSectionTitle}>Assessment Info</h3>
-            <p className={styles.assessmentMeta}>
-              Completed on: <strong>{formatDate(detail.assessment.completedOn)}</strong>
-            </p>
+      <div className={styles.detailTabs} role="tablist" aria-label="Badge detail history">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'assessment'}
+          className={[styles.detailTab, activeTab === 'assessment' ? styles.detailTabActive : ''].join(' ')}
+          onClick={() => setActiveTab('assessment')}
+        >
+          Assessment history
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'precheck'}
+          className={[styles.detailTab, activeTab === 'precheck' ? styles.detailTabActive : ''].join(' ')}
+          onClick={() => setActiveTab('precheck')}
+        >
+          Precheck answer history
+        </button>
+      </div>
 
-            <button
-              type="button"
-              className={styles.subAccordionButton}
-              onClick={() => setIsGradingOpen((current) => !current)}
-              aria-expanded={isGradingOpen}
-            >
-              <span>Assessor Grading</span>
-              <Chevron isOpen={isGradingOpen} />
-            </button>
-
-            {isGradingOpen ? (
-              <div className={styles.gradingBox}>
-                {detail.assessment.gradingRows.map((row) => (
-                  <div key={row.id} className={styles.gradingRow}>
-                    <AttemptStatusIcon isCorrect={row.passed} />
-                    <p className={styles.gradingTitle}>{row.title}</p>
-                    <p className={styles.gradingOutcome}>{row.outcome}</p>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </section>
-
-          <section className={styles.detailSection}>
-            <h3 className={styles.detailSectionTitle}>Assessment History</h3>
-            <p className={styles.assessmentMeta}>
-              Number of Attempts: <strong>{detail.assessment.attemptCount}</strong>
-            </p>
-
-            {detail.assessment.attempts.length > 0 ? (
-              <div className={styles.assessmentAttemptList}>
-                {detail.assessment.attempts.map((attempt) => {
-                  const isOpen = openAssessmentAttemptId === attempt.id;
-
-                  return (
-                    <div key={attempt.id} className={styles.assessmentAttemptItem}>
-                      <button
-                        type="button"
-                        className={styles.assessmentAttemptButton}
-                        onClick={() =>
-                          setOpenAssessmentAttemptId((current) => (current === attempt.id ? null : attempt.id))
-                        }
-                        aria-expanded={isOpen}
-                      >
-                        <span>{attempt.label}</span>
-                        <Chevron isOpen={isOpen} />
-                      </button>
-
-                      {isOpen ? (
-                        <div className={styles.assessmentAttemptPanel}>
-                          <p className={styles.assessmentAttemptLine}>Completed: {formatDate(attempt.completedAt)}</p>
-                          <p className={styles.assessmentAttemptLine}>
-                            Outcome: <strong>{attempt.passed === false ? 'Needs reassessment' : 'Passed'}</strong>
-                          </p>
-                          <p className={styles.assessmentAttemptLine}>
-                            Score: {attempt.score != null ? `${attempt.score}%` : 'Not recorded'}
-                          </p>
-                          {attempt.assessorName ? (
-                            <p className={styles.assessmentAttemptLine}>Assessor: {attempt.assessorName}</p>
-                          ) : null}
-                          {attempt.feedback ? (
-                            <p className={styles.assessmentAttemptFeedback}>{attempt.feedback}</p>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <p className={styles.emptyState}>No assessment attempts recorded yet.</p>
-            )}
-          </section>
-        </div>
-      ) : (
+      {activeTab === 'assessment' ? (
         <section className={styles.detailSection}>
-          <h3 className={styles.detailSectionTitle}>Answer History</h3>
+          <p className={styles.assessmentMeta}>
+            Completed on: <strong>{formatDate(detail.assessment.completedOn)}</strong> · Number of attempts:{' '}
+            <strong>{detail.assessment.attemptCount}</strong>
+          </p>
 
-          {detail.checkpoints.length === 0 ? (
-            <p className={styles.emptyState}>No checkpoint history recorded yet.</p>
-          ) : (
-            <div className={styles.checkpointList}>
-              {detail.checkpoints.map((checkpoint) => {
-                const isCheckpointOpen = openCheckpointId === checkpoint.id;
+          {detail.assessment.attempts.length > 0 ? (
+            <div className={styles.assessmentAttemptList}>
+              {detail.assessment.attempts.map((attempt) => {
+                const isOpen = openAssessmentAttemptId === attempt.id;
 
                 return (
-                  <div key={checkpoint.id} className={styles.checkpointBlock}>
+                  <div key={attempt.id} className={styles.assessmentAttemptItem}>
                     <button
                       type="button"
-                      className={styles.checkpointButton}
+                      className={styles.assessmentAttemptButton}
                       onClick={() =>
-                        setOpenCheckpointId((current) => (current === checkpoint.id ? null : checkpoint.id))
+                        setOpenAssessmentAttemptId((current) => (current === attempt.id ? null : attempt.id))
                       }
-                      aria-expanded={isCheckpointOpen}
+                      aria-expanded={isOpen}
                     >
-                      <span>{checkpoint.title}</span>
-                      <Chevron isOpen={isCheckpointOpen} />
+                      <span>{attempt.label}</span>
+                      <Chevron isOpen={isOpen} />
                     </button>
 
-                    {isCheckpointOpen ? (
-                      <div className={styles.checkpointQuestions}>
-                        {checkpoint.questions.map((question) => {
-                          const questionKey = `${checkpoint.id}:${question.id}`;
-                          const isQuestionOpen = openQuestionKey === questionKey;
+                    {isOpen ? (
+                      <div className={styles.assessmentAttemptPanel}>
+                        <p className={styles.assessmentAttemptLine}>Time: {formatDate(attempt.completedAt)}</p>
+                        <p className={styles.assessmentAttemptLine}>
+                          Checker: {attempt.assessorName || 'Not recorded'}
+                        </p>
+                        <p className={styles.assessmentAttemptLine}>
+                          Assessment result:{' '}
+                          <strong>{attempt.passed === false ? 'still learning' : 'proficient'}</strong>
+                        </p>
+                        <p className={styles.assessmentAttemptLine}>
+                          Score: {attempt.score != null ? `${attempt.score}%` : 'Not recorded'}
+                        </p>
+                        {attempt.feedback ? (
+                          <p className={styles.assessmentAttemptFeedback}>{attempt.feedback}</p>
+                        ) : null}
+                        {attempt.responses && attempt.responses.length > 0 ? (
+                          <div className={styles.gradingBox}>
+                            {attempt.responses.map((row) => (
+                              <div key={row.id} className={styles.gradingRow}>
+                                <AttemptStatusIcon isCorrect={row.passed} />
+                                <p className={styles.gradingTitle}>{row.title}</p>
+                                <p className={styles.gradingOutcome}>
+                                  {row.feedback ||
+                                    (row.isOverride
+                                      ? 'Overridden to still learning'
+                                      : row.passed
+                                        ? `Passed (+${row.points} ${row.points === 1 ? 'pt' : 'pts'})`
+                                        : 'Not passed')}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className={styles.emptyState}>No assessment attempts recorded yet.</p>
+          )}
+        </section>
+      ) : (
+        <section className={styles.detailSection}>
+          <h3 className={styles.detailSectionTitle}>Precheck answer history</h3>
 
-                          return (
-                            <div key={question.id} className={styles.questionBlock}>
-                              <button
-                                type="button"
-                                className={styles.questionButton}
-                                onClick={() =>
-                                  setOpenQuestionKey((current) => (current === questionKey ? null : questionKey))
-                                }
-                                aria-expanded={isQuestionOpen}
-                              >
-                                <span>{question.title}</span>
-                                <Chevron isOpen={isQuestionOpen} />
-                              </button>
+          {detail.qevAttempts.length === 0 ? (
+            <p className={styles.emptyState}>No precheck attempts recorded yet.</p>
+          ) : (
+            <div className={styles.assessmentAttemptList}>
+              {detail.qevAttempts.map((run) => {
+                const isRunOpen = openRunId === run.id;
+                const resultLabel = run.inProgress
+                  ? 'In progress'
+                  : run.passed
+                    ? `Passed${run.gradePercent != null ? ` · ${run.gradePercent}%` : ''}`
+                    : `Did not pass${run.gradePercent != null ? ` · ${run.gradePercent}%` : ''}`;
 
-                              {isQuestionOpen ? (
-                                <div className={styles.questionPanel}>
-                                  <p className={styles.questionPrompt}>{question.prompt}</p>
+                return (
+                  <div key={run.id} className={styles.assessmentAttemptItem}>
+                    <button
+                      type="button"
+                      className={styles.assessmentAttemptButton}
+                      onClick={() => setOpenRunId((current) => (current === run.id ? null : run.id))}
+                      aria-expanded={isRunOpen}
+                    >
+                      <span>
+                        {run.label} — {resultLabel}
+                      </span>
+                      <Chevron isOpen={isRunOpen} />
+                    </button>
 
-                                  {question.attempts.length > 0 ? (
-                                    <div className={styles.answerCard}>
-                                      {question.attempts.map((attempt) => (
-                                        <div key={attempt.id} className={styles.answerRow}>
-                                          <AttemptStatusIcon isCorrect={attempt.isCorrect} />
-                                          <span className={styles.answerAttemptLabel}>{attempt.label}</span>
-                                          <span className={styles.answerAttemptValue}>
-                                            Answered: {attempt.answeredText}
-                                          </span>
+                    {isRunOpen ? (
+                      <div className={styles.assessmentAttemptPanel}>
+                        {run.completedAt ? (
+                          <p className={styles.assessmentAttemptLine}>Completed: {formatDate(run.completedAt)}</p>
+                        ) : null}
+                        {run.checkpoints.length === 0 ? (
+                          <p className={styles.emptyState}>No checkpoint answers recorded for this attempt.</p>
+                        ) : (
+                          <div className={styles.checkpointList}>
+                            {run.checkpoints.map((checkpoint) => {
+                              const checkpointKey = `${run.id}:${checkpoint.id}`;
+                              const isCheckpointOpen = openRunCheckpointKey === checkpointKey;
+
+                              return (
+                                <div key={checkpoint.id} className={styles.checkpointBlock}>
+                                  <button
+                                    type="button"
+                                    className={styles.checkpointButton}
+                                    onClick={() =>
+                                      setOpenRunCheckpointKey((current) =>
+                                        current === checkpointKey ? null : checkpointKey
+                                      )
+                                    }
+                                    aria-expanded={isCheckpointOpen}
+                                  >
+                                    <span>{checkpoint.title}</span>
+                                    <Chevron isOpen={isCheckpointOpen} />
+                                  </button>
+
+                                  {isCheckpointOpen ? (
+                                    <div className={styles.checkpointQuestions}>
+                                      {checkpoint.timeCompleted ? (
+                                        <p className={styles.assessmentAttemptLine}>
+                                          Time completed: {formatDate(checkpoint.timeCompleted)}
+                                        </p>
+                                      ) : null}
+                                      {checkpoint.questions.map((question) => (
+                                        <div key={question.id} className={styles.questionBlock}>
+                                          <p className={styles.questionPrompt}>{question.prompt || question.title}</p>
+                                          <div className={styles.answerCard}>
+                                            {question.answers.map((answer, answerIndex) => (
+                                              <div key={answerIndex} className={styles.answerRow}>
+                                                <AttemptStatusIcon isCorrect={answer.isCorrect} />
+                                                <span className={styles.answerAttemptValue}>
+                                                  Answered: {answer.answeredText}
+                                                </span>
+                                              </div>
+                                            ))}
+                                          </div>
                                         </div>
                                       ))}
                                     </div>
-                                  ) : (
-                                    <p className={styles.emptyState}>No attempts recorded for this question yet.</p>
-                                  )}
+                                  ) : null}
                                 </div>
-                              ) : null}
-                            </div>
-                          );
-                        })}
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     ) : null}
                   </div>

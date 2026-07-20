@@ -363,9 +363,12 @@ export async function GET(req: Request) {
       },
     }),
     prisma.checkpointAttempt.findMany({
+      // archivedAt: null excludes sealed failed-run answers so the student's
+      // progress reflects only their current attempt.
       where: {
         userId: student.id,
         isPassing: true,
+        archivedAt: null,
       },
       select: {
         checkpointId: true,
@@ -380,7 +383,7 @@ export async function GET(req: Request) {
       },
     }),
     prisma.checkpointResponse.findMany({
-      where: { studentId: student.id },
+      where: { studentId: student.id, archivedAt: null },
       select: {
         checkpointId: true,
         questionId: true,

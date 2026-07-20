@@ -80,13 +80,40 @@ export async function POST(_request: Request, context: RouteContext) {
       },
     });
 
+    // Seal this graded watch-through into a first-class LessonAttempt (the QEV
+    // analog of AssessmentAttempt) and link the run's active checkpoint answers to
+    // it, so the instructor can review each attempt run-by-run.
+    const lessonAttempt = await tx.lessonAttempt.create({
+      data: {
+        studentId: user.id,
+        lessonId,
+        passed,
+        gradePercent: grade.percent,
+        correctAnswers: grade.correctAnswers,
+        totalQuestions: grade.totalQuestions,
+        completedAt: now,
+      },
+    });
+
+    if (checkpointIds.length > 0) {
+      await tx.checkpointAttempt.updateMany({
+        where: { userId: user.id, checkpointId: { in: checkpointIds }, lessonAttemptId: null },
+        data: { lessonAttemptId: lessonAttempt.id },
+      });
+    }
+
     if (!passed) {
+      // Archive the failed run instead of deleting it: the student retries from a
+      // fresh slate (student reads filter archivedAt: null) while the answers are
+      // retained for the instructor history view.
       if (checkpointIds.length > 0) {
-        await tx.checkpointResponse.deleteMany({
-          where: { studentId: user.id, checkpointId: { in: checkpointIds } },
+        await tx.checkpointResponse.updateMany({
+          where: { studentId: user.id, checkpointId: { in: checkpointIds }, archivedAt: null },
+          data: { archivedAt: now },
         });
-        await tx.checkpointAttempt.deleteMany({
-          where: { userId: user.id, checkpointId: { in: checkpointIds } },
+        await tx.checkpointAttempt.updateMany({
+          where: { userId: user.id, checkpointId: { in: checkpointIds }, archivedAt: null },
+          data: { archivedAt: now },
         });
       }
 

@@ -558,6 +558,35 @@
   gap: 1rem;
 }
 
+/* Tab strip for the badge detail (Assessment history / Precheck answer history). */
+.detailTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 4px;
+  margin-bottom: 1rem;
+  background: #eef2f6;
+  border-radius: 999px;
+}
+
+.detailTab {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #4a5568;
+  cursor: pointer;
+}
+
+.detailTabActive {
+  background: #ffffff;
+  color: #2e6aa9;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
 .detailSection {
   display: grid;
   gap: 0.85rem;
