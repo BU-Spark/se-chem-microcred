@@ -24,11 +24,6 @@ const STEP_ROSTER = 2;
 const STEP_ASSESSOR = 3;
 const STEP_REVIEW = 4;
 
-// Assessor Configurations are gated out of the MVP. Keep the assessor roster,
-// but only surface the configuration toggles in dev builds until the feature is
-// ready to ship. Mirrors the NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV gate used in
-// Sidebar.tsx and the lesson video player.
-const SHOW_ASSESSOR_CONFIGS = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
 // Old Student row and assessor row types were the exact same colsolidating
 type RosterRow = {
