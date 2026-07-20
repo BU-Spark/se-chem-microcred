@@ -9,7 +9,6 @@ import { generateInitials, getNameForProfile } from '@/lib/text/name';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import StudentProfileCard from '@/app/components/StudentProfileCard';
-import rosterStyles from '@/app/roster/[studentId]/page.module.css';
 import styles from './page.module.css';
 import { useAssessmentReadiness } from './hooks/useAssessmentReadiness';
 
