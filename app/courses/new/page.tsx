@@ -4,15 +4,17 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import Sidebar, { SIDEBAR_NAV } from '../../_components/Sidebar';
-import BackButton from '../../_components/BackButton';
+import { useStudentData } from '../../hooks/useStudentData';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import styles from './page.module.css';
 import Image from 'next/image';
-import { useStudentData } from '../../hooks/useStudentData';
-import { CourseRole } from '@prisma/client';
+import BackButton from '@/app/components/BackButton/BackButton';
 import CourseImagePicker from './components/CourseImagePicker';
-import CourseTileImage from '../../_components/CourseTileImage';
+import CourseTileImage from '@/app/components/Courses/CourseTileImage';
+import { CourseRole } from '@prisma/client';
 import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
+import { splitName } from '@/lib/text/name';
+import { parseRosterCsv } from '@/lib/csv';
 
 const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Assessor Roster', 'Review'];
 
@@ -99,29 +101,12 @@ type EditableCourseResponse = {
   };
 };
 
-function splitName(fullName?: string | null) {
-  const parts = fullName?.trim().split(/\s+/).filter(Boolean) ?? [];
-
-  if (parts.length === 0) {
-    return { firstName: '', lastName: '' };
-  }
-
-  if (parts.length === 1) {
-    return { firstName: parts[0], lastName: '' };
-  }
-
-  return {
-    firstName: parts.slice(0, -1).join(' '),
-    lastName: parts.at(-1) ?? '',
-  };
-}
-
 function toRosterRow(person: Person): RosterRow {
-  const { firstName, lastName } = splitName(person.name);
+  const { first, last } = splitName(person.name);
 
   return {
-    firstName,
-    lastName,
+    firstName: first,
+    lastName: last,
     buid: person.buid?.trim() ?? '',
     email: person.email.trim(),
     sections: person.sections,
@@ -462,7 +447,10 @@ export default function CourseNewPage() {
 
     try {
       const text = await file.text();
-      const parsedRows = parseCsv(text);
+      const parsedRows = parseRosterCsv(text).map((row) => ({
+        ...row,
+        sections: parseSections(row.sections),
+      }));
       const incoming = target === 'assessor' ? mergeAssessorRows(parsedRows) : parsedRows;
       // Append to whatever's already loaded (DB roster in edit mode, or a prior
       // upload) rather than replacing it, deduping by person. (#168)
@@ -479,45 +467,6 @@ export default function CourseNewPage() {
 
     event.target.value = '';
   };
-
-  function parseCsv(text: string): RosterRow[] {
-    const lines = text
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(Boolean);
-
-    if (lines.length < 2) return [];
-
-    const headers = lines[0].split(',').map((h) => h.trim());
-
-    const lastNameIndex = headers.findIndex((h) => h.toLowerCase() === 'lastname');
-    const firstNameIndex = headers.findIndex((h) => h.toLowerCase() === 'firstname');
-    const buidIndex = headers.findIndex((h) => h.toLowerCase() === 'buid');
-    const emailIndex = headers.findIndex((h) => h.toLowerCase() === 'email');
-    const sectionsIndex = headers.findIndex((h) => h.toLowerCase() === 'sections' || h.toLowerCase() === 'section');
-
-    if (
-      lastNameIndex === -1 ||
-      firstNameIndex === -1 ||
-      buidIndex === -1 ||
-      emailIndex === -1 ||
-      sectionsIndex === -1
-    ) {
-      throw new Error('CSV must contain headers: lastName, firstName, buid, email, sections');
-    }
-
-    return lines.slice(1).map((line) => {
-      const cols = line.split(',').map((col) => col.trim());
-
-      return {
-        lastName: cols[lastNameIndex] || '',
-        firstName: cols[firstNameIndex] || '',
-        buid: cols[buidIndex] || '',
-        email: cols[emailIndex] || '',
-        sections: parseSections(cols[sectionsIndex]),
-      };
-    });
-  }
 
   async function handleCreateCourse() {
     const payload = {

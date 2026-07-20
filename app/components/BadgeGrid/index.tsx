@@ -1,6 +1,6 @@
 'use client';
 
-import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
+import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
 import styles from './BadgeGrid.module.css';
 
 export type BadgeGridItem = { id: string; name: string; youtubeUrl?: string | null };

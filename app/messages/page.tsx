@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import Sidebar, { SIDEBAR_NAV } from '../_components/Sidebar';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import shellStyles from '../page.module.css';
 import styles from './page.module.css';
 

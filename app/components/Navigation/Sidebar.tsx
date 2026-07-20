@@ -3,13 +3,13 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useDatabaseDisplayNameContext } from './DatabaseDisplayNameProvider';
+import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
 import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
-import sapphire from '../../public/edit_avatar/sapphire.svg';
-import ruby from '../../public/edit_avatar/ruby.svg';
-import emerald from '../../public/edit_avatar/emerald.svg';
-import amethyst from '../../public/edit_avatar/amethyst.svg';
-import styles from '../page.module.css';
+import sapphire from '@/public/edit_avatar/sapphire.svg';
+import ruby from '@/public/edit_avatar/ruby.svg';
+import emerald from '@/public/edit_avatar/emerald.svg';
+import amethyst from '@/public/edit_avatar/amethyst.svg';
+import styles from '@/app/page.module.css';
 
 const AVATAR_SRC: Record<string, typeof sapphire> = {
   SAPPHIRE: sapphire,
@@ -44,17 +44,6 @@ export const SIDEBAR_NAV: NavItem[] = [
   { label: 'My Analytics', href: '/analytics' },
   { label: 'My Profile', href: '/profile' }, // In this combine the setting and profile features.
 ];
-
-export function initialsFromName(name?: string | null) {
-  if (!name) return 'ST';
-  const parts = name.trim().split(/\s+/);
-  return (
-    parts
-      .slice(0, 2)
-      .map((p) => p.charAt(0).toUpperCase())
-      .join('') || 'ST'
-  );
-}
 
 export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut }: SidebarProps) {
   const pathname = usePathname();

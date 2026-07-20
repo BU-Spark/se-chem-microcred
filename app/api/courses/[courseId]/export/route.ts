@@ -1,26 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BadgeStatus } from '@prisma/client';
 import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { splitName } from '@/lib/text/name';
 import prisma from '@/lib/prisma';
-
-function normalizeEmail(email?: string | null) {
-  const trimmed = email?.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-}
+import { normalizeEmail } from '@/lib/text/email';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
   return trimmed ? trimmed : null;
-}
-
-// The roster only stores a single display name; split on the first space so the
-// export can present separate "First Name" / "Last Name" columns per issue #120.
-function splitName(name: string | null) {
-  const trimmed = (name ?? '').trim();
-  if (!trimmed) return { first: '', last: '' };
-  const spaceIndex = trimmed.indexOf(' ');
-  if (spaceIndex === -1) return { first: trimmed, last: '' };
-  return { first: trimmed.slice(0, spaceIndex), last: trimmed.slice(spaceIndex + 1).trim() };
 }
 
 export async function GET(req: NextRequest, context: { params: Promise<{ courseId: string }> }) {
@@ -52,10 +39,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       );
     }
 
+    // Find a better way to figure out if user is instructor
     // Exporting course-wide student data is an instructor-only action.
-    const isInstructor = course.createdById === user.id;
+    const isInstructorFlag = course.createdById === user.id;
 
-    if (!isInstructor) {
+    if (!isInstructorFlag) {
       return NextResponse.json({ error: 'You do not have permission to export this course.' }, { status: 403 });
     }
 

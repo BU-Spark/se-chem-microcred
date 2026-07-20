@@ -6,8 +6,8 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 
 type BadgeStatus = 'completed' | 'assessment' | 'finalization' | 'learning';

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
-import CourseTileImage from '@/app/_components/CourseTileImage';
+import CourseTileImage from '@/app/components/Courses/CourseTileImage';
 import { COURSE_COLORS, ICON_FG_DARK, ICON_FG_LIGHT, iconSearchUrl } from '@/lib/courseImage';
 import styles from './CourseImagePicker.module.css';
 

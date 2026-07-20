@@ -5,11 +5,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import { normalizeCheckpointQuestion, type NormalizedCheckpointQuestion } from '@/lib/checkpointQuestions';
 import prisma from '@/lib/prisma';
-
-function normalizeEmail(email?: string | null) {
-  const trimmed = email?.trim().toLowerCase();
-  return trimmed ? trimmed : null;
-}
+import { normalizeEmail } from '@/lib/text/email';
 
 function normalizeId(value?: string | null) {
   const trimmed = value?.trim();

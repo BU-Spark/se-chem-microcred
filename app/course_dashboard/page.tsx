@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal';
 import { useStudentData, type LessonRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
