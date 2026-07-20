@@ -482,15 +482,6 @@ export async function GET(req: Request) {
     }
     return acc;
   }, new Map());
-  const lessonSurveyPromptMap = surveyPrompts.reduce<Map<string, string[]>>((acc, prompt) => {
-    if (prompt.context === SurveyContext.LESSON && prompt.lessonId) {
-      const list = acc.get(prompt.lessonId) ?? [];
-      list.push(prompt.id);
-      acc.set(prompt.lessonId, list);
-    }
-    return acc;
-  }, new Map());
-
   const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
   const latestAssessmentPassedByBadgeId = new Map<string, boolean>();
   for (const attempt of assessmentAttempts) {
@@ -521,11 +512,6 @@ export async function GET(req: Request) {
     const completedCheckpointIds = lesson.checkpoints
       .filter((checkpoint) => passingCheckpointIds.has(checkpoint.id))
       .map((checkpoint) => checkpoint.id);
-    const lessonSurveyPromptIds = lessonSurveyPromptMap.get(lesson.id) ?? [];
-    const lessonSurveyRequired = lessonSurveyPromptIds.length > 0;
-    const lessonSurveyComplete = !lessonSurveyRequired
-      ? true
-      : lessonSurveyPromptIds.every((id) => surveyPromptIdsCompleted.has(id));
 
     const answeredCheckpointIds = lesson.checkpoints
       .filter((cp) => (answeredQuestionsByCheckpoint.get(cp.id)?.size ?? 0) > 0 || passingCheckpointIds.has(cp.id))
@@ -538,14 +524,14 @@ export async function GET(req: Request) {
 
     const lessonProgress = progressByLessonId.get(lesson.id);
     const gradedPassed = lessonProgress?.lastGradePassed === true;
+    // QEV completion is now purely checkpoints + passing grade — no lesson survey.
     const formatted = formatLesson({
       lesson,
       progress: lessonProgress
         ? {
             ...lessonProgress,
-            status: gradedPassed
-              ? LessonStatus.COMPLETED
-              : allCheckpointsPassed && lessonSurveyComplete
+            status:
+              gradedPassed || allCheckpointsPassed
                 ? LessonStatus.COMPLETED
                 : answeredCount > 0
                   ? LessonStatus.IN_PROGRESS
@@ -553,10 +539,7 @@ export async function GET(req: Request) {
           }
         : undefined,
       completedCheckpointIds,
-      resumeTimeSeconds:
-        allCheckpointsPassed && !lessonSurveyComplete
-          ? (lesson.checkpoints.at(-1)?.timeOffsetSeconds ?? 0) + 1
-          : resumeTimeSeconds,
+      resumeTimeSeconds,
       answeredCount,
       answeredCheckpointIds,
       lastGradePercent: lessonProgress?.lastGradePercent ?? null,
@@ -564,27 +547,16 @@ export async function GET(req: Request) {
       lastGradedAt: lessonProgress?.lastGradedAt ?? null,
     });
 
-    // Recompute percentComplete based on passed checkpoints + lesson survey
-    const totalUnits = lesson.checkpoints.length + (lessonSurveyRequired ? 1 : 0);
-    const completedUnits = completedCheckpointIds.length + (lessonSurveyRequired && lessonSurveyComplete ? 1 : 0);
-    const basePercentComplete = totalUnits > 0 ? Math.min(100, Math.round((completedUnits / totalUnits) * 100)) : 0;
-    const percentComplete = gradedPassed ? 100 : basePercentComplete;
+    // percentComplete tracks passed checkpoints over total checkpoints (the client
+    // renders this as an "X of N checkpoints" count).
+    const totalUnits = lesson.checkpoints.length;
+    const basePercentComplete =
+      totalUnits > 0 ? Math.min(100, Math.round((completedCheckpointIds.length / totalUnits) * 100)) : 0;
 
-    const formattedWithProgress = {
+    return {
       ...formatted,
-      percentComplete,
+      percentComplete: gradedPassed ? 100 : basePercentComplete,
     };
-
-    // If all checkpoints passed but lesson survey unfinished, cap percentComplete at 99 and keep IN_PROGRESS
-    if (!gradedPassed && allCheckpointsPassed && !lessonSurveyComplete) {
-      return {
-        ...formattedWithProgress,
-        status: LessonStatus.IN_PROGRESS,
-        percentComplete: Math.min(99, percentComplete || 99),
-      };
-    }
-
-    return formattedWithProgress;
   });
 
   // Hide lessons whose badge hasn't been released yet — everywhere a student
@@ -720,16 +692,6 @@ export async function GET(req: Request) {
     }));
   const notStartedBadges = [...neverAttemptedBadges, ...unstartedLearningBadges];
 
-  const lessonSurveyPrompts = surveyPrompts
-    .filter((prompt) => prompt.context === SurveyContext.LESSON)
-    .map((prompt) => ({
-      id: prompt.id,
-      question: prompt.question,
-      lessonSlug: prompt.lesson?.slug ?? null,
-      lessonTitle: prompt.lesson?.title ?? null,
-      completed: surveyPromptIdsCompleted.has(prompt.id),
-    }));
-
   const badgeSurveyPrompts = surveyPrompts
     .filter((prompt) => prompt.context === SurveyContext.BADGE)
     .map((prompt) => ({
@@ -824,7 +786,8 @@ export async function GET(req: Request) {
       notStarted: notStartedBadges,
     },
     surveys: {
-      lesson: lessonSurveyPrompts,
+      // Lesson surveys were removed; QEV completion is checkpoints + passing grade.
+      lesson: [] as never[],
       badge: badgeSurveyPrompts,
       pendingBadge: pendingBadgeSurveys,
     },

@@ -4,20 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { sanitizeQuestionRichText } from '@/app/lib/question-rich-text';
-import SurveyModal from '@/app/components/SurveyModal';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
-import veryUnhappyFace from '../../../public/assets/survey_faces/very_unhappy.svg';
-import veryUnhappyFaceSelected from '../../../public/assets/survey_faces/very_unhappy_selected.svg';
-import slightlyUnhappyFace from '../../../public/assets/survey_faces/slightly_unhappy.svg';
-import slightlyUnhappyFaceSelected from '../../../public/assets/survey_faces/slightly_unhappy_selected.svg';
-import neutralFace from '../../../public/assets/survey_faces/neutral.svg';
-import neutralFaceSelected from '../../../public/assets/survey_faces/neutral_selected.svg';
-import slightlyHappyFace from '../../../public/assets/survey_faces/slightly_happy.svg';
-import slightlyHappyFaceSelected from '../../../public/assets/survey_faces/slightly_happy_selected.svg';
-import veryHappyFace from '../../../public/assets/survey_faces/very_happy.svg';
-import veryHappyFaceSelected from '../../../public/assets/survey_faces/very_happy_selected.svg';
 import playIcon from '../../../public/assets/lesson/qev/Play.svg';
 import pauseIcon from '../../../public/assets/lesson/qev/Pause.svg';
 
@@ -25,7 +14,7 @@ import pauseIcon from '../../../public/assets/lesson/qev/Pause.svg';
 // when the dev environment flag is set. Same flag the sidebar uses (CUR_ENV).
 const ENABLE_QEV_SKIP = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
-type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonSurvey' | 'lessonComplete' | 'lessonFailed';
+type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonComplete' | 'lessonFailed';
 type RangeStyleVars = CSSProperties & {
   '--progress': string;
   '--unlocked': string;
@@ -109,19 +98,12 @@ interface LessonAssessmentResult {
   totalQuestions?: number;
 }
 
-interface LessonSurveyPrompt {
-  id: string;
-  question: string;
-  completed: boolean;
-}
-
 interface LessonVideoPageProps {
   lesson: LessonRecord;
   studentName?: string | null;
   studentEmail: string;
   studentId: string;
   courseId?: string | null;
-  lessonSurvey: LessonSurveyPrompt | null;
   resumeRequested: boolean;
   // Completed-lesson "review" flow: start from the beginning, unlocked scrubber,
   // non-blocking checkpoints that can be re-opened for ungraded practice.
@@ -130,39 +112,6 @@ interface LessonVideoPageProps {
 }
 
 const CHECKPOINT_TRIGGER_THRESHOLD = 0.35;
-
-const LESSON_SURVEY_FACES = [
-  {
-    value: 1,
-    label: 'Very unhappy',
-    icon: veryUnhappyFace,
-    selectedIcon: veryUnhappyFaceSelected,
-  },
-  {
-    value: 2,
-    label: 'Slightly unhappy',
-    icon: slightlyUnhappyFace,
-    selectedIcon: slightlyUnhappyFaceSelected,
-  },
-  {
-    value: 3,
-    label: 'Neutral',
-    icon: neutralFace,
-    selectedIcon: neutralFaceSelected,
-  },
-  {
-    value: 4,
-    label: 'Slightly happy',
-    icon: slightlyHappyFace,
-    selectedIcon: slightlyHappyFaceSelected,
-  },
-  {
-    value: 5,
-    label: 'Very happy',
-    icon: veryHappyFace,
-    selectedIcon: veryHappyFaceSelected,
-  },
-] as const;
 
 function extractYouTubeId(url?: string | null) {
   if (!url) {
@@ -242,7 +191,6 @@ export function LessonVideoPage({
   studentEmail,
   studentId,
   courseId,
-  lessonSurvey,
   resumeRequested,
   reviewMode = false,
 }: LessonVideoPageProps) {
@@ -254,10 +202,6 @@ export function LessonVideoPage({
   //   return [first, last];
   // }, [resolvedStudentName]);
   const router = useRouter();
-  const effectiveLessonSurvey = useMemo<LessonSurveyPrompt | null>(
-    () => lessonSurvey ?? { id: `auto-${lesson.slug}`, question: 'How was this lesson?', completed: false },
-    [lesson.slug, lessonSurvey]
-  );
 
   const playerRef = useRef<YouTubePlayer | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -304,10 +248,6 @@ export function LessonVideoPage({
   const [assessingLesson, setAssessingLesson] = useState(false);
   const lastCheckpointResumeRef = useRef<number | null>(null);
 
-  const [lessonSurveyRating, setLessonSurveyRating] = useState(3);
-  const [lessonSurveySubmitting, setLessonSurveySubmitting] = useState(false);
-  const [lessonSurveyError, setLessonSurveyError] = useState<string | null>(null);
-  const [lessonSurveyCompleted, setLessonSurveyCompleted] = useState(effectiveLessonSurvey?.completed ?? false);
   const [showLessonQr, setShowLessonQr] = useState(false);
 
   const suppressCheckpointIdRef = useRef<string | null>(null);
@@ -330,7 +270,6 @@ export function LessonVideoPage({
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const modalStateRef = useRef<ModalState>('none');
   const visibilityTimerRef = useRef<number | null>(null);
-  const lessonSurveyTriggeredRef = useRef<boolean>(effectiveLessonSurvey?.completed ?? false);
   const gradingTriggeredRef = useRef<boolean>(false);
   const lessonStartRecordedRef = useRef(false);
 
@@ -460,7 +399,9 @@ export function LessonVideoPage({
     [orderedCheckpoints, answeredCheckpointIds]
   );
 
-  const lessonReadyForSurvey = useMemo(
+  // The lesson can be finished once the video has played through and every
+  // checkpoint has been answered. This gates the Finish button (grey → blue).
+  const lessonReadyToFinish = useMemo(
     () => (orderedCheckpoints.length === 0 || allCheckpointsAnswered) && videoEnded,
     [allCheckpointsAnswered, orderedCheckpoints.length, videoEnded]
   );
@@ -727,30 +668,6 @@ export function LessonVideoPage({
   }, [modalState]);
 
   useEffect(() => {
-    setLessonSurveyCompleted(effectiveLessonSurvey?.completed ?? false);
-    lessonSurveyTriggeredRef.current = effectiveLessonSurvey?.completed ?? false;
-  }, [effectiveLessonSurvey]);
-
-  useEffect(() => {
-    if (lessonSurveyCompleted) {
-      lessonSurveyTriggeredRef.current = true;
-    }
-  }, [lessonSurveyCompleted]);
-
-  useEffect(() => {
-    // Review is a rewatch of an already-completed lesson: never re-open the survey
-    // or re-grade at the end.
-    if (reviewMode || !effectiveLessonSurvey || lessonSurveyCompleted) {
-      return;
-    }
-    if (lessonReadyForSurvey && !lessonSurveyTriggeredRef.current) {
-      lessonSurveyTriggeredRef.current = true;
-      ensurePlayerPaused();
-      setModalState('lessonSurvey');
-    }
-  }, [ensurePlayerPaused, effectiveLessonSurvey, lessonReadyForSurvey, lessonSurveyCompleted, reviewMode]);
-
-  useEffect(() => {
     if (!playerReady) {
       return;
     }
@@ -892,8 +809,6 @@ export function LessonVideoPage({
       setAttemptSummary(null);
       setActiveQuestionIndex(0);
       setActiveCheckpointId(null);
-      setLessonSurveyCompleted(false);
-      lessonSurveyTriggeredRef.current = false;
       setVideoEnded(false);
       setNetworkError(null);
       setFurthestTime(0);
@@ -1148,41 +1063,6 @@ export function LessonVideoPage({
     scheduleHide();
   }, [captionsEnabled, scheduleHide]);
 
-  const handleLessonSurveyFaceSelect = useCallback((value: number) => {
-    setLessonSurveyRating(value);
-  }, []);
-
-  const submitLessonSurvey = useCallback(async () => {
-    if (!effectiveLessonSurvey) {
-      return;
-    }
-    setLessonSurveySubmitting(true);
-    setLessonSurveyError(null);
-    try {
-      const response = await fetch(`/api/lessons/${lesson.id}/survey`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: studentEmail,
-          rating: lessonSurveyRating,
-          videoCompleted: true,
-        }),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error || 'Unable to submit survey.');
-      }
-      setLessonSurveyCompleted(true);
-      await handleLessonCompletion();
-    } catch (error) {
-      setLessonSurveyError(
-        error instanceof Error ? error.message : 'Something went wrong while submitting your survey.'
-      );
-    } finally {
-      setLessonSurveySubmitting(false);
-    }
-  }, [effectiveLessonSurvey, handleLessonCompletion, lesson.id, lessonSurveyRating, studentEmail]);
-
   const rangeStyle = useMemo<RangeStyleVars>(() => {
     const progressPct = duration > 0 ? Math.min(100, Math.max(0, (currentTime / Math.max(duration, 1)) * 100)) : 0;
     const unlockedLimit = resolveMaxSeekableTime();
@@ -1213,7 +1093,6 @@ export function LessonVideoPage({
     if (
       modalState === 'question' ||
       modalState === 'result' ||
-      modalState === 'lessonSurvey' ||
       modalState === 'lessonComplete' ||
       modalState === 'lessonFailed'
     ) {
@@ -1254,20 +1133,11 @@ export function LessonVideoPage({
     }
 
     ensurePlayerPaused();
-
-    if (effectiveLessonSurvey && !lessonSurveyCompleted) {
-      lessonSurveyTriggeredRef.current = true;
-      setVideoEnded(true);
-      setModalState('lessonSurvey');
-      return;
-    }
-
+    setVideoEnded(true);
     void handleLessonCompletion();
   }, [
     ensurePlayerPaused,
     firstIncompleteCheckpoint,
-    effectiveLessonSurvey,
-    lessonSurveyCompleted,
     openCheckpointModal,
     reviewMode,
     seekTo,
@@ -1509,10 +1379,36 @@ export function LessonVideoPage({
                     height={34}
                   />
                 </button>
+
+                {/* Finish lesson: grey until the video has played through and every
+                    checkpoint is answered, then blue. Clicking it grades + completes. */}
+                {!reviewMode ? (
+                  <button
+                    type="button"
+                    onClick={() => void handleLessonCompletion()}
+                    disabled={!lessonReadyToFinish || assessingLesson}
+                    aria-label="Finish lesson"
+                    style={{
+                      marginLeft: 'auto',
+                      padding: '10px 22px',
+                      borderRadius: 999,
+                      border: 'none',
+                      fontFamily: 'Lato, sans-serif',
+                      fontWeight: 600,
+                      fontSize: 15,
+                      color: lessonReadyToFinish ? '#ffffff' : '#7a7a7a',
+                      background: lessonReadyToFinish ? '#1f4b99' : '#d4d4d4',
+                      cursor: lessonReadyToFinish && !assessingLesson ? 'pointer' : 'not-allowed',
+                      transition: 'background 0.2s ease, color 0.2s ease',
+                    }}
+                  >
+                    {assessingLesson ? 'Finishing…' : 'Finish lesson'}
+                  </button>
+                ) : null}
               </div>
             </div>
 
-            {modalState !== 'none' && modalState !== 'lessonSurvey' ? (
+            {modalState !== 'none' ? (
               <div className={styles.overlay}>
                 <div className={styles.modalCard}>
                   {modalState === 'question' && currentCheckpoint ? (
@@ -1765,32 +1661,6 @@ export function LessonVideoPage({
           ) : null}
         </div>
       </div>
-      {effectiveLessonSurvey && modalState === 'lessonSurvey' ? (
-        <SurveyModal
-          title="Tell us about this lesson"
-          question={effectiveLessonSurvey.question}
-          options={LESSON_SURVEY_FACES}
-          value={lessonSurveyRating}
-          onChange={handleLessonSurveyFaceSelect}
-          onSubmit={submitLessonSurvey}
-          submitLabel="Submit feedback"
-          isSubmitting={lessonSurveySubmitting || assessingLesson}
-          error={lessonSurveyError}
-          classNames={{
-            overlay: styles.lessonSurveyOverlay,
-            modal: styles.lessonSurveyModal,
-            title: styles.lessonSurveyTitle,
-            question: styles.lessonSurveyQuestion,
-            error: styles.lessonSurveyError,
-            options: styles.lessonSurveyFaces,
-            option: styles.lessonSurveyFace,
-            selectedOption: styles.lessonSurveyFaceSelected,
-            optionImage: styles.lessonSurveyFaceImage,
-            selectedOptionImage: styles.lessonSurveyFaceImageSelected,
-            submit: styles.lessonSurveySubmit,
-          }}
-        />
-      ) : null}
       {showLessonQr && assessmentBadge && !reviewMode ? (
         <AssessmentCodeModal
           badgeId={assessmentBadge.badgeId}

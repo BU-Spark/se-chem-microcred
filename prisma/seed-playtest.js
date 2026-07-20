@@ -1064,30 +1064,9 @@ async function buildCourseContacts(course) {
   });
 }
 
-async function buildSurveys(student, lessonBySlug, badgeBySlug) {
-  const lessonSurveyQuestions = [
-    {
-      lessonSlug: 'bunsen-burners',
-      question: 'How confident do you feel about your Bunsen burner skills after this lesson?',
-    },
-    { lessonSlug: 'general-lab-safety', question: 'How was the General Lab Safety lesson?' },
-    { lessonSlug: 'top-loading-balance', question: 'How was the Top-loading Balance lesson?' },
-    { lessonSlug: 'graduated-cylinder', question: 'How was the Graduated Cylinder lesson?' },
-    { lessonSlug: 'lab-notebook', question: 'How was the Lab Notebook lesson?' },
-    { lessonSlug: 'volumetric-stock-solutions', question: 'How was the Stock Solutions lesson?' },
-    { lessonSlug: 'general-waste-handling', question: 'How was the Waste Handling lesson?' },
-  ];
-
-  const promptBySlug = new Map();
-  for (const survey of lessonSurveyQuestions) {
-    const lessonId = lessonBySlug.get(survey.lessonSlug)?.lesson.id;
-    if (!lessonId) continue;
-    const prompt = await prisma.surveyPrompt.create({
-      data: { context: SurveyContext.LESSON, lessonId, question: survey.question },
-    });
-    promptBySlug.set(survey.lessonSlug, prompt);
-  }
-
+async function buildSurveys(student, badgeBySlug) {
+  // Lesson surveys were removed (QEV completion is checkpoints + passing grade);
+  // only the post-assessment badge survey remains.
   const badgeSurveyPrompt = await prisma.surveyPrompt.create({
     data: {
       context: SurveyContext.BADGE,
@@ -1095,20 +1074,6 @@ async function buildSurveys(student, lessonBySlug, badgeBySlug) {
       question: 'How satisfied are you with the assessment process for this badge?',
     },
   });
-
-  const incompleteLessonSlugs = new Set([
-    'bunsen-burners',
-    'general-lab-safety',
-    'top-loading-balance',
-    'graduated-cylinder',
-  ]);
-
-  for (const [slug, prompt] of promptBySlug.entries()) {
-    if (incompleteLessonSlugs.has(slug)) continue;
-    await prisma.surveyResponse.create({
-      data: { promptId: prompt.id, studentId: student.id, rating: 4, comment: 'Feeling much more confident!' },
-    });
-  }
 
   await prisma.surveyResponse.create({
     data: { promptId: badgeSurveyPrompt.id, studentId: student.id, rating: 4, comment: 'Demo badge survey response.' },
@@ -1166,7 +1131,7 @@ async function main() {
   await buildLessonProgress(people.student, lessonBySlug);
   const badgeBySlug = await buildBadges(people.student, lessonBySlug, { course, assessor: people.checker });
   await buildCourseContacts(course);
-  await buildSurveys(people.student, lessonBySlug, badgeBySlug);
+  await buildSurveys(people.student, badgeBySlug);
   await ensureAnalytics(people);
 
   console.log('\nCHEM101 seed complete.');

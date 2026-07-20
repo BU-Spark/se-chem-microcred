@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { BadgeStatus, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
+import { BadgeStatus, LessonStatus, SegmentStatus } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../../lib/prisma';
 import { computeLessonGrade } from '../../../../../lib/lessonGrading';
@@ -60,11 +60,6 @@ export async function POST(_request: Request, context: RouteContext) {
   const checkpointIds = lesson.checkpoints.map((checkpoint) => checkpoint.id);
 
   await prisma.$transaction(async (tx) => {
-    const lessonSurveyPrompts = await tx.surveyPrompt.findMany({
-      where: { context: SurveyContext.LESSON, lessonId },
-      select: { id: true },
-    });
-
     const progress = await tx.lessonProgress.upsert({
       where: { studentId_lessonId: { studentId: user.id, lessonId } },
       update: {
@@ -86,12 +81,6 @@ export async function POST(_request: Request, context: RouteContext) {
     });
 
     if (!passed) {
-      if (lessonSurveyPrompts.length > 0) {
-        await tx.surveyResponse.deleteMany({
-          where: { studentId: user.id, promptId: { in: lessonSurveyPrompts.map((p) => p.id) } },
-        });
-      }
-
       if (checkpointIds.length > 0) {
         await tx.checkpointResponse.deleteMany({
           where: { studentId: user.id, checkpointId: { in: checkpointIds } },

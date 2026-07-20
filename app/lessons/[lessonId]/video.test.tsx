@@ -102,7 +102,6 @@ describe('LessonVideoPage', () => {
         })}
         studentEmail="student@example.edu"
         studentId="student-1"
-        lessonSurvey={null}
         resumeRequested={false}
       />
     );
@@ -120,7 +119,6 @@ describe('LessonVideoPage', () => {
         })}
         studentEmail="student@example.edu"
         studentId="student-1"
-        lessonSurvey={null}
         resumeRequested={false}
       />
     );
