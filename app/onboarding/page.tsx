@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Image, { type StaticImageData } from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
-import BackButton from '@/app/components/BackButton/BackButton';
+import BackButton from '../_components/BackButton';
 import checkdLogo from '../../public/assets/checked_logo.png';
 import sapphire from '../../public/edit_avatar/sapphire.svg';
 import ruby from '../../public/edit_avatar/ruby.svg';

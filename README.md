@@ -226,8 +226,7 @@ Provide the same env vars as local (`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHAB
 
 - **Roles come from enrollments**, not a user field — always resolve capability from `Enrollment.role` for the relevant course.
 - Navigation highlighting uses `usePathname`; nested badge/lesson routes treat their parent nav item as active.
-- The sidebar and its nav list live in `app/components/Navigation/Sidebar.tsx` (`SIDEBAR_NAV`). The global header (`app/components/GlobalHeader.tsx`) hides on lesson-video routes.
-- See [CONTRIBUTING.md](CONTRIBUTING.md) for the `app/components/` folder convention and shared `lib/` location established by the codebase cleanup.
+- The sidebar and its nav list live in `app/_components/Sidebar.tsx` (`SIDEBAR_NAV`). The global header (`app/components/GlobalHeader.tsx`) hides on lesson-video routes.
 - CSS variables and base styles are in `app/globals.css`; page-scoped styles use co-located `page.module.css` modules. Media assets live under `public/`.
 - Keep the CHEM101 seed idempotent and scoped — it must not wipe unrelated data in a shared database.
 - Grades/Settings pages are intentional placeholders; put functional student controls on Profile unless product direction changes.

@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 import { useRouter } from 'next/navigation';
 
 type ProgressItem = {
@@ -156,7 +157,7 @@ function CircularScore({ value, label }: ScoreItem) {
 export default function AnalyticsPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   const [isSigningOut, setIsSigningOut] = useState(false);
 

@@ -2,6 +2,8 @@
 
 import useSWR from 'swr';
 
+import { fetcher } from './lib/fetcher';
+
 /**
  * Response shape of the consolidated /api/courses/mine endpoint. The three
  * sections (created/enrolled/assessor) are drop-in equivalents of the bodies
@@ -29,32 +31,21 @@ export interface MyCoursesResponse {
   };
 }
 
-async function fetcher(url: string): Promise<MyCoursesResponse> {
-  const response = await fetch(url, {
-    headers: { Accept: 'application/json' },
-    credentials: 'include',
-  });
-
-  const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
-
-  if (!response.ok) {
-    throw new Error(payload.error ?? 'Unable to load courses.');
-  }
-
-  return payload as MyCoursesResponse;
-}
-
 /**
  * Stale-while-revalidate hook for the signed-in user's courses. Pass an
  * `enabled` gate (e.g. `isLoaded && isSignedIn`) so we never fetch before Clerk
  * reports an authenticated user — SWR treats a null key as "do not fetch".
  */
 export function useMyCourses(enabled: boolean) {
-  const { data, error, isLoading, mutate } = useSWR<MyCoursesResponse>(enabled ? '/api/courses/mine' : null, fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 30000,
-    keepPreviousData: true,
-  });
+  const { data, error, isLoading, mutate } = useSWR<MyCoursesResponse>(
+    enabled ? '/api/courses/mine' : null,
+    fetcher<MyCoursesResponse>,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 30000,
+      keepPreviousData: true,
+    }
+  );
 
   return {
     data,

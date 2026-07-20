@@ -1,0 +1,140 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(34, 34, 34, 0.72);
+}
+
+.modal {
+  position: relative;
+  display: flex;
+  width: min(520px, 95%);
+  max-height: calc(100vh - 3rem);
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+  overflow-y: auto;
+  background: #fff;
+  box-shadow: 0 40px 70px rgba(0, 0, 0, 0.45);
+  text-align: center;
+}
+
+.walletModal {
+  border-radius: 40px;
+  padding: 2.5rem;
+}
+.lessonModal {
+  width: min(460px, 100%);
+  border-radius: 28px;
+  padding: 2.25rem;
+}
+
+.closeButton {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(15, 23, 42, 0.08);
+  color: #111827;
+  cursor: pointer;
+  font-size: 1.4rem;
+  line-height: 1;
+}
+
+.title {
+  margin: 0;
+  color: #111827;
+  font-size: 2rem;
+  font-weight: 600;
+}
+.qrFrame {
+  display: grid;
+  width: min(360px, 100%);
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  border-radius: 16px;
+  background: #fff;
+}
+.qrCanvas {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+.qrImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.qrLogo {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 2;
+  display: grid;
+  width: 88px;
+  height: 88px;
+  transform: translate(-50%, -50%);
+  place-items: center;
+  border-radius: 16px;
+  background: #fff;
+  pointer-events: none;
+}
+.qrLogoImage {
+  display: block;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+.codeBox {
+  display: grid;
+  width: min(360px, 100%);
+  gap: 0.25rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  text-align: left;
+}
+.codeLabel {
+  color: #4b5563;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+}
+.codeValue {
+  color: #111827;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.65rem;
+  letter-spacing: 0.08em;
+}
+.codeError {
+  margin: 0;
+  color: #b42318;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+}
+.description {
+  margin: 0;
+  color: #4b5563;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+}
+.error {
+  margin: 0;
+  color: #b42318;
+  font-size: 1rem;
+}

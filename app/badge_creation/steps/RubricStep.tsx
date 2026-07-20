@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 
-import RichTextEditor from '@/app/components/RichText/RichTextEditor';
+import RichTextEditor from '@/app/_components/RichTextEditor';
 import styles from '../page.module.css';
 import type { BadgeDraft, RubricSubgoalDraft, RubricTaskDraft } from '../types';
 

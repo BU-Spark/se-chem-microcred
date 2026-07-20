@@ -2,14 +2,15 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { useAuth, useUser } from '@clerk/nextjs';
+import { useUser } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../hooks/useStudentData';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
 
 export default function SettingsPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
   const [isSigningOut, setIsSigningOut] = useState(false);
 

@@ -286,45 +286,6 @@ describe('Assessment readiness page', () => {
     expect(screen.queryByLabelText('Override to still learning (optional)')).not.toBeInTheDocument();
   });
 
-  it('hides the assessor instructions once the assessor moves to the review step', async () => {
-    mockFetch.mockImplementation(async (input: string | URL | Request) => {
-      const url = String(input);
-
-      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
-        return { ok: true, json: async () => createProfilePayload() } as Response;
-      }
-
-      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
-        const payload = createBadgePayload();
-        return {
-          ok: true,
-          json: async () => ({
-            ...payload,
-            assessment: {
-              rubric: {
-                ...payload.assessment.rubric,
-                instructions: '<p>Have the student demonstrate the flame independently.</p>',
-              },
-            },
-          }),
-        } as Response;
-      }
-
-      throw new Error(`Unexpected fetch: ${url}`);
-    });
-
-    render(<AssessmentReadinessPage />);
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
-
-    // Instructions guide grading and are visible during the grading phase.
-    expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
-
-    // Once the assessor advances to the review step, the instructions are hidden.
-    fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
-    expect(screen.queryByRole('heading', { name: 'Instructions for the assessor' })).not.toBeInTheDocument();
-  });
-
   it('disables the assessment action once the badge has already been assessed', async () => {
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);

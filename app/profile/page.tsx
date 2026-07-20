@@ -3,15 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useAuth, useUser, useReverification } from '@clerk/nextjs';
+import { useUser, useReverification } from '@clerk/nextjs';
+import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../hooks/useStudentData';
 import { useFocusTrap } from '../hooks/useFocusTrap';
+import BadgeToken from '@/app/components/BadgeToken';
 import styles from './page.module.css';
 import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
+import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
+import { useDatabaseDisplayNameContext } from '../_components/DatabaseDisplayNameProvider';
 
 function parseName(fullName?: string | null) {
   if (!fullName) {
@@ -63,7 +65,7 @@ const SENSITIVE_TIMEOUT_MS = 10 * 60 * 1000;
 export default function ProfilePage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
-  const { signOut } = useAuth();
+  const signOut = useSignOut();
   // commenting out here again use for clerk is not needed here anymore without the change password feature
   // const clerk = useClerk();
 
@@ -430,7 +432,7 @@ export default function ProfilePage() {
                 <div className={styles.emptyState}>No badges in progress.</div>
               ) : (
                 learningBadges.map((badge) => (
-                  <div key={badge.id} className={styles.badgeToken}>
+                  <BadgeToken key={badge.id} className={styles.badgeToken}>
                     <div className={styles.badgeCircle}>
                       <YoutubeThumbnail
                         videoUrl={badge.youtubeUrl}
@@ -439,7 +441,7 @@ export default function ProfilePage() {
                       />
                     </div>
                     <div className={styles.badgeName}>{badge.name}</div>
-                  </div>
+                  </BadgeToken>
                 ))
               )}
             </div>
@@ -463,7 +465,7 @@ export default function ProfilePage() {
                     <div className={styles.emptyState}>No badges to show.</div>
                   ) : (
                     notStartedBadges.map((badge) => (
-                      <div key={badge.id} className={styles.badgeToken}>
+                      <BadgeToken key={badge.id} className={styles.badgeToken}>
                         <div className={styles.badgeCircle}>
                           <YoutubeThumbnail
                             videoUrl={badge.youtubeUrl}
@@ -472,7 +474,7 @@ export default function ProfilePage() {
                           />
                         </div>
                         <div className={styles.badgeName}>{badge.name}</div>
-                      </div>
+                      </BadgeToken>
                     ))
                   )}
                 </div>
@@ -498,7 +500,7 @@ export default function ProfilePage() {
                     <div className={styles.emptyState}>No completed badges yet.</div>
                   ) : (
                     completedBadges.map((badge) => (
-                      <div key={badge.id} className={styles.badgeToken}>
+                      <BadgeToken key={badge.id} className={styles.badgeToken}>
                         <div className={styles.badgeCircle}>
                           <YoutubeThumbnail
                             videoUrl={badge.youtubeUrl}
@@ -507,7 +509,7 @@ export default function ProfilePage() {
                           />
                         </div>
                         <div className={styles.badgeName}>{badge.name}</div>
-                      </div>
+                      </BadgeToken>
                     ))
                   )}
                 </div>

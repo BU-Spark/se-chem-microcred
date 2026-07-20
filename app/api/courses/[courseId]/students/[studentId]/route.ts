@@ -97,40 +97,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     }
 
     const member = enrollment.student;
-
-    // Derive the instructor/checker contacts from enrollments (the section-aware source of
-    // truth) rather than CourseContact, which has no section. This ensures a student's side
-    // "Checker" card shows the assessor assigned to *their* section, not a fixed first one.
-    const memberSectionSet = new Set(enrollment.sections.map((assignment) => assignment.section));
-    const courseStaff = await prisma.enrollment.findMany({
-      where: {
-        courseId,
-        role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
-        status: 'ACTIVE',
-      },
-      include: {
-        sections: { select: { section: true } },
-        student: { select: { id: true, name: true, email: true } },
-      },
-    });
-
-    const contacts = courseStaff
-      .filter((staff) => {
-        if (staff.role === CourseRole.INSTRUCTOR) return true;
-        // CHECKER: show those sharing the student's section. If the student has no section
-        // assigned, or the checker is course-wide (no sections of their own), show them too.
-        if (memberSectionSet.size === 0) return true;
-        if (staff.sections.length === 0) return true;
-        return staff.sections.some((assignment) => memberSectionSet.has(assignment.section));
-      })
-      .map((staff) => ({
-        id: staff.id,
-        type: staff.role === CourseRole.INSTRUCTOR ? CourseRole.INSTRUCTOR : CourseRole.CHECKER,
-        name: staff.student.name ?? staff.student.email ?? 'Unknown',
-        email: staff.student.email ?? '',
-        avatarUrl: null,
-      }));
-
     const courseBadges = new Map<string, ReturnType<typeof formatBadge>>();
     const lessonStartedByBadgeId = new Map<string, boolean>();
 
@@ -241,7 +207,13 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
               }
             : null,
         },
-        contacts,
+        contacts: course.contacts.map((contact) => ({
+          id: contact.id,
+          type: contact.type,
+          name: contact.name,
+          email: contact.email,
+          avatarUrl: contact.avatarUrl ?? null,
+        })),
         badges: {
           inProgress,
           notStarted,

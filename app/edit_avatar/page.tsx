@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@clerk/nextjs';
 import styles from './page.module.css';
-import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
+import { useDatabaseDisplayNameContext } from '../_components/DatabaseDisplayNameProvider';
 
 type AvatarOption = {
   id: 'ruby' | 'emerald' | 'sapphire' | 'amethyst';
