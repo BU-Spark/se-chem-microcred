@@ -809,6 +809,11 @@ export function LessonVideoPage({
       setAttemptSummary(null);
       setActiveQuestionIndex(0);
       setActiveCheckpointId(null);
+      // Clear any leftover checkpoint suppression so the retry re-prompts every
+      // checkpoint. Otherwise a checkpoint answered in the failed run stays
+      // suppressed and gets skipped, so its retry answer is never recorded.
+      suppressCheckpointIdRef.current = null;
+      suppressArmedRef.current = false;
       setVideoEnded(false);
       setNetworkError(null);
       setFurthestTime(0);
@@ -999,7 +1004,6 @@ export function LessonVideoPage({
   }, [resetAfterCheckpoint, reviewMode]);
 
   const handleRewatch = useCallback(() => {
-    console.log('[handleRewatch]');
     setModalState('none');
     setNetworkError(null);
     setSelectedAnswers({});

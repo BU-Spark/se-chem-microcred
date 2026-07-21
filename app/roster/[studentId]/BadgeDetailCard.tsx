@@ -107,6 +107,21 @@ function formatDate(value?: string | null) {
   return parsed.toLocaleDateString();
 }
 
+// Time-of-day first, then date — used for "when an answer/attempt happened".
+function formatDateTime(value?: string | null) {
+  if (!value) {
+    return 'Not available';
+  }
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return 'Not available';
+  }
+
+  const time = parsed.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return `${time} · ${parsed.toLocaleDateString()}`;
+}
+
 function Chevron({ isOpen }: { isOpen: boolean }) {
   return (
     <svg
@@ -285,7 +300,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
 
                     {isOpen ? (
                       <div className={styles.assessmentAttemptPanel}>
-                        <p className={styles.assessmentAttemptLine}>Time: {formatDate(attempt.completedAt)}</p>
+                        <p className={styles.assessmentAttemptLine}>Time: {formatDateTime(attempt.completedAt)}</p>
                         <p className={styles.assessmentAttemptLine}>
                           Checker: {attempt.assessorName || 'Not recorded'}
                         </p>
@@ -360,7 +375,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
                     {isRunOpen ? (
                       <div className={styles.assessmentAttemptPanel}>
                         {run.completedAt ? (
-                          <p className={styles.assessmentAttemptLine}>Completed: {formatDate(run.completedAt)}</p>
+                          <p className={styles.assessmentAttemptLine}>Completed: {formatDateTime(run.completedAt)}</p>
                         ) : null}
                         {run.checkpoints.length === 0 ? (
                           <p className={styles.emptyState}>No checkpoint answers recorded for this attempt.</p>
@@ -390,7 +405,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
                                     <div className={styles.checkpointQuestions}>
                                       {checkpoint.timeCompleted ? (
                                         <p className={styles.assessmentAttemptLine}>
-                                          Time completed: {formatDate(checkpoint.timeCompleted)}
+                                          Time completed: {formatDateTime(checkpoint.timeCompleted)}
                                         </p>
                                       ) : null}
                                       {checkpoint.questions.map((question) => (
