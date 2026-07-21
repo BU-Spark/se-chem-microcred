@@ -165,7 +165,15 @@ export default function CreatedCourseDetailPage() {
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [reminderBadge, setReminderBadge] = useState<{ id: string; name: string } | null>(null);
-  const [badgePendingUnassign, setBadgePendingUnassign] = useState<{ id: string; name: string } | null>(null);
+  // The badge whose settings popup is open (edit availability + unassign). Null when closed.
+  const [badgePendingEdit, setBadgePendingEdit] = useState<AssignedBadge | null>(null);
+  const [editAvailableOn, setEditAvailableOn] = useState('');
+  const [editClosesOn, setEditClosesOn] = useState('');
+  const [editNeverCloses, setEditNeverCloses] = useState(true);
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [settingsError, setSettingsError] = useState('');
+  // Inline confirm step for the destructive unassign action inside the popup.
+  const [showUnassignConfirm, setShowUnassignConfirm] = useState(false);
   const [isAssessmentCodeOpen, setIsAssessmentCodeOpen] = useState(false);
   const [assessmentCodeInput, setAssessmentCodeInput] = useState('');
   const [assessmentCodeError, setAssessmentCodeError] = useState('');
@@ -249,22 +257,67 @@ export default function CreatedCourseDetailPage() {
     router.push(`/qr/assessment-code?code=${encodeURIComponent(code)}`);
   }, [assessmentCodeInput, router]);
 
-  const requestUnassignBadge = (badge: { id: string; name: string }) => {
-    if (isDeleting) return;
-    setBadgePendingUnassign(badge);
+  // Badge availability dates are stored as DateTimes but edited as YYYY-MM-DD via
+  // RangeCalendar. Slice the UTC date to mirror how import wrote them (new Date('YYYY-MM-DD')
+  // is UTC midnight) and avoid a local-timezone off-by-one.
+  const toDateInput = (iso: string | null) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
+
+  const openBadgeSettings = (badge: AssignedBadge) => {
+    setBadgePendingEdit(badge);
+    setEditAvailableOn(toDateInput(badge.availableOn));
+    setEditClosesOn(toDateInput(badge.closesOn));
+    setEditNeverCloses(badge.neverCloses ?? true);
+    setShowUnassignConfirm(false);
+    setSettingsError('');
+  };
+
+  const closeBadgeSettings = () => {
+    if (isSavingSettings || isDeleting) return;
+    setBadgePendingEdit(null);
+    setShowUnassignConfirm(false);
+    setSettingsError('');
+  };
+
+  const saveBadgeSettings = async () => {
+    if (!data?.course || !badgePendingEdit || isSavingSettings) return;
+    setIsSavingSettings(true);
+    setSettingsError('');
+    try {
+      const response = await fetch(
+        `/api/courses/${encodeURIComponent(data.course.id)}/badges/${encodeURIComponent(badgePendingEdit.id)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            availableOn: editAvailableOn || null,
+            closesOn: editNeverCloses ? null : editClosesOn || null,
+            neverCloses: editNeverCloses,
+          }),
+        }
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error ?? 'Failed to update badge settings.');
+      setBadgePendingEdit(null);
+      await refresh();
+    } catch (err) {
+      setSettingsError(err instanceof Error ? err.message : 'Failed to update badge settings.');
+    } finally {
+      setIsSavingSettings(false);
+    }
   };
 
   const confirmUnassignBadge = async () => {
-    if (!data?.course || !badgePendingUnassign || isDeleting) return;
+    if (!data?.course || !badgePendingEdit || isDeleting) return;
     setIsDeleting(true);
     try {
       const response = await fetch(
-        `/api/courses/${encodeURIComponent(data.course.id)}/badges/${encodeURIComponent(badgePendingUnassign.id)}`,
+        `/api/courses/${encodeURIComponent(data.course.id)}/badges/${encodeURIComponent(badgePendingEdit.id)}`,
         { method: 'DELETE' }
       );
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload.error ?? 'Failed to unassign badge.');
-      setBadgePendingUnassign(null);
+      setBadgePendingEdit(null);
+      setShowUnassignConfirm(false);
       await refresh();
     } catch (err) {
       window.alert(err instanceof Error ? err.message : 'Failed to unassign badge.');
@@ -600,10 +653,10 @@ export default function CreatedCourseDetailPage() {
                               <button
                                 type="button"
                                 className={styles.badgeUnassignButton}
-                                onClick={() => requestUnassignBadge({ id: badge.id, name: badge.name })}
+                                onClick={() => openBadgeSettings(badge)}
                                 disabled={isDeleting}
                               >
-                                Unassign badge
+                                Edit badge settings
                               </button>
                             </>
                           ) : (
@@ -818,50 +871,103 @@ export default function CreatedCourseDetailPage() {
         </div>
       ) : null}
 
-      {badgePendingUnassign ? (
+      {badgePendingEdit ? (
         <div
           className={styles.modalOverlay}
           role="dialog"
           aria-modal="true"
-          aria-label={`Unassign ${badgePendingUnassign.name}`}
+          aria-label={`Edit settings for ${badgePendingEdit.name}`}
         >
           <div className={styles.confirmModal}>
             <button
               type="button"
               className={styles.modalCloseButton}
-              onClick={() => setBadgePendingUnassign(null)}
-              aria-label="Close unassign confirmation"
-              disabled={isDeleting}
+              onClick={closeBadgeSettings}
+              aria-label="Close badge settings"
+              disabled={isSavingSettings || isDeleting}
             >
               x
             </button>
 
-            <h2 className={styles.modalTitle}>Unassign badge?</h2>
-            <div className={styles.modalBadgeCircle} aria-hidden="true" />
-            <p className={styles.modalBadgeName}>{badgePendingUnassign.name}</p>
+            <h2 className={styles.modalTitle}>Edit badge settings</h2>
+            <p className={styles.modalBadgeName}>{badgePendingEdit.name}</p>
             <p className={styles.modalText}>
-              This removes the badge and its lesson from this course. The badge itself will not be deleted and can be
-              imported again later.
+              Inserted on{' '}
+              {new Date(badgePendingEdit.createdAt).toLocaleDateString(undefined, {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              })}
             </p>
+
+            <div className={styles.importField}>
+              <span>Content Availability</span>
+              <RangeCalendar
+                availableOn={editAvailableOn}
+                closesOn={editClosesOn}
+                neverCloses={editNeverCloses}
+                onAvailableOnChange={setEditAvailableOn}
+                onClosesOnChange={setEditClosesOn}
+                onNeverClosesChange={setEditNeverCloses}
+              />
+            </div>
+
+            {settingsError ? <p className={styles.errorText}>{settingsError}</p> : null}
 
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.secondaryButton}
-                onClick={() => setBadgePendingUnassign(null)}
-                disabled={isDeleting}
+                onClick={closeBadgeSettings}
+                disabled={isSavingSettings || isDeleting}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className={styles.confirmButton}
-                onClick={confirmUnassignBadge}
-                disabled={isDeleting}
+                className={styles.primaryButton}
+                onClick={saveBadgeSettings}
+                disabled={isSavingSettings || isDeleting}
               >
-                {isDeleting ? 'Unassigning...' : 'Unassign Badge'}
+                {isSavingSettings ? 'Saving…' : 'Save changes'}
               </button>
             </div>
+
+            {showUnassignConfirm ? (
+              <div className={styles.dangerZone}>
+                <p className={styles.modalText}>
+                  This removes the badge and its lesson from this course. The badge itself will not be deleted and can
+                  be imported again later.
+                </p>
+                <div className={styles.modalActions}>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={() => setShowUnassignConfirm(false)}
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.confirmButton}
+                    onClick={confirmUnassignBadge}
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? 'Unassigning...' : 'Unassign Badge'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className={styles.dangerLink}
+                onClick={() => setShowUnassignConfirm(true)}
+                disabled={isSavingSettings || isDeleting}
+              >
+                Unassign badge
+              </button>
+            )}
           </div>
         </div>
       ) : null}

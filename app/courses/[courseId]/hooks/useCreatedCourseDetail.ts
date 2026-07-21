@@ -29,6 +29,10 @@ export type CourseBadge = {
   slug: string;
   name: string;
   description: string | null;
+  availableOn: string | null;
+  closesOn: string | null;
+  neverCloses: boolean | null;
+  createdAt: string;
 };
 
 type CourseLesson = {

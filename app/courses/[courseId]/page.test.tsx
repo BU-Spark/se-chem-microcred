@@ -175,6 +175,10 @@ describe('Created course detail page', () => {
                     slug: 'waste-handling-badge',
                     name: 'Waste Handling Badge',
                     description: null,
+                    availableOn: null,
+                    closesOn: null,
+                    neverCloses: true,
+                    createdAt: '2026-04-01T00:00:00.000Z',
                   },
                 },
               ],
@@ -195,6 +199,10 @@ describe('Created course detail page', () => {
                     slug: 'waste-handling-badge',
                     name: 'Waste Handling Badge',
                     description: null,
+                    availableOn: null,
+                    closesOn: null,
+                    neverCloses: true,
+                    createdAt: '2026-04-01T00:00:00.000Z',
                   },
                 },
                 {
@@ -205,6 +213,10 @@ describe('Created course detail page', () => {
                     slug: 'bunsen-burners-badge',
                     name: 'Bunsen Burners Badge',
                     description: null,
+                    availableOn: null,
+                    closesOn: null,
+                    neverCloses: true,
+                    createdAt: '2026-04-01T00:00:00.000Z',
                   },
                 },
               ],
@@ -247,14 +259,26 @@ describe('Created course detail page', () => {
     expect(screen.queryByRole('button', { name: 'Delete badge' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'Unassign badge' })[0]);
-    expect(screen.getByRole('dialog', { name: 'Unassign Waste Handling Badge' })).toBeInTheDocument();
+    // Open the combined edit-settings popup; it shows the read-only insertion date.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit badge settings' })[0]);
+    const settingsDialog = screen.getByRole('dialog', { name: 'Edit settings for Waste Handling Badge' });
+    expect(settingsDialog).toBeInTheDocument();
+    expect(screen.getByText(/Inserted on/i)).toBeInTheDocument();
+
+    // Saving the badge settings PATCHes the imported badge with the availability window.
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith('/api/courses/course-1/badges/badge-1', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ availableOn: null, closesOn: null, neverCloses: true }),
+      });
+    });
+
+    // Unassign lives behind an inline confirm step inside the popup.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Edit badge settings' })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Unassign badge' }));
     expect(screen.getByText(/The badge itself will not be deleted/i)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-    expect(screen.queryByRole('dialog', { name: 'Unassign Waste Handling Badge' })).not.toBeInTheDocument();
-
-    fireEvent.click(screen.getAllByRole('button', { name: 'Unassign badge' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Unassign Badge' }));
 
     await waitFor(() => {
