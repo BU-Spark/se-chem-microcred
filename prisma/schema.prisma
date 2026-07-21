@@ -11,7 +11,7 @@ model User {
   id                  String               @id @default(cuid())
   email               String?              @unique
   name                String?
-  buid                String?              @unique
+  externalId          String?              @unique
   gender              String?
   raceEthnicity       String?
   parentalEducation   String?
@@ -26,6 +26,7 @@ model User {
   surveyResponses     SurveyResponse[]
   analytics           StudentAnalytics?
   checkpointAttempts  CheckpointAttempt[]
+  lessonAttempts      LessonAttempt[]
   createdCourses      Course[]             @relation("CourseCreator")
   createdBadges       Badge[]              @relation("BadgeCreator")
   assessmentAttempts  AssessmentAttempt[]  @relation("AssessmentStudent")
@@ -89,23 +90,19 @@ enum AvatarAccessory {
 }
 
 model Course {
-  id           String   @id @default(cuid())
-  code         String?  @unique
-  assessorCode String?  @unique
+  id           String  @id @default(cuid())
+  code         String? @unique
+  assessorCode String? @unique
   title        String
   section      String?
   sectionCount Int
   description  String?
+  iconName     String?
+  iconBgColor  String?
+  iconFgColor  String?
 
-  // Instructor-chosen "course image": an Iconify icon name (e.g. "mdi:flask")
-  // rendered over a background color from a fixed palette. Null on courses
-  // created before this feature — those fall back to the lesson thumbnail.
-  iconName    String?
-  iconBgColor String?
-  iconFgColor String?
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   createdById String?
   createdBy   User?   @relation("CourseCreator", fields: [createdById], references: [id])
@@ -210,6 +207,7 @@ model Lesson {
   badgeRequirements BadgeRequirement[] @relation("BadgeLessonRequirement")
   progress          LessonProgress[]
   surveys           SurveyPrompt[]
+  lessonAttempts    LessonAttempt[]
 
   @@index([courseId])
 }
@@ -338,7 +336,7 @@ enum SegmentStatus {
 }
 
 model CheckpointResponse {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   attemptId        String?
   checkpointId     String
   questionId       String?
@@ -348,7 +346,10 @@ model CheckpointResponse {
   selectedIndices  Json?
   numericAnswer    Float?
   isCorrect        Boolean?
-  createdAt        DateTime @default(now())
+  // Set when a failed QEV run is sealed — hides this answer from the student's
+  // fresh-slate retry while keeping it for the instructor history view.
+  archivedAt       DateTime?
+  createdAt        DateTime  @default(now())
 
   attempt        CheckpointAttempt?  @relation(fields: [attemptId], references: [id])
   checkpoint     LessonCheckpoint    @relation(fields: [checkpointId], references: [id])
@@ -362,6 +363,11 @@ model CheckpointAttempt {
   checkpointId     String
   userId           String
   lessonProgressId String?
+  // Groups this answer into a QEV run (LessonAttempt), set when the run is graded.
+  // Null = the in-progress run that hasn't been graded yet.
+  lessonAttemptId  String?
+  // Set when a failed run is sealed — hides it from the student's fresh retry.
+  archivedAt       DateTime?
   startedAt        DateTime  @default(now())
   completedAt      DateTime?
   isPassing        Boolean?
@@ -371,42 +377,66 @@ model CheckpointAttempt {
   checkpoint     LessonCheckpoint     @relation(fields: [checkpointId], references: [id])
   user           User                 @relation(fields: [userId], references: [id])
   lessonProgress LessonProgress?      @relation(fields: [lessonProgressId], references: [id])
+  lessonAttempt  LessonAttempt?       @relation(fields: [lessonAttemptId], references: [id])
   responses      CheckpointResponse[]
+
+  @@index([lessonAttemptId])
+}
+
+// One graded QEV watch-through ("precheck attempt"), the online-lesson analog of
+// AssessmentAttempt. Created on every grade submission; owns that run's checkpoint
+// answers. See docs — surfaced run-by-run in the instructor badge viewer.
+model LessonAttempt {
+  id             String   @id @default(cuid())
+  studentId      String
+  lessonId       String
+  passed         Boolean
+  gradePercent   Float
+  correctAnswers Int?
+  totalQuestions Int?
+  completedAt    DateTime @default(now())
+  createdAt      DateTime @default(now())
+
+  student            User                @relation(fields: [studentId], references: [id])
+  lesson             Lesson              @relation(fields: [lessonId], references: [id])
+  checkpointAttempts CheckpointAttempt[]
+
+  @@index([studentId, lessonId])
 }
 
 model Badge {
-  id              String             @id @default(cuid())
-  slug            String             @unique
-  name            String
-  description     String?
-  createdById     String?
-  sourceBadgeId   String?
-  availableOn     DateTime?
-  closesOn        DateTime?
-  neverCloses     Boolean?
-  createdAt       DateTime           @default(now())
-  updatedAt       DateTime           @updatedAt
-  createdBy       User?              @relation("BadgeCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  sourceBadge     Badge?             @relation("BadgeSource", fields: [sourceBadgeId], references: [id], onDelete: SetNull)
-  importedCopies  Badge[]            @relation("BadgeSource")
-  requirements    BadgeRequirement[]
-  studentProgress StudentBadge[]
-  surveys         SurveyPrompt[]
-  assessments     AssessmentAttempt[]
-  messages        Message[]
-  rubricGoal      RubricGoal?
+  id                   String              @id @default(cuid())
+  slug                 String              @unique
+  name                 String
+  description          String?
+  createdById          String?
+  sourceBadgeId        String?
+  availableOn          DateTime?
+  closesOn             DateTime?
+  neverCloses          Boolean?
+  reassessmentLimit    Int?
+  cooldownDays         Int?
+  reassessmentRequired Boolean?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  createdBy            User?               @relation("BadgeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  sourceBadge          Badge?              @relation("BadgeSource", fields: [sourceBadgeId], references: [id], onDelete: SetNull)
+  importedCopies       Badge[]             @relation("BadgeSource")
+  requirements         BadgeRequirement[]
+  studentProgress      StudentBadge[]
+  surveys              SurveyPrompt[]
+  assessments          AssessmentAttempt[]
+  messages             Message[]
+  rubricGoal           RubricGoal?
 
   @@index([createdById])
   @@index([sourceBadgeId])
 }
 
-// The "primary goal" for a badge — named after the badge itself. Holds the
-// subgoals; the badge passes only when every subgoal passes, so there is no
-// goal-level point total or threshold anymore.
 model RubricGoal {
-  id      String @id @default(cuid())
-  badgeId String @unique
-  name    String
+  id           String   @id @default(cuid())
+  badgeId      String   @unique
+  name         String
   // Rich-text (HTML) instructions for TAs to relay to students during assessment.
   instructions String?
   createdAt    DateTime @default(now())
@@ -416,8 +446,6 @@ model RubricGoal {
   subgoals RubricSubgoal[]
 }
 
-// A grouping of tasks (e.g. "Turning on", "Cleaning"). Passes when the summed
-// weights of its passed tasks meet passThreshold.
 model RubricSubgoal {
   id            String   @id @default(cuid())
   goalId        String
@@ -433,8 +461,6 @@ model RubricSubgoal {
   @@unique([goalId, sortOrder])
 }
 
-// A leaf item the assessor grades pass/fail. Carries a point weight that counts
-// toward its subgoal's threshold when passed.
 model RubricTask {
   id        String   @id @default(cuid())
   subgoalId String
@@ -466,14 +492,17 @@ model BadgeRequirement {
 }
 
 model StudentBadge {
-  id        String      @id @default(cuid())
-  studentId String
-  badgeId   String
-  status    BadgeStatus @default(LEARNING)
-  awardedAt DateTime?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  score     Int?
+  id                   String      @id @default(cuid())
+  studentId            String
+  badgeId              String
+  status               BadgeStatus @default(LEARNING)
+  awardedAt            DateTime?
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  score                Int?
+  qevPassedAt          DateTime? // set when QEV is cleared and status leaves LEARNING
+  cooldownUntil        DateTime? // assessment blocked while now < cooldownUntil
+  feedbackReviewedAt   DateTime? // set when the student acknowledges attempt feedback
   reassessmentLimit    Int?
   cooldownDays         Int?
   reassessmentRequired Boolean?
@@ -503,11 +532,11 @@ model StudentAnalytics {
 }
 
 model AssessmentAttempt {
-  id          String    @id @default(cuid())
-  courseId    String
-  badgeId     String
-  studentId   String
-  assessorId  String
+  id             String    @id @default(cuid())
+  courseId       String
+  badgeId        String
+  studentId      String
+  assessorId     String
   passed         Boolean
   score          Int?
   pointsEarned   Int?
@@ -564,11 +593,18 @@ model AssessmentTaskResponse {
   @@index([attemptId])
 }
 
+// BADGE LIFECYCLE STATE
+//   LEARNING             default at enroll; QEV projected from LessonProgress
+//   READY_FOR_ASSESSMENT qevPassedAt set; assessment gated while now < cooldownUntil
+//   IN_REVIEW            assessor submitted an attempt; pass/fail derived from latest attempt
+//   COMPLETED           passed + acknowledged + rated; awardedAt set
+//   LOCKED              failed past the reassessment limit; terminal for this run
 enum BadgeStatus {
   LEARNING
   READY_FOR_ASSESSMENT
-  READY_FOR_FINALIZATION
+  IN_REVIEW
   COMPLETED
+  LOCKED
 }
 
 model SurveyPrompt {

@@ -20,7 +20,7 @@ type EnrollmentSummary = {
     id: string;
     name: string | null;
     email: string | null;
-    buid: string | null;
+    externalId: string | null;
   };
 };
 
@@ -29,6 +29,10 @@ export type CourseBadge = {
   slug: string;
   name: string;
   description: string | null;
+  availableOn: string | null;
+  closesOn: string | null;
+  neverCloses: boolean | null;
+  createdAt: string;
 };
 
 type CourseLesson = {
@@ -58,7 +62,7 @@ type CourseDetail = {
     id: string;
     name: string | null;
     email: string | null;
-    buid: string | null;
+    externalId: string | null;
     avatarBase: string | null;
   } | null;
   settings: {

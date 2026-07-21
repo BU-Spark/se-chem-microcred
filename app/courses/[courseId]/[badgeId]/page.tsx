@@ -10,7 +10,7 @@ import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import styles from './page.module.css';
 
-type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'COMPLETED' | 'NOT_STARTED';
+type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED' | 'NOT_STARTED';
 
 type BadgeDetail = {
   id: string;
@@ -31,7 +31,7 @@ type CourseDetail = {
     id: string;
     name: string | null;
     email: string | null;
-    buid: string | null;
+    externalId: string | null;
   } | null;
 };
 
@@ -41,12 +41,14 @@ type ProgressSummary = {
   inProgressCount: number;
   notStartedCount: number;
   readyForAssessmentCount: number;
-  readyForFinalizationCount: number;
+  inReviewCount: number;
+  lockedCount: number;
   completedPercent: number;
   inProgressPercent: number;
   notStartedPercent: number;
   readyForAssessmentPercent: number;
-  readyForFinalizationPercent: number;
+  inReviewPercent: number;
+  lockedPercent: number;
   averageScore: number | null;
 };
 
@@ -86,7 +88,7 @@ type StudentProgressRow = {
     id: string;
     name: string | null;
     email: string | null;
-    buid: string | null;
+    externalId: string | null;
   };
   progress: {
     id: string;

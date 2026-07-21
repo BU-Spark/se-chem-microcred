@@ -7,7 +7,7 @@ import {
 import { normalizeEmail } from '@/lib/text/email';
 import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
 
-type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'READY_FOR_FINALIZATION' | 'COMPLETED';
+type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -143,7 +143,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           id: enrollment.student.id,
           name: enrollment.student.name,
           email: enrollment.student.email,
-          buid: enrollment.student.buid,
+          externalId: enrollment.student.externalId,
           badgeProgress: enrollment.student.badgeProgress,
         },
         progress: progress
@@ -163,13 +163,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     const completedCount = students.filter((student) => student.status === 'COMPLETED').length;
     const inProgressCount = students.filter(
       (student) =>
-        student.status === 'LEARNING' ||
-        student.status === 'READY_FOR_ASSESSMENT' ||
-        student.status === 'READY_FOR_FINALIZATION'
+        student.status === 'LEARNING' || student.status === 'READY_FOR_ASSESSMENT' || student.status === 'IN_REVIEW'
     ).length;
     const notStartedCount = students.filter((student) => student.status === 'NOT_STARTED').length;
     const readyForAssessmentCount = students.filter((student) => student.status === 'READY_FOR_ASSESSMENT').length;
-    const readyForFinalizationCount = students.filter((student) => student.status === 'READY_FOR_FINALIZATION').length;
+    const inReviewCount = students.filter((student) => student.status === 'IN_REVIEW').length;
+    const lockedCount = students.filter((student) => student.status === 'LOCKED').length;
     const scoredStudents = students.filter((student) => typeof student.progress?.score === 'number');
     const averageScore =
       scoredStudents.length > 0
@@ -213,12 +212,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           inProgressCount,
           notStartedCount,
           readyForAssessmentCount,
-          readyForFinalizationCount,
+          inReviewCount,
+          lockedCount,
           completedPercent: calculatePercent(completedCount, totalStudents),
           inProgressPercent: calculatePercent(inProgressCount, totalStudents),
           notStartedPercent: calculatePercent(notStartedCount, totalStudents),
           readyForAssessmentPercent: calculatePercent(readyForAssessmentCount, totalStudents),
-          readyForFinalizationPercent: calculatePercent(readyForFinalizationCount, totalStudents),
+          inReviewPercent: calculatePercent(inReviewCount, totalStudents),
+          lockedPercent: calculatePercent(lockedCount, totalStudents),
           averageScore,
         },
         assessment,

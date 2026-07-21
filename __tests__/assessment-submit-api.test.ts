@@ -3,7 +3,7 @@
 import { NextRequest } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 
-import { GET, POST } from '../app/api/courses/[courseId]/students/[studentId]/badges/[badgeId]/route';
+import { GET, PATCH, POST } from '../app/api/courses/[courseId]/students/[studentId]/badges/[badgeId]/route';
 import { fetchUserByEmail } from '../app/api/courses/lib/course-queries';
 import prisma from '../lib/prisma';
 
@@ -32,6 +32,12 @@ jest.mock('../lib/prisma', () => ({
     assessmentAttempt: {
       findMany: jest.fn(),
     },
+    lessonAttempt: {
+      findMany: jest.fn(),
+    },
+    studentBadge: {
+      update: jest.fn(),
+    },
     $transaction: jest.fn(),
   },
 }));
@@ -42,6 +48,8 @@ const mockPrisma = prisma as unknown as {
   course: { findFirst: jest.Mock };
   rubricGoal: { findUnique: jest.Mock };
   assessmentAttempt: { findMany: jest.Mock };
+  lessonAttempt: { findMany: jest.Mock };
+  studentBadge: { update: jest.Mock };
   $transaction: jest.Mock;
 };
 
@@ -155,7 +163,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
   });
 
   it('rejects stale assessment submissions after a badge has already been assessed', async () => {
-    mockPrisma.course.findFirst.mockResolvedValue(courseFixture('READY_FOR_FINALIZATION'));
+    mockPrisma.course.findFirst.mockResolvedValue(courseFixture('IN_REVIEW'));
 
     const response = await POST(assessmentRequest({ tasks: allTasksPassed, override: null }), submitParams());
 
@@ -186,7 +194,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(body.attempt).toEqual(
       expect.objectContaining({ passed: true, score: 80, pointsEarned: 4, pointsPossible: 5 })
     );
-    expect(body.status).toBe('READY_FOR_FINALIZATION');
+    expect(body.status).toBe('IN_REVIEW');
 
     const createCall = mockTx.assessmentAttempt.create.mock.calls[0][0];
     expect(createCall.data.responses.create).toEqual([
@@ -224,7 +232,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(mockTx.studentBadge.update).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { id: 'progress-1' },
-        data: { status: 'READY_FOR_FINALIZATION', score: 80 },
+        data: { status: 'IN_REVIEW', score: 80 },
       })
     );
   });
@@ -250,7 +258,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(body.attempt).toEqual(
       expect.objectContaining({ passed: false, score: 40, pointsEarned: 2, pointsPossible: 5 })
     );
-    expect(body.status).toBe('LEARNING');
+    expect(body.status).toBe('IN_REVIEW');
   });
 
   it('rejects an override to still learning without feedback', async () => {
@@ -306,7 +314,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(body.attempt).toEqual(
       expect.objectContaining({ passed: false, score: 100, pointsEarned: 5, pointsPossible: 5 })
     );
-    expect(body.status).toBe('LEARNING');
+    expect(body.status).toBe('IN_REVIEW');
 
     const createCall = mockTx.assessmentAttempt.create.mock.calls[0][0];
     expect(createCall.data.feedback).toBe('Spilled acid and did not report it.');
@@ -334,7 +342,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
 
     expect(response.status).toBe(201);
     const body = await response.json();
-    expect(body.status).toBe('READY_FOR_FINALIZATION');
+    expect(body.status).toBe('IN_REVIEW');
     expect(mockPrisma.$transaction).toHaveBeenCalled();
   });
 
@@ -503,6 +511,7 @@ describe('GET /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', ()
     mockPrisma.course.findFirst.mockResolvedValue(answerHistoryCourseFixture());
     mockPrisma.rubricGoal.findUnique.mockResolvedValue(rubricGoalFixture);
     mockPrisma.assessmentAttempt.findMany.mockResolvedValue([]);
+    mockPrisma.lessonAttempt.findMany.mockResolvedValue([]);
   });
 
   it('renders answered text from option labels and persisted numeric answers', async () => {
@@ -527,5 +536,101 @@ describe('GET /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', ()
     expect(answeredTextByQuestionId.get('question-multi')).toBe('Goggles, Tie hair back');
     expect(answeredTextByQuestionId.get('question-numeric')).toBe('24.5');
     expect(answeredTextByQuestionId.get('question-numeric-legacy')).toBe('No answer recorded');
+  });
+});
+
+// Per-student config edits (reassessment count, cooldown, whether reassessment is
+// mandatory). The cooldown override is the assessor feature gated by the course's
+// allowCooldownOverride setting.
+function configRequest(body: unknown) {
+  return new NextRequest(
+    'http://localhost/api/courses/course-1/students/student-1/badges/badge-1?email=assessor@example.edu',
+    {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+      headers: { 'Content-Type': 'application/json' },
+    }
+  );
+}
+
+// Course whose viewer (assessor-1) is an active CHECKER who may edit the student's
+// badge config. `allowCooldownOverride` toggles the cooldown-override gate.
+function configCourseFixture(allowCooldownOverride: boolean) {
+  return {
+    id: 'course-1',
+    createdById: 'creator-1',
+    settings: { allowCrossSectionView: true, allowCooldownOverride },
+    enrollments: [
+      {
+        role: 'CHECKER',
+        status: 'ACTIVE',
+        sections: [{ section: 'A1' }],
+        student: { id: 'assessor-1', badgeProgress: [] },
+      },
+      {
+        role: 'STUDENT',
+        status: 'ACTIVE',
+        sections: [{ section: 'A1' }],
+        student: { id: 'student-1', badgeProgress: [{ id: 'progress-1' }] },
+      },
+    ],
+  };
+}
+
+describe('PATCH /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockCurrentUser.mockResolvedValue({
+      emailAddresses: [{ emailAddress: 'assessor@example.edu' }],
+    } as Awaited<ReturnType<typeof currentUser>>);
+    mockFetchUserByEmail.mockResolvedValue({ id: 'assessor-1' } as Awaited<ReturnType<typeof fetchUserByEmail>>);
+    mockPrisma.studentBadge.update.mockImplementation(({ data }) => Promise.resolve(data));
+  });
+
+  it('rejects a cooldown override when the course has not enabled it', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(configCourseFixture(false));
+
+    const response = await PATCH(configRequest({ overrideCooldown: true }), submitParams());
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: 'Cooldown overrides are disabled for this course.' });
+    expect(mockPrisma.studentBadge.update).not.toHaveBeenCalled();
+  });
+
+  it('clears the cooldown when overriding is allowed so the student can retake now', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(configCourseFixture(true));
+
+    const response = await PATCH(configRequest({ overrideCooldown: true }), submitParams());
+
+    expect(response.status).toBe(200);
+    expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'progress-1' },
+        data: { cooldownUntil: null },
+      })
+    );
+  });
+
+  it('updates the per-student config without touching the cooldown', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(configCourseFixture(false));
+
+    const response = await PATCH(configRequest({ reassessmentLimit: 2, reassessmentRequired: true }), submitParams());
+
+    expect(response.status).toBe(200);
+    expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'progress-1' },
+        data: { reassessmentLimit: 2, reassessmentRequired: true },
+      })
+    );
+  });
+
+  it('rejects a request with neither config fields nor an override', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(configCourseFixture(true));
+
+    const response = await PATCH(configRequest({}), submitParams());
+
+    expect(response.status).toBe(400);
+    expect(mockPrisma.studentBadge.update).not.toHaveBeenCalled();
   });
 });

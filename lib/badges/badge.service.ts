@@ -69,6 +69,40 @@ export function normalizePassingPercent(value: number | string | null | undefine
   return Math.min(100, Math.max(0, Math.round(parsed)));
 }
 
+// Prisma-ready authored assessment policy stored on the Badge. An omitted field
+// stays out of the write entirely (keeping the column at its existing value).
+export type BadgePolicy = {
+  reassessmentLimit?: number;
+  cooldownDays?: number;
+  reassessmentRequired?: boolean;
+};
+
+// Authored assessment-policy defaults stored on the Badge. Mirrors the clamps the
+// per-student override route applies (reassessmentLimit >= 0, cooldownDays 0–14).
+export function normalizeBadgePolicy(payload: {
+  reassessmentLimit?: number | string | null;
+  cooldownDays?: number | string | null;
+  reassessmentRequired?: boolean | null;
+}): BadgePolicy {
+  const data: BadgePolicy = {};
+
+  const limit = parseFiniteNumber(payload.reassessmentLimit);
+  if (limit !== null) {
+    data.reassessmentLimit = Math.max(0, Math.round(limit));
+  }
+
+  const cooldown = parseFiniteNumber(payload.cooldownDays);
+  if (cooldown !== null) {
+    data.cooldownDays = Math.min(14, Math.max(0, Math.round(cooldown)));
+  }
+
+  if (typeof payload.reassessmentRequired === 'boolean') {
+    data.reassessmentRequired = payload.reassessmentRequired;
+  }
+
+  return data;
+}
+
 // The rubric is one goal (named after the badge) with subgoals, each holding
 // point-weighted tasks. A subgoal's passThreshold is clamped to the sum of its
 // task weights and defaults to that full sum (every task required) when omitted.
@@ -326,6 +360,8 @@ export interface CreateBadgeArgs {
   closesOn: Date | null;
   videoDurationSeconds: number | null;
   videoLength?: string | null;
+  // Authored assessment policy that flows to students via inheritance.
+  badgePolicy?: BadgePolicy;
 }
 
 // --Badge Creation--
@@ -347,6 +383,7 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
     closesOn,
     videoDurationSeconds,
     videoLength,
+    badgePolicy = {},
   } = args;
 
   const dueDate = closesOn;
@@ -391,6 +428,7 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
           closesOn,
           neverCloses,
           createdById: creatorId,
+          ...badgePolicy,
         },
         select: { id: true, slug: true, name: true, description: true },
       });
@@ -420,6 +458,7 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
             neverCloses,
             createdById: creatorId,
             sourceBadgeId: sourceBadge.id,
+            ...badgePolicy,
           },
           select: { id: true, slug: true, name: true, description: true },
         });
@@ -559,6 +598,8 @@ interface PatchBadgeArgs {
   videoSeconds: number | null;
   thumbnailUrl?: string | null;
   passingPercentage: number | null;
+  // Authored assessment policy that flows to students via inheritance.
+  badgePolicy?: BadgePolicy;
 }
 
 export async function executeBadgePatchTx(args: PatchBadgeArgs) {
@@ -578,6 +619,7 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
     videoLength,
     videoSeconds,
     passingPercentage,
+    badgePolicy = {},
   } = args;
 
   const videoId = extractYouTubeId(youtubeVideoUrl);
@@ -586,14 +628,14 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
   return await prisma.$transaction(async (tx) => {
     const badge = await tx.badge.update({
       where: { id: badgeId, createdById: editorId },
-      data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses },
+      data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses, ...badgePolicy },
       select: { id: true, slug: true, name: true, description: true, sourceBadgeId: true },
     });
 
     const familyRootId = badge.sourceBadgeId ?? badge.id;
     await tx.badge.updateMany({
       where: { OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }], NOT: { id: badge.id } },
-      data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses },
+      data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses, ...badgePolicy },
     });
 
     const firstRequirement = await tx.badgeRequirement.findFirst({

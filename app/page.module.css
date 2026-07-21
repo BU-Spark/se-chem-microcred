@@ -47,16 +47,138 @@
   /* Remove card-style shadow */
 }
 
-.sidebar::-webkit-scrollbar {
+/* Collapse/expand animates the sidebar width smoothly. The aside keeps visible
+   overflow so the toggle tab can straddle its outer edge; the inner wrapper owns
+   the padding and internal scrolling (and clips content during the animation). */
+.sidebar {
+  overflow: visible;
+  padding: 0;
+  gap: 0;
+  transition:
+    width 0.28s ease,
+    min-width 0.28s ease,
+    flex-basis 0.28s ease;
+}
+
+/* Until the sidebar is marked ready (one frame after mount), suppress every
+   transition so applying the persisted state on page load doesn't animate. */
+.sidebar:not(.ready),
+.sidebar:not(.ready) * {
+  transition: none !important;
+}
+
+.sidebarInner {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 2rem 1.5rem;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+/* Collapsed: a tiny sliver with just a small avatar to reopen it. */
+.sidebarCollapsed {
+  width: 72px;
+  flex: 0 0 72px;
+  min-width: 72px;
+}
+
+.sidebarCollapsed .sidebarInner {
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  align-items: center;
+}
+
+/* Chevron tab that toggles the sidebar. It straddles the right edge so it reads
+   as attached to the sidebar's border rather than sitting inside the panel. */
+.collapseToggle {
+  position: absolute;
+  top: 1.25rem;
+  right: -14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 0 0.5rem 0.5rem 0;
+  background: #2e6aa9;
+  color: #f8fbff;
+  cursor: pointer;
+  box-shadow: 2px 0 5px rgba(15, 23, 42, 0.18);
+  transition: background-color 0.2s ease;
+}
+
+.collapseToggle:hover {
+  background: #3f7cbd;
+}
+
+/* Chevron drawn with borders; points left when open, right when collapsed. */
+.chevron {
+  display: block;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(135deg);
+  margin-left: 3px;
+  transition: transform 0.28s ease;
+}
+
+.sidebarCollapsed .chevron {
+  transform: rotate(-45deg);
+  margin-left: -3px;
+}
+
+/* When collapsed, the non-avatar content fades out and stops taking clicks. */
+.sidebarCollapsed .name,
+.sidebarCollapsed .navList,
+.sidebarCollapsed .sidebarFooter {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+/* The avatar shrinks and becomes the click target that reopens the sidebar. */
+.avatar {
+  border: none;
+  padding: 0;
+  cursor: default;
+  transition:
+    width 0.28s ease,
+    height 0.28s ease,
+    transform 0.2s ease;
+}
+
+.sidebarCollapsed .avatar {
+  width: 44px;
+  height: 44px;
+  cursor: pointer;
+}
+
+.sidebarCollapsed .avatar:hover {
+  transform: scale(1.08);
+}
+
+.sidebarInner::-webkit-scrollbar {
   width: 8px;
 }
 
-.sidebar::-webkit-scrollbar-thumb {
+.sidebarInner::-webkit-scrollbar-thumb {
   background: rgba(255, 255, 255, 0.3);
   border-radius: 4px;
 }
 
-.sidebar::-webkit-scrollbar-track {
+.sidebarInner::-webkit-scrollbar-track {
   background: transparent;
 }
 
@@ -1028,9 +1150,6 @@
   }
 
   .sidebar {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
     width: 100%;
     height: auto;
     min-height: auto;
@@ -1039,7 +1158,44 @@
     border-radius: 0;
     border-right: none;
     border-bottom: 1px solid rgba(15, 23, 42, 0.12);
+  }
+
+  /* Top-bar layout lives on the inner wrapper now. */
+  .sidebarInner {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
     padding: 1rem 1.25rem;
+  }
+
+  /* Collapse is a desktop affordance; force the full top bar on narrow screens
+     even if a collapsed preference was persisted. */
+  .collapseToggle {
+    display: none;
+  }
+
+  .sidebarCollapsed {
+    width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .sidebarCollapsed .sidebarInner {
+    padding: 1rem 1.25rem;
+    align-items: center;
+  }
+
+  .sidebarCollapsed .name,
+  .sidebarCollapsed .navList,
+  .sidebarCollapsed .sidebarFooter {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .sidebarCollapsed .avatar {
+    width: 84px;
+    height: 84px;
   }
 
   .navList {

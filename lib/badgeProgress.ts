@@ -1,4 +1,4 @@
-import { BadgeStatus, LessonStatus, Prisma, SurveyContext } from '@prisma/client';
+import { BadgeStatus, LessonStatus, Prisma } from '@prisma/client';
 
 type BadgeProgressClient = Prisma.TransactionClient;
 
@@ -22,51 +22,20 @@ async function isBadgeReadyForAssessment(tx: BadgeProgressClient, studentId: str
     return false;
   }
 
-  const [lessonProgresses, lessonSurveyPrompts] = await Promise.all([
-    tx.lessonProgress.findMany({
-      where: { studentId, lessonId: { in: requirementLessonIds } },
-      select: { lessonId: true, status: true, percentComplete: true, lastGradePassed: true },
-    }),
-    tx.surveyPrompt.findMany({
-      where: {
-        context: SurveyContext.LESSON,
-        lessonId: { in: requirementLessonIds },
-      },
-      select: { id: true, lessonId: true },
-    }),
-  ]);
+  const lessonProgresses = await tx.lessonProgress.findMany({
+    where: { studentId, lessonId: { in: requirementLessonIds } },
+    select: { lessonId: true, status: true, percentComplete: true, lastGradePassed: true },
+  });
 
   const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
-  const lessonSurveyPromptIds = lessonSurveyPrompts.map((prompt) => prompt.id);
-  const completedSurveyResponses =
-    lessonSurveyPromptIds.length > 0
-      ? await tx.surveyResponse.findMany({
-          where: {
-            studentId,
-            promptId: { in: lessonSurveyPromptIds },
-          },
-          select: { promptId: true },
-        })
-      : [];
-  const completedSurveyPromptIds = new Set(completedSurveyResponses.map((response) => response.promptId));
-  const surveyPromptsByLessonId = lessonSurveyPrompts.reduce<Map<string, string[]>>((acc, prompt) => {
-    if (!prompt.lessonId) return acc;
-    const ids = acc.get(prompt.lessonId) ?? [];
-    ids.push(prompt.id);
-    acc.set(prompt.lessonId, ids);
-    return acc;
-  }, new Map());
 
+  // QEV is cleared when every required lesson is COMPLETED with a passing grade.
+  // There is no longer a lesson-survey gate — finishing the checkpoints + passing
+  // the grade is the whole bar.
   return requirementLessonIds.every((lessonId) => {
     const progress = progressByLessonId.get(lessonId);
     const lessonComplete = progress?.status === LessonStatus.COMPLETED || (progress?.percentComplete ?? 0) >= 100;
-
-    if (!lessonComplete || progress?.lastGradePassed !== true) {
-      return false;
-    }
-
-    const promptIds = surveyPromptsByLessonId.get(lessonId) ?? [];
-    return promptIds.every((promptId) => completedSurveyPromptIds.has(promptId));
+    return lessonComplete && progress?.lastGradePassed === true;
   });
 }
 
@@ -141,9 +110,16 @@ export async function syncLessonBadgesForStudent(
       continue;
     }
 
+    // QEV is cleared: leave LEARNING for READY_FOR_ASSESSMENT and stamp the
+    // milestone. qevPassedAt is what makes the badge status honest under Model B —
+    // from here on the status means something, and a later failed assessment keeps
+    // the student at READY_FOR_ASSESSMENT rather than lying with LEARNING.
     await tx.studentBadge.update({
       where: { id: studentBadge.id },
-      data: { status: BadgeStatus.READY_FOR_ASSESSMENT },
+      data: {
+        status: BadgeStatus.READY_FOR_ASSESSMENT,
+        qevPassedAt: studentBadge.qevPassedAt ?? new Date(),
+      },
     });
     readyForAssessment = true;
   }

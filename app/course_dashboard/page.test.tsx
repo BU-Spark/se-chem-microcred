@@ -55,7 +55,7 @@ describe('Course dashboard page', () => {
       data: {
         student: { name: 'Student Demo', email: 'student@example.edu' },
         lessons: { upNext: [], inProgress: [] },
-        badges: { readyForFinalization: [] },
+        badges: { inReview: [] },
         surveys: { pendingBadge: [] },
       },
       isLoading: false,
@@ -96,7 +96,7 @@ describe('Course dashboard page', () => {
           ],
           inProgress: [],
         },
-        badges: { readyForFinalization: [] },
+        badges: { inReview: [] },
         surveys: { pendingBadge: [] },
       },
       isLoading: false,

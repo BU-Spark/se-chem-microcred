@@ -44,7 +44,7 @@ describe('add course roster members API', () => {
     mockPrisma.course.findUnique.mockResolvedValue({ createdById: 'instructor-1' });
     tx.user.findMany
       .mockResolvedValueOnce([])
-      .mockResolvedValueOnce([{ id: 'student-1', name: 'Ada Lovelace', email: 'ada@bu.edu', buid: null }]);
+      .mockResolvedValueOnce([{ id: 'student-1', name: 'Ada Lovelace', email: 'ada@bu.edu', externalId: null }]);
     tx.user.createMany.mockResolvedValue({ count: 1 });
     tx.enrollment.findMany
       .mockResolvedValueOnce([])

@@ -59,21 +59,24 @@ function studentData() {
       email: 'student@example.edu',
     },
     badges: {
-      learning: [
+      learning: [],
+      readyForAssessment: [],
+      inReview: [
         {
           id: 'badge-1',
           courseId: 'course-1',
           slug: 'learning-badge',
           name: 'Learning Badge',
           description: 'Needs feedback review',
-          status: 'LEARNING' as const,
+          status: 'IN_REVIEW' as const,
           awardedAt: null,
           score: 40,
+          latestAttemptPassed: false,
+          cooldownUntil: null,
           requirements: [{ summary: null, lessonSlug: 'lesson-1', lessonTitle: 'Lesson 1' }],
         },
       ],
-      readyForAssessment: [],
-      readyForFinalization: [],
+      locked: [],
       completed: [],
     },
   };
@@ -102,9 +105,11 @@ describe('Badge feedback page', () => {
             slug: 'learning-badge',
             name: 'Learning Badge',
             description: 'Needs feedback review',
-            status: 'LEARNING',
+            status: 'IN_REVIEW',
             score: 40,
             awardedAt: null,
+            cooldownUntil: null,
+            cooldownDays: 3,
           },
           rubric: {
             goalId: 'goal-1',
@@ -155,7 +160,7 @@ describe('Badge feedback page', () => {
       })
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ status: 'READY_FOR_ASSESSMENT' }),
+        json: async () => ({ status: 'READY_FOR_ASSESSMENT', cooldownUntil: '2099-01-05T00:00:00.000Z' }),
       }) as unknown as typeof fetch;
   });
 
@@ -181,5 +186,13 @@ describe('Badge feedback page', () => {
       expect(global.fetch).toHaveBeenCalledWith('/api/badges/badge-1/feedback', { method: 'POST' });
     });
     expect(await screen.findByText(/ready for reassessment/i)).toBeInTheDocument();
+
+    // Once acknowledged, the cooldown panel renders the real cooldown propagated
+    // from the acknowledge response (not the old hardcoded placeholders).
+    expect(await screen.findByText('Cooldown')).toBeInTheDocument();
+    expect(screen.getByText(/remaining/i)).toBeInTheDocument();
+    // Next-attempt window = the returned cooldownUntil (Jan 5, 2099).
+    expect(screen.getByText(/2099/)).toBeInTheDocument();
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
   });
 });

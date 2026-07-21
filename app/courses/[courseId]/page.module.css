@@ -607,6 +607,31 @@
   opacity: 0.6;
 }
 
+/* Destructive unassign action inside the Edit-badge-settings popup. */
+.dangerZone {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e4e4e4;
+  width: 100%;
+}
+
+.dangerLink {
+  margin-top: 18px;
+  border: 0;
+  background: none;
+  color: #b3261e;
+  cursor: pointer;
+  font-family: 'Lato', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.dangerLink:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
 /* =========================
    Import Existing Badge — stepped popup (issue #24)
    ========================= */

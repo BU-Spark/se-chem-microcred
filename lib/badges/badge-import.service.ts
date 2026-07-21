@@ -72,6 +72,10 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
           slug: true,
           name: true,
           description: true,
+          // Carry the authored assessment policy onto the course copy.
+          reassessmentLimit: true,
+          cooldownDays: true,
+          reassessmentRequired: true,
 
           rubricGoal: {
             select: {
@@ -180,6 +184,9 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
           availableOn: availableOn,
           closesOn: closesOn,
           neverCloses,
+          reassessmentLimit: sourceBadge.reassessmentLimit,
+          cooldownDays: sourceBadge.cooldownDays,
+          reassessmentRequired: sourceBadge.reassessmentRequired,
         },
         select: {
           id: true,

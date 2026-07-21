@@ -106,3 +106,102 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ cour
     return NextResponse.json({ error: 'Failed to unassign badge' }, { status: 500 });
   }
 }
+
+// Edit the availability window of a badge that was imported into a course. Only the
+// course's copy of the badge (the import) is touched — the source catalog badge is
+// left intact. Scoped to the signed-in course creator and to badges assigned to this
+// course. Mirrors the date logic used at import time so the two stay consistent.
+export async function PATCH(req: NextRequest, context: { params: Promise<{ courseId: string; badgeId: string }> }) {
+  try {
+    const clerkUser = await currentUser();
+    const email = normalizeEmail(clerkUser?.emailAddresses?.[0]?.emailAddress);
+    const { courseId: rawCourseId, badgeId: rawBadgeId } = await context.params;
+    const courseId = normalizeId(rawCourseId);
+    const badgeId = normalizeId(rawBadgeId);
+
+    if (!email) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!courseId) {
+      return NextResponse.json({ error: 'Course id is required' }, { status: 400 });
+    }
+
+    if (!badgeId) {
+      return NextResponse.json({ error: 'Badge id is required' }, { status: 400 });
+    }
+
+    let body: { availableOn?: string | null; closesOn?: string | null; neverCloses?: boolean };
+    try {
+      body = (await req.json()) as { availableOn?: string | null; closesOn?: string | null; neverCloses?: boolean };
+    } catch {
+      return NextResponse.json({ error: 'Invalid JSON payload.' }, { status: 400 });
+    }
+
+    const user = await fetchUserByEmail(email);
+
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    // Only the course creator may edit, and only their own course.
+    const course = await prisma.course.findFirst({
+      where: { id: courseId, createdById: user.id },
+      select: { id: true },
+    });
+
+    if (!course) {
+      return NextResponse.json({ error: 'Course not found or you are not its creator.' }, { status: 404 });
+    }
+
+    // The badge must be assigned to this course (linked to one of its lessons).
+    const requirements = await prisma.badgeRequirement.findMany({
+      where: { badgeId, lesson: { courseId } },
+      select: { lessonId: true },
+    });
+
+    if (requirements.length === 0) {
+      return NextResponse.json({ error: 'Badge is not assigned to this course.' }, { status: 404 });
+    }
+
+    const lessonIds = requirements
+      .map((requirement) => requirement.lessonId)
+      .filter((lessonId): lessonId is string => Boolean(lessonId));
+
+    // Same derivation as the import route: default to never-closing, and only keep a
+    // close date when the badge actually closes.
+    const neverCloses = body.neverCloses !== false;
+    const availableOnDate = body.availableOn ? new Date(body.availableOn) : null;
+    const closesOnDate = !neverCloses && body.closesOn ? new Date(body.closesOn) : null;
+
+    if (availableOnDate && Number.isNaN(availableOnDate.getTime())) {
+      return NextResponse.json({ error: 'Invalid open date.' }, { status: 400 });
+    }
+
+    if (closesOnDate && Number.isNaN(closesOnDate.getTime())) {
+      return NextResponse.json({ error: 'Invalid close date.' }, { status: 400 });
+    }
+
+    // Update the imported badge and keep the lesson due date in sync with the close
+    // date, exactly as import does (import/route.ts sets lesson.dueDate = closesOnDate).
+    await prisma.$transaction([
+      prisma.badge.update({
+        where: { id: badgeId },
+        data: { availableOn: availableOnDate, closesOn: closesOnDate, neverCloses },
+      }),
+      prisma.lesson.updateMany({
+        where: { id: { in: lessonIds } },
+        data: { dueDate: closesOnDate },
+      }),
+    ]);
+
+    return NextResponse.json(
+      { updated: true, availableOn: availableOnDate, closesOn: closesOnDate, neverCloses },
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error('PATCH /api/courses/[courseId]/badges/[badgeId] failed:', error);
+
+    return NextResponse.json({ error: 'Failed to update badge settings' }, { status: 500 });
+  }
+}

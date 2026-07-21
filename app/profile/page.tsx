@@ -279,7 +279,7 @@ export default function ProfilePage() {
 
   const greetingName = isFallback ? 'Student' : firstName;
   const studentEmail = studentData?.student.email ?? user?.primaryEmailAddress?.emailAddress ?? 'Not provided';
-  const buid = studentData?.student.buid ?? 'Not provided';
+  const externalId = studentData?.student.externalId ?? 'Not provided';
   const createdAt = formatCreatedDate(studentData?.student.createdAt);
 
   const gender = studentData?.student.gender ?? 'Not provided';
@@ -337,9 +337,9 @@ export default function ProfilePage() {
                   <div className={styles.detailValue}>{studentEmail}</div>
                 </div>
                 <div>
-                  <div className={styles.detailLabel}>BUID:</div>
+                  <div className={styles.detailLabel}>ID:</div>
                   <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
-                    {sensitiveHidden ? 'UXXXXXXXX' : buid}
+                    {sensitiveHidden ? 'UXXXXXXXX' : externalId}
                   </div>
                 </div>
               </div>

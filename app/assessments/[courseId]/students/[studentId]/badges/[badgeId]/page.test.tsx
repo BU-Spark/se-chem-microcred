@@ -38,7 +38,7 @@ function createProfilePayload() {
       id: 'student-1',
       name: 'Ada Lovelace',
       email: 'ada@bu.edu',
-      buid: 'U11111111',
+      externalId: 'U11111111',
       createdAt: '2026-03-20T15:30:00.000Z',
       avatar: null,
     },
@@ -50,7 +50,7 @@ function createProfilePayload() {
         id: 'prof-1',
         name: 'Professor Demo',
         email: 'prof@example.edu',
-        buid: 'P111',
+        externalId: 'P111',
       },
     },
     contacts: [],
@@ -130,7 +130,7 @@ describe('Assessment readiness page', () => {
               score: 100,
               completedAt: '2026-06-24T20:00:00.000Z',
             },
-            status: 'READY_FOR_FINALIZATION',
+            status: 'IN_REVIEW',
           }),
         };
       }
@@ -343,7 +343,7 @@ describe('Assessment readiness page', () => {
             ...createBadgePayload(),
             badge: {
               ...createBadgePayload().badge,
-              status: 'READY_FOR_FINALIZATION',
+              status: 'IN_REVIEW',
             },
             progress: {
               ...createBadgePayload().progress,

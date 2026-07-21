@@ -16,7 +16,7 @@ type StudentProfileResponse = {
     id: string;
     name: string | null;
     email: string | null;
-    buid: string | null;
+    externalId: string | null;
     createdAt: string;
     avatar: {
       base: string;
@@ -32,7 +32,7 @@ type StudentProfileResponse = {
       id: string;
       name: string | null;
       email: string | null;
-      buid: string | null;
+      externalId: string | null;
     } | null;
   };
   contacts: Contact[];

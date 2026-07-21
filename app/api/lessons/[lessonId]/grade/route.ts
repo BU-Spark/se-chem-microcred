@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { BadgeStatus, LessonStatus, SegmentStatus, SurveyContext } from '@prisma/client';
+import { BadgeStatus, LessonStatus, SegmentStatus } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../../lib/prisma';
 import { computeLessonGrade } from '../../../../../lib/lessonGrading';
@@ -60,11 +60,6 @@ export async function POST(_request: Request, context: RouteContext) {
   const checkpointIds = lesson.checkpoints.map((checkpoint) => checkpoint.id);
 
   await prisma.$transaction(async (tx) => {
-    const lessonSurveyPrompts = await tx.surveyPrompt.findMany({
-      where: { context: SurveyContext.LESSON, lessonId },
-      select: { id: true },
-    });
-
     const progress = await tx.lessonProgress.upsert({
       where: { studentId_lessonId: { studentId: user.id, lessonId } },
       update: {
@@ -85,19 +80,40 @@ export async function POST(_request: Request, context: RouteContext) {
       },
     });
 
-    if (!passed) {
-      if (lessonSurveyPrompts.length > 0) {
-        await tx.surveyResponse.deleteMany({
-          where: { studentId: user.id, promptId: { in: lessonSurveyPrompts.map((p) => p.id) } },
-        });
-      }
+    // Seal this graded watch-through into a first-class LessonAttempt (the QEV
+    // analog of AssessmentAttempt) and link the run's active checkpoint answers to
+    // it, so the instructor can review each attempt run-by-run.
+    const lessonAttempt = await tx.lessonAttempt.create({
+      data: {
+        studentId: user.id,
+        lessonId,
+        passed,
+        gradePercent: grade.percent,
+        correctAnswers: grade.correctAnswers,
+        totalQuestions: grade.totalQuestions,
+        completedAt: now,
+      },
+    });
 
+    if (checkpointIds.length > 0) {
+      await tx.checkpointAttempt.updateMany({
+        where: { userId: user.id, checkpointId: { in: checkpointIds }, lessonAttemptId: null },
+        data: { lessonAttemptId: lessonAttempt.id },
+      });
+    }
+
+    if (!passed) {
+      // Archive the failed run instead of deleting it: the student retries from a
+      // fresh slate (student reads filter archivedAt: null) while the answers are
+      // retained for the instructor history view.
       if (checkpointIds.length > 0) {
-        await tx.checkpointResponse.deleteMany({
-          where: { studentId: user.id, checkpointId: { in: checkpointIds } },
+        await tx.checkpointResponse.updateMany({
+          where: { studentId: user.id, checkpointId: { in: checkpointIds }, archivedAt: null },
+          data: { archivedAt: now },
         });
-        await tx.checkpointAttempt.deleteMany({
-          where: { userId: user.id, checkpointId: { in: checkpointIds } },
+        await tx.checkpointAttempt.updateMany({
+          where: { userId: user.id, checkpointId: { in: checkpointIds }, archivedAt: null },
+          data: { archivedAt: now },
         });
       }
 
@@ -116,6 +132,10 @@ export async function POST(_request: Request, context: RouteContext) {
         },
       });
 
+      // Failing a required lesson un-clears QEV: knock the badge back to LEARNING
+      // and drop qevPassedAt so the milestone doesn't claim a pass the student no
+      // longer has. Only badges still waiting to be assessed are affected — an
+      // already-assessed badge (IN_REVIEW/COMPLETED/LOCKED) isn't reset here.
       await tx.studentBadge.updateMany({
         where: {
           studentId: user.id,
@@ -126,7 +146,7 @@ export async function POST(_request: Request, context: RouteContext) {
             },
           },
         },
-        data: { status: BadgeStatus.LEARNING },
+        data: { status: BadgeStatus.LEARNING, qevPassedAt: null, cooldownUntil: null },
       });
     }
 

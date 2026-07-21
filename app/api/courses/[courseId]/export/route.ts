@@ -136,7 +136,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     // build a unique column label per badge (suffixing duplicates) while keeping
     // the badge's lesson order for the column sequence.
     const columnLabelByBadgeId = new Map<string, string>();
-    const usedColumnLabels = new Set(['First Name', 'Last Name', 'BUID', 'Email']);
+    const usedColumnLabels = new Set(['First Name', 'Last Name', 'ID', 'Email']);
     for (const badge of badges) {
       let label = badge.name;
       for (let suffix = 2; usedColumnLabels.has(label); suffix += 1) {
@@ -154,7 +154,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       const row: Record<string, string> = {
         'First Name': first,
         'Last Name': last,
-        BUID: student.buid ?? '',
+        ID: student.externalId ?? '',
         Email: student.email ?? '',
       };
       for (const badge of badges) {

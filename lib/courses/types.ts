@@ -43,7 +43,7 @@ export type CourseDetail = {
     id: string;
     name: string | null;
     email: string | null;
-    buid: string | null;
+    externalId: string | null;
     avatarBase: string | null;
   } | null;
   settings: {

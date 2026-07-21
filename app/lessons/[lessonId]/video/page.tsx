@@ -116,7 +116,6 @@ function LessonVideoRouteContent() {
   const studentEmail = studentData.student.email || user?.primaryEmailAddress?.emailAddress;
   const studentAvatar = studentData.student.avatar || null;
   const avatarUrl = buildAvatarUrlFromAvatar(studentAvatar);
-  const lessonSurvey = studentData.surveys.lesson.find((survey) => survey.lessonSlug === lessonRecord.slug) ?? null;
   // A completed lesson is re-entered in "review" mode: free rewatch from the start,
   // unlocked scrubber, non-blocking checkpoints the student may re-open for practice.
   const reviewMode = lessonRecord.status === LessonStatus.COMPLETED;
@@ -152,7 +151,6 @@ function LessonVideoRouteContent() {
           lesson={lessonForVideo}
           studentName={studentName}
           studentEmail={studentEmail}
-          lessonSurvey={lessonSurvey}
           resumeRequested={false}
           reviewMode={reviewMode}
           studentAvatarUrl={avatarUrl}

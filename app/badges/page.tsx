@@ -10,7 +10,7 @@ import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 
-type BadgeStatus = 'completed' | 'assessment' | 'finalization' | 'learning';
+type BadgeStatus = 'completed' | 'assessment' | 'inReview' | 'learning' | 'locked';
 
 type SectionConfig = {
   status: BadgeStatus;
@@ -26,9 +26,9 @@ const SECTION_CONFIG: SectionConfig[] = [
     subtitle: "You've completed these skills!",
   },
   {
-    status: 'finalization',
-    title: 'Ready to be Finalized',
-    subtitle: 'Complete the feedback survey to finalize your badge.',
+    status: 'inReview',
+    title: 'In Review',
+    subtitle: 'Review your assessment result — rate to finalize, or read feedback before reassessing.',
   },
   {
     status: 'assessment',
@@ -39,15 +39,22 @@ const SECTION_CONFIG: SectionConfig[] = [
   {
     status: 'learning',
     title: 'Still Learning',
-    subtitle: "You'll earn these badges after you review feedback and complete in-person reassessment.",
+    subtitle: "You'll earn these badges after you finish the lesson and pass an in-person assessment.",
+  },
+  {
+    status: 'locked',
+    title: 'Locked',
+    subtitle: "You've used every assessment attempt for these badges.",
+    collapsedByDefault: true,
   },
 ];
 
 const BADGE_STATUS_LABEL: Record<BadgeRecord['status'], string> = {
   COMPLETED: 'Completed',
   READY_FOR_ASSESSMENT: 'Ready for assessment',
-  READY_FOR_FINALIZATION: 'Ready to be finalized',
+  IN_REVIEW: 'In review',
   LEARNING: 'Still learning',
+  LOCKED: 'Locked',
   NOT_STARTED: 'Not yet started',
 };
 
@@ -143,8 +150,9 @@ export default function BadgeWalletPage() {
       ({
         completed: studentData?.badges?.completed ?? [],
         assessment: studentData?.badges?.readyForAssessment ?? [],
-        finalization: studentData?.badges?.readyForFinalization ?? [],
+        inReview: studentData?.badges?.inReview ?? [],
         learning: studentData?.badges?.learning ?? [],
+        locked: studentData?.badges?.locked ?? [],
       }) satisfies Record<BadgeStatus, BadgeRecord[]>,
     [studentData]
   );
@@ -153,8 +161,9 @@ export default function BadgeWalletPage() {
     () => [
       ...badgesByStatus.completed,
       ...badgesByStatus.assessment,
-      ...badgesByStatus.finalization,
+      ...badgesByStatus.inReview,
       ...badgesByStatus.learning,
+      ...badgesByStatus.locked,
     ],
     [badgesByStatus]
   );
@@ -191,11 +200,6 @@ export default function BadgeWalletPage() {
   };
 
   const studentEmail = studentData?.student?.email || user?.primaryEmailAddress?.emailAddress || null;
-
-  const startSurvey = (badge: BadgeRecord) => {
-    setActiveBadgeId(null);
-    router.push(`/?surveyBadge=${encodeURIComponent(badge.slug)}`);
-  };
 
   const reviewFeedback = (badge: BadgeRecord) => {
     setActiveBadgeId(null);
@@ -421,14 +425,25 @@ export default function BadgeWalletPage() {
                           Show your assessor this QR code during the in-person skill check.
                         </p>
                       )}
-                      {activeBadge.status === 'READY_FOR_FINALIZATION' && (
+                      {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed === true && (
                         <p className={styles.popoverHelperText}>
-                          Take a quick feedback survey to finalize this badge and add it to your completed list.
+                          You passed! Review your assessment, then finalize this badge to add it to your completed list.
+                        </p>
+                      )}
+                      {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed !== true && (
+                        <p className={styles.popoverHelperText}>
+                          Review your assessor&apos;s feedback to unlock your next attempt.
                         </p>
                       )}
                       {activeBadge.status === 'LEARNING' && (
                         <p className={styles.popoverHelperText}>
                           Keep working through lesson checkpoints to unlock your assessment.
+                        </p>
+                      )}
+                      {activeBadge.status === 'LOCKED' && (
+                        <p className={styles.popoverHelperText}>
+                          You&apos;ve used every assessment attempt for this badge. Review your feedback to see where to
+                          improve.
                         </p>
                       )}
                       {activeBadge.status === 'COMPLETED' && (
@@ -455,17 +470,27 @@ export default function BadgeWalletPage() {
                           </>
                         )}
 
-                        {activeBadge.status === 'READY_FOR_FINALIZATION' && (
+                        {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed === true && (
                           <button
                             type="button"
                             className={styles.popoverActionPrimary}
-                            onClick={() => startSurvey(activeBadge)}
+                            onClick={() => reviewFeedback(activeBadge)}
                           >
-                            Start Survey
+                            Review &amp; Finalize
                           </button>
                         )}
 
-                        {activeBadge.status === 'LEARNING' && (
+                        {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed !== true && (
+                          <button
+                            type="button"
+                            className={styles.popoverActionPrimary}
+                            onClick={() => reviewFeedback(activeBadge)}
+                          >
+                            Review Feedback
+                          </button>
+                        )}
+
+                        {activeBadge.status === 'LOCKED' && (
                           <button
                             type="button"
                             className={styles.popoverActionPrimary}

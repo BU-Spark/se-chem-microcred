@@ -12,6 +12,6 @@ export type EnrollmentSummary = {
     id: string;
     name: string | null;
     email: string | null;
-    buid: string | null;
+    externalId: string | null;
   };
 };

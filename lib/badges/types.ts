@@ -15,6 +15,9 @@ export type CreateBadgePayload = {
   passingPercent?: number | string | null;
   checkpoints?: CheckpointPayload[] | null;
   rubricGoal?: RubricGoalPayload | null;
+  reassessmentLimit?: number | string | null;
+  cooldownDays?: number | string | null;
+  reassessmentRequired?: boolean | null;
 };
 
 export type UpdateBadgePayload = {
@@ -31,6 +34,9 @@ export type UpdateBadgePayload = {
   videoTitle?: string | null;
   videoLength?: string | null;
   passingPercent?: number | string | null;
+  reassessmentLimit?: number | string | null;
+  cooldownDays?: number | string | null;
+  reassessmentRequired?: boolean | null;
 };
 
 export type ImportBadgePayload = {

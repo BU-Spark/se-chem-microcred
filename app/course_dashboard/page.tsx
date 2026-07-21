@@ -156,11 +156,16 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
     metaParts.push(`${record.estimatedMinutes} min`);
   }
 
+  // Progress reads as a checkpoint count ("1 of 2 checkpoints") rather than a percent.
+  const totalCheckpoints = record.checkpoints?.length ?? 0;
+  const passedCheckpoints = record.completedCheckpointIds?.length ?? 0;
   const statusLabel =
     record.status === 'COMPLETED'
       ? 'Completed'
       : record.status === 'IN_PROGRESS'
-        ? `${Math.max(record.percentComplete, 1)}% complete`
+        ? totalCheckpoints > 0
+          ? `${passedCheckpoints} of ${totalCheckpoints} checkpoint${totalCheckpoints === 1 ? '' : 's'}`
+          : 'In progress'
         : 'Not started';
 
   const actionLabel = record.status === 'COMPLETED' ? 'Review' : record.status === 'IN_PROGRESS' ? 'Continue' : 'Start';
@@ -228,7 +233,13 @@ function HomePageContent() {
   const courseDescription = studentData?.course?.description ?? '';
   const courseContacts = studentData?.course?.contacts ?? [];
   const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
-  const readyForFinalization = useMemo(() => studentData?.badges?.readyForFinalization ?? [], [studentData]);
+  // Finalization is the pass-path of IN_REVIEW: a passing attempt awaiting the
+  // student's acknowledge + rating. Fail-path IN_REVIEW badges are handled on the
+  // feedback page, not here.
+  const readyForFinalization = useMemo(
+    () => (studentData?.badges?.inReview ?? []).filter((badge) => badge.latestAttemptPassed === true),
+    [studentData]
+  );
 
   // Merge both "ready" sources so neither hides the other, deduping by badgeId.
   // Pending survey entries win — they carry the real promptId/question.
@@ -312,6 +323,9 @@ function HomePageContent() {
     router.replace(nextPath, { scroll: false });
   }, [pathname, router, searchParams]);
 
+  // Finalization now happens on the badge review page: passing students must see
+  // their assessment feedback before rating + finalizing. Route there instead of
+  // opening the survey modal directly.
   const handleStartSurvey = useCallback(
     (target?: {
       promptId: string;
@@ -325,17 +339,11 @@ function HomePageContent() {
         return;
       }
 
-      setActiveSurvey(surveyTarget);
-      setSurveyRating(3);
-
-      const params = new URLSearchParams(searchParams.toString());
-      if (surveyTarget.badgeSlug) {
-        params.set('surveyBadge', surveyTarget.badgeSlug);
-      }
-      const nextPath = `${pathname}?${params.toString()}`;
-      router.replace(nextPath, { scroll: false });
+      router.push(
+        surveyTarget.badgeSlug ? `/badges/${encodeURIComponent(surveyTarget.badgeSlug)}/feedback` : '/badges'
+      );
     },
-    [readyBadgeAlerts, pathname, router, searchParams]
+    [readyBadgeAlerts, router]
   );
 
   const handleSubmitSurvey = useCallback(async () => {
@@ -427,7 +435,7 @@ function HomePageContent() {
         </div>
       </div>
       <button type="button" className={styles.badgeListAction} onClick={() => handleStartSurvey(alert)}>
-        Finalize
+        Review &amp; Finalize
       </button>
     </li>
   );

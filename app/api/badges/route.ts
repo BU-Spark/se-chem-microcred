@@ -3,7 +3,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { canCreateContent } from '@/lib/adminAccess';
-import { normalizeRubricGoal, normalizePassingPercent } from '@/lib/badges/badge.service';
+import { normalizeRubricGoal, normalizePassingPercent, normalizeBadgePolicy } from '@/lib/badges/badge.service';
 import { parseTimeToSeconds, parseDate } from '@/lib/utils';
 import { normalizeString, normalizeSkills } from '@/lib/checkpoints/normalizeWrite';
 import { CreateBadgePayload, UpdateBadgePayload } from '@/lib/badges/types';
@@ -144,6 +144,7 @@ export async function PATCH(req: NextRequest) {
     const videoLength = normalizeString(body.videoLength);
     const videoDurationSeconds = parseTimeToSeconds(videoLength);
     const passingPercent = normalizePassingPercent(body.passingPercent);
+    const badgePolicy = normalizeBadgePolicy(body);
 
     if (!badgeId) {
       return NextResponse.json({ error: 'Badge id is required.' }, { status: 400 });
@@ -169,6 +170,7 @@ export async function PATCH(req: NextRequest) {
       videoLength,
       videoSeconds: videoDurationSeconds,
       passingPercentage: passingPercent,
+      badgePolicy,
     });
 
     if (!updated) {
@@ -227,6 +229,9 @@ export async function POST(req: NextRequest) {
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
     const passingPercent = normalizePassingPercent(body.passingPercent);
+    // Authored assessment-policy defaults live on the Badge and flow to students
+    // via inheritance (lib/badgePolicy).
+    const badgePolicy = normalizeBadgePolicy(body);
     // Per-badge content window (shared across students). neverCloses === true
     // means the badge never closes; closesOn is ignored and dueDate is null.
     const neverCloses = body.neverCloses ?? null;
@@ -254,6 +259,7 @@ export async function POST(req: NextRequest) {
       videoLength: body.videoLength,
       videoDurationSeconds: videoDurationSeconds,
       passingPercentage: passingPercent,
+      badgePolicy,
     });
 
     if ('error' in created) {

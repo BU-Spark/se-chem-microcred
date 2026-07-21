@@ -54,7 +54,7 @@ const PEOPLE = {
   instructor: {
     email: SEEDED_DEMO_EMAIL,
     name: 'Instructor(Spark!)',
-    buid: 'CHEM-INSTR',
+    externalId: 'CHEM-INSTR',
     gender: 'Prefer not to say',
     raceEthnicity: 'Prefer not to say',
     parentalEducation: 'Prefer not to say',
@@ -63,7 +63,7 @@ const PEOPLE = {
   student: {
     email: 'student+clerk_test@bu.edu',
     name: 'Jane Student',
-    buid: 'CHEM-STUD',
+    externalId: 'CHEM-STUD',
     gender: 'Female',
     raceEthnicity: 'White',
     parentalEducation: 'Masters degree',
@@ -72,7 +72,7 @@ const PEOPLE = {
   checker: {
     email: 'checker+clerk_test@bu.edu',
     name: 'Alex Checker',
-    buid: 'CHEM-CHKR',
+    externalId: 'CHEM-CHKR',
     gender: 'Female',
     raceEthnicity: 'White',
     parentalEducation: 'Bachelors degree',
@@ -554,8 +554,9 @@ const badgeSeeds = [
     description: 'Set up and maintain a compliant lab notebook.',
 
     lessonSlug: 'lab-notebook',
-    // Ready for the assessor to grade — this is the assessor's queue.
-    studentStatus: { status: BadgeStatus.READY_FOR_ASSESSMENT },
+    // Ready for the assessor to grade — this is the assessor's queue. QEV is
+    // cleared, so qevPassedAt is stamped.
+    studentStatus: { status: BadgeStatus.READY_FOR_ASSESSMENT, qevPassedAt: new Date('2025-02-18T15:00:00.000Z') },
   },
   {
     slug: 'volumetric-stock-badge',
@@ -563,8 +564,14 @@ const badgeSeeds = [
     description: 'Prepare accurate stock solutions with volumetric glassware.',
 
     lessonSlug: 'volumetric-stock-solutions',
-    // Passed assessment — student still owes the finalization survey.
-    studentStatus: { status: BadgeStatus.READY_FOR_FINALIZATION, score: 92 },
+    // Passed assessment, awaiting the student's acknowledge + rating — a passing
+    // IN_REVIEW badge. Seed the passing attempt so the pass/fail split derives.
+    studentStatus: {
+      status: BadgeStatus.IN_REVIEW,
+      score: 92,
+      qevPassedAt: new Date('2025-02-18T15:00:00.000Z'),
+      attempt: { passed: true, score: 92 },
+    },
   },
   {
     slug: 'general-waste-badge',
@@ -576,6 +583,9 @@ const badgeSeeds = [
       status: BadgeStatus.COMPLETED,
       awardedAt: new Date('2025-02-20T17:00:00.000Z'),
       score: 96,
+      qevPassedAt: new Date('2025-02-18T15:00:00.000Z'),
+      feedbackReviewedAt: new Date('2025-02-20T17:00:00.000Z'),
+      attempt: { passed: true, score: 96, completedAt: new Date('2025-02-19T16:00:00.000Z') },
     },
   },
 ];
@@ -589,13 +599,15 @@ async function upsertPeople() {
   for (const [key, person] of Object.entries(PEOPLE)) {
     const existingUsers = await prisma.user.findMany({
       where: {
-        OR: [{ email: person.email }, { buid: person.buid }],
+        OR: [{ email: person.email }, { externalId: person.externalId }],
       },
     });
     const userByEmail = existingUsers.find((user) => user.email === person.email);
-    const userByBuid = existingUsers.find((user) => user.buid === person.buid);
-    const existingUser = userByEmail ?? userByBuid;
-    const buidBelongsToAnotherUser = Boolean(userByEmail && userByBuid && userByEmail.id !== userByBuid.id);
+    const userByExternalId = existingUsers.find((user) => user.externalId === person.externalId);
+    const existingUser = userByEmail ?? userByExternalId;
+    const externalIdBelongsToAnotherUser = Boolean(
+      userByEmail && userByExternalId && userByEmail.id !== userByExternalId.id
+    );
     const userData = {
       email: person.email,
       name: person.name,
@@ -603,13 +615,13 @@ async function upsertPeople() {
       raceEthnicity: person.raceEthnicity,
       parentalEducation: person.parentalEducation,
       pellGrantQualified: person.pellGrantQualified,
-      ...(buidBelongsToAnotherUser ? {} : { buid: person.buid }),
+      ...(externalIdBelongsToAnotherUser ? {} : { externalId: person.externalId }),
     };
 
-    if (buidBelongsToAnotherUser) {
+    if (externalIdBelongsToAnotherUser) {
       console.warn(
-        `[seed] ${key}: email ${person.email} and BUID ${person.buid} belong to different users; ` +
-          `keeping existing email user ${userByEmail.id} and leaving BUID owner ${userByBuid.id} unchanged.`
+        `[seed] ${key}: email ${person.email} and ID ${person.externalId} belong to different users; ` +
+          `keeping existing email user ${userByEmail.id} and leaving ID owner ${userByExternalId.id} unchanged.`
       );
     }
 
@@ -619,7 +631,7 @@ async function upsertPeople() {
           data: userData,
         })
       : await prisma.user.create({
-          data: { ...userData, buid: person.buid },
+          data: { ...userData, externalId: person.externalId },
         });
 
     await prisma.avatarSetting.upsert({
@@ -974,7 +986,7 @@ async function buildLessonProgress(student, lessonBySlug) {
   }
 }
 
-async function buildBadges(student, lessonBySlug) {
+async function buildBadges(student, lessonBySlug, { course, assessor }) {
   const badgeBySlug = new Map();
 
   for (const badgeSeed of badgeSeeds) {
@@ -998,13 +1010,34 @@ async function buildBadges(student, lessonBySlug) {
       });
     }
 
+    const seededStatus = badgeSeed.studentStatus;
+
+    // Seed the assessment attempt first so the badge's pass/fail sub-state (used to
+    // split IN_REVIEW) derives from real attempt history.
+    if (seededStatus.attempt) {
+      await prisma.assessmentAttempt.create({
+        data: {
+          courseId: course.id,
+          badgeId: badge.id,
+          studentId: student.id,
+          assessorId: assessor.id,
+          passed: seededStatus.attempt.passed,
+          score: seededStatus.attempt.score ?? seededStatus.score ?? null,
+          completedAt: seededStatus.attempt.completedAt ?? new Date(),
+        },
+      });
+    }
+
     await prisma.studentBadge.create({
       data: {
         studentId: student.id,
         badgeId: badge.id,
-        status: badgeSeed.studentStatus.status,
-        awardedAt: badgeSeed.studentStatus.awardedAt,
-        score: badgeSeed.studentStatus.score,
+        status: seededStatus.status,
+        awardedAt: seededStatus.awardedAt,
+        score: seededStatus.score,
+        qevPassedAt: seededStatus.qevPassedAt,
+        cooldownUntil: seededStatus.cooldownUntil,
+        feedbackReviewedAt: seededStatus.feedbackReviewedAt,
       },
     });
   }
@@ -1033,30 +1066,9 @@ async function buildCourseContacts(course) {
   });
 }
 
-async function buildSurveys(student, lessonBySlug, badgeBySlug) {
-  const lessonSurveyQuestions = [
-    {
-      lessonSlug: 'bunsen-burners',
-      question: 'How confident do you feel about your Bunsen burner skills after this lesson?',
-    },
-    { lessonSlug: 'general-lab-safety', question: 'How was the General Lab Safety lesson?' },
-    { lessonSlug: 'top-loading-balance', question: 'How was the Top-loading Balance lesson?' },
-    { lessonSlug: 'graduated-cylinder', question: 'How was the Graduated Cylinder lesson?' },
-    { lessonSlug: 'lab-notebook', question: 'How was the Lab Notebook lesson?' },
-    { lessonSlug: 'volumetric-stock-solutions', question: 'How was the Stock Solutions lesson?' },
-    { lessonSlug: 'general-waste-handling', question: 'How was the Waste Handling lesson?' },
-  ];
-
-  const promptBySlug = new Map();
-  for (const survey of lessonSurveyQuestions) {
-    const lessonId = lessonBySlug.get(survey.lessonSlug)?.lesson.id;
-    if (!lessonId) continue;
-    const prompt = await prisma.surveyPrompt.create({
-      data: { context: SurveyContext.LESSON, lessonId, question: survey.question },
-    });
-    promptBySlug.set(survey.lessonSlug, prompt);
-  }
-
+async function buildSurveys(student, badgeBySlug) {
+  // Lesson surveys were removed (QEV completion is checkpoints + passing grade);
+  // only the post-assessment badge survey remains.
   const badgeSurveyPrompt = await prisma.surveyPrompt.create({
     data: {
       context: SurveyContext.BADGE,
@@ -1064,20 +1076,6 @@ async function buildSurveys(student, lessonBySlug, badgeBySlug) {
       question: 'How satisfied are you with the assessment process for this badge?',
     },
   });
-
-  const incompleteLessonSlugs = new Set([
-    'bunsen-burners',
-    'general-lab-safety',
-    'top-loading-balance',
-    'graduated-cylinder',
-  ]);
-
-  for (const [slug, prompt] of promptBySlug.entries()) {
-    if (incompleteLessonSlugs.has(slug)) continue;
-    await prisma.surveyResponse.create({
-      data: { promptId: prompt.id, studentId: student.id, rating: 4, comment: 'Feeling much more confident!' },
-    });
-  }
 
   await prisma.surveyResponse.create({
     data: { promptId: badgeSurveyPrompt.id, studentId: student.id, rating: 4, comment: 'Demo badge survey response.' },
@@ -1133,9 +1131,9 @@ async function main() {
 
   const lessonBySlug = await buildLessons(course);
   await buildLessonProgress(people.student, lessonBySlug);
-  const badgeBySlug = await buildBadges(people.student, lessonBySlug);
+  const badgeBySlug = await buildBadges(people.student, lessonBySlug, { course, assessor: people.checker });
   await buildCourseContacts(course);
-  await buildSurveys(people.student, lessonBySlug, badgeBySlug);
+  await buildSurveys(people.student, badgeBySlug);
   await ensureAnalytics(people);
 
   console.log('\nCHEM101 seed complete.');

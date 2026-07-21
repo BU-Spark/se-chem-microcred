@@ -31,7 +31,7 @@ function createStudentProfilePayload() {
       id: 'student-1',
       name: 'Ada Lovelace',
       email: 'ada@bu.edu',
-      buid: 'U11111111',
+      externalId: 'U11111111',
       gender: 'Woman',
       raceEthnicity: 'Not provided',
       parentalEducation: 'College graduate',
@@ -51,7 +51,7 @@ function createStudentProfilePayload() {
         id: 'prof-1',
         name: 'Professor Demo',
         email: 'prof@example.edu',
-        buid: 'P111',
+        externalId: 'P111',
       },
     },
     contacts: [
@@ -83,7 +83,7 @@ function createStudentProfilePayload() {
           description: null,
         },
       ],
-      readyForFinalization: [] as Array<{
+      inReview: [] as Array<{
         id: string;
         slug: string;
         name: string;
@@ -157,6 +157,37 @@ function createInProgressBadgeDetailPayload() {
         ],
       },
     ],
+    qevAttempts: [
+      {
+        id: 'run-current',
+        label: 'Attempt 1',
+        lessonTitle: 'Waste Handling Lesson',
+        passed: null,
+        gradePercent: null,
+        correctAnswers: null,
+        totalQuestions: null,
+        completedAt: null,
+        inProgress: true,
+        checkpoints: [
+          {
+            id: 'checkpoint-1',
+            title: 'Checkpoint 1',
+            timeCompleted: null,
+            questions: [
+              {
+                id: 'question-1',
+                title: 'Question 1',
+                prompt: 'Which container should be used?',
+                answers: [
+                  { answeredText: 'Flask', isCorrect: false },
+                  { answeredText: 'Beaker', isCorrect: true },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
     assessment: {
       completedOn: null,
       attemptCount: 0,
@@ -187,6 +218,20 @@ function createCompletedBadgeDetailPayload() {
       completedCheckpoints: 3,
     },
     checkpoints: [],
+    qevAttempts: [
+      {
+        id: 'run-1',
+        label: 'Attempt 1',
+        lessonTitle: 'Vent Hood Lesson',
+        passed: true,
+        gradePercent: 100,
+        correctAnswers: 3,
+        totalQuestions: 3,
+        completedAt: '2026-03-20T10:00:00.000Z',
+        inProgress: false,
+        checkpoints: [],
+      },
+    ],
     assessment: {
       completedOn: '2026-03-22T10:00:00.000Z',
       attemptCount: 1,
@@ -207,6 +252,16 @@ function createCompletedBadgeDetailPayload() {
           passed: true,
           feedback: 'Student demonstrated safe setup and shutdown.',
           assessorName: 'Alex Checker',
+          responses: [
+            {
+              id: 'resp-1',
+              title: 'Setup › Correct hood setup',
+              points: 1,
+              passed: true,
+              feedback: null,
+              isOverride: false,
+            },
+          ],
         },
       ],
     },
@@ -326,12 +381,11 @@ describe('Roster member profile page', () => {
       );
     });
 
-    expect(await screen.findByText('Answer History')).toBeInTheDocument();
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+    // In-progress badges default to the Precheck answer history tab (run-grouped).
     // The ring renders the number and "%" as separate spans inside .progressRingCenter.
     expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('70%');
     expect(screen.getByText('Checkpoint 3')).toBeInTheDocument();
-    expect(screen.getByText('Which container should be used?')).toBeInTheDocument();
-    expect(screen.getByText('Answered: Beaker')).toBeInTheDocument();
   });
 
   it('renders the completed badge detail layout when a completed badge is selected', async () => {
@@ -354,27 +408,26 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByText('Assessment Info')).toBeInTheDocument();
-    expect(screen.getByText('Assessor Grading')).toBeInTheDocument();
-    expect(screen.getByText('Assessment History')).toBeInTheDocument();
+    // Completed badges default to the Assessment history tab.
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Assessment history' })).toBeInTheDocument();
     expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('100%');
 
     fireEvent.click(screen.getByRole('button', { name: 'Attempt 1' }));
 
     expect(screen.getByText('Score: 95%')).toBeInTheDocument();
-    expect(screen.getByText('Outcome:')).toBeInTheDocument();
-    expect(screen.getByText('Passed')).toBeInTheDocument();
-    expect(screen.getByText('Assessor: Alex Checker')).toBeInTheDocument();
+    expect(screen.getByText('Assessment result:')).toBeInTheDocument();
+    expect(screen.getByText('Checker: Alex Checker')).toBeInTheDocument();
     expect(screen.getByText('Student demonstrated safe setup and shutdown.')).toBeInTheDocument();
   });
 
   it('shows assessment history for a badge ready for finalization', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
     const profilePayload = createStudentProfilePayload();
-    profilePayload.badges.readyForFinalization = [
+    profilePayload.badges.inReview = [
       {
         ...profilePayload.badges.inProgress[0],
-        status: 'READY_FOR_FINALIZATION',
+        status: 'IN_REVIEW',
       },
     ];
     profilePayload.badges.inProgress = [];
@@ -382,7 +435,7 @@ describe('Roster member profile page', () => {
     detailPayload.badge.id = 'badge-1';
     detailPayload.badge.slug = 'waste-handling';
     detailPayload.badge.name = 'Waste Handling';
-    detailPayload.badge.status = 'READY_FOR_FINALIZATION';
+    detailPayload.badge.status = 'IN_REVIEW';
 
     mockFetch.mockImplementation(async (input) => {
       const url = String(input);
@@ -402,18 +455,19 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByText('Assessment Info')).toBeInTheDocument();
-    expect(screen.getByText('Assessment History')).toBeInTheDocument();
-    expect(screen.queryByText('Answer History')).not.toBeInTheDocument();
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+    // Assessment history tab is default; the Precheck tab is available but not active.
+    expect(screen.getByRole('button', { name: 'Attempt 1' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Precheck answer history' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Open Assessment View' })).not.toBeInTheDocument();
   });
 
   it('lists assessment-passed badges in the ready for finalization section', async () => {
     const profilePayload = createStudentProfilePayload();
-    profilePayload.badges.readyForFinalization = [
+    profilePayload.badges.inReview = [
       {
         ...profilePayload.badges.inProgress[0],
-        status: 'READY_FOR_FINALIZATION',
+        status: 'IN_REVIEW',
       },
     ];
     profilePayload.badges.inProgress = [];
@@ -425,7 +479,7 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByRole('heading', { name: 'Ready for finalization' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'In review' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Waste Handling' })).toBeInTheDocument();
   });
 
@@ -460,7 +514,7 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByText('Answer History')).toBeInTheDocument();
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit configurations' }));
     expect(screen.getByText('Editing badge configurations for: Ada Lovelace')).toBeInTheDocument();
@@ -473,10 +527,72 @@ describe('Roster member profile page', () => {
       const patchCall = mockFetch.mock.calls.find((call) => call[1]?.method === 'PATCH');
       expect(patchCall).toBeTruthy();
       const body = JSON.parse(patchCall![1].body as string);
-      expect(body).toEqual(
-        expect.objectContaining({ reassessmentLimit: 3, reassessmentRequired: true, cooldownDays: 2 })
-      );
+      // The assessor sets reassessment count + requirement, but NOT the cooldown length.
+      expect(body).toEqual({ reassessmentLimit: 3, reassessmentRequired: true });
+      expect(body).not.toHaveProperty('cooldownDays');
     });
+  });
+
+  it('lets the assessor override an active cooldown so the student can retake now', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    const detailPayload = createInProgressBadgeDetailPayload() as ReturnType<
+      typeof createInProgressBadgeDetailPayload
+    > & {
+      badge: Record<string, unknown>;
+    };
+    // Failed the in-person assessment: READY_FOR_ASSESSMENT with a future cooldown.
+    detailPayload.badge.status = 'READY_FOR_ASSESSMENT';
+    detailPayload.badge.cooldownUntil = '2099-01-01T00:00:00.000Z';
+    detailPayload.badge.allowCooldownOverride = true;
+
+    mockFetch.mockImplementation(async (input: unknown, init?: { method?: string; body?: string }) => {
+      const url = String(input);
+
+      if (init?.method === 'PATCH') {
+        return { ok: true, json: async () => ({ config: { cooldownUntil: null } }) } as Response;
+      }
+      if (url.includes('/badges/badge-1')) {
+        return { ok: true, json: async () => detailPayload } as Response;
+      }
+      return { ok: true, json: async () => createStudentProfilePayload() } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Override cooldown/i }));
+
+    await waitFor(() => {
+      const patchCall = mockFetch.mock.calls.find((call) => call[1]?.method === 'PATCH');
+      expect(patchCall).toBeTruthy();
+      expect(JSON.parse(patchCall![1].body as string)).toEqual({ overrideCooldown: true });
+    });
+  });
+
+  it('hides the cooldown override when the badge is not in cooldown', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    const detailPayload = createInProgressBadgeDetailPayload() as ReturnType<
+      typeof createInProgressBadgeDetailPayload
+    > & {
+      badge: Record<string, unknown>;
+    };
+    detailPayload.badge.status = 'READY_FOR_ASSESSMENT';
+    detailPayload.badge.cooldownUntil = null;
+    detailPayload.badge.allowCooldownOverride = true;
+
+    mockFetch.mockImplementation(async (input: unknown) => {
+      const url = String(input);
+      if (url.includes('/badges/badge-1')) {
+        return { ok: true, json: async () => detailPayload } as Response;
+      }
+      return { ok: true, json: async () => createStudentProfilePayload() } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Override cooldown/i })).not.toBeInTheDocument();
   });
 
   it('loads and displays the selected assessor profile', async () => {
@@ -492,7 +608,7 @@ describe('Roster member profile page', () => {
           id: 'checker-1',
           name: 'Alex Checker',
           email: 'checker@bu.edu',
-          buid: 'U33333333',
+          externalId: 'U33333333',
           gender: 'Man',
           raceEthnicity: 'Not provided',
           parentalEducation: 'College graduate',
@@ -512,7 +628,7 @@ describe('Roster member profile page', () => {
             id: 'prof-1',
             name: 'Professor Demo',
             email: 'prof@example.edu',
-            buid: 'P111',
+            externalId: 'P111',
           },
         },
         contacts: [
@@ -545,7 +661,7 @@ describe('Roster member profile page', () => {
               description: null,
             },
           ],
-          readyForFinalization: [],
+          inReview: [],
           completed: [],
         },
       }),

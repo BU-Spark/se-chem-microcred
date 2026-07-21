@@ -4,20 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { sanitizeQuestionRichText } from '@/lib/question-rich-text';
-import SurveyModal from '@/app/components/SurveyModal';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
-import veryUnhappyFace from '../../../public/assets/survey_faces/very_unhappy.svg';
-import veryUnhappyFaceSelected from '../../../public/assets/survey_faces/very_unhappy_selected.svg';
-import slightlyUnhappyFace from '../../../public/assets/survey_faces/slightly_unhappy.svg';
-import slightlyUnhappyFaceSelected from '../../../public/assets/survey_faces/slightly_unhappy_selected.svg';
-import neutralFace from '../../../public/assets/survey_faces/neutral.svg';
-import neutralFaceSelected from '../../../public/assets/survey_faces/neutral_selected.svg';
-import slightlyHappyFace from '../../../public/assets/survey_faces/slightly_happy.svg';
-import slightlyHappyFaceSelected from '../../../public/assets/survey_faces/slightly_happy_selected.svg';
-import veryHappyFace from '../../../public/assets/survey_faces/very_happy.svg';
-import veryHappyFaceSelected from '../../../public/assets/survey_faces/very_happy_selected.svg';
 import playIcon from '../../../public/assets/lesson/qev/Play.svg';
 import pauseIcon from '../../../public/assets/lesson/qev/Pause.svg';
 
@@ -25,7 +14,7 @@ import pauseIcon from '../../../public/assets/lesson/qev/Pause.svg';
 // when the dev environment flag is set. Same flag the sidebar uses (CUR_ENV).
 const ENABLE_QEV_SKIP = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
-type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonSurvey' | 'lessonComplete' | 'lessonFailed';
+type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonComplete' | 'lessonFailed';
 type RangeStyleVars = CSSProperties & {
   '--progress': string;
   '--unlocked': string;
@@ -109,19 +98,12 @@ interface LessonAssessmentResult {
   totalQuestions?: number;
 }
 
-interface LessonSurveyPrompt {
-  id: string;
-  question: string;
-  completed: boolean;
-}
-
 interface LessonVideoPageProps {
   lesson: LessonRecord;
   studentName?: string | null;
   studentEmail: string;
   studentId: string;
   courseId?: string | null;
-  lessonSurvey: LessonSurveyPrompt | null;
   resumeRequested: boolean;
   // Completed-lesson "review" flow: start from the beginning, unlocked scrubber,
   // non-blocking checkpoints that can be re-opened for ungraded practice.
@@ -130,39 +112,6 @@ interface LessonVideoPageProps {
 }
 
 const CHECKPOINT_TRIGGER_THRESHOLD = 0.35;
-
-const LESSON_SURVEY_FACES = [
-  {
-    value: 1,
-    label: 'Very unhappy',
-    icon: veryUnhappyFace,
-    selectedIcon: veryUnhappyFaceSelected,
-  },
-  {
-    value: 2,
-    label: 'Slightly unhappy',
-    icon: slightlyUnhappyFace,
-    selectedIcon: slightlyUnhappyFaceSelected,
-  },
-  {
-    value: 3,
-    label: 'Neutral',
-    icon: neutralFace,
-    selectedIcon: neutralFaceSelected,
-  },
-  {
-    value: 4,
-    label: 'Slightly happy',
-    icon: slightlyHappyFace,
-    selectedIcon: slightlyHappyFaceSelected,
-  },
-  {
-    value: 5,
-    label: 'Very happy',
-    icon: veryHappyFace,
-    selectedIcon: veryHappyFaceSelected,
-  },
-] as const;
 
 function extractYouTubeId(url?: string | null) {
   if (!url) {
@@ -242,7 +191,6 @@ export function LessonVideoPage({
   studentEmail,
   studentId,
   courseId,
-  lessonSurvey,
   resumeRequested,
   reviewMode = false,
 }: LessonVideoPageProps) {
@@ -254,10 +202,6 @@ export function LessonVideoPage({
   //   return [first, last];
   // }, [resolvedStudentName]);
   const router = useRouter();
-  const effectiveLessonSurvey = useMemo<LessonSurveyPrompt | null>(
-    () => lessonSurvey ?? { id: `auto-${lesson.slug}`, question: 'How was this lesson?', completed: false },
-    [lesson.slug, lessonSurvey]
-  );
 
   const playerRef = useRef<YouTubePlayer | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -290,7 +234,6 @@ export function LessonVideoPage({
   const [modalState, setModalState] = useState<ModalState>('none');
   const [activeCheckpointId, setActiveCheckpointId] = useState<string | null>(null);
   const [answeredCheckpointIds, setAnsweredCheckpointIds] = useState<string[]>(initialAnsweredIds);
-  const [completedCheckpointIds, setCompletedCheckpointIds] = useState<string[]>(lesson.completedCheckpointIds ?? []);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, SelectedAnswerState>>({});
   const [attemptSummary, setAttemptSummary] = useState<AttemptSummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -304,10 +247,6 @@ export function LessonVideoPage({
   const [assessingLesson, setAssessingLesson] = useState(false);
   const lastCheckpointResumeRef = useRef<number | null>(null);
 
-  const [lessonSurveyRating, setLessonSurveyRating] = useState(3);
-  const [lessonSurveySubmitting, setLessonSurveySubmitting] = useState(false);
-  const [lessonSurveyError, setLessonSurveyError] = useState<string | null>(null);
-  const [lessonSurveyCompleted, setLessonSurveyCompleted] = useState(effectiveLessonSurvey?.completed ?? false);
   const [showLessonQr, setShowLessonQr] = useState(false);
 
   const suppressCheckpointIdRef = useRef<string | null>(null);
@@ -330,7 +269,6 @@ export function LessonVideoPage({
   const [activeQuestionIndex, setActiveQuestionIndex] = useState(0);
   const modalStateRef = useRef<ModalState>('none');
   const visibilityTimerRef = useRef<number | null>(null);
-  const lessonSurveyTriggeredRef = useRef<boolean>(effectiveLessonSurvey?.completed ?? false);
   const gradingTriggeredRef = useRef<boolean>(false);
   const lessonStartRecordedRef = useRef(false);
 
@@ -377,8 +315,7 @@ export function LessonVideoPage({
 
   useEffect(() => {
     setAnsweredCheckpointIds(initialAnsweredIds);
-    setCompletedCheckpointIds(lesson.completedCheckpointIds ?? []);
-  }, [initialAnsweredIds, lesson.completedCheckpointIds]);
+  }, [initialAnsweredIds]);
 
   useEffect(() => {
     setFurthestTime(resumeBaseTime);
@@ -460,7 +397,9 @@ export function LessonVideoPage({
     [orderedCheckpoints, answeredCheckpointIds]
   );
 
-  const lessonReadyForSurvey = useMemo(
+  // The lesson can be finished once the video has played through and every
+  // checkpoint has been answered. This gates the Finish button (grey → blue).
+  const lessonReadyToFinish = useMemo(
     () => (orderedCheckpoints.length === 0 || allCheckpointsAnswered) && videoEnded,
     [allCheckpointsAnswered, orderedCheckpoints.length, videoEnded]
   );
@@ -515,26 +454,6 @@ export function LessonVideoPage({
     [lesson.segments]
   );
   const youtubeId = useMemo(() => extractYouTubeId(primaryVideoSegment?.videoUrl), [primaryVideoSegment]);
-
-  const timelineItems = useMemo(() => {
-    return orderedCheckpoints.map((checkpoint, index) => {
-      const isCompleted = completedCheckpointIds.includes(checkpoint.id);
-      const isFailed = answeredCheckpointIds.includes(checkpoint.id) && !isCompleted;
-      const isActive =
-        checkpoint.id === activeCheckpointId || (!isCompleted && firstIncompleteCheckpoint?.id === checkpoint.id);
-      return {
-        id: checkpoint.id,
-        title: checkpoint.title || `Checkpoint ${index + 1}`,
-        status: isCompleted ? 'completed' : isFailed ? 'failed' : isActive ? 'current' : 'pending',
-      } as const;
-    });
-  }, [
-    orderedCheckpoints,
-    answeredCheckpointIds,
-    completedCheckpointIds,
-    activeCheckpointId,
-    firstIncompleteCheckpoint,
-  ]);
 
   const ensurePlayerPaused = useCallback(() => {
     const player = playerRef.current;
@@ -727,30 +646,6 @@ export function LessonVideoPage({
   }, [modalState]);
 
   useEffect(() => {
-    setLessonSurveyCompleted(effectiveLessonSurvey?.completed ?? false);
-    lessonSurveyTriggeredRef.current = effectiveLessonSurvey?.completed ?? false;
-  }, [effectiveLessonSurvey]);
-
-  useEffect(() => {
-    if (lessonSurveyCompleted) {
-      lessonSurveyTriggeredRef.current = true;
-    }
-  }, [lessonSurveyCompleted]);
-
-  useEffect(() => {
-    // Review is a rewatch of an already-completed lesson: never re-open the survey
-    // or re-grade at the end.
-    if (reviewMode || !effectiveLessonSurvey || lessonSurveyCompleted) {
-      return;
-    }
-    if (lessonReadyForSurvey && !lessonSurveyTriggeredRef.current) {
-      lessonSurveyTriggeredRef.current = true;
-      ensurePlayerPaused();
-      setModalState('lessonSurvey');
-    }
-  }, [ensurePlayerPaused, effectiveLessonSurvey, lessonReadyForSurvey, lessonSurveyCompleted, reviewMode]);
-
-  useEffect(() => {
     if (!playerReady) {
       return;
     }
@@ -892,8 +787,11 @@ export function LessonVideoPage({
       setAttemptSummary(null);
       setActiveQuestionIndex(0);
       setActiveCheckpointId(null);
-      setLessonSurveyCompleted(false);
-      lessonSurveyTriggeredRef.current = false;
+      // Clear any leftover checkpoint suppression so the retry re-prompts every
+      // checkpoint. Otherwise a checkpoint answered in the failed run stays
+      // suppressed and gets skipped, so its retry answer is never recorded.
+      suppressCheckpointIdRef.current = null;
+      suppressArmedRef.current = false;
       setVideoEnded(false);
       setNetworkError(null);
       setFurthestTime(0);
@@ -1024,11 +922,6 @@ export function LessonVideoPage({
         setAnsweredCheckpointIds((prev) =>
           prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
         );
-        if (payload.isPassing) {
-          setCompletedCheckpointIds((prev) =>
-            prev.includes(currentCheckpoint.id) ? prev : [...prev, currentCheckpoint.id]
-          );
-        }
       }
       setModalState('result');
       setActiveQuestionIndex(0);
@@ -1084,7 +977,6 @@ export function LessonVideoPage({
   }, [resetAfterCheckpoint, reviewMode]);
 
   const handleRewatch = useCallback(() => {
-    console.log('[handleRewatch]');
     setModalState('none');
     setNetworkError(null);
     setSelectedAnswers({});
@@ -1148,41 +1040,6 @@ export function LessonVideoPage({
     scheduleHide();
   }, [captionsEnabled, scheduleHide]);
 
-  const handleLessonSurveyFaceSelect = useCallback((value: number) => {
-    setLessonSurveyRating(value);
-  }, []);
-
-  const submitLessonSurvey = useCallback(async () => {
-    if (!effectiveLessonSurvey) {
-      return;
-    }
-    setLessonSurveySubmitting(true);
-    setLessonSurveyError(null);
-    try {
-      const response = await fetch(`/api/lessons/${lesson.id}/survey`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: studentEmail,
-          rating: lessonSurveyRating,
-          videoCompleted: true,
-        }),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error || 'Unable to submit survey.');
-      }
-      setLessonSurveyCompleted(true);
-      await handleLessonCompletion();
-    } catch (error) {
-      setLessonSurveyError(
-        error instanceof Error ? error.message : 'Something went wrong while submitting your survey.'
-      );
-    } finally {
-      setLessonSurveySubmitting(false);
-    }
-  }, [effectiveLessonSurvey, handleLessonCompletion, lesson.id, lessonSurveyRating, studentEmail]);
-
   const rangeStyle = useMemo<RangeStyleVars>(() => {
     const progressPct = duration > 0 ? Math.min(100, Math.max(0, (currentTime / Math.max(duration, 1)) * 100)) : 0;
     const unlockedLimit = resolveMaxSeekableTime();
@@ -1213,7 +1070,6 @@ export function LessonVideoPage({
     if (
       modalState === 'question' ||
       modalState === 'result' ||
-      modalState === 'lessonSurvey' ||
       modalState === 'lessonComplete' ||
       modalState === 'lessonFailed'
     ) {
@@ -1241,6 +1097,10 @@ export function LessonVideoPage({
     : false;
   const isFinalQuestion = currentQuestion ? activeQuestionIndex === totalCheckpointQuestions - 1 : false;
 
+  // Checkpoint question/result states render as a panel *beside* the (shrunk,
+  // still-visible) video. Lesson-level end states keep the in-frame overlay.
+  const isQuestionSide = modalState === 'question' || modalState === 'result';
+
   const handleSkipToNextCheckpoint = useCallback(() => {
     // No grading path during review — this dev control is a no-op there.
     if (reviewMode) {
@@ -1254,20 +1114,11 @@ export function LessonVideoPage({
     }
 
     ensurePlayerPaused();
-
-    if (effectiveLessonSurvey && !lessonSurveyCompleted) {
-      lessonSurveyTriggeredRef.current = true;
-      setVideoEnded(true);
-      setModalState('lessonSurvey');
-      return;
-    }
-
+    setVideoEnded(true);
     void handleLessonCompletion();
   }, [
     ensurePlayerPaused,
     firstIncompleteCheckpoint,
-    effectiveLessonSurvey,
-    lessonSurveyCompleted,
     openCheckpointModal,
     reviewMode,
     seekTo,
@@ -1343,28 +1194,6 @@ export function LessonVideoPage({
           <span>Back</span>
         </button>
 
-        <aside className={styles.timeline}>
-          {timelineItems.map((item, index) => {
-            const checkpointClass = [
-              styles.timelineCheckpoint,
-              item.status === 'completed' ? styles.timelineCheckpointCompleted : '',
-              item.status === 'failed' ? styles.timelineCheckpointFailed : '',
-              item.status === 'current' ? styles.timelineCheckpointActive : '',
-            ]
-              .filter(Boolean)
-              .join(' ');
-
-            return (
-              <div key={item.id} className={styles.timelineItem}>
-                <div className={checkpointClass}>
-                  {item.status === 'completed' ? '✓' : item.status === 'failed' ? '×' : index + 1}
-                </div>
-                <span className={styles.timelineLabel}>{item.title}</span>
-              </div>
-            );
-          })}
-        </aside>
-
         <div className={styles.mainColumn}>
           <div className={styles.videoHeader}>
             <div className={styles.videoHeadingLeft}>
@@ -1374,382 +1203,420 @@ export function LessonVideoPage({
             <div className={styles.videoSegment}>{videoStageLabel}</div>
           </div>
 
-          <div
-            className={styles.videoWrapper}
-            onMouseMove={handleMouseMoveVideo}
-            onMouseEnter={handleMouseMoveVideo}
-            onMouseLeave={handleMouseLeaveVideo}
-          >
-            <div id={playerElementId} className={styles.youtubeFrame} />
+          <div className={styles.stage} data-question={isQuestionSide ? 'true' : 'false'}>
+            <div
+              className={styles.videoWrapper}
+              onMouseMove={handleMouseMoveVideo}
+              onMouseEnter={handleMouseMoveVideo}
+              onMouseLeave={handleMouseLeaveVideo}
+            >
+              <div id={playerElementId} className={styles.youtubeFrame} />
 
-            <div className={`${styles.qevBar} ${controlsVisible ? '' : styles.qevBarHidden}`}>
-              {/* TOP ROW: progress bar + time */}
-              <div className={styles.qevTopRow}>
-                <div className={styles.qevRailWrap}>
-                  {duration > 0 &&
-                    orderedCheckpoints.map((cp) => {
-                      const leftPct = Math.min(100, Math.max(0, (cp.timeOffsetSeconds / duration) * 100));
-                      const done = answeredCheckpointIds.includes(cp.id);
-                      const curr = currentCheckpoint?.id === cp.id;
-                      const cls = [styles.qevBreak, done ? styles.qevBreakDone : '', curr ? styles.qevBreakCurrent : '']
-                        .filter(Boolean)
-                        .join(' ');
-                      if (reviewMode && cp.questions.length > 0) {
-                        return (
-                          <button
-                            key={cp.id}
-                            type="button"
-                            className={cls}
-                            style={{ left: `${leftPct}%` }}
-                            title={`Review: ${cp.title}`}
-                            aria-label={`Review checkpoint: ${cp.title}`}
-                            onClick={() => openCheckpointForReview(cp.id)}
-                          />
-                        );
-                      }
-                      return <span key={cp.id} className={cls} style={{ left: `${leftPct}%` }} />;
-                    })}
+              <div
+                className={`${styles.qevBar} ${controlsVisible ? '' : styles.qevBarHidden} ${
+                  isQuestionSide ? styles.qevBarLocked : ''
+                }`}
+              >
+                {/* TOP ROW: progress bar + time */}
+                <div className={styles.qevTopRow}>
+                  <div className={styles.qevRailWrap}>
+                    {duration > 0 &&
+                      orderedCheckpoints.map((cp) => {
+                        const leftPct = Math.min(100, Math.max(0, (cp.timeOffsetSeconds / duration) * 100));
+                        const done = answeredCheckpointIds.includes(cp.id);
+                        const curr = currentCheckpoint?.id === cp.id;
+                        const cls = [
+                          styles.qevBreak,
+                          done ? styles.qevBreakDone : '',
+                          curr ? styles.qevBreakCurrent : '',
+                        ]
+                          .filter(Boolean)
+                          .join(' ');
+                        if (reviewMode && cp.questions.length > 0) {
+                          return (
+                            <button
+                              key={cp.id}
+                              type="button"
+                              className={cls}
+                              style={{ left: `${leftPct}%` }}
+                              title={`Review: ${cp.title}`}
+                              aria-label={`Review checkpoint: ${cp.title}`}
+                              onClick={() => openCheckpointForReview(cp.id)}
+                            />
+                          );
+                        }
+                        return <span key={cp.id} className={cls} style={{ left: `${leftPct}%` }} />;
+                      })}
 
-                  <input
-                    type="range"
-                    className={styles.qevRange}
-                    min={0}
-                    max={Math.max(duration, 1)}
-                    step={0.1}
-                    value={Math.min(currentTime, Math.max(duration, 1), resolveMaxSeekableTime())}
-                    style={rangeStyle}
-                    onChange={(e) => {
-                      const raw = Number(e.currentTarget.value);
-                      const val = Math.max(0, Math.min(raw, resolveMaxSeekableTime()));
+                    <input
+                      type="range"
+                      className={styles.qevRange}
+                      min={0}
+                      max={Math.max(duration, 1)}
+                      step={0.1}
+                      value={Math.min(currentTime, Math.max(duration, 1), resolveMaxSeekableTime())}
+                      style={rangeStyle}
+                      disabled={isQuestionSide}
+                      onChange={(e) => {
+                        const raw = Number(e.currentTarget.value);
+                        const val = Math.max(0, Math.min(raw, resolveMaxSeekableTime()));
 
-                      if (raw !== val) {
-                        e.currentTarget.value = String(val);
-                      }
-                      seekTo(val, true);
-                      if (modalState === 'none') {
-                        setControlsVisible(true);
-                        scheduleHide();
-                      }
+                        if (raw !== val) {
+                          e.currentTarget.value = String(val);
+                        }
+                        seekTo(val, true);
+                        if (modalState === 'none') {
+                          setControlsVisible(true);
+                          scheduleHide();
+                        }
 
-                      if (
-                        !reviewMode &&
-                        modalState === 'none' &&
-                        firstIncompleteCheckpoint &&
-                        val >= firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD
-                      ) {
-                        playerRef.current?.pauseVideo?.();
-                        openCheckpointModal(firstIncompleteCheckpoint.id);
-                      }
-                    }}
-                  />
+                        if (
+                          !reviewMode &&
+                          modalState === 'none' &&
+                          firstIncompleteCheckpoint &&
+                          val >= firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD
+                        ) {
+                          playerRef.current?.pauseVideo?.();
+                          openCheckpointModal(firstIncompleteCheckpoint.id);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  <span className={styles.qevTime}>
+                    {formatTime(currentTime)} / {formatTime(duration)}
+                  </span>
                 </div>
 
-                <span className={styles.qevTime}>
-                  {formatTime(currentTime)} / {formatTime(duration)}
-                </span>
+                {/* BOTTOM ROW: buttons */}
+                <div className={styles.qevBottomRow}>
+                  {/* Play / Pause */}
+                  <button
+                    type="button"
+                    className={styles.qevBtn}
+                    onClick={togglePlay}
+                    disabled={modalState !== 'none'}
+                    aria-label={isPlaying ? 'Pause' : 'Play'}
+                  >
+                    <Image
+                      src={isPlaying ? pauseIcon : playIcon}
+                      alt={isPlaying ? 'Pause' : 'Play'}
+                      className={styles.qevIcon}
+                      width={30}
+                      height={30}
+                    />
+                  </button>
+
+                  {/* Volume */}
+                  <button
+                    type="button"
+                    className={styles.qevBtn}
+                    onClick={toggleMute}
+                    aria-label={isMuted ? 'Unmute' : 'Mute'}
+                  >
+                    <Image
+                      src="/assets/lesson/qev/Volume.svg"
+                      alt={isMuted ? 'Muted' : 'Volume'}
+                      className={styles.qevIcon}
+                      width={41}
+                      height={41}
+                    />
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`${styles.qevBtn} ${styles.captionButton} ${captionsEnabled ? styles.captionButtonActive : ''}`}
+                    onClick={toggleCaptions}
+                    aria-label={captionsEnabled ? 'Turn captions off' : 'Turn captions on'}
+                    aria-pressed={captionsEnabled}
+                  >
+                    CC
+                  </button>
+
+                  {/* Rewind (e.g., back 10s) */}
+                  <button
+                    type="button"
+                    className={styles.qevBtn}
+                    onClick={() => seekTo(Math.max(0, currentTime - 10))}
+                    aria-label="Rewind 10 seconds"
+                  >
+                    <Image
+                      src="/assets/lesson/qev/Rewind.svg"
+                      alt="Rewind"
+                      className={styles.qevIcon}
+                      width={34}
+                      height={34}
+                    />
+                  </button>
+
+                  {/* Finish lesson: grey until the video has played through and every
+                    checkpoint is answered, then blue. Clicking it grades + completes. */}
+                  {!reviewMode ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleLessonCompletion()}
+                      disabled={!lessonReadyToFinish || assessingLesson}
+                      aria-label="Finish lesson"
+                      style={{
+                        marginLeft: 'auto',
+                        padding: '10px 22px',
+                        borderRadius: 999,
+                        border: 'none',
+                        fontFamily: 'Lato, sans-serif',
+                        fontWeight: 600,
+                        fontSize: 15,
+                        color: lessonReadyToFinish ? '#ffffff' : '#7a7a7a',
+                        background: lessonReadyToFinish ? '#1f4b99' : '#d4d4d4',
+                        cursor: lessonReadyToFinish && !assessingLesson ? 'pointer' : 'not-allowed',
+                        transition: 'background 0.2s ease, color 0.2s ease',
+                      }}
+                    >
+                      {assessingLesson ? 'Finishing…' : 'Finish lesson'}
+                    </button>
+                  ) : null}
+                </div>
               </div>
 
-              {/* BOTTOM ROW: buttons */}
-              <div className={styles.qevBottomRow}>
-                {/* Play / Pause */}
-                <button
-                  type="button"
-                  className={styles.qevBtn}
-                  onClick={togglePlay}
-                  disabled={modalState !== 'none'}
-                  aria-label={isPlaying ? 'Pause' : 'Play'}
-                >
-                  <Image
-                    src={isPlaying ? pauseIcon : playIcon}
-                    alt={isPlaying ? 'Pause' : 'Play'}
-                    className={styles.qevIcon}
-                    width={30}
-                    height={30}
-                  />
-                </button>
+              {modalState === 'success' || modalState === 'lessonComplete' || modalState === 'lessonFailed' ? (
+                <div className={styles.overlay}>
+                  <div className={styles.modalCard}>
+                    {modalState === 'success' ? (
+                      <>
+                        <h2 className={styles.modalTitle}>Checkpoint cleared!</h2>
+                        <p className={styles.modalDescription}>Great work—keep going to finish the lesson.</p>
+                      </>
+                    ) : null}
 
-                {/* Volume */}
-                <button
-                  type="button"
-                  className={styles.qevBtn}
-                  onClick={toggleMute}
-                  aria-label={isMuted ? 'Unmute' : 'Mute'}
-                >
-                  <Image
-                    src="/assets/lesson/qev/Volume.svg"
-                    alt={isMuted ? 'Muted' : 'Volume'}
-                    className={styles.qevIcon}
-                    width={41}
-                    height={41}
-                  />
-                </button>
+                    {modalState === 'lessonFailed' ? (
+                      <>
+                        <h2 className={styles.modalTitle}>Lesson needs another try</h2>
+                        <p className={styles.modalDescription}>
+                          Your grade for this lesson is{' '}
+                          <strong>{lessonAssessment ? `${lessonAssessment.gradePercent.toFixed(1)}%` : '—'}</strong>,
+                          which is below the instructor threshold of{' '}
+                          <strong>{lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}</strong>. Please redo
+                          the lesson.
+                        </p>
+                        {assessmentError ? <p className={styles.modalError}>{assessmentError}</p> : null}
+                        <div className={styles.modalActions}>
+                          <button type="button" className={styles.modalSecondary} onClick={handleRestartAfterFailure}>
+                            Restart now
+                          </button>
+                          <button type="button" className={styles.modalSecondary} onClick={handleGoCourseDashboard}>
+                            Go to course
+                          </button>
+                        </div>
+                      </>
+                    ) : null}
 
-                <button
-                  type="button"
-                  className={`${styles.qevBtn} ${styles.captionButton} ${captionsEnabled ? styles.captionButtonActive : ''}`}
-                  onClick={toggleCaptions}
-                  aria-label={captionsEnabled ? 'Turn captions off' : 'Turn captions on'}
-                  aria-pressed={captionsEnabled}
-                >
-                  CC
-                </button>
-
-                {/* Rewind (e.g., back 10s) */}
-                <button
-                  type="button"
-                  className={styles.qevBtn}
-                  onClick={() => seekTo(Math.max(0, currentTime - 10))}
-                  aria-label="Rewind 10 seconds"
-                >
-                  <Image
-                    src="/assets/lesson/qev/Rewind.svg"
-                    alt="Rewind"
-                    className={styles.qevIcon}
-                    width={34}
-                    height={34}
-                  />
-                </button>
-              </div>
+                    {modalState === 'lessonComplete' ? (
+                      reviewMode ? (
+                        // Review has no assessment QR — the lesson is already finalized.
+                        <>
+                          <h2 className={styles.modalTitle}>Review complete</h2>
+                          <p className={styles.modalDescription}>You’ve reached the end of your review.</p>
+                          <div className={styles.modalActions}>
+                            <button type="button" className={styles.modalSecondary} onClick={handleBackToReview}>
+                              Back to review
+                            </button>
+                            <button type="button" className={styles.modalSecondary} onClick={handleBackToLessonDetail}>
+                              See feedback
+                            </button>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <h2 className={styles.modalTitle}>Lesson Completed</h2>
+                          <p className={styles.modalDescription}>
+                            You’re all set! Show your assessor the QR code to finalize this lesson.
+                          </p>
+                          <div className={styles.modalStats}>
+                            <div className={styles.modalStat}>
+                              Grade
+                              <span className={styles.modalStatValue}>
+                                {lessonAssessment ? `${lessonAssessment.gradePercent.toFixed(1)}%` : '—'}
+                              </span>
+                            </div>
+                            <div className={styles.modalStat}>
+                              Required to pass
+                              <span className={styles.modalStatValue}>
+                                {lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className={styles.modalActions}>
+                            <button type="button" className={styles.modalSecondary} onClick={handleShowQrCode}>
+                              Show QR code
+                            </button>
+                            <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
+                              Home
+                            </button>
+                          </div>
+                        </>
+                      )
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
             </div>
 
-            {modalState !== 'none' && modalState !== 'lessonSurvey' ? (
-              <div className={styles.overlay}>
-                <div className={styles.modalCard}>
-                  {modalState === 'question' && currentCheckpoint ? (
-                    currentQuestion ? (
-                      <>
-                        <h2 className={styles.modalTitle}>{currentCheckpoint.title}</h2>
-                        <p className={styles.modalDescription}>Answer each question to continue.</p>
-                        <div className={styles.questionList}>
-                          <div className={styles.questionHeading}>
-                            <span>
-                              Question {activeQuestionIndex + 1} of {totalCheckpointQuestions}
-                            </span>
-                          </div>
-                          <div
-                            className={`${styles.questionPrompt} ${styles.questionRichText}`}
-                            dangerouslySetInnerHTML={{
-                              __html: sanitizeQuestionRichText(currentQuestion.prompt ?? 'Choose the correct answer.'),
-                            }}
-                          />
-                          <div className={styles.answerOptions}>
-                            {currentQuestion.type === 'multipleChoice' ? (
-                              (Array.isArray(currentQuestion.options) ? currentQuestion.options : []).map(
-                                (option, optionIndex) => {
-                                  const selection = selectedAnswers[currentQuestion.id];
-                                  const isSelected =
-                                    selection?.kind === 'multipleChoice' &&
-                                    selection.selectedIndices.includes(optionIndex);
-                                  const supportsMultiple = (currentQuestion.correctIndices ?? []).length > 1;
-                                  const className = [
-                                    styles.controlButton,
-                                    isSelected ? styles.controlButtonPrimary : styles.controlButtonSecondary,
-                                  ]
-                                    .filter(Boolean)
-                                    .join(' ');
-                                  return (
-                                    <button
-                                      key={`${currentQuestion.id}-${optionIndex}`}
-                                      type="button"
-                                      className={className}
-                                      onClick={() => handleChoiceSelect(currentQuestion, optionIndex)}
-                                      aria-pressed={isSelected}
-                                    >
-                                      {supportsMultiple ? `${isSelected ? '✓ ' : ''}` : ''}
-                                      {option}
-                                    </button>
-                                  );
-                                }
-                              )
-                            ) : (
-                              <div className={styles.shortAnswerField}>
-                                <label
-                                  htmlFor={`${currentQuestion.id}-short-answer`}
-                                  className={styles.shortAnswerLabel}
-                                >
-                                  Your answer
-                                </label>
-                                <input
-                                  id={`${currentQuestion.id}-short-answer`}
-                                  type="text"
-                                  inputMode="decimal"
-                                  autoComplete="off"
-                                  className={styles.shortAnswerInput}
-                                  value={currentShortAnswerValue}
-                                  onChange={(event) => handleShortAnswerChange(currentQuestion.id, event.target.value)}
-                                  placeholder="Enter a number"
-                                />
-                                <p className={styles.shortAnswerHelp}>Enter a numeric response</p>
-                                {currentAnswer?.kind === 'shortAnswer' && currentAnswer.hasError ? (
-                                  <p className={styles.shortAnswerError}>Please enter a numeric answer.</p>
-                                ) : null}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className={styles.controlRow}>
-                          <button
-                            type="button"
-                            className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
-                            onClick={handleRewatch}
-                          >
-                            Rewatch
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.controlButton} ${styles.controlButtonPrimary}`}
-                            onClick={handleAdvance}
-                            disabled={!canAdvance || (isFinalQuestion && isSubmitting)}
-                          >
-                            {isFinalQuestion ? (isSubmitting ? 'Submitting…' : 'Submit') : 'Next'}
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <p className={styles.modalDescription}>No questions configured for this checkpoint.</p>
-                    )
-                  ) : null}
-
-                  {modalState === 'result' ? (
-                    attemptSummary ? (
-                      <>
-                        <h2 className={styles.modalTitle}>Checkpoint summary</h2>
-                        <p className={styles.modalDescription}>
-                          {attemptSummary.isPassing
-                            ? 'Nice work — you passed this checkpoint.'
-                            : 'Not quite. You can rewatch this section to review, or continue on.'}
-                        </p>
-                        <ul className={styles.questionList}>
-                          {attemptSummary.questions.map((question, index) => (
-                            <li key={question.questionId}>
-                              <span>
-                                {question.isCorrect ? '✓' : '✗'} Question {index + 1}
-                              </span>
-                              <span className={styles.statusIcon}>{question.isCorrect ? '✓' : '✗'}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <div className={styles.controlRow}>
-                          {!attemptSummary.isPassing ? (
-                            <button
-                              type="button"
-                              className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
-                              onClick={handleRewatch}
-                            >
-                              Rewatch section
-                            </button>
-                          ) : null}
-                          <button
-                            type="button"
-                            className={`${styles.controlButton} ${styles.controlButtonPrimary}`}
-                            onClick={handleContinueAfterResult}
-                          >
-                            Continue
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <h2 className={styles.modalTitle}>We couldn’t save your answers</h2>
-                        <p className={styles.modalDescription}>{networkError || 'Please try submitting again.'}</p>
-                        <div className={styles.controlRow}>
-                          <button
-                            type="button"
-                            className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
-                            onClick={handleRewatch}
-                          >
-                            Rewatch
-                          </button>
-                          <button
-                            type="button"
-                            className={`${styles.controlButton} ${styles.controlButtonPrimary}`}
-                            onClick={submitAttempt}
-                            disabled={isSubmitting}
-                          >
-                            {isSubmitting ? 'Submitting…' : 'Retry submission'}
-                          </button>
-                        </div>
-                      </>
-                    )
-                  ) : null}
-
-                  {modalState === 'success' ? (
+            {isQuestionSide ? (
+              <aside className={styles.questionPanel}>
+                {modalState === 'question' && currentCheckpoint ? (
+                  currentQuestion ? (
                     <>
-                      <h2 className={styles.modalTitle}>Checkpoint cleared!</h2>
-                      <p className={styles.modalDescription}>Great work—keep going to finish the lesson.</p>
-                    </>
-                  ) : null}
-
-                  {modalState === 'lessonFailed' ? (
-                    <>
-                      <h2 className={styles.modalTitle}>Lesson needs another try</h2>
-                      <p className={styles.modalDescription}>
-                        Your grade for this lesson is{' '}
-                        <strong>{lessonAssessment ? `${lessonAssessment.gradePercent.toFixed(1)}%` : '—'}</strong>,
-                        which is below the instructor threshold of{' '}
-                        <strong>{lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}</strong>. Please redo
-                        the lesson.
-                      </p>
-                      {assessmentError ? <p className={styles.modalError}>{assessmentError}</p> : null}
-                      <div className={styles.modalActions}>
-                        <button type="button" className={styles.modalSecondary} onClick={handleRestartAfterFailure}>
-                          Restart now
+                      <h2 className={styles.modalTitle}>{currentCheckpoint.title}</h2>
+                      <p className={styles.modalDescription}>Answer each question to continue.</p>
+                      <div className={styles.questionList}>
+                        <div className={styles.questionHeading}>
+                          <span>
+                            Question {activeQuestionIndex + 1} of {totalCheckpointQuestions}
+                          </span>
+                        </div>
+                        <div
+                          className={`${styles.questionPrompt} ${styles.questionRichText}`}
+                          dangerouslySetInnerHTML={{
+                            __html: sanitizeQuestionRichText(currentQuestion.prompt ?? 'Choose the correct answer.'),
+                          }}
+                        />
+                        <div className={styles.answerOptions}>
+                          {currentQuestion.type === 'multipleChoice' ? (
+                            (Array.isArray(currentQuestion.options) ? currentQuestion.options : []).map(
+                              (option, optionIndex) => {
+                                const selection = selectedAnswers[currentQuestion.id];
+                                const isSelected =
+                                  selection?.kind === 'multipleChoice' &&
+                                  selection.selectedIndices.includes(optionIndex);
+                                const supportsMultiple = (currentQuestion.correctIndices ?? []).length > 1;
+                                const className = [
+                                  styles.controlButton,
+                                  isSelected ? styles.controlButtonPrimary : styles.controlButtonSecondary,
+                                ]
+                                  .filter(Boolean)
+                                  .join(' ');
+                                return (
+                                  <button
+                                    key={`${currentQuestion.id}-${optionIndex}`}
+                                    type="button"
+                                    className={className}
+                                    onClick={() => handleChoiceSelect(currentQuestion, optionIndex)}
+                                    aria-pressed={isSelected}
+                                  >
+                                    {supportsMultiple ? `${isSelected ? '✓ ' : ''}` : ''}
+                                    {option}
+                                  </button>
+                                );
+                              }
+                            )
+                          ) : (
+                            <div className={styles.shortAnswerField}>
+                              <label htmlFor={`${currentQuestion.id}-short-answer`} className={styles.shortAnswerLabel}>
+                                Your answer
+                              </label>
+                              <input
+                                id={`${currentQuestion.id}-short-answer`}
+                                type="text"
+                                inputMode="decimal"
+                                autoComplete="off"
+                                className={styles.shortAnswerInput}
+                                value={currentShortAnswerValue}
+                                onChange={(event) => handleShortAnswerChange(currentQuestion.id, event.target.value)}
+                                placeholder="Enter a number"
+                              />
+                              <p className={styles.shortAnswerHelp}>Enter a numeric response</p>
+                              {currentAnswer?.kind === 'shortAnswer' && currentAnswer.hasError ? (
+                                <p className={styles.shortAnswerError}>Please enter a numeric answer.</p>
+                              ) : null}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className={styles.controlRow}>
+                        <button
+                          type="button"
+                          className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
+                          onClick={handleRewatch}
+                        >
+                          Rewatch
                         </button>
-                        <button type="button" className={styles.modalSecondary} onClick={handleGoCourseDashboard}>
-                          Go to course
+                        <button
+                          type="button"
+                          className={`${styles.controlButton} ${styles.controlButtonPrimary}`}
+                          onClick={handleAdvance}
+                          disabled={!canAdvance || (isFinalQuestion && isSubmitting)}
+                        >
+                          {isFinalQuestion ? (isSubmitting ? 'Submitting…' : 'Submit') : 'Next'}
                         </button>
                       </div>
                     </>
-                  ) : null}
+                  ) : (
+                    <p className={styles.modalDescription}>No questions configured for this checkpoint.</p>
+                  )
+                ) : null}
 
-                  {modalState === 'lessonComplete' ? (
-                    reviewMode ? (
-                      // Review has no assessment QR — the lesson is already finalized.
-                      <>
-                        <h2 className={styles.modalTitle}>Review complete</h2>
-                        <p className={styles.modalDescription}>You’ve reached the end of your review.</p>
-                        <div className={styles.modalActions}>
-                          <button type="button" className={styles.modalSecondary} onClick={handleBackToReview}>
-                            Back to review
-                          </button>
-                          <button type="button" className={styles.modalSecondary} onClick={handleBackToLessonDetail}>
-                            See feedback
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <h2 className={styles.modalTitle}>Lesson Completed</h2>
-                        <p className={styles.modalDescription}>
-                          You’re all set! Show your assessor the QR code to finalize this lesson.
-                        </p>
-                        <div className={styles.modalStats}>
-                          <div className={styles.modalStat}>
-                            Grade
-                            <span className={styles.modalStatValue}>
-                              {lessonAssessment ? `${lessonAssessment.gradePercent.toFixed(1)}%` : '—'}
+                {modalState === 'result' ? (
+                  attemptSummary ? (
+                    <>
+                      <h2 className={styles.modalTitle}>Checkpoint summary</h2>
+                      <p className={styles.modalDescription}>
+                        {attemptSummary.isPassing
+                          ? 'Nice work — you passed this checkpoint.'
+                          : 'Not quite. You can rewatch this section to review, or continue on.'}
+                      </p>
+                      <ul className={styles.questionList}>
+                        {attemptSummary.questions.map((question, index) => (
+                          <li key={question.questionId}>
+                            <span>
+                              {question.isCorrect ? '✓' : '✗'} Question {index + 1}
                             </span>
-                          </div>
-                          <div className={styles.modalStat}>
-                            Required to pass
-                            <span className={styles.modalStatValue}>
-                              {lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className={styles.modalActions}>
-                          <button type="button" className={styles.modalSecondary} onClick={handleShowQrCode}>
-                            Show QR code
+                            <span className={styles.statusIcon}>{question.isCorrect ? '✓' : '✗'}</span>
+                          </li>
+                        ))}
+                      </ul>
+                      <div className={styles.controlRow}>
+                        {!attemptSummary.isPassing ? (
+                          <button
+                            type="button"
+                            className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
+                            onClick={handleRewatch}
+                          >
+                            Rewatch section
                           </button>
-                          <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
-                            Home
-                          </button>
-                        </div>
-                      </>
-                    )
-                  ) : null}
-                </div>
-              </div>
+                        ) : null}
+                        <button
+                          type="button"
+                          className={`${styles.controlButton} ${styles.controlButtonPrimary}`}
+                          onClick={handleContinueAfterResult}
+                        >
+                          Continue
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className={styles.modalTitle}>We couldn’t save your answers</h2>
+                      <p className={styles.modalDescription}>{networkError || 'Please try submitting again.'}</p>
+                      <div className={styles.controlRow}>
+                        <button
+                          type="button"
+                          className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
+                          onClick={handleRewatch}
+                        >
+                          Rewatch
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.controlButton} ${styles.controlButtonPrimary}`}
+                          onClick={submitAttempt}
+                          disabled={isSubmitting}
+                        >
+                          {isSubmitting ? 'Submitting…' : 'Retry submission'}
+                        </button>
+                      </div>
+                    </>
+                  )
+                ) : null}
+              </aside>
             ) : null}
           </div>
 
@@ -1765,32 +1632,6 @@ export function LessonVideoPage({
           ) : null}
         </div>
       </div>
-      {effectiveLessonSurvey && modalState === 'lessonSurvey' ? (
-        <SurveyModal
-          title="Tell us about this lesson"
-          question={effectiveLessonSurvey.question}
-          options={LESSON_SURVEY_FACES}
-          value={lessonSurveyRating}
-          onChange={handleLessonSurveyFaceSelect}
-          onSubmit={submitLessonSurvey}
-          submitLabel="Submit feedback"
-          isSubmitting={lessonSurveySubmitting || assessingLesson}
-          error={lessonSurveyError}
-          classNames={{
-            overlay: styles.lessonSurveyOverlay,
-            modal: styles.lessonSurveyModal,
-            title: styles.lessonSurveyTitle,
-            question: styles.lessonSurveyQuestion,
-            error: styles.lessonSurveyError,
-            options: styles.lessonSurveyFaces,
-            option: styles.lessonSurveyFace,
-            selectedOption: styles.lessonSurveyFaceSelected,
-            optionImage: styles.lessonSurveyFaceImage,
-            selectedOptionImage: styles.lessonSurveyFaceImageSelected,
-            submit: styles.lessonSurveySubmit,
-          }}
-        />
-      ) : null}
       {showLessonQr && assessmentBadge && !reviewMode ? (
         <AssessmentCodeModal
           badgeId={assessmentBadge.badgeId}

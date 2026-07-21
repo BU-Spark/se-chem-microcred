@@ -169,7 +169,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         score: number | null;
       }
     > = [];
-    const readyForFinalization: Array<
+    const inReview: Array<
       ReturnType<typeof formatBadge> & {
         status: string;
         awardedAt: string | null;
@@ -194,11 +194,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
 
       if (progress.status === 'COMPLETED') {
         completed.push(badgeWithProgress);
-      } else if (progress.status === 'READY_FOR_FINALIZATION') {
-        readyForFinalization.push(badgeWithProgress);
+      } else if (progress.status === 'IN_REVIEW') {
+        inReview.push(badgeWithProgress);
       } else if (progress.status === 'LEARNING' && !lessonStartedByBadgeId.get(badge.id)) {
         notStarted.push(badge);
       } else {
+        // LEARNING (started), READY_FOR_ASSESSMENT, and the terminal LOCKED state.
         inProgress.push(badgeWithProgress);
       }
     }
@@ -210,7 +211,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           id: member.id,
           name: member.name,
           email: member.email,
-          buid: member.buid,
+          externalId: member.externalId,
           gender: member.gender,
           raceEthnicity: member.raceEthnicity,
           parentalEducation: member.parentalEducation,
@@ -233,7 +234,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
                 id: course.createdBy.id,
                 name: course.createdBy.name,
                 email: course.createdBy.email,
-                buid: course.createdBy.buid,
+                externalId: course.createdBy.externalId,
               }
             : null,
         },
@@ -241,7 +242,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         badges: {
           inProgress,
           notStarted,
-          readyForFinalization,
+          inReview,
           completed,
         },
       },

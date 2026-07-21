@@ -101,8 +101,9 @@ describe('Courses Page', () => {
         badges: {
           completed: [],
           readyForAssessment: [],
-          readyForFinalization: [],
+          inReview: [],
           learning: [],
+          locked: [],
         },
         surveys: {
           lesson: [],

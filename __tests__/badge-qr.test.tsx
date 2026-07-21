@@ -88,12 +88,15 @@ function createStudentData() {
         status: 'READY_FOR_ASSESSMENT',
         awardedAt: null,
         score: null,
+        latestAttemptPassed: null,
+        cooldownUntil: null,
         youtubeUrl: null,
         requirements: [],
       },
     ],
-    readyForFinalization: [],
+    inReview: [],
     learning: [],
+    locked: [],
     notStarted: [],
   };
 
@@ -185,20 +188,23 @@ describe('Badge Wallet QR modal', () => {
     });
   });
 
-  it('shows learning badges in Still Learning with a review feedback action', () => {
+  it('shows a failed in-review badge in In Review with a review feedback action', () => {
     const studentData = createStudentData();
     studentData.badges.readyForAssessment = [];
-    studentData.badges.learning = [
+    studentData.badges.inReview = [
       {
-        id: 'badge-learning-1',
+        id: 'badge-review-1',
         courseId: 'course-1',
         slug: 'learning-badge',
         name: 'Learning Badge',
         description: 'Needs feedback review',
 
-        status: 'LEARNING' as const,
+        status: 'IN_REVIEW' as const,
         awardedAt: null,
         score: 40,
+        // Fail path: the student must review feedback before reassessing.
+        latestAttemptPassed: false,
+        cooldownUntil: null,
         youtubeUrl: null,
         requirements: [],
       },
@@ -212,9 +218,9 @@ describe('Badge Wallet QR modal', () => {
 
     render(<BadgeWalletPage />);
 
-    const learningToggle = document.querySelector('button[aria-controls="learning-badges"]') as HTMLButtonElement;
-    if (learningToggle.getAttribute('aria-expanded') === 'false') {
-      fireEvent.click(learningToggle);
+    const inReviewToggle = document.querySelector('button[aria-controls="inReview-badges"]') as HTMLButtonElement;
+    if (inReviewToggle.getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(inReviewToggle);
     }
 
     fireEvent.click(screen.getByRole('button', { name: /Learning/i }));

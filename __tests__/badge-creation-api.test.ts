@@ -458,6 +458,48 @@ describe('badge creation API', () => {
     );
   });
 
+  it('persists the authored assessment policy onto the badge, clamped', async () => {
+    const response = await postBadge({
+      badgeName: 'Policy Badge',
+      badgeDescription: 'Has a reassessment policy',
+      reassessmentLimit: 2,
+      // Out of the 0–14 range: server clamps to 14.
+      cooldownDays: 30,
+      reassessmentRequired: true,
+      rubricGoal: {
+        name: 'Demonstrate the skill',
+        subgoals: [{ text: 'Student demonstrates the skill.', points: 1 }],
+      },
+    });
+
+    expect(response.status).toBe(201);
+    expect(mockPrisma.__tx.badge.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          reassessmentLimit: 2,
+          cooldownDays: 14,
+          reassessmentRequired: true,
+        }),
+      })
+    );
+  });
+
+  it('omits policy fields the author left unset (so they inherit the system default)', async () => {
+    const response = await postBadge({
+      badgeName: 'No Policy Badge',
+      rubricGoal: {
+        name: 'Demonstrate the skill',
+        subgoals: [{ text: 'Student demonstrates the skill.', points: 1 }],
+      },
+    });
+
+    expect(response.status).toBe(201);
+    const createData = mockPrisma.__tx.badge.create.mock.calls[0][0].data;
+    expect(createData).not.toHaveProperty('reassessmentLimit');
+    expect(createData).not.toHaveProperty('cooldownDays');
+    expect(createData).not.toHaveProperty('reassessmentRequired');
+  });
+
   it('returns all badges for the badges tab', async () => {
     mockPrisma.badge.findMany.mockResolvedValue([
       {
