@@ -18,7 +18,7 @@ type NewRosterMember = {
   firstName: string;
   lastName: string;
   email: string;
-  buid: string;
+  externalId: string;
   sections: string;
 };
 
@@ -28,7 +28,7 @@ type RosterMemberRow = {
   firstName: string;
   lastName: string;
   email: string;
-  buid: string;
+  externalId: string;
   sections: string[];
   sectionLabel: string;
 };
@@ -36,7 +36,7 @@ type RosterMemberRow = {
 type RosterFilters = {
   lastName: string;
   firstName: string;
-  buid: string;
+  externalId: string;
   email: string;
   section: string;
 };
@@ -44,7 +44,7 @@ type RosterFilters = {
 const EMPTY_FILTERS: RosterFilters = {
   lastName: '',
   firstName: '',
-  buid: '',
+  externalId: '',
   email: '',
   section: '',
 };
@@ -53,7 +53,7 @@ const EMPTY_NEW_MEMBER: NewRosterMember = {
   firstName: '',
   lastName: '',
   email: '',
-  buid: '',
+  externalId: '',
   sections: '',
 };
 
@@ -65,22 +65,27 @@ function parseRosterCsv(csv: string): NewRosterMember[] {
   if (lines.length < 2) throw new Error('CSV must contain a header and at least one roster member.');
   const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
   const indexOf = (...names: string[]) => headers.findIndex((header) => names.includes(header));
+  // The ID column may be named anything containing "id" (BUID, Student ID, ID, …);
+  // match on the normalized header so punctuation/spacing don't matter.
+  const indexOfId = () => headers.findIndex((header) => header.replace(/[^a-z0-9]/g, '').includes('id'));
   const indices = {
     lastName: indexOf('lastname'),
     firstName: indexOf('firstname'),
-    buid: indexOf('buid'),
+    externalId: indexOfId(),
     email: indexOf('email'),
     sections: indexOf('sections', 'section'),
   };
   if (Object.values(indices).some((index) => index < 0)) {
-    throw new Error('CSV must contain headers: lastName, firstName, buid, email, sections.');
+    throw new Error(
+      'CSV must contain headers: lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections.'
+    );
   }
   return lines.slice(1).map((line) => {
     const columns = line.split(',').map((column) => column.trim());
     return {
       lastName: columns[indices.lastName] || '',
       firstName: columns[indices.firstName] || '',
-      buid: columns[indices.buid] || '',
+      externalId: columns[indices.externalId] || '',
       email: columns[indices.email] || '',
       sections: columns[indices.sections] || '',
     };
@@ -294,8 +299,8 @@ export default function StudentRosterPage() {
 
   const handleAddSubmit = async () => {
     if (addMode === 'single') {
-      if (!newMember.email.trim() && !newMember.buid.trim()) {
-        setAddError('Enter an email or BUID.');
+      if (!newMember.email.trim() && !newMember.externalId.trim()) {
+        setAddError('Enter an email or ID.');
         return;
       }
       await addRosterMembers([newMember]);
@@ -307,8 +312,8 @@ export default function StudentRosterPage() {
     }
     try {
       const members = parseRosterCsv(await selectedCsv.text());
-      if (members.some((member) => !member.email.trim() && !member.buid.trim())) {
-        throw new Error('Every CSV row must include an email or BUID.');
+      if (members.some((member) => !member.email.trim() && !member.externalId.trim())) {
+        throw new Error('Every CSV row must include an email or ID.');
       }
       await addRosterMembers(members);
     } catch (err) {
@@ -397,7 +402,7 @@ export default function StudentRosterPage() {
           firstName,
           lastName,
           email: enrollment.student.email?.trim() ?? '',
-          buid: enrollment.student.buid?.trim() ?? '',
+          externalId: enrollment.student.externalId?.trim() ?? '',
           sections: enrollment.sections,
           sectionLabel: enrollment.sections.join(', '),
         };
@@ -416,7 +421,7 @@ export default function StudentRosterPage() {
     const normalizedQuery = searchValue.trim().toLowerCase();
     const normalizedLastName = appliedFilters.lastName.trim().toLowerCase();
     const normalizedFirstName = appliedFilters.firstName.trim().toLowerCase();
-    const normalizedBuid = appliedFilters.buid.trim().toLowerCase();
+    const normalizedExternalId = appliedFilters.externalId.trim().toLowerCase();
     const normalizedEmail = appliedFilters.email.trim().toLowerCase();
 
     return rosterRows.filter((member) => {
@@ -432,7 +437,7 @@ export default function StudentRosterPage() {
         return false;
       }
 
-      if (normalizedBuid && !member.buid.toLowerCase().includes(normalizedBuid)) {
+      if (normalizedExternalId && !member.externalId.toLowerCase().includes(normalizedExternalId)) {
         return false;
       }
 
@@ -444,7 +449,7 @@ export default function StudentRosterPage() {
         return true;
       }
 
-      const haystack = [member.firstName, member.lastName, member.email, member.buid, member.sectionLabel]
+      const haystack = [member.firstName, member.lastName, member.email, member.externalId, member.sectionLabel]
         .join(' ')
         .toLowerCase();
 
@@ -461,8 +466,8 @@ export default function StudentRosterPage() {
     if (appliedFilters.firstName) {
       pills.push(`First Name: ${appliedFilters.firstName}`);
     }
-    if (appliedFilters.buid) {
-      pills.push(`BUID: ${appliedFilters.buid}`);
+    if (appliedFilters.externalId) {
+      pills.push(`ID: ${appliedFilters.externalId}`);
     }
     if (appliedFilters.email) {
       pills.push(`Email: ${appliedFilters.email}`);
@@ -653,14 +658,14 @@ export default function StudentRosterPage() {
                     </label>
 
                     <label className={styles.filterField}>
-                      <span className={styles.filterFieldLabel}>BUID Number</span>
+                      <span className={styles.filterFieldLabel}>ID Number</span>
                       <input
                         type="text"
-                        value={draftFilters.buid}
+                        value={draftFilters.externalId}
                         onChange={(event) =>
                           setDraftFilters((current) => ({
                             ...current,
-                            buid: event.target.value,
+                            externalId: event.target.value,
                           }))
                         }
                         className={styles.filterInput}
@@ -758,7 +763,7 @@ export default function StudentRosterPage() {
                       <tr>
                         <th>Last Name</th>
                         <th>First Name</th>
-                        <th>BUID Number</th>
+                        <th>ID Number</th>
                         <th>Email</th>
                         <th>Section</th>
                         {canRemoveMembers ? <th className={styles.actionsHeader}>Actions</th> : null}
@@ -782,7 +787,7 @@ export default function StudentRosterPage() {
                           >
                             <td>{member.lastName || '—'}</td>
                             <td>{member.firstName || '—'}</td>
-                            <td>{member.buid || '—'}</td>
+                            <td>{member.externalId || '—'}</td>
                             <td>{member.email || '—'}</td>
                             <td>
                               {canManageSections ? (
@@ -879,12 +884,12 @@ export default function StudentRosterPage() {
 
                 {addMode === 'single' ? (
                   <div className={styles.addMemberGrid}>
-                    {(['firstName', 'lastName', 'email', 'buid', 'sections'] as const).map((field) => {
+                    {(['firstName', 'lastName', 'email', 'externalId', 'sections'] as const).map((field) => {
                       const labels = {
                         firstName: 'First name',
                         lastName: 'Last name',
                         email: 'Email',
-                        buid: 'BUID',
+                        externalId: 'ID',
                         sections: isCheckerRoster ? 'Sections' : 'Section',
                       };
                       return (
@@ -904,18 +909,19 @@ export default function StudentRosterPage() {
                     })}
                     {isCheckerRoster ? (
                       <p className={styles.addHint}>
-                        Email or BUID is required. Separate multiple assessor sections with |.
+                        Email or ID is required. Separate multiple assessor sections with |.
                       </p>
                     ) : (
                       <p className={styles.addHint}>
-                        Email or BUID is required. Students can only be assigned to one section.
+                        Email or ID is required. Students can only be assigned to one section.
                       </p>
                     )}
                   </div>
                 ) : (
                   <div className={styles.csvPanel}>
                     <p className={styles.modalBody}>
-                      Upload a CSV with headers: lastName, firstName, buid, email, sections.
+                      Upload a CSV with headers: lastName, firstName, an ID column (e.g. BUID or Student ID), email,
+                      sections.
                     </p>
                     <input
                       ref={csvInputRef}

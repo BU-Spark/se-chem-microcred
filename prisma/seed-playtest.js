@@ -54,7 +54,7 @@ const PEOPLE = {
   instructor: {
     email: SEEDED_DEMO_EMAIL,
     name: 'Instructor(Spark!)',
-    buid: 'CHEM-INSTR',
+    externalId: 'CHEM-INSTR',
     gender: 'Prefer not to say',
     raceEthnicity: 'Prefer not to say',
     parentalEducation: 'Prefer not to say',
@@ -63,7 +63,7 @@ const PEOPLE = {
   student: {
     email: 'student+clerk_test@bu.edu',
     name: 'Jane Student',
-    buid: 'CHEM-STUD',
+    externalId: 'CHEM-STUD',
     gender: 'Female',
     raceEthnicity: 'White',
     parentalEducation: 'Masters degree',
@@ -72,7 +72,7 @@ const PEOPLE = {
   checker: {
     email: 'checker+clerk_test@bu.edu',
     name: 'Alex Checker',
-    buid: 'CHEM-CHKR',
+    externalId: 'CHEM-CHKR',
     gender: 'Female',
     raceEthnicity: 'White',
     parentalEducation: 'Bachelors degree',
@@ -599,13 +599,15 @@ async function upsertPeople() {
   for (const [key, person] of Object.entries(PEOPLE)) {
     const existingUsers = await prisma.user.findMany({
       where: {
-        OR: [{ email: person.email }, { buid: person.buid }],
+        OR: [{ email: person.email }, { externalId: person.externalId }],
       },
     });
     const userByEmail = existingUsers.find((user) => user.email === person.email);
-    const userByBuid = existingUsers.find((user) => user.buid === person.buid);
-    const existingUser = userByEmail ?? userByBuid;
-    const buidBelongsToAnotherUser = Boolean(userByEmail && userByBuid && userByEmail.id !== userByBuid.id);
+    const userByExternalId = existingUsers.find((user) => user.externalId === person.externalId);
+    const existingUser = userByEmail ?? userByExternalId;
+    const externalIdBelongsToAnotherUser = Boolean(
+      userByEmail && userByExternalId && userByEmail.id !== userByExternalId.id
+    );
     const userData = {
       email: person.email,
       name: person.name,
@@ -613,13 +615,13 @@ async function upsertPeople() {
       raceEthnicity: person.raceEthnicity,
       parentalEducation: person.parentalEducation,
       pellGrantQualified: person.pellGrantQualified,
-      ...(buidBelongsToAnotherUser ? {} : { buid: person.buid }),
+      ...(externalIdBelongsToAnotherUser ? {} : { externalId: person.externalId }),
     };
 
-    if (buidBelongsToAnotherUser) {
+    if (externalIdBelongsToAnotherUser) {
       console.warn(
-        `[seed] ${key}: email ${person.email} and BUID ${person.buid} belong to different users; ` +
-          `keeping existing email user ${userByEmail.id} and leaving BUID owner ${userByBuid.id} unchanged.`
+        `[seed] ${key}: email ${person.email} and ID ${person.externalId} belong to different users; ` +
+          `keeping existing email user ${userByEmail.id} and leaving ID owner ${userByExternalId.id} unchanged.`
       );
     }
 
@@ -629,7 +631,7 @@ async function upsertPeople() {
           data: userData,
         })
       : await prisma.user.create({
-          data: { ...userData, buid: person.buid },
+          data: { ...userData, externalId: person.externalId },
         });
 
     await prisma.avatarSetting.upsert({

@@ -87,7 +87,7 @@ describe('QR API', () => {
       id: studentId,
       email: 'student@example.edu',
       name: 'Student Example',
-      buid: null,
+      externalId: null,
       avatar: null,
     });
     mockSyncLessonBadgesForStudent.mockResolvedValue({ readyForAssessment: false });
@@ -191,7 +191,7 @@ describe('QR API', () => {
       id: 'other-student',
       email: 'other@example.edu',
       name: 'Other Student',
-      buid: null,
+      externalId: null,
       avatar: null,
     });
     const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(payload)}`)));

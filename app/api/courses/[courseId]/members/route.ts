@@ -8,7 +8,7 @@ type MemberInput = {
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
-  buid?: string | null;
+  externalId?: string | null;
   sections?: string[] | string | null;
 };
 
@@ -54,56 +54,57 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
       const firstName = normalize(member.firstName);
       const lastName = normalize(member.lastName);
       const email = normalize(member.email)?.toLowerCase() ?? null;
-      const buid = normalize(member.buid);
+      const externalId = normalize(member.externalId);
       const sections = parseSections(member.sections);
-      return { name: [firstName, lastName].filter(Boolean).join(' ') || null, email, buid, sections };
+      return { name: [firstName, lastName].filter(Boolean).join(' ') || null, email, externalId, sections };
     });
 
     if (members.length === 0) {
       return NextResponse.json({ error: 'Add at least one roster member.' }, { status: 400 });
     }
-    if (members.some((member) => !member.email && !member.buid)) {
-      return NextResponse.json({ error: 'Every roster member must include an email or BUID.' }, { status: 400 });
+    if (members.some((member) => !member.email && !member.externalId)) {
+      return NextResponse.json({ error: 'Every roster member must include an email or ID.' }, { status: 400 });
     }
     if (role === CourseRole.STUDENT && members.some((member) => member.sections.length > 1)) {
       return NextResponse.json({ error: 'Students can only belong to one section.' }, { status: 400 });
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const buids = members.map((member) => member.buid).filter((value): value is string => Boolean(value));
+      const externalIds = members.map((member) => member.externalId).filter((value): value is string => Boolean(value));
       const emails = members.map((member) => member.email).filter((value): value is string => Boolean(value));
       let users = await tx.user.findMany({
         where: {
           OR: [
-            ...(buids.length ? [{ buid: { in: buids } }] : []),
+            ...(externalIds.length ? [{ externalId: { in: externalIds } }] : []),
             ...(emails.length ? [{ email: { in: emails } }] : []),
           ],
         },
       });
-      const byBuid = new Map(users.filter((user) => user.buid).map((user) => [user.buid!, user]));
+      const byExternalId = new Map(users.filter((user) => user.externalId).map((user) => [user.externalId!, user]));
       const byEmail = new Map(users.filter((user) => user.email).map((user) => [user.email!.toLowerCase(), user]));
       const resolveUser = (member: (typeof members)[number]) =>
-        (member.buid ? byBuid.get(member.buid) : undefined) ?? (member.email ? byEmail.get(member.email) : undefined);
+        (member.externalId ? byExternalId.get(member.externalId) : undefined) ??
+        (member.email ? byEmail.get(member.email) : undefined);
 
       const newUsers = members
         .filter((member) => !resolveUser(member))
         .filter((member, index, entries) => {
-          const key = member.buid || member.email;
-          return entries.findIndex((candidate) => (candidate.buid || candidate.email) === key) === index;
+          const key = member.externalId || member.email;
+          return entries.findIndex((candidate) => (candidate.externalId || candidate.email) === key) === index;
         })
-        .map(({ name, email, buid }) => ({ name, email, buid }));
+        .map(({ name, email, externalId }) => ({ name, email, externalId }));
       if (newUsers.length) {
         await tx.user.createMany({ data: newUsers, skipDuplicates: true });
         users = await tx.user.findMany({
           where: {
             OR: [
-              ...(buids.length ? [{ buid: { in: buids } }] : []),
+              ...(externalIds.length ? [{ externalId: { in: externalIds } }] : []),
               ...(emails.length ? [{ email: { in: emails } }] : []),
             ],
           },
         });
         for (const user of users) {
-          if (user.buid) byBuid.set(user.buid, user);
+          if (user.externalId) byExternalId.set(user.externalId, user);
           if (user.email) byEmail.set(user.email.toLowerCase(), user);
         }
       }
@@ -166,7 +167,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
   } catch (error) {
     console.error('POST /api/courses/[courseId]/members failed:', error);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return NextResponse.json({ error: 'A roster member has a conflicting email or BUID.' }, { status: 409 });
+      return NextResponse.json({ error: 'A roster member has a conflicting email or ID.' }, { status: 409 });
     }
     const message = error instanceof Error ? error.message : 'Unable to add roster members.';
     const status = message.includes('different role') || message.includes('instructor cannot') ? 409 : 500;

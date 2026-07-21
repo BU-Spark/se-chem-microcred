@@ -12,7 +12,7 @@ export interface StudentData {
     id: string;
     name: string | null;
     email: string;
-    buid: string | null;
+    externalId: string | null;
     gender: string | null;
     raceEthnicity: string | null;
     parentalEducation: string | null;

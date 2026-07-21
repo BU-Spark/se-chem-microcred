@@ -11,7 +11,7 @@ type StudentProfileCardProps = {
   roleLabel?: string;
   createdAt?: string;
   email?: string | null;
-  buid?: string | null;
+  externalId?: string | null;
   avatarSrc?: ImageProps['src'] | null;
   avatarAlt: string;
   avatarFallback: string;
@@ -34,7 +34,7 @@ export default function StudentProfileCard({
   roleLabel,
   createdAt,
   email,
-  buid,
+  externalId,
   avatarSrc,
   avatarAlt,
   avatarFallback,
@@ -74,8 +74,8 @@ export default function StudentProfileCard({
               <span className={styles.detailValue}>{email || 'Not provided'}</span>
             </div>
             <div className={styles.detailItem}>
-              <span className={styles.detailLabel}>BUID:</span>
-              <span className={styles.detailValue}>{buid || 'Not provided'}</span>
+              <span className={styles.detailLabel}>ID:</span>
+              <span className={styles.detailValue}>{externalId || 'Not provided'}</span>
             </div>
           </div>
         </div>

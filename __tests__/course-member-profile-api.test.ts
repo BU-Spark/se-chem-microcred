@@ -68,7 +68,7 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
       id: 'prof-1',
       name: 'Professor Demo',
       email: 'prof@example.edu',
-      buid: 'P111',
+      externalId: 'P111',
     },
     contacts: [],
     lessons: [
@@ -112,7 +112,7 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
           id: 'prof-1',
           name: 'Professor Demo',
           email: 'prof@example.edu',
-          buid: 'P111',
+          externalId: 'P111',
           gender: null,
           raceEthnicity: null,
           parentalEducation: null,
@@ -131,7 +131,7 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
           id: 'student-1',
           name: 'Jane Student',
           email: 'student@example.edu',
-          buid: 'U11111111',
+          externalId: 'U11111111',
           gender: null,
           raceEthnicity: null,
           parentalEducation: null,
@@ -170,7 +170,7 @@ describe('course member profile API badge grouping', () => {
       id: 'prof-1',
       email: 'prof@example.edu',
       name: 'Professor Demo',
-      buid: 'P111',
+      externalId: 'P111',
       avatar: null,
     });
   });

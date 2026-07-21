@@ -47,7 +47,7 @@ type InstructorMemberProfileResponse = {
     id: string;
     name: string | null;
     email: string | null;
-    buid: string | null;
+    externalId: string | null;
     gender: string | null;
     raceEthnicity: string | null;
     parentalEducation: string | null;
@@ -67,7 +67,7 @@ type InstructorMemberProfileResponse = {
       id: string;
       name: string | null;
       email: string | null;
-      buid: string | null;
+      externalId: string | null;
     } | null;
   };
   contacts: Contact[];
@@ -486,7 +486,7 @@ export default function InstructorStudentProfilePage() {
                 roleLabel={currentProfileLabel}
                 createdAt={`Date Created: ${formatDate(data.member.createdAt)}`}
                 email={data.member.email}
-                buid={data.member.buid}
+                externalId={data.member.externalId}
                 avatarSrc={data.member.avatar ? memberAvatarSrc : null}
                 avatarAlt={`${currentProfileLabel} avatar`}
                 avatarFallback={initialsFromName(data.member.name)}

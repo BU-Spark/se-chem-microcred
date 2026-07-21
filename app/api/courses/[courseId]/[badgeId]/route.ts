@@ -195,7 +195,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           id: enrollment.student.id,
           name: enrollment.student.name,
           email: enrollment.student.email,
-          buid: enrollment.student.buid,
+          externalId: enrollment.student.externalId,
           badgeProgress: enrollment.student.badgeProgress,
         },
         progress: progress

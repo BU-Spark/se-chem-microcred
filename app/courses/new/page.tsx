@@ -28,7 +28,7 @@ const STEP_REVIEW = 4;
 type RosterRow = {
   lastName: string;
   firstName: string;
-  buid: string;
+  externalId: string;
   email: string;
   sections: string[] | null;
 };
@@ -36,7 +36,7 @@ type RosterRow = {
 interface Person {
   name: string;
   email: string;
-  buid: string | null;
+  externalId: string | null;
   sections: string[] | null;
 }
 
@@ -87,7 +87,7 @@ type EditableCourseResponse = {
         id: string;
         name: string;
         email: string;
-        buid: string;
+        externalId: string;
       };
     }>;
   };
@@ -116,7 +116,7 @@ function toRosterRow(person: Person): RosterRow {
   return {
     firstName,
     lastName,
-    buid: person.buid?.trim() ?? '',
+    externalId: person.externalId?.trim() ?? '',
     email: person.email.trim(),
     sections: person.sections,
   };
@@ -129,11 +129,11 @@ function parseSections(sectionValue?: string | null): string[] {
     .filter(Boolean);
 }
 
-// Stable identity for a roster row: prefer email, fall back to BUID, then name.
+// Stable identity for a roster row: prefer email, fall back to ID, then name.
 // Used to dedupe on CSV upload so re-uploading (or uploading in edit mode) never
 // creates duplicate enrollments for the same person.
 function rosterKey(row: RosterRow): string {
-  return row.email.trim().toLowerCase() || row.buid.trim() || `${row.firstName.trim()}|${row.lastName.trim()}`;
+  return row.email.trim().toLowerCase() || row.externalId.trim() || `${row.firstName.trim()}|${row.lastName.trim()}`;
 }
 
 // Append incoming rows to the existing roster instead of replacing it. If a person
@@ -161,15 +161,15 @@ function mergeAssessorRows(rows: RosterRow[]) {
   return Array.from(
     rows.reduce((map, row) => {
       const email = row.email.trim().toLowerCase();
-      const buid = row.buid.trim();
-      const key = email || buid || `${row.firstName.trim()}|${row.lastName.trim()}`;
+      const externalId = row.externalId.trim();
+      const key = email || externalId || `${row.firstName.trim()}|${row.lastName.trim()}`;
       const existing = map.get(key);
 
       if (!existing) {
         map.set(key, {
           ...row,
           email,
-          buid,
+          externalId,
           sections: Array.from(new Set(row.sections ?? [])),
         });
         return map;
@@ -304,7 +304,7 @@ export default function CourseNewPage() {
             toRosterRow({
               name: enrollment.student.name,
               email: enrollment.student.email,
-              buid: enrollment.student.buid,
+              externalId: enrollment.student.externalId,
               sections: enrollment.sections,
             })
           )
@@ -315,7 +315,7 @@ export default function CourseNewPage() {
                 toRosterRow({
                   name: enrollment.student.name,
                   email: enrollment.student.email,
-                  buid: enrollment.student.buid,
+                  externalId: enrollment.student.externalId,
                   sections: enrollment.sections,
                 })
               )
@@ -325,7 +325,7 @@ export default function CourseNewPage() {
                   toRosterRow({
                     name: contact.name,
                     email: contact.email,
-                    buid: null,
+                    externalId: null,
                     sections: [],
                   })
                 )
@@ -366,23 +366,23 @@ export default function CourseNewPage() {
     }
   };
 
-  // The same person (by email or BUID) can't be both a student and an assessor in one
+  // The same person (by email or ID) can't be both a student and an assessor in one
   // course (one enrollment per person per course). Catch it here with a clear message
   // instead of letting the server reject it with a cryptic error.
   const findRosterRoleConflict = () => {
     const studentKeys = new Map<string, string>();
     for (const student of studentRows) {
-      const label = `${student.firstName} ${student.lastName}`.trim() || student.email || student.buid;
-      for (const key of [student.email.trim().toLowerCase(), student.buid.trim()].filter(Boolean)) {
+      const label = `${student.firstName} ${student.lastName}`.trim() || student.email || student.externalId;
+      for (const key of [student.email.trim().toLowerCase(), student.externalId.trim()].filter(Boolean)) {
         studentKeys.set(key, label);
       }
     }
 
     const conflicts = new Set<string>();
     for (const assessor of assessorRows) {
-      const keys = [assessor.email.trim().toLowerCase(), assessor.buid.trim()].filter(Boolean);
+      const keys = [assessor.email.trim().toLowerCase(), assessor.externalId.trim()].filter(Boolean);
       if (keys.some((key) => studentKeys.has(key))) {
-        conflicts.add(`${assessor.firstName} ${assessor.lastName}`.trim() || assessor.email || assessor.buid);
+        conflicts.add(`${assessor.firstName} ${assessor.lastName}`.trim() || assessor.email || assessor.externalId);
       }
     }
 
@@ -486,18 +486,26 @@ export default function CourseNewPage() {
 
     const lastNameIndex = headers.findIndex((h) => h.toLowerCase() === 'lastname');
     const firstNameIndex = headers.findIndex((h) => h.toLowerCase() === 'firstname');
-    const buidIndex = headers.findIndex((h) => h.toLowerCase() === 'buid');
+    // The ID column may be named anything containing "id" (BUID, Student ID, ID, …).
+    const externalIdIndex = headers.findIndex((h) =>
+      h
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .includes('id')
+    );
     const emailIndex = headers.findIndex((h) => h.toLowerCase() === 'email');
     const sectionsIndex = headers.findIndex((h) => h.toLowerCase() === 'sections' || h.toLowerCase() === 'section');
 
     if (
       lastNameIndex === -1 ||
       firstNameIndex === -1 ||
-      buidIndex === -1 ||
+      externalIdIndex === -1 ||
       emailIndex === -1 ||
       sectionsIndex === -1
     ) {
-      throw new Error('CSV must contain headers: lastName, firstName, buid, email, sections');
+      throw new Error(
+        'CSV must contain headers: lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections'
+      );
     }
 
     return lines.slice(1).map((line) => {
@@ -506,7 +514,7 @@ export default function CourseNewPage() {
       return {
         lastName: cols[lastNameIndex] || '',
         firstName: cols[firstNameIndex] || '',
-        buid: cols[buidIndex] || '',
+        externalId: cols[externalIdIndex] || '',
         email: cols[emailIndex] || '',
         sections: parseSections(cols[sectionsIndex]),
       };
@@ -537,14 +545,14 @@ export default function CourseNewPage() {
         ...studentRows.map((student) => ({
           email: student.email.trim().toLowerCase(),
           name: `${student.firstName} ${student.lastName}`.trim(),
-          buid: student.buid || null,
+          externalId: student.externalId || null,
           role: CourseRole.STUDENT,
           sections: student.sections ?? [],
         })),
         ...assessorRows.map((assessor) => ({
           email: assessor.email.trim().toLowerCase(),
           name: `${assessor.firstName} ${assessor.lastName}`.trim(),
-          buid: assessor.buid || null,
+          externalId: assessor.externalId || null,
           role: CourseRole.CHECKER,
           sections: assessor.sections ?? [],
         })),
@@ -800,7 +808,7 @@ export default function CourseNewPage() {
                       <tr>
                         <th>Last Name</th>
                         <th>First Name</th>
-                        <th>BUID Number</th>
+                        <th>ID Number</th>
                         <th>Email</th>
                         <th>Sections</th>
                       </tr>
@@ -815,7 +823,7 @@ export default function CourseNewPage() {
                           <tr key={index}>
                             <td>{student.lastName}</td>
                             <td>{student.firstName}</td>
-                            <td>{student.buid}</td>
+                            <td>{student.externalId}</td>
                             <td>{student.email}</td>
                             <td>
                               <select
@@ -910,7 +918,7 @@ export default function CourseNewPage() {
                         <tr>
                           <th>Last Name</th>
                           <th>First Name</th>
-                          <th>BUID Number</th>
+                          <th>ID Number</th>
                           <th>Email</th>
                           <th>Section</th>
                         </tr>
@@ -925,7 +933,7 @@ export default function CourseNewPage() {
                             <tr key={index}>
                               <td>{assessor.lastName}</td>
                               <td>{assessor.firstName}</td>
-                              <td>{assessor.buid}</td>
+                              <td>{assessor.externalId}</td>
                               <td>{assessor.email}</td>
                               <td>
                                 <select
@@ -1156,7 +1164,9 @@ export default function CourseNewPage() {
               ) : (
                 <>
                   <p className={styles.uploadWarningText}>
-                    Use the headers <strong>lastName, firstName, buid, email, sections</strong>. <br />
+                    Use the headers{' '}
+                    <strong>lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections</strong>.{' '}
+                    <br />
                     For multiple sections, separate them with <strong>|</strong>
                   </p>
                 </>

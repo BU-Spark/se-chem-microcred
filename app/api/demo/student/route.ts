@@ -737,7 +737,7 @@ export async function GET(req: Request) {
       id: student.id,
       name: student.name,
       email: student.email,
-      buid: student.buid,
+      externalId: student.externalId,
       gender: student.gender,
       raceEthnicity: student.raceEthnicity,
       parentalEducation: student.parentalEducation,

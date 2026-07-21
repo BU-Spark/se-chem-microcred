@@ -215,7 +215,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           id: member.id,
           name: member.name,
           email: member.email,
-          buid: member.buid,
+          externalId: member.externalId,
           gender: member.gender,
           raceEthnicity: member.raceEthnicity,
           parentalEducation: member.parentalEducation,
@@ -238,7 +238,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
                 id: course.createdBy.id,
                 name: course.createdBy.name,
                 email: course.createdBy.email,
-                buid: course.createdBy.buid,
+                externalId: course.createdBy.externalId,
               }
             : null,
         },
