@@ -4,10 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
+import { isInstructor } from '@/lib/roles';
 
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-
-import BackButton from '@/app/_components/BackButton';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import BackButton from '@/app/components/BackButton/BackButton';
 import styles from './page.module.css';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED' | 'NOT_STARTED';
@@ -242,7 +242,7 @@ export default function CourseBadgeProgress() {
   const course = data?.course ?? null;
   const summary = data?.summary ?? null;
   const assessment = data?.assessment ?? null;
-  const isInstructor = data?.viewerRole === 'INSTRUCTOR';
+  const isInstructorFlag = isInstructor(data?.viewerRole);
   const displayName = course?.createdBy?.name || user?.fullName || '';
 
   // Progress breakdown bars driven by the real summary percentages.
@@ -423,7 +423,7 @@ export default function CourseBadgeProgress() {
                           Length: <strong>{videoLength}</strong>
                         </p>
                       </div>
-                      {isInstructor ? (
+                      {isInstructorFlag ? (
                         <button
                           type="button"
                           className={styles.editButton}

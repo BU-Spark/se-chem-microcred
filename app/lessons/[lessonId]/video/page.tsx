@@ -7,7 +7,7 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 
 function buildAvatarUrlFromAvatar(
   avatar?: { base: string; face: string; accessory: string | null } | null

@@ -7,7 +7,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal';
 import styles from './page.module.css';
 import { toTitleCase } from '@/lib/utils';

@@ -7,8 +7,8 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import { useBadgesCatalog, type BadgeCatalogItem } from '@/app/hooks/useBadgesCatalog';
-import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
-import YoutubeThumbnail from '@/app/_components/YoutubeThumbnail';
+import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
 import BadgeToken from '@/app/components/BadgeToken';
 import styles from './page.module.css';
 
