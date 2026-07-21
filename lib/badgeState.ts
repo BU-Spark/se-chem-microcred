@@ -43,9 +43,15 @@ export type FailAcknowledgeResult = {
 export function resolveFailAcknowledge(
   failedAttempts: number,
   policy: EffectiveBadgePolicy,
-  now: Date = new Date()
+  now: Date = new Date(),
+  options: { alphaMode?: boolean } = {}
 ): FailAcknowledgeResult {
-  if (isLockedOut(failedAttempts, policy)) {
+  // Alpha hotfix: while ALPHA_MODE is on, the terminal LOCKED state is suppressed
+  // so a student who exceeds the reassessment limit stays retryable (still gated by
+  // the normal cooldown below). Passed in by the caller from isAlphaMode() to keep
+  // this module env-free and testable. Remove once the permanent fixes land
+  // (default reassessment limit of 3 + instructor override of the locked state).
+  if (!options.alphaMode && isLockedOut(failedAttempts, policy)) {
     return { status: BadgeStatus.LOCKED, cooldownUntil: null };
   }
   return {
