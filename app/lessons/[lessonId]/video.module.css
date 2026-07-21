@@ -7,36 +7,18 @@
 /* ===== Page main content (under global header) ===== */
 
 .content {
-  width: min(1480px, 100%);
-  margin: 1.75rem auto 0;
-  display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
-  gap: 2rem;
-  padding: 0 2rem 3rem;
-  align-items: flex-start;
-  position: relative;
-}
-
-/* ===== Timeline (left) ===== */
-
-.timeline {
+  width: 100%;
+  margin: 1.75rem 0 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 1rem;
+  gap: 1.25rem;
+  padding: 0 1.5rem 3rem;
+  align-items: stretch;
   position: relative;
-  padding: 1.5rem 0.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  background: #ffffff;
-  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
-  /* Align the checkpoint panel with the video frame, below the title row. */
-  margin-top: calc(clamp(2.4rem, 4.1vw, 3.6rem) + 1.25rem);
 }
 
 .backButton {
   position: static;
-  grid-column: 1 / -1;
   justify-self: start;
   display: inline-flex;
   align-items: center;
@@ -70,75 +52,6 @@
   width: 20px;
   height: 20px;
   flex-shrink: 0;
-}
-
-.timeline::before {
-  content: '';
-  position: absolute;
-  top: 2rem;
-  bottom: 2rem;
-  width: 2px;
-  background: #cbd5e1;
-  border-radius: 999px;
-}
-
-.timelineItem {
-  position: relative;
-  width: 120px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.4rem;
-  z-index: 1;
-}
-
-.timelineCheckpoint {
-  width: 34px;
-  height: 34px;
-  border-radius: 50%;
-  background: #ffffff;
-  border: 3px solid #7da7d2;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
-  display: grid;
-  place-items: center;
-  color: #1f5fab;
-  font-size: 0.85rem;
-  font-weight: 800;
-}
-
-.timelineCheckpointCompleted {
-  background: #22c55e;
-  border-color: #16a34a;
-  color: #ffffff;
-  font-size: 1.35rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.timelineCheckpointFailed {
-  border-color: #dc2626;
-  background: #ef4444;
-  color: #ffffff;
-  font-size: 1.35rem;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.timelineCheckpointActive {
-  border-color: #1f5fab;
-  box-shadow: 0 0 0 5px rgba(31, 95, 171, 0.14);
-}
-
-.timelineLabel {
-  max-width: 120px;
-  padding: 0.2rem 0.45rem;
-  border-radius: 6px;
-  background: #ffffff;
-  color: #475569;
-  font-size: 0.78rem;
-  font-weight: 700;
-  line-height: 1.25;
-  text-align: center;
 }
 
 /* ===== Right column: header + video + extras ===== */
@@ -192,25 +105,62 @@
 
 /* ===== YouTube player ===== */
 
+/* ===== Stage: video + optional side question panel ===== */
+
+.stage {
+  display: flex;
+  gap: 1.5rem;
+  align-items: flex-start;
+  width: 100%;
+}
+
+/* While no question is showing, inset the video a little so it isn't edge-to-edge. */
+.stage[data-question='false'] {
+  padding: 1.5rem;
+}
+
 /* Sharp-edged, Figma-size video window */
 .videoWrapper {
   position: relative;
   background: #000000;
 
-  /* Figma size, but fluid */
-  width: 100%;
+  /* Fills the stage width when the question panel is hidden. */
+  flex: 1 1 auto;
+  min-width: 0;
   max-width: none;
   aspect-ratio: 16 / 9;
   height: auto;
 
   border-radius: 18px;
   overflow: hidden;
-  margin: 0 auto;
-  /* center in the main column */
-  margin-top: 0;
 
   /* optional: soften shadow or remove if Figma has none */
   box-shadow: 0 20px 48px rgba(15, 23, 42, 0.2);
+}
+
+/* When a checkpoint question is open, shrink the video to ~half and let the
+   question panel take the other half beside it (video stays visible, paused). */
+.stage[data-question='true'] .videoWrapper {
+  flex: 2 1 0;
+}
+
+/* ===== Question side panel (checkpoint question / result) ===== */
+
+.questionPanel {
+  flex: 1 1 0;
+  min-width: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 18px;
+  padding: 1.75rem 2rem;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.12);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  text-align: center;
 }
 
 /* disable old 16:9 padding hack */
@@ -241,6 +191,13 @@
   height: 100%;
   border: 0;
   pointer-events: auto;
+}
+
+/* While a question/result is showing, block clicks from reaching the YouTube
+   iframe so the student can't play/pause it out of sync with the question. */
+.stage[data-question='true'] .youtubeFrame,
+.stage[data-question='true'] .videoWrapper :global(iframe) {
+  pointer-events: none;
 }
 
 /* Hide share button overlay */
@@ -550,6 +507,14 @@
 .qevBarHidden {
   opacity: 0;
   pointer-events: none;
+}
+
+/* While a checkpoint question/result is showing, the player is locked: no
+   scrubbing, play/pause, volume, or rewind. The only ways forward are answering
+   the question or hitting Rewatch in the side panel. */
+.qevBarLocked {
+  pointer-events: none;
+  opacity: 0.5;
 }
 
 .qevTopRow {
@@ -1262,25 +1227,17 @@
 
 @media (max-width: 960px) {
   .content {
-    grid-template-columns: 1fr;
     padding: 1.5rem 1.5rem 3rem;
     gap: 1.75rem;
   }
 
-  .timeline {
-    flex-direction: row;
-    justify-content: flex-start;
-    overflow-x: auto;
-    padding-top: 0;
-    margin-top: 0;
+  /* Stack the question panel below the full-width video instead of squeezing it. */
+  .stage {
+    flex-direction: column;
   }
 
-  .timeline::before {
-    display: none;
-  }
-
-  .timelineItem {
-    flex: 0 0 110px;
+  .stage[data-question='true'] .videoWrapper {
+    flex: 1 1 auto;
   }
 
   .videoHeader {
