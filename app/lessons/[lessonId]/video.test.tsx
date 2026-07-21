@@ -93,24 +93,21 @@ describe('LessonVideoPage', () => {
     global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({}) }) as unknown as typeof fetch;
   });
 
-  it('does not mark an incorrectly answered checkpoint as completed', () => {
+  it('renders the lesson title and current video segment', () => {
     render(
       <LessonVideoPage
-        lesson={buildLesson({
-          completedCheckpointIds: [],
-          answeredCheckpointIds: ['checkpoint-1'],
-        })}
+        lesson={buildLesson()}
         studentEmail="student@example.edu"
         studentId="student-1"
         resumeRequested={false}
       />
     );
 
-    expect(screen.queryByText('✓')).not.toBeInTheDocument();
-    expect(screen.getByText('×')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Safety Lesson' })).toBeInTheDocument();
+    expect(screen.getByText('Segment 1')).toBeInTheDocument();
   });
 
-  it('marks a successfully completed checkpoint with a checkmark', () => {
+  it('no longer renders the removed checkpoint timeline rail (issue #193)', () => {
     render(
       <LessonVideoPage
         lesson={buildLesson({
@@ -123,6 +120,8 @@ describe('LessonVideoPage', () => {
       />
     );
 
-    expect(screen.getByText('✓')).toBeInTheDocument();
+    // The old left rail rendered per-checkpoint ✓ / × status glyphs; it was removed.
+    expect(screen.queryByText('✓')).not.toBeInTheDocument();
+    expect(screen.queryByText('×')).not.toBeInTheDocument();
   });
 });
