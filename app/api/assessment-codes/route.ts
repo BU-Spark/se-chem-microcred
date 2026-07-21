@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '@/lib/badgeProgress';
+import { isCoolingDown } from '@/lib/badgeState';
 import prisma from '@/lib/prisma';
 
 const CODE_TTL_MS = 30 * 60 * 1000;
@@ -128,7 +129,7 @@ export async function POST(req: NextRequest) {
           badgeId,
         },
       },
-      select: { status: true },
+      select: { status: true, cooldownUntil: true },
     });
 
     if (!studentBadge) {
@@ -137,6 +138,11 @@ export async function POST(req: NextRequest) {
 
     if (studentBadge.status !== BadgeStatus.READY_FOR_ASSESSMENT) {
       return NextResponse.json({ error: 'Badge is not ready for assessment.' }, { status: 409 });
+    }
+
+    // Reassessment is gated by the cooldown window: block while now < cooldownUntil.
+    if (isCoolingDown(studentBadge.cooldownUntil)) {
+      return NextResponse.json({ error: 'Badge is in its reassessment cooldown period.' }, { status: 409 });
     }
 
     const now = new Date();

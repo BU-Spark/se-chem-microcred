@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import QRCode from 'qrcode';
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '@/lib/badgeProgress';
+import { isCoolingDown } from '@/lib/badgeState';
 import { getPublicOrigin } from '@/lib/requestOrigin';
 import prisma from '../../../lib/prisma';
 
@@ -172,7 +173,7 @@ async function authorizeStudentBadge(payload: StudentBadgePayload) {
         badgeId: payload.badgeId,
       },
     },
-    select: { id: true, status: true },
+    select: { id: true, status: true, cooldownUntil: true },
   });
 
   if (!ownsBadge) {
@@ -181,6 +182,11 @@ async function authorizeStudentBadge(payload: StudentBadgePayload) {
 
   if (payload.courseId && ownsBadge.status !== BadgeStatus.READY_FOR_ASSESSMENT) {
     return NextResponse.json({ error: 'Badge is not ready for assessment.' }, { status: 409 });
+  }
+
+  // Reassessment is gated by the cooldown window: block while now < cooldownUntil.
+  if (payload.courseId && isCoolingDown(ownsBadge.cooldownUntil)) {
+    return NextResponse.json({ error: 'Badge is in its reassessment cooldown period.' }, { status: 409 });
   }
 
   return null;

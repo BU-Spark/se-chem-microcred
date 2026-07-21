@@ -50,6 +50,69 @@ export default function BadgeInfoStep({
           placeholder="Describe what students will learn and demonstrate."
         />
       </div>
+      <div className={styles.badgeInfoField}>
+        <label className={styles.sectionLabel} htmlFor="reassessment-limit">
+          Re-assessment Limit
+        </label>
+        <p className={styles.fieldHelp}>How many attempts after the initial in-person assessment are allowed.</p>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          step={1}
+          name="reassessment-limit"
+          id="reassessment-limit"
+          className={styles.underlineInput}
+          value={draft.reassessmentLimit}
+          onChange={(event) => updateDraft('reassessmentLimit', clampInt(event.target.value, 0))}
+          placeholder="0"
+        />
+      </div>
+      <div className={styles.badgeInfoField}>
+        <label className={styles.sectionLabel} htmlFor="cooldown-length">
+          Cooldown Duration (days)
+        </label>
+        <p className={styles.fieldHelp}>
+          How long the cooldown period is, in days, between in-person assessments (0–14).
+        </p>
+        <input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          max={14}
+          step={1}
+          name="cooldown-length"
+          id="cooldown-length"
+          className={styles.underlineInput}
+          value={draft.cooldownDays}
+          onChange={(event) => updateDraft('cooldownDays', clampInt(event.target.value, 0, 14))}
+          placeholder="0"
+        />
+      </div>
+      <div className={styles.badgeInfoField}>
+        <label className={styles.checkboxRow} htmlFor="reassessment-required">
+          <input
+            type="checkbox"
+            name="reassessment-required"
+            id="reassessment-required"
+            checked={draft.reassessmentRequired}
+            onChange={(event) => updateDraft('reassessmentRequired', event.target.checked)}
+          />
+          <span className={styles.sectionLabel}>Re-assessment Required</span>
+        </label>
+        <p className={styles.fieldHelp}>
+          Check if a re-assessment is required when a student fails an in-person assessment.
+        </p>
+      </div>
     </div>
   );
+}
+
+// Coerce a numeric-input string to a clamped integer, treating blank/invalid input
+// as the low bound so the draft never stores NaN.
+function clampInt(raw: string, min: number, max?: number) {
+  const parsed = Number.parseInt(raw, 10);
+  const value = Number.isNaN(parsed) ? min : parsed;
+  const lowered = Math.max(min, value);
+  return max === undefined ? lowered : Math.min(max, lowered);
 }

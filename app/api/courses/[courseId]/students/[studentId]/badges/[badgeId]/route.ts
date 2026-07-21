@@ -4,6 +4,7 @@ import { currentUser } from '@clerk/nextjs/server';
 
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import { normalizeCheckpointQuestion, type NormalizedCheckpointQuestion } from '@/lib/checkpointQuestions';
+import { resolveEffectiveBadgePolicy } from '@/lib/badgePolicy';
 import prisma from '@/lib/prisma';
 
 function normalizeEmail(email?: string | null) {
@@ -313,6 +314,8 @@ export async function GET(
                   },
                 },
                 attempts: {
+                  // Instructor view: include ALL runs (archived failed runs too),
+                  // grouped by lessonAttemptId into "Attempt N" further below.
                   where: {
                     userId: studentId,
                   },
@@ -324,6 +327,7 @@ export async function GET(
                     createdAt: true,
                     completedAt: true,
                     isPassing: true,
+                    lessonAttemptId: true,
                     responses: {
                       orderBy: {
                         createdAt: 'asc',
@@ -374,12 +378,20 @@ export async function GET(
                     reassessmentLimit: true,
                     cooldownDays: true,
                     reassessmentRequired: true,
+                    qevPassedAt: true,
+                    cooldownUntil: true,
+                    feedbackReviewedAt: true,
                     badge: {
                       select: {
                         id: true,
                         slug: true,
                         name: true,
                         description: true,
+                        // Badge-level policy defaults; the effective policy for this
+                        // student resolves overrides against them (lib/badgePolicy).
+                        reassessmentLimit: true,
+                        cooldownDays: true,
+                        reassessmentRequired: true,
                       },
                     },
                   },
@@ -461,9 +473,11 @@ export async function GET(
     const precheckComplete = badgeProgress.status !== 'LEARNING';
     const latestPassingAssessment = [...assessmentAttempts].reverse().find((attempt) => attempt.passed);
     const latestAssessment = assessmentAttempts.at(-1) ?? null;
+    // IN_REVIEW covers both the pass-pending-acknowledge and fail-pending-acknowledge
+    // states; a passing attempt (or COMPLETED) is what marks the assessment done.
     const assessmentComplete =
       badgeProgress.status === 'COMPLETED' ||
-      badgeProgress.status === 'READY_FOR_FINALIZATION' ||
+      (badgeProgress.status === 'IN_REVIEW' && Boolean(latestPassingAssessment)) ||
       Boolean(latestPassingAssessment);
     const percentComplete =
       totalCheckpoints === 0
@@ -527,6 +541,115 @@ export async function GET(
       }))
     );
 
+    // Precheck (QEV) attempt history, grouped run-by-run like the in-person
+    // assessment attempts. Each graded watch-through is a LessonAttempt; a trailing
+    // "in progress" run collects any answers not yet graded (lessonAttemptId null).
+    const lessonAttemptRecords = await prisma.lessonAttempt.findMany({
+      where: { studentId, lessonId: { in: course.lessons.map((lesson) => lesson.id) } },
+      orderBy: { createdAt: 'asc' },
+      select: {
+        id: true,
+        lessonId: true,
+        passed: true,
+        gradePercent: true,
+        correctAnswers: true,
+        totalQuestions: true,
+        completedAt: true,
+      },
+    });
+
+    type QevRunView = {
+      id: string;
+      label: string;
+      lessonTitle: string;
+      passed: boolean | null;
+      gradePercent: number | null;
+      correctAnswers: number | null;
+      totalQuestions: number | null;
+      completedAt: string | null;
+      inProgress: boolean;
+      checkpoints: Array<{
+        id: string;
+        title: string;
+        timeCompleted: string | null;
+        questions: Array<{
+          id: string;
+          title: string;
+          prompt: string | null;
+          answers: Array<{ answeredText: string; isCorrect: boolean | null }>;
+        }>;
+      }>;
+    };
+
+    const qevAttempts: QevRunView[] = course.lessons.flatMap((lesson) => {
+      const buildRunCheckpoints = (runId: string | null) =>
+        lesson.checkpoints
+          .map((checkpoint) => {
+            const runAttempts = checkpoint.attempts.filter((attempt) => attempt.lessonAttemptId === runId);
+            if (runAttempts.length === 0) return null;
+            const latestCompletedAt = runAttempts
+              .map((attempt) => attempt.completedAt)
+              .filter((value): value is Date => Boolean(value))
+              .sort((a, b) => a.getTime() - b.getTime())
+              .at(-1);
+            const questions = checkpoint.questions
+              .map((question, questionIndex) => {
+                const normalizedQuestion = normalizeCheckpointQuestion(question);
+                const answers = runAttempts
+                  .map((attempt) => {
+                    const response = attempt.responses.find((entry) => entry.questionId === question.id);
+                    if (!response) return null;
+                    return {
+                      answeredText: answerTextFromResponse(normalizedQuestion, response),
+                      isCorrect: response.isCorrect,
+                    };
+                  })
+                  .filter((entry): entry is { answeredText: string; isCorrect: boolean | null } => Boolean(entry));
+                return { id: question.id, title: `Question ${questionIndex + 1}`, prompt: question.prompt, answers };
+              })
+              .filter((question) => question.answers.length > 0);
+            return {
+              id: checkpoint.id,
+              title: formatCheckpointLabel(checkpoint.label, checkpoint.sortOrder),
+              timeCompleted: latestCompletedAt?.toISOString() ?? null,
+              questions,
+            };
+          })
+          .filter((checkpoint): checkpoint is NonNullable<typeof checkpoint> => Boolean(checkpoint));
+
+      const runs = lessonAttemptRecords.filter((record) => record.lessonId === lesson.id);
+      const views: QevRunView[] = runs.map((run, index) => ({
+        id: run.id,
+        label: `Attempt ${index + 1}`,
+        lessonTitle: lesson.title,
+        passed: run.passed,
+        gradePercent: Math.round(run.gradePercent),
+        correctAnswers: run.correctAnswers,
+        totalQuestions: run.totalQuestions,
+        completedAt: run.completedAt.toISOString(),
+        inProgress: false,
+        checkpoints: buildRunCheckpoints(run.id),
+      }));
+
+      const currentCheckpoints = buildRunCheckpoints(null);
+      if (currentCheckpoints.length > 0) {
+        views.push({
+          id: `${lesson.id}-current`,
+          label: `Attempt ${runs.length + 1}`,
+          lessonTitle: lesson.title,
+          passed: null,
+          gradePercent: null,
+          correctAnswers: null,
+          totalQuestions: null,
+          completedAt: null,
+          inProgress: true,
+          checkpoints: currentCheckpoints,
+        });
+      }
+
+      return views;
+    });
+
     const gradingRows =
       latestAssessment?.responses && latestAssessment.responses.length > 0
         ? latestAssessment.responses.map((response) => ({
@@ -560,9 +683,15 @@ export async function GET(
           status: badgeProgress.status,
           awardedAt: badgeProgress.awardedAt?.toISOString() ?? null,
           score: badgeProgress.score ?? null,
+          qevPassedAt: badgeProgress.qevPassedAt?.toISOString() ?? null,
+          cooldownUntil: badgeProgress.cooldownUntil?.toISOString() ?? null,
+          feedbackReviewedAt: badgeProgress.feedbackReviewedAt?.toISOString() ?? null,
+          // Raw per-student overrides (null = inherit) for the config editor …
           reassessmentLimit: badgeProgress.reassessmentLimit ?? null,
           cooldownDays: badgeProgress.cooldownDays ?? null,
           reassessmentRequired: badgeProgress.reassessmentRequired ?? null,
+          // … and the resolved policy that actually applies to this student.
+          effectivePolicy: resolveEffectiveBadgePolicy(badgeProgress, badgeProgress.badge),
           allowCooldownOverride: course.settings?.allowCooldownOverride ?? false,
         },
         progress: {
@@ -574,6 +703,8 @@ export async function GET(
           completedCheckpoints,
         },
         checkpoints,
+        // Precheck answer history grouped by watch-through (run) for the viewer.
+        qevAttempts,
         assessment: {
           completedOn:
             latestPassingAssessment?.completedAt?.toISOString() ?? badgeProgress.awardedAt?.toISOString() ?? null,
@@ -597,6 +728,17 @@ export async function GET(
             passed: attempt.passed,
             feedback: attempt.feedback,
             assessorName: attempt.assessor.name ?? attempt.assessor.email ?? null,
+            // Per-attempt rubric breakdown for the "Assessment history" dropdown.
+            responses: attempt.responses.map((response) => ({
+              id: response.id,
+              title: response.isOverride ? 'Assessor override' : `${response.subgoalText} › ${response.taskText}`,
+              subgoalText: response.subgoalText,
+              taskText: response.taskText,
+              points: response.points,
+              passed: response.passed,
+              feedback: response.feedback,
+              isOverride: response.isOverride,
+            })),
           })),
         },
       },
@@ -783,7 +925,11 @@ export async function POST(
     const score = pointsPossible > 0 ? Math.round((pointsEarned / pointsPossible) * 100) : passed ? 100 : 0;
 
     const completedAt = new Date();
-    const nextStatus = passed ? BadgeStatus.READY_FOR_FINALIZATION : BadgeStatus.LEARNING;
+    // Submitting an attempt always lands the badge in IN_REVIEW — pass or fail. The
+    // pass/fail outcome is derived from the latest attempt, not stored in the enum,
+    // and the badge only leaves IN_REVIEW once the student acknowledges feedback
+    // (pass-path rate → COMPLETED, fail-path acknowledge → READY_FOR_ASSESSMENT/LOCKED).
+    const nextStatus = BadgeStatus.IN_REVIEW;
 
     type TaskResponseData = {
       taskId: string | null;
@@ -883,12 +1029,15 @@ export async function POST(
 
 type StudentBadgeConfigPayload = {
   reassessmentLimit?: unknown;
-  cooldownDays?: unknown;
   reassessmentRequired?: unknown;
+  // One-click assessor action: clear the cooldown so a student who failed the
+  // in-person assessment can re-assess immediately. The cooldown *length* is
+  // authored on the badge, not set per student here.
+  overrideCooldown?: unknown;
 };
 
-// Update per-student badge configuration (reassessment count, cooldown, and
-// whether reassessment is mandatory). Instructor/checker only.
+// Update per-student badge configuration (reassessment count, whether reassessment
+// is mandatory) and/or override an active cooldown. Instructor/checker only.
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ courseId: string; studentId: string; badgeId: string }> }
@@ -902,18 +1051,16 @@ export async function PATCH(
 
     const body = ((await req.json().catch(() => null)) ?? {}) as StudentBadgeConfigPayload;
 
-    const data: { reassessmentLimit?: number; cooldownDays?: number; reassessmentRequired?: boolean } = {};
+    const data: { reassessmentLimit?: number; reassessmentRequired?: boolean; cooldownUntil?: null } = {};
     if (typeof body.reassessmentLimit === 'number' && Number.isFinite(body.reassessmentLimit)) {
       data.reassessmentLimit = Math.max(0, Math.round(body.reassessmentLimit));
-    }
-    if (typeof body.cooldownDays === 'number' && Number.isFinite(body.cooldownDays)) {
-      data.cooldownDays = Math.min(14, Math.max(0, Math.round(body.cooldownDays)));
     }
     if (typeof body.reassessmentRequired === 'boolean') {
       data.reassessmentRequired = body.reassessmentRequired;
     }
+    const wantsCooldownOverride = body.overrideCooldown === true;
 
-    if (Object.keys(data).length === 0) {
+    if (Object.keys(data).length === 0 && !wantsCooldownOverride) {
       return NextResponse.json({ error: 'No configuration fields provided.' }, { status: 400 });
     }
 
@@ -985,9 +1132,14 @@ export async function PATCH(
       return gate.error;
     }
 
-    // Cooldown overrides require the course to opt in.
-    if (data.cooldownDays !== undefined && !course.settings?.allowCooldownOverride) {
-      return NextResponse.json({ error: 'Cooldown overrides are disabled for this course.' }, { status: 403 });
+    // Overriding the cooldown requires the course to opt in. When allowed, clearing
+    // cooldownUntil lets the student re-assess immediately (the QR/access-code gates
+    // read this same timestamp).
+    if (wantsCooldownOverride) {
+      if (!course.settings?.allowCooldownOverride) {
+        return NextResponse.json({ error: 'Cooldown overrides are disabled for this course.' }, { status: 403 });
+      }
+      data.cooldownUntil = null;
     }
 
     const badgeProgress = gate.badgeProgress;
@@ -1003,10 +1155,14 @@ export async function PATCH(
         reassessmentLimit: true,
         cooldownDays: true,
         reassessmentRequired: true,
+        cooldownUntil: true,
       },
     });
 
-    return NextResponse.json({ config: updated }, { status: 200 });
+    return NextResponse.json(
+      { config: { ...updated, cooldownUntil: updated.cooldownUntil?.toISOString() ?? null } },
+      { status: 200 }
+    );
   } catch (error) {
     console.error('PATCH /api/courses/[courseId]/students/[studentId]/badges/[badgeId] failed:', error);
 

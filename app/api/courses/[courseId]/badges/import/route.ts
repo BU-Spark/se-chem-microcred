@@ -297,6 +297,10 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             slug: true,
             name: true,
             description: true,
+            // Authored assessment policy carries forward to the course copy.
+            reassessmentLimit: true,
+            cooldownDays: true,
+            reassessmentRequired: true,
 
             rubricGoal: {
               select: {
@@ -410,6 +414,9 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
             availableOn: availableOnDate,
             closesOn: closesOnDate,
             neverCloses,
+            reassessmentLimit: sourceBadge.reassessmentLimit,
+            cooldownDays: sourceBadge.cooldownDays,
+            reassessmentRequired: sourceBadge.reassessmentRequired,
           },
           select: {
             id: true,

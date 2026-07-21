@@ -79,6 +79,11 @@ export type BadgeCatalogItem = {
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
+  // Authored assessment policy (null = inherit the system default). Round-tripped
+  // so the editor can rehydrate these on edit.
+  reassessmentLimit?: number | null;
+  cooldownDays?: number | null;
+  reassessmentRequired?: boolean | null;
   rubricGoal?: {
     id: string;
     name: string;

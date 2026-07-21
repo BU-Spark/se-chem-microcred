@@ -131,6 +131,22 @@ describe('assessment QR resolver', () => {
     expect(res.status).toBe(307);
   });
 
+  it('allows a checker outside the student section when cross-section view is enabled', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(
+      courseWith({
+        assessorRole: 'CHECKER',
+        assessorSections: ['B1'],
+        studentSections: ['A1'],
+        allowCrossSectionView: true,
+      })
+    );
+
+    const res = await GET(requestFor());
+
+    expect(res.status).toBe(307);
+    expect(res.headers.get('location')).toBe('http://localhost/assessments/course-1/students/student-1/badges/badge-1');
+  });
+
   it('rejects a checker whose assessor request is still pending', async () => {
     mockPrisma.course.findFirst.mockResolvedValue(courseWith({ assessorRole: 'CHECKER', assessorStatus: 'PENDING' }));
 

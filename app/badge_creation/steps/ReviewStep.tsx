@@ -50,6 +50,24 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
             <span>skills added</span>
           </div>
         </div>
+
+        <div className={styles.reviewField}>
+          <span className={styles.reviewFieldLabel}>Assessment Policy</span>
+          <p className={styles.reviewMeta}>
+            Re-assessment limit: <strong>{draft.reassessmentLimit}</strong>
+            {draft.reassessmentLimit === 1 ? ' retry' : ' retries'} after the initial attempt
+          </p>
+          <p className={styles.reviewMeta}>
+            Cooldown:{' '}
+            <strong>
+              {draft.cooldownDays} {draft.cooldownDays === 1 ? 'day' : 'days'}
+            </strong>{' '}
+            between attempts
+          </p>
+          <p className={styles.reviewMeta}>
+            Re-assessment required: <strong>{draft.reassessmentRequired ? 'Yes' : 'No'}</strong>
+          </p>
+        </div>
       </section>
 
       <section className={styles.reviewCard}>

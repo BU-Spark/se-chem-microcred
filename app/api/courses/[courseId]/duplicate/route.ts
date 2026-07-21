@@ -263,22 +263,8 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
           await tx.checkpointQuestion.createMany({ data: questionData });
         }
 
-        // 6. Lesson-context survey prompts (all lessons batched).
-        const lessonSurveyData = source.lessons.flatMap((lesson) => {
-          const lessonId = lessonIdBySource.get(lesson.id);
-          if (!lessonId) return [];
-          return lesson.surveys
-            .filter((survey) => survey.context === SurveyContext.LESSON)
-            .map((survey) => ({
-              context: SurveyContext.LESSON,
-              lessonId,
-              question: survey.question,
-            }));
-        });
-
-        if (lessonSurveyData.length > 0) {
-          await tx.surveyPrompt.createMany({ data: lessonSurveyData });
-        }
+        // Lesson-context survey prompts are intentionally not copied — lesson
+        // surveys were removed (QEV completion is checkpoints + passing grade).
 
         // 7. Badges. Dedupe per source badge (referenced by multiple
         //    requirements). Batch-create with skipDuplicates, read back by slug.

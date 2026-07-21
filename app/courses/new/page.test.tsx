@@ -361,4 +361,46 @@ describe('Course new page edit mode', () => {
     expect(screen.getByPlaceholderText('Course Name')).toBeInTheDocument();
     expect(mockFetch).not.toHaveBeenCalled();
   });
+
+  it('renders the assessor configuration toggles reflecting the loaded settings', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        course: {
+          id: 'course-1',
+          title: 'Chemistry 101',
+          sectionCount: 3,
+          settings: {
+            allowCooldownOverride: false,
+            allowAssessorMessages: true,
+            allowCrossSectionView: false,
+          },
+          contacts: [],
+          enrollments: [],
+        },
+      }),
+    });
+
+    render(<CourseNewPage />);
+
+    // Wait for the course (and its settings) to load before reading the toggles —
+    // the review renders immediately in edit mode, but the settings arrive async.
+    expect(await screen.findByText('Chemistry 101')).toBeInTheDocument();
+
+    // The Assessor Configurations section is no longer feature-flagged out — it
+    // always renders in the review, with each toggle set from the loaded course.
+    expect(screen.getByText('Assessor Configurations')).toBeInTheDocument();
+
+    const messagesToggle = within(screen.getByText('Allow assessor messages?').parentElement as HTMLElement).getByRole(
+      'button'
+    );
+    expect(messagesToggle).toHaveAttribute('aria-pressed', 'true');
+
+    const cooldownToggle = within(
+      screen.getByText('Allow manual override for cooldown?').parentElement as HTMLElement
+    ).getByRole('button');
+    expect(cooldownToggle).toHaveAttribute('aria-pressed', 'false');
+
+    expect(screen.getByText('Allow assessors to view other sections?')).toBeInTheDocument();
+  });
 });

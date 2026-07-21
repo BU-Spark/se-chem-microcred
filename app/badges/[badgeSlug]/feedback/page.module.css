@@ -116,8 +116,16 @@
 .cooldownBar {
   height: 18px;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1f4b99 0%, #1f4b99 70%, rgba(31, 75, 153, 0.2) 70%);
+  background: rgba(31, 75, 153, 0.2);
   margin: 1rem 0;
+  overflow: hidden;
+}
+
+.cooldownBarFill {
+  height: 100%;
+  border-radius: 999px;
+  background: #1f4b99;
+  transition: width 0.3s ease;
 }
 
 .cooldownMeta {

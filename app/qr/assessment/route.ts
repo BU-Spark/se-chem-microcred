@@ -3,6 +3,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getPublicOrigin } from '@/lib/requestOrigin';
+import { isCoolingDown } from '@/lib/badgeState';
 
 function normalizeId(value: string | null) {
   const trimmed = value?.trim();
@@ -38,7 +39,7 @@ type AssessmentQrCourse = {
     sections: Array<{ section: string }>;
     student: {
       id: string;
-      badgeProgress: Array<{ id: string; status: BadgeStatus }>;
+      badgeProgress: Array<{ id: string; status: BadgeStatus; cooldownUntil: Date | null }>;
     };
   }>;
 };
@@ -146,7 +147,7 @@ export async function GET(request: Request) {
               badgeProgress: {
                 where: { badgeId },
                 take: 1,
-                select: { id: true, status: true },
+                select: { id: true, status: true, cooldownUntil: true },
               },
             },
           },
@@ -168,6 +169,11 @@ export async function GET(request: Request) {
 
   if (badgeProgress.status !== BadgeStatus.READY_FOR_ASSESSMENT) {
     return redirectHomeWithAssessmentNotice(request, 'not-ready', 'This badge is not ready for assessment yet.');
+  }
+
+  // Reassessment is gated by the cooldown window: block while now < cooldownUntil.
+  if (isCoolingDown(badgeProgress.cooldownUntil)) {
+    return redirectHomeWithAssessmentNotice(request, 'not-ready', 'This badge is in its reassessment cooldown period.');
   }
 
   return NextResponse.redirect(assessmentUrl(request, courseId, studentId, badgeId));

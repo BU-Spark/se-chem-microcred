@@ -51,29 +51,36 @@ function groupBadgesByStatus(badges: Array<ReturnType<typeof formatBadge>>) {
     {
       [BadgeStatus.COMPLETED]: [] as ReturnType<typeof formatBadge>[],
       [BadgeStatus.READY_FOR_ASSESSMENT]: [] as ReturnType<typeof formatBadge>[],
-      [BadgeStatus.READY_FOR_FINALIZATION]: [] as ReturnType<typeof formatBadge>[],
+      [BadgeStatus.IN_REVIEW]: [] as ReturnType<typeof formatBadge>[],
       [BadgeStatus.LEARNING]: [] as ReturnType<typeof formatBadge>[],
+      [BadgeStatus.LOCKED]: [] as ReturnType<typeof formatBadge>[],
     }
   );
 }
 
-function formatBadge(studentBadge: {
-  id: string;
-  status: BadgeStatus;
-  score: number | null;
-  awardedAt: Date | null;
-  badge: {
+function formatBadge(
+  studentBadge: {
     id: string;
-    slug: string;
-    name: string;
-    description: string | null;
-    requirements: Array<{
-      lessonId: string | null;
-      summary: string | null;
-      lesson: { courseId: string; slug: string; title: string } | null;
-    }>;
-  };
-}) {
+    status: BadgeStatus;
+    score: number | null;
+    awardedAt: Date | null;
+    cooldownUntil?: Date | null;
+    badge: {
+      id: string;
+      slug: string;
+      name: string;
+      description: string | null;
+      requirements: Array<{
+        lessonId: string | null;
+        summary: string | null;
+        lesson: { courseId: string; slug: string; title: string } | null;
+      }>;
+    };
+  },
+  // Latest assessment outcome, needed by the client to split the single IN_REVIEW
+  // status into its two sub-states (pass → rate to finalize, fail → review feedback).
+  latestAttemptPassed: boolean | null = null
+) {
   const courseId = studentBadge.badge.requirements.find((requirement) => requirement.lesson?.courseId)?.lesson
     ?.courseId;
 
@@ -90,6 +97,8 @@ function formatBadge(studentBadge: {
     status: studentBadge.status,
     awardedAt: studentBadge.awardedAt?.toISOString() ?? null,
     score: studentBadge.score ?? null,
+    latestAttemptPassed,
+    cooldownUntil: studentBadge.cooldownUntil?.toISOString() ?? null,
     youtubeUrl: youtubeUrl ?? null,
     requirements: studentBadge.badge.requirements.map((requirement) => ({
       summary: requirement.summary,
@@ -354,9 +363,12 @@ export async function GET(req: Request) {
       },
     }),
     prisma.checkpointAttempt.findMany({
+      // archivedAt: null excludes sealed failed-run answers so the student's
+      // progress reflects only their current attempt.
       where: {
         userId: student.id,
         isPassing: true,
+        archivedAt: null,
       },
       select: {
         checkpointId: true,
@@ -371,7 +383,7 @@ export async function GET(req: Request) {
       },
     }),
     prisma.checkpointResponse.findMany({
-      where: { studentId: student.id },
+      where: { studentId: student.id, archivedAt: null },
       select: {
         checkpointId: true,
         questionId: true,
@@ -473,15 +485,6 @@ export async function GET(req: Request) {
     }
     return acc;
   }, new Map());
-  const lessonSurveyPromptMap = surveyPrompts.reduce<Map<string, string[]>>((acc, prompt) => {
-    if (prompt.context === SurveyContext.LESSON && prompt.lessonId) {
-      const list = acc.get(prompt.lessonId) ?? [];
-      list.push(prompt.id);
-      acc.set(prompt.lessonId, list);
-    }
-    return acc;
-  }, new Map());
-
   const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
   const latestAssessmentPassedByBadgeId = new Map<string, boolean>();
   for (const attempt of assessmentAttempts) {
@@ -512,11 +515,6 @@ export async function GET(req: Request) {
     const completedCheckpointIds = lesson.checkpoints
       .filter((checkpoint) => passingCheckpointIds.has(checkpoint.id))
       .map((checkpoint) => checkpoint.id);
-    const lessonSurveyPromptIds = lessonSurveyPromptMap.get(lesson.id) ?? [];
-    const lessonSurveyRequired = lessonSurveyPromptIds.length > 0;
-    const lessonSurveyComplete = !lessonSurveyRequired
-      ? true
-      : lessonSurveyPromptIds.every((id) => surveyPromptIdsCompleted.has(id));
 
     const answeredCheckpointIds = lesson.checkpoints
       .filter((cp) => (answeredQuestionsByCheckpoint.get(cp.id)?.size ?? 0) > 0 || passingCheckpointIds.has(cp.id))
@@ -529,14 +527,14 @@ export async function GET(req: Request) {
 
     const lessonProgress = progressByLessonId.get(lesson.id);
     const gradedPassed = lessonProgress?.lastGradePassed === true;
+    // QEV completion is now purely checkpoints + passing grade — no lesson survey.
     const formatted = formatLesson({
       lesson,
       progress: lessonProgress
         ? {
             ...lessonProgress,
-            status: gradedPassed
-              ? LessonStatus.COMPLETED
-              : allCheckpointsPassed && lessonSurveyComplete
+            status:
+              gradedPassed || allCheckpointsPassed
                 ? LessonStatus.COMPLETED
                 : answeredCount > 0
                   ? LessonStatus.IN_PROGRESS
@@ -544,10 +542,7 @@ export async function GET(req: Request) {
           }
         : undefined,
       completedCheckpointIds,
-      resumeTimeSeconds:
-        allCheckpointsPassed && !lessonSurveyComplete
-          ? (lesson.checkpoints.at(-1)?.timeOffsetSeconds ?? 0) + 1
-          : resumeTimeSeconds,
+      resumeTimeSeconds,
       answeredCount,
       answeredCheckpointIds,
       lastGradePercent: lessonProgress?.lastGradePercent ?? null,
@@ -555,27 +550,16 @@ export async function GET(req: Request) {
       lastGradedAt: lessonProgress?.lastGradedAt ?? null,
     });
 
-    // Recompute percentComplete based on passed checkpoints + lesson survey
-    const totalUnits = lesson.checkpoints.length + (lessonSurveyRequired ? 1 : 0);
-    const completedUnits = completedCheckpointIds.length + (lessonSurveyRequired && lessonSurveyComplete ? 1 : 0);
-    const basePercentComplete = totalUnits > 0 ? Math.min(100, Math.round((completedUnits / totalUnits) * 100)) : 0;
-    const percentComplete = gradedPassed ? 100 : basePercentComplete;
+    // percentComplete tracks passed checkpoints over total checkpoints (the client
+    // renders this as an "X of N checkpoints" count).
+    const totalUnits = lesson.checkpoints.length;
+    const basePercentComplete =
+      totalUnits > 0 ? Math.min(100, Math.round((completedCheckpointIds.length / totalUnits) * 100)) : 0;
 
-    const formattedWithProgress = {
+    return {
       ...formatted,
-      percentComplete,
+      percentComplete: gradedPassed ? 100 : basePercentComplete,
     };
-
-    // If all checkpoints passed but lesson survey unfinished, cap percentComplete at 99 and keep IN_PROGRESS
-    if (!gradedPassed && allCheckpointsPassed && !lessonSurveyComplete) {
-      return {
-        ...formattedWithProgress,
-        status: LessonStatus.IN_PROGRESS,
-        percentComplete: Math.min(99, percentComplete || 99),
-      };
-    }
-
-    return formattedWithProgress;
   });
 
   // Hide lessons whose badge hasn't been released yet — everywhere a student
@@ -636,7 +620,10 @@ export async function GET(req: Request) {
       status = BadgeStatus.READY_FOR_ASSESSMENT;
     }
 
-    if (status === BadgeStatus.READY_FOR_FINALIZATION) {
+    // A passing IN_REVIEW badge whose finalize survey is already recorded reads as
+    // COMPLETED (the survey route also flips this; this keeps the projection honest
+    // if a client renders before that write is observed).
+    if (status === BadgeStatus.IN_REVIEW && latestAssessmentPassed === true) {
       const promptIds = badgeSurveyPromptMap.get(entry.badgeId) ?? [];
       const surveyComplete = promptIds.length > 0 && promptIds.every((id) => surveyPromptIdsCompleted.has(id));
       if (surveyComplete) {
@@ -684,7 +671,9 @@ export async function GET(req: Request) {
     .filter(isUnstartedLearningBadge)
     .map((entry) => ({ ...formatBadge(entry), status: 'NOT_STARTED' as const }));
 
-  const badgeGroups = groupBadgesByStatus(startedStudentBadges.map(formatBadge));
+  const badgeGroups = groupBadgesByStatus(
+    startedStudentBadges.map((entry) => formatBadge(entry, latestAssessmentPassedByBadgeId.get(entry.badgeId) ?? null))
+  );
 
   // "Not yet started" = course badges the student has no StudentBadge row for
   // yet, plus LEARNING rows with no requirement-lesson activity (above).
@@ -700,19 +689,11 @@ export async function GET(req: Request) {
       status: 'NOT_STARTED' as const,
       awardedAt: null,
       score: null,
+      latestAttemptPassed: null,
+      cooldownUntil: null,
       requirements: [] as Array<{ summary: string | null; lessonSlug: string | null; lessonTitle: string | null }>,
     }));
   const notStartedBadges = [...neverAttemptedBadges, ...unstartedLearningBadges];
-
-  const lessonSurveyPrompts = surveyPrompts
-    .filter((prompt) => prompt.context === SurveyContext.LESSON)
-    .map((prompt) => ({
-      id: prompt.id,
-      question: prompt.question,
-      lessonSlug: prompt.lesson?.slug ?? null,
-      lessonTitle: prompt.lesson?.title ?? null,
-      completed: surveyPromptIdsCompleted.has(prompt.id),
-    }));
 
   const badgeSurveyPrompts = surveyPrompts
     .filter((prompt) => prompt.context === SurveyContext.BADGE)
@@ -725,13 +706,16 @@ export async function GET(req: Request) {
       completed: surveyPromptIdsCompleted.has(prompt.id),
     }));
 
-  // Only surface a badge survey once the student's badge is actually READY_FOR_FINALIZATION.
-  // The finalize route (POST /api/badges/[badgeId]/survey) rejects any other status with 409,
-  // so showing the survey earlier produced a prompt that could never be submitted — and thus
-  // never recorded as complete, causing it to keep reappearing.
+  // Only surface a badge survey once the badge is a passing IN_REVIEW (the pass-path
+  // acknowledge+rate that finalizes it). The finalize route (POST /api/badges/[badgeId]/survey)
+  // rejects any other status with 409, so showing the survey earlier produced a prompt that
+  // could never be submitted — and thus never recorded as complete, causing it to keep
+  // reappearing. A failed IN_REVIEW badge acknowledges through the feedback route instead.
   const finalizationReadyBadgeIds = new Set(
     normalizedStudentBadges
-      .filter((badge) => badge.status === BadgeStatus.READY_FOR_FINALIZATION)
+      .filter(
+        (badge) => badge.status === BadgeStatus.IN_REVIEW && latestAssessmentPassedByBadgeId.get(badge.badgeId) === true
+      )
       .map((badge) => badge.badgeId)
   );
 
@@ -797,12 +781,16 @@ export async function GET(req: Request) {
     badges: {
       completed: badgeGroups[BadgeStatus.COMPLETED],
       readyForAssessment: badgeGroups[BadgeStatus.READY_FOR_ASSESSMENT],
-      readyForFinalization: badgeGroups[BadgeStatus.READY_FOR_FINALIZATION],
+      // IN_REVIEW covers both pass-pending-rate and fail-pending-acknowledge; the
+      // client splits them on latestAttemptPassed.
+      inReview: badgeGroups[BadgeStatus.IN_REVIEW],
       learning: badgeGroups[BadgeStatus.LEARNING],
+      locked: badgeGroups[BadgeStatus.LOCKED],
       notStarted: notStartedBadges,
     },
     surveys: {
-      lesson: lessonSurveyPrompts,
+      // Lesson surveys were removed; QEV completion is checkpoints + passing grade.
+      lesson: [] as never[],
       badge: badgeSurveyPrompts,
       pendingBadge: pendingBadgeSurveys,
     },

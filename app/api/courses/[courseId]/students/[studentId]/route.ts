@@ -173,7 +173,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         score: number | null;
       }
     > = [];
-    const readyForFinalization: Array<
+    const inReview: Array<
       ReturnType<typeof formatBadge> & {
         status: string;
         awardedAt: string | null;
@@ -198,11 +198,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
 
       if (progress.status === 'COMPLETED') {
         completed.push(badgeWithProgress);
-      } else if (progress.status === 'READY_FOR_FINALIZATION') {
-        readyForFinalization.push(badgeWithProgress);
+      } else if (progress.status === 'IN_REVIEW') {
+        inReview.push(badgeWithProgress);
       } else if (progress.status === 'LEARNING' && !lessonStartedByBadgeId.get(badge.id)) {
         notStarted.push(badge);
       } else {
+        // LEARNING (started), READY_FOR_ASSESSMENT, and the terminal LOCKED state.
         inProgress.push(badgeWithProgress);
       }
     }
@@ -245,7 +246,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         badges: {
           inProgress,
           notStarted,
-          readyForFinalization,
+          inReview,
           completed,
         },
       },
