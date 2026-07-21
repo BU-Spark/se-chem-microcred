@@ -201,11 +201,6 @@ export default function BadgeWalletPage() {
 
   const studentEmail = studentData?.student?.email || user?.primaryEmailAddress?.emailAddress || null;
 
-  const startSurvey = (badge: BadgeRecord) => {
-    setActiveBadgeId(null);
-    router.push(`/?surveyBadge=${encodeURIComponent(badge.slug)}`);
-  };
-
   const reviewFeedback = (badge: BadgeRecord) => {
     setActiveBadgeId(null);
     const courseParam = badge.courseId ? `?courseId=${encodeURIComponent(badge.courseId)}` : '';
@@ -432,8 +427,7 @@ export default function BadgeWalletPage() {
                       )}
                       {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed === true && (
                         <p className={styles.popoverHelperText}>
-                          You passed! Take a quick feedback survey to finalize this badge and add it to your completed
-                          list.
+                          You passed! Review your assessment, then finalize this badge to add it to your completed list.
                         </p>
                       )}
                       {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed !== true && (
@@ -480,9 +474,9 @@ export default function BadgeWalletPage() {
                           <button
                             type="button"
                             className={styles.popoverActionPrimary}
-                            onClick={() => startSurvey(activeBadge)}
+                            onClick={() => reviewFeedback(activeBadge)}
                           >
-                            Start Survey
+                            Review &amp; Finalize
                           </button>
                         )}
 

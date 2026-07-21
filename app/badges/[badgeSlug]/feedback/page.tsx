@@ -8,8 +8,38 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
 import Sidebar, { SIDEBAR_NAV } from '@/app/_components/Sidebar';
+import SurveyModal from '@/app/components/SurveyModal';
 import styles from './page.module.css';
 import { toTitleCase } from '@/lib/utils';
+
+import veryUnhappy from '../../../../public/assets/survey_faces/very_unhappy.svg';
+import slightlyUnhappy from '../../../../public/assets/survey_faces/slightly_unhappy.svg';
+import neutral from '../../../../public/assets/survey_faces/neutral.svg';
+import slightlyHappy from '../../../../public/assets/survey_faces/slightly_happy.svg';
+import veryHappy from '../../../../public/assets/survey_faces/very_happy.svg';
+import veryUnhappySelected from '../../../../public/assets/survey_faces/very_unhappy_selected.svg';
+import slightlyUnhappySelected from '../../../../public/assets/survey_faces/slightly_unhappy_selected.svg';
+import neutralSelected from '../../../../public/assets/survey_faces/neutral_selected.svg';
+import slightlyHappySelected from '../../../../public/assets/survey_faces/slightly_happy_selected.svg';
+import veryHappySelected from '../../../../public/assets/survey_faces/very_happy_selected.svg';
+
+const SURVEY_FACES = {
+  icons: { 1: veryUnhappy, 2: slightlyUnhappy, 3: neutral, 4: slightlyHappy, 5: veryHappy } as Record<number, unknown>,
+  selectedIcons: {
+    1: veryUnhappySelected,
+    2: slightlyUnhappySelected,
+    3: neutralSelected,
+    4: slightlyHappySelected,
+    5: veryHappySelected,
+  } as Record<number, unknown>,
+  alts: {
+    1: 'Very unhappy',
+    2: 'Slightly unhappy',
+    3: 'Neutral',
+    4: 'Slightly happy',
+    5: 'Very happy',
+  } as Record<number, string>,
+};
 
 const BADGE_STATUS_LABEL: Record<string, string> = {
   LEARNING: 'Still learning',
@@ -127,7 +157,15 @@ export default function BadgeFeedbackPage() {
   // fail-path transition computes it at acknowledge time.
   const [reviewedCooldownUntil, setReviewedCooldownUntil] = useState<string | null | undefined>(undefined);
   const [reviewRequestState, setReviewRequestState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
-  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress, requestedCourseId);
+  // Pass-path finalization (0–5 rating survey shown inline on the review page).
+  const [isSurveyOpen, setIsSurveyOpen] = useState(false);
+  const [surveyRating, setSurveyRating] = useState(3);
+  const [finalizeState, setFinalizeState] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
+  const [finalizeError, setFinalizeError] = useState<string | null>(null);
+  const { data: studentData, refresh: refreshStudentData } = useStudentData(
+    user?.primaryEmailAddress?.emailAddress,
+    requestedCourseId
+  );
 
   const allBadges = useMemo<BadgeRecord[]>(() => {
     if (!studentData) {
@@ -275,6 +313,35 @@ export default function BadgeFeedbackPage() {
     }
   };
 
+  const handleSubmitFinalize = async () => {
+    const email = user?.primaryEmailAddress?.emailAddress ?? studentData?.student.email;
+    if (!badge || !email || finalizeState === 'submitting') {
+      return;
+    }
+
+    setFinalizeState('submitting');
+    setFinalizeError(null);
+
+    try {
+      const response = await fetch(`/api/badges/${badge.id}/survey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, rating: surveyRating }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to finalize this badge.');
+      }
+      setReviewedStatus('COMPLETED');
+      setFinalizeState('done');
+      setIsSurveyOpen(false);
+      void refreshStudentData();
+    } catch (error) {
+      setFinalizeError(error instanceof Error ? error.message : 'Unable to finalize this badge.');
+      setFinalizeState('error');
+    }
+  };
+
   if (!content) {
     return (
       <div className="page">
@@ -327,6 +394,11 @@ export default function BadgeFeedbackPage() {
   const responseByKey = new Map(
     latestAttempt?.responses.map((response) => [`${response.subgoalText}::${response.taskText}`, response]) ?? []
   );
+  // Pass-path: a passing attempt still sitting in IN_REVIEW awaits the student's
+  // review + finalize on this page. Once finalized, displayedStatus flips to COMPLETED.
+  const canFinalize =
+    displayedStatus === 'IN_REVIEW' &&
+    (feedbackDetail?.latestAttempt?.passed === true || latestAttempt?.passed === true);
 
   return (
     <div className="page">
@@ -355,6 +427,27 @@ export default function BadgeFeedbackPage() {
               </p>
             ) : null}
             {feedbackError ? <p>{feedbackError}</p> : null}
+
+            {canFinalize ? (
+              <div className={styles.finalizeBox}>
+                <p>You passed! Review your assessment below, then finalize to add this badge to your completed list.</p>
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={() => {
+                    setFinalizeError(null);
+                    setIsSurveyOpen(true);
+                  }}
+                >
+                  Finalize badge
+                </button>
+              </div>
+            ) : null}
+
+            {finalizeState === 'done' && displayedStatus === 'COMPLETED' ? (
+              <p>This badge is finalized and added to your completed list. Great work!</p>
+            ) : null}
+            {finalizeError && !isSurveyOpen ? <p>{finalizeError}</p> : null}
           </div>
 
           <div className={styles.section}>
@@ -468,6 +561,42 @@ export default function BadgeFeedbackPage() {
           </div>
         </div>
       </main>
+
+      {isSurveyOpen ? (
+        <SurveyModal
+          title="Tell us about your experience."
+          question={`Rate your experience earning the ${content.title} badge.`}
+          options={[1, 2, 3, 4, 5].map((value) => ({
+            value,
+            label: SURVEY_FACES.alts[value],
+            icon: SURVEY_FACES.icons[value] as never,
+            selectedIcon: SURVEY_FACES.selectedIcons[value] as never,
+          }))}
+          value={surveyRating}
+          onChange={setSurveyRating}
+          onSubmit={handleSubmitFinalize}
+          onClose={() => setIsSurveyOpen(false)}
+          submitLabel="Finalize badge"
+          submittingLabel="Finalizing…"
+          isSubmitting={finalizeState === 'submitting'}
+          error={finalizeError}
+          errorAfterOptions
+          classNames={{
+            overlay: styles.surveyOverlay,
+            modal: styles.surveyModal,
+            close: styles.surveyClose,
+            title: styles.surveyTitle,
+            question: styles.surveyQuestion,
+            error: styles.surveyError,
+            options: styles.surveyFaces,
+            option: styles.surveyFace,
+            selectedOption: styles.surveyFaceSelected,
+            optionImage: styles.surveyFaceImage,
+            selectedOptionImage: styles.surveyFaceImageSelected,
+            submit: styles.surveySubmit,
+          }}
+        />
+      ) : null}
     </div>
   );
 }

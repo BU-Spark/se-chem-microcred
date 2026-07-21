@@ -323,6 +323,9 @@ function HomePageContent() {
     router.replace(nextPath, { scroll: false });
   }, [pathname, router, searchParams]);
 
+  // Finalization now happens on the badge review page: passing students must see
+  // their assessment feedback before rating + finalizing. Route there instead of
+  // opening the survey modal directly.
   const handleStartSurvey = useCallback(
     (target?: {
       promptId: string;
@@ -336,17 +339,11 @@ function HomePageContent() {
         return;
       }
 
-      setActiveSurvey(surveyTarget);
-      setSurveyRating(3);
-
-      const params = new URLSearchParams(searchParams.toString());
-      if (surveyTarget.badgeSlug) {
-        params.set('surveyBadge', surveyTarget.badgeSlug);
-      }
-      const nextPath = `${pathname}?${params.toString()}`;
-      router.replace(nextPath, { scroll: false });
+      router.push(
+        surveyTarget.badgeSlug ? `/badges/${encodeURIComponent(surveyTarget.badgeSlug)}/feedback` : '/badges'
+      );
     },
-    [readyBadgeAlerts, pathname, router, searchParams]
+    [readyBadgeAlerts, router]
   );
 
   const handleSubmitSurvey = useCallback(async () => {
@@ -438,7 +435,7 @@ function HomePageContent() {
         </div>
       </div>
       <button type="button" className={styles.badgeListAction} onClick={() => handleStartSurvey(alert)}>
-        Finalize
+        Review &amp; Finalize
       </button>
     </li>
   );
