@@ -52,7 +52,7 @@ describe('Course badge progress page', () => {
             id: 'instructor-1',
             name: 'Professor Demo',
             email: 'prof@example.edu',
-            buid: null,
+            externalId: null,
           },
         },
         badge: {
@@ -109,7 +109,7 @@ describe('Course badge progress page', () => {
               id: 'student-1',
               name: 'Student One',
               email: 'student1@example.edu',
-              buid: 'U1',
+              externalId: 'U1',
             },
             progress: {
               id: 'progress-1',
@@ -128,7 +128,7 @@ describe('Course badge progress page', () => {
               id: 'student-2',
               name: 'Student Two',
               email: 'student2@example.edu',
-              buid: 'U2',
+              externalId: 'U2',
             },
             progress: null,
             status: 'NOT_STARTED',

@@ -189,7 +189,7 @@ function createStudentData(): StudentData {
       id: 'student-1',
       name: 'Student Demo',
       email: 'student@example.edu',
-      buid: 'U1234567',
+      externalId: 'U1234567',
       gender: 'Female',
       raceEthnicity: 'Hispanic/Latinx',
       parentalEducation: 'High school',
@@ -452,7 +452,7 @@ describe('Profile page', () => {
     jest.useFakeTimers();
     render(<ProfilePage />);
 
-    // Sensitive BUID is masked by default and revealing demographics is gated
+    // Sensitive ID is masked by default and revealing demographics is gated
     // behind the "Demographic Info" dropdown (which requires re-auth to open).
     expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
     expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);

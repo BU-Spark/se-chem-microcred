@@ -113,7 +113,7 @@ describe('Course new page edit mode', () => {
                   id: 'student-1',
                   name: 'Jane Student',
                   email: 'jane@bu.edu',
-                  buid: 'U12345678',
+                  externalId: 'U12345678',
                 },
               },
               {
@@ -124,7 +124,7 @@ describe('Course new page edit mode', () => {
                   id: 'checker-1',
                   name: 'Alex Checker',
                   email: 'checker@bu.edu',
-                  buid: 'U87654321',
+                  externalId: 'U87654321',
                 },
               },
             ],
@@ -194,14 +194,14 @@ describe('Course new page edit mode', () => {
         expect.objectContaining({
           email: 'jane@bu.edu',
           name: 'Jane Student',
-          buid: 'U12345678',
+          externalId: 'U12345678',
           role: 'STUDENT',
           sections: ['2'],
         }),
         expect.objectContaining({
           email: 'checker@bu.edu',
           name: 'Alex Checker',
-          buid: 'U87654321',
+          externalId: 'U87654321',
           role: 'CHECKER',
           sections: ['3', '4'],
         }),
@@ -331,7 +331,7 @@ describe('Course new page edit mode', () => {
 
     expect(
       within(screen.getByRole('dialog')).getByText(
-        'CSV must contain headers: lastName, firstName, buid, email, sections'
+        'CSV must contain headers: lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections'
       )
     ).toBeInTheDocument();
 

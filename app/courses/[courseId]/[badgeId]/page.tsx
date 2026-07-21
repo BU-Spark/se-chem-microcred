@@ -31,7 +31,7 @@ type CourseDetail = {
     id: string;
     name: string | null;
     email: string | null;
-    buid: string | null;
+    externalId: string | null;
   } | null;
 };
 
@@ -88,7 +88,7 @@ type StudentProgressRow = {
     id: string;
     name: string | null;
     email: string | null;
-    buid: string | null;
+    externalId: string | null;
   };
   progress: {
     id: string;

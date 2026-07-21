@@ -31,7 +31,7 @@ type CreateOrUpdateCoursePayload = {
   roster?: Array<{
     email?: string | null;
     name?: string | null;
-    buid?: string | null;
+    externalId?: string | null;
     role?: CourseRole;
     sections?: string[] | string | null;
   }>;
@@ -155,14 +155,14 @@ export async function POST(req: NextRequest) {
     const roster = (body.roster ?? []).map((member) => ({
       email: normalizeEmail(member.email),
       name: normalizeString(member.name),
-      buid: normalizeString(member.buid),
+      externalId: normalizeString(member.externalId),
       role: member.role ?? CourseRole.STUDENT,
       sections: parseSections(member.sections),
     }));
 
     for (const member of roster) {
-      if (!member.email && !member.buid) {
-        return badRequest('Each roster member must include at least a BUID or an email.');
+      if (!member.email && !member.externalId) {
+        return badRequest('Each roster member must include at least an ID or an email.');
       }
 
       if (member.role === CourseRole.INSTRUCTOR && member.sections.length > 0) {
@@ -364,77 +364,81 @@ export async function POST(req: NextRequest) {
           where: { enrollmentId: creatorEnrollment.id },
         });
 
-        const rosterBuids = roster.map((r) => r.buid).filter((buid): buid is string => Boolean(buid));
+        const rosterExternalIds = roster
+          .map((r) => r.externalId)
+          .filter((externalId): externalId is string => Boolean(externalId));
 
         const rosterEmails = roster.map((r) => r.email).filter((email): email is string => Boolean(email));
 
         const existingUsers =
-          rosterBuids.length || rosterEmails.length
+          rosterExternalIds.length || rosterEmails.length
             ? await tx.user.findMany({
                 where: {
                   OR: [
-                    ...(rosterBuids.length ? [{ buid: { in: rosterBuids } }] : []),
+                    ...(rosterExternalIds.length ? [{ externalId: { in: rosterExternalIds } }] : []),
                     ...(rosterEmails.length ? [{ email: { in: rosterEmails } }] : []),
                   ],
                 },
               })
             : [];
 
-        const userByBuid = new Map(existingUsers.filter((user) => user.buid).map((user) => [user.buid!, user]));
+        const userByExternalId = new Map(
+          existingUsers.filter((user) => user.externalId).map((user) => [user.externalId!, user])
+        );
 
         const userByEmail = new Map(
           existingUsers.filter((user) => user.email).map((user) => [user.email!.toLowerCase(), user])
         );
 
         const resolveUser = (member: (typeof roster)[number]) =>
-          (member.buid ? userByBuid.get(member.buid) : undefined) ??
+          (member.externalId ? userByExternalId.get(member.externalId) : undefined) ??
           (member.email ? userByEmail.get(member.email) : undefined);
 
         // 1. Batch-create every brand-new user in one query (deduped within the upload).
-        const newUserData: { email: string | null; name: string | null; buid: string | null }[] = [];
+        const newUserData: { email: string | null; name: string | null; externalId: string | null }[] = [];
         const seenNewKeys = new Set<string>();
         for (const member of roster) {
           if (resolveUser(member)) continue;
-          const key = member.buid || member.email;
+          const key = member.externalId || member.email;
           if (!key || seenNewKeys.has(key)) continue;
           seenNewKeys.add(key);
-          newUserData.push({ email: member.email, name: member.name, buid: member.buid });
+          newUserData.push({ email: member.email, name: member.name, externalId: member.externalId });
         }
 
         if (newUserData.length > 0) {
           await tx.user.createMany({ data: newUserData, skipDuplicates: true });
 
-          const newBuids = newUserData.map((u) => u.buid).filter((b): b is string => Boolean(b));
+          const newExternalIds = newUserData.map((u) => u.externalId).filter((b): b is string => Boolean(b));
           const newEmails = newUserData.map((u) => u.email).filter((e): e is string => Boolean(e));
           const createdUsers = await tx.user.findMany({
             where: {
               OR: [
-                ...(newBuids.length ? [{ buid: { in: newBuids } }] : []),
+                ...(newExternalIds.length ? [{ externalId: { in: newExternalIds } }] : []),
                 ...(newEmails.length ? [{ email: { in: newEmails } }] : []),
               ],
             },
           });
           for (const user of createdUsers) {
-            if (user.buid) userByBuid.set(user.buid, user);
+            if (user.externalId) userByExternalId.set(user.externalId, user);
             if (user.email) userByEmail.set(user.email.toLowerCase(), user);
           }
         }
 
-        // 2. Backfill missing name/buid/email on pre-existing users (usually none for a fresh upload).
+        // 2. Backfill missing name/externalId/email on pre-existing users (usually none for a fresh upload).
         const backfilled = new Set<string>();
         for (const member of roster) {
           const dbUser = resolveUser(member);
           if (!dbUser || backfilled.has(dbUser.id)) continue;
 
-          const updates: { name?: string | null; buid?: string | null; email?: string | null } = {};
+          const updates: { name?: string | null; externalId?: string | null; email?: string | null } = {};
           if (!dbUser.name && member.name) updates.name = member.name;
-          if (!dbUser.buid && member.buid) updates.buid = member.buid;
+          if (!dbUser.externalId && member.externalId) updates.externalId = member.externalId;
           if (!dbUser.email && member.email) updates.email = member.email;
 
           if (Object.keys(updates).length > 0) {
             backfilled.add(dbUser.id);
             const updated = await tx.user.update({ where: { id: dbUser.id }, data: updates });
-            if (updated.buid) userByBuid.set(updated.buid, updated);
+            if (updated.externalId) userByExternalId.set(updated.externalId, updated);
             if (updated.email) userByEmail.set(updated.email.toLowerCase(), updated);
           }
         }
@@ -539,7 +543,7 @@ export async function POST(req: NextRequest) {
                     id: true,
                     name: true,
                     email: true,
-                    buid: true,
+                    externalId: true,
                   },
                 },
               },

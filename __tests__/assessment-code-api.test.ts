@@ -87,7 +87,7 @@ describe('Assessment access codes', () => {
       id: 'student-1',
       email: 'student@example.edu',
       name: 'Student Example',
-      buid: null,
+      externalId: null,
       avatar: null,
     });
     mockSyncLessonBadgesForStudent.mockResolvedValue({ readyForAssessment: false });

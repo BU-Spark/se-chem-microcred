@@ -285,7 +285,7 @@ export default function AssessmentReadinessPage() {
                 headlineTop={memberDisplay.headlineTop}
                 headlineBottom={memberDisplay.headlineBottom}
                 email={profile.member.email}
-                buid={profile.member.buid}
+                externalId={profile.member.externalId}
                 avatarSrc={profile.member.avatar ? avatarAsset(profile.member.avatar.base) : null}
                 avatarAlt="Student avatar"
                 avatarFallback={initialsFromName(profile.member.name)}

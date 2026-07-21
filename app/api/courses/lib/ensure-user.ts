@@ -7,7 +7,7 @@ const USER_SELECT = {
   id: true,
   email: true,
   name: true,
-  buid: true,
+  externalId: true,
   avatar: { select: { base: true } },
 } as const;
 

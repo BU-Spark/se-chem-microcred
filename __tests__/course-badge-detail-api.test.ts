@@ -59,7 +59,7 @@ describe('course badge detail API', () => {
         id: 'instructor-1',
         name: 'Professor Demo',
         email: 'prof@example.edu',
-        buid: null,
+        externalId: null,
       },
       lessons: [
         {
@@ -134,7 +134,7 @@ describe('course badge detail API', () => {
             id: 'student-1',
             name: 'Student One',
             email: 'student1@example.edu',
-            buid: 'U1',
+            externalId: 'U1',
             badgeProgress: [
               {
                 id: 'progress-1',
@@ -163,7 +163,7 @@ describe('course badge detail API', () => {
             id: 'student-2',
             name: 'Student Two',
             email: 'student2@example.edu',
-            buid: 'U2',
+            externalId: 'U2',
             badgeProgress: [
               {
                 id: 'progress-2',
@@ -192,7 +192,7 @@ describe('course badge detail API', () => {
             id: 'student-3',
             name: 'Student Three',
             email: 'student3@example.edu',
-            buid: 'U3',
+            externalId: 'U3',
             badgeProgress: [],
             lessonProgress: [],
           },
@@ -274,7 +274,7 @@ describe('course badge detail API', () => {
             id: 'student-1',
             name: 'Untouched Learner',
             email: 'untouched@example.edu',
-            buid: 'U1',
+            externalId: 'U1',
             badgeProgress: [{ ...learningProgress }],
             lessonProgress: [{ status: 'NOT_STARTED', startedAt: null, completedAt: null, percentComplete: 0 }],
           },
@@ -287,7 +287,7 @@ describe('course badge detail API', () => {
             id: 'student-2',
             name: 'Active Learner',
             email: 'active@example.edu',
-            buid: 'U2',
+            externalId: 'U2',
             badgeProgress: [{ ...learningProgress, id: 'progress-active' }],
             lessonProgress: [
               {
