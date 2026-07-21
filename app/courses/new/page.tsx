@@ -24,7 +24,6 @@ const STEP_ROSTER = 2;
 const STEP_ASSESSOR = 3;
 const STEP_REVIEW = 4;
 
-
 // Old Student row and assessor row types were the exact same colsolidating
 type RosterRow = {
   lastName: string;

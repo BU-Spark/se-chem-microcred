@@ -49,7 +49,7 @@ function describeCooldown({
   const dayMs = 24 * 60 * 60 * 1000;
   const daysRemaining = Math.ceil(msRemaining / dayMs);
   const remainingLabel =
-    daysRemaining >= 1
+    daysRemaining > 1
       ? `${daysRemaining} day${daysRemaining === 1 ? '' : 's'} remaining`
       : `${Math.max(1, Math.ceil(msRemaining / (60 * 60 * 1000)))} hour${msRemaining <= 60 * 60 * 1000 ? '' : 's'} remaining`;
 
@@ -125,7 +125,7 @@ export default function BadgeFeedbackPage() {
   const [reviewedStatus, setReviewedStatus] = useState<BadgeRecord['status'] | null>(null);
   // cooldownUntil returned by the acknowledge POST — the freshest value, since the
   // fail-path transition computes it at acknowledge time.
-  const [reviewedCooldownUntil, setReviewedCooldownUntil] = useState<string | null>(null);
+  const [reviewedCooldownUntil, setReviewedCooldownUntil] = useState<string | null | undefined>(undefined);
   const [reviewRequestState, setReviewRequestState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress, requestedCourseId);
 
@@ -170,7 +170,7 @@ export default function BadgeFeedbackPage() {
       setFeedbackDetail(null);
       setFeedbackError(null);
       setReviewedStatus(null);
-      setReviewedCooldownUntil(null);
+      setReviewedCooldownUntil(undefined);
       setReviewRequestState('idle');
       return;
     }
@@ -179,7 +179,7 @@ export default function BadgeFeedbackPage() {
     setFeedbackDetail(null);
     setFeedbackError(null);
     setReviewedStatus(null);
-    setReviewedCooldownUntil(null);
+    setReviewedCooldownUntil(undefined);
     setReviewRequestState('idle');
 
     fetch(`/api/badges/${badge.id}/feedback`)
@@ -316,7 +316,10 @@ export default function BadgeFeedbackPage() {
   const rubric = feedbackDetail?.rubric ?? null;
   // Prefer the freshest cooldown: the acknowledge POST computes it at review time,
   // then the feedback GET, then the (possibly stale) student-data snapshot.
-  const cooldownUntil = reviewedCooldownUntil ?? feedbackDetail?.badge.cooldownUntil ?? badge.cooldownUntil ?? null;
+  const cooldownUntil =
+    reviewedCooldownUntil !== undefined
+      ? reviewedCooldownUntil
+      : (feedbackDetail?.badge.cooldownUntil ?? badge.cooldownUntil ?? null);
   const cooldown = describeCooldown({
     cooldownUntil,
     lastCompletedAt: latestAttempt?.completedAt ?? null,
