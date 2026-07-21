@@ -21,15 +21,8 @@ export type EffectiveBadgePolicy = {
 };
 
 // Applied when neither the StudentBadge override nor the Badge default is set.
-//
-// HOTFIX (2026-07-21): reassessmentLimit was added as a nullable column after
-// badges/student-badges already existed in prod, so every pre-existing row
-// resolves here with null on both sides. Defaulting that case to 0 silently
-// locked those students out after their first fail. Until those rows are
-// backfilled with an explicit limit, fall through to unlimited reassessments
-// instead of 0. Remove once the backfill lands.
 export const SYSTEM_DEFAULT_BADGE_POLICY: EffectiveBadgePolicy = {
-  reassessmentLimit: Infinity,
+  reassessmentLimit: 0,
   cooldownDays: 0,
   reassessmentRequired: false,
 };
