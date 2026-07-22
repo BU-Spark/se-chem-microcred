@@ -235,7 +235,7 @@ function LessonDetailContent() {
         {part.img ? (
           <Image src={part.img} alt={part.title} width={112} height={72} className={styles.thumbImg} />
         ) : (
-          <span className={styles.thumbPlaceholder}>{part.title} thumbnail</span>
+          <span className={styles.thumbPlaceholder}>Thumbnail</span>
         )}
       </div>
       <div className={styles.stepText}>

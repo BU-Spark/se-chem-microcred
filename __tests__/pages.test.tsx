@@ -539,8 +539,8 @@ describe('Lesson detail page', () => {
 
     expect(screen.getByText(/Lesson 3/i)).toBeInTheDocument();
     expect(screen.getByText(/Part 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/Checkpoint/i)).toBeInTheDocument();
-    expect(screen.getByText('2 questions')).toBeInTheDocument();
+    // The outline renders each checkpoint marker as a single "Checkpoint · N questions" node.
+    expect(screen.getByText(/Checkpoint · 2 questions/i)).toBeInTheDocument();
     expect(screen.queryByText(/segmentLabel/)).not.toBeInTheDocument();
   });
 });
