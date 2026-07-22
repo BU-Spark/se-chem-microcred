@@ -5,9 +5,18 @@ import { BadgeStatus } from '@prisma/client';
 
 import { GET, POST } from '../app/api/badges/[badgeId]/feedback/route';
 import prisma from '../lib/prisma';
+import { isAlphaMode } from '../lib/adminAccess';
 
 jest.mock('@clerk/nextjs/server', () => ({
   currentUser: jest.fn(),
+}));
+
+// The route consults isAlphaMode() to suppress the LOCKED transition during alpha.
+// Mock it so these tests control the flag explicitly rather than depend on the
+// ambient ALPHA_MODE env value (.env sets it true).
+jest.mock('../lib/adminAccess', () => ({
+  __esModule: true,
+  isAlphaMode: jest.fn(),
 }));
 
 jest.mock('../lib/prisma', () => ({
@@ -28,6 +37,7 @@ jest.mock('../lib/prisma', () => ({
 }));
 
 const mockCurrentUser = currentUser as jest.MockedFunction<typeof currentUser>;
+const mockIsAlphaMode = isAlphaMode as jest.MockedFunction<typeof isAlphaMode>;
 const mockPrisma = prisma as unknown as {
   user: { findUnique: jest.Mock };
   studentBadge: { findUnique: jest.Mock; update: jest.Mock };
@@ -98,6 +108,9 @@ const failedAttempt = {
 describe('/api/badges/[badgeId]/feedback', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default to alpha off so these tests exercise the real locking logic; the
+    // alpha-suppression case sets it true explicitly.
+    mockIsAlphaMode.mockReturnValue(false);
     mockCurrentUser.mockResolvedValue({
       emailAddresses: [{ emailAddress: 'student@example.edu' }],
     } as Awaited<ReturnType<typeof currentUser>>);
@@ -178,6 +191,27 @@ describe('/api/badges/[badgeId]/feedback', () => {
     expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: BadgeStatus.LOCKED, cooldownUntil: null }),
+      })
+    );
+  });
+
+  it('suppresses the lock and stays retryable when alpha mode is on', async () => {
+    mockIsAlphaMode.mockReturnValue(true);
+    // Budget exhausted (count 3 > limit 2): without alpha this would LOCK.
+    mockPrisma.assessmentAttempt.count.mockResolvedValue(3);
+    mockPrisma.studentBadge.update.mockResolvedValue({
+      status: BadgeStatus.READY_FOR_ASSESSMENT,
+      cooldownUntil: null,
+    });
+
+    const response = await POST(new Request('http://localhost/api/badges/badge-1/feedback'), routeContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe(BadgeStatus.READY_FOR_ASSESSMENT);
+    expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: BadgeStatus.READY_FOR_ASSESSMENT }),
       })
     );
   });

@@ -421,6 +421,7 @@ export default function CreatedCourseDetailPage() {
   }, []);
 
   const importModalRef = useFocusTrap<HTMLDivElement>(isImportPanelOpen, closeImportModal);
+  const settingsModalRef = useFocusTrap<HTMLDivElement>(Boolean(badgePendingEdit), closeBadgeSettings);
 
   // Auto-dismiss the confirmation step after a short, visible countdown. The
   // interval drives the on-screen notice; the timeout performs the actual close.
@@ -842,33 +843,38 @@ export default function CreatedCourseDetailPage() {
       ) : null}
 
       {badgePendingEdit ? (
-        <div
-          className={styles.modalOverlay}
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Edit settings for ${badgePendingEdit.name}`}
-        >
-          <div className={styles.confirmModal}>
+        <div className={styles.importOverlay} onClick={closeBadgeSettings}>
+          <div
+            ref={settingsModalRef}
+            className={styles.importModal}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Edit settings for ${badgePendingEdit.name}`}
+            onClick={(event) => event.stopPropagation()}
+          >
             <button
               type="button"
-              className={styles.modalCloseButton}
+              className={styles.importCloseButton}
               onClick={closeBadgeSettings}
               aria-label="Close badge settings"
               disabled={isSavingSettings || isDeleting}
             >
-              x
+              ×
             </button>
 
-            <h2 className={styles.modalTitle}>Edit badge settings</h2>
-            <p className={styles.modalBadgeName}>{badgePendingEdit.name}</p>
-            <p className={styles.modalText}>
-              Inserted on{' '}
-              {new Date(badgePendingEdit.createdAt).toLocaleDateString(undefined, {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-              })}
-            </p>
+            <div className={styles.importModalHeader}>
+              <h3 className={styles.importTitle}>Edit badge settings</h3>
+              <p className={styles.importSubtitle}>
+                {badgePendingEdit.name} · Added{' '}
+                {new Date(badgePendingEdit.createdAt).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              </p>
+            </div>
+
+            {settingsError ? <p className={styles.errorText}>{settingsError}</p> : null}
 
             <div className={styles.importField}>
               <span>Content Availability</span>
@@ -882,9 +888,7 @@ export default function CreatedCourseDetailPage() {
               />
             </div>
 
-            {settingsError ? <p className={styles.errorText}>{settingsError}</p> : null}
-
-            <div className={styles.modalActions}>
+            <div className={styles.importModalActions}>
               <button
                 type="button"
                 className={styles.secondaryButton}
@@ -905,11 +909,11 @@ export default function CreatedCourseDetailPage() {
 
             {showUnassignConfirm ? (
               <div className={styles.dangerZone}>
-                <p className={styles.modalText}>
+                <p className={styles.dangerText}>
                   This removes the badge and its lesson from this course. The badge itself will not be deleted and can
                   be imported again later.
                 </p>
-                <div className={styles.modalActions}>
+                <div className={styles.importModalActions}>
                   <button
                     type="button"
                     className={styles.secondaryButton}

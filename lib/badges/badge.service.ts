@@ -279,6 +279,11 @@ export async function executeFetchBadges(args: FetchBadgesArgs) {
       availableOn: true,
       closesOn: true,
       neverCloses: true,
+      // Authored assessment policy — the editor rehydrates these; omitting them
+      // made the form fall back to defaults (0/0/false) and overwrite the DB on save.
+      reassessmentLimit: true,
+      cooldownDays: true,
+      reassessmentRequired: true,
       createdAt: true,
       rubricGoal: {
         select: {

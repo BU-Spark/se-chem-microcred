@@ -259,11 +259,12 @@ describe('Created course detail page', () => {
     expect(screen.queryByRole('button', { name: 'Delete badge' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
 
-    // Open the combined edit-settings popup; it shows the read-only insertion date.
+    // Open the combined edit-settings popup; its header shows the badge name and
+    // the read-only insertion date.
     fireEvent.click(screen.getAllByRole('button', { name: 'Edit badge settings' })[0]);
     const settingsDialog = screen.getByRole('dialog', { name: 'Edit settings for Waste Handling Badge' });
     expect(settingsDialog).toBeInTheDocument();
-    expect(screen.getByText(/Inserted on/i)).toBeInTheDocument();
+    expect(screen.getByText(/· Added/i)).toBeInTheDocument();
 
     // Saving the badge settings PATCHes the imported badge with the availability window.
     fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));

@@ -525,13 +525,6 @@
   margin: 26px 0 22px;
 }
 
-.modalBadgeName {
-  margin: 0;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 18px;
-  color: #111111;
-}
-
 .modalText {
   margin: 14px 0 0;
   font-family: 'Open Sans', sans-serif;
@@ -609,20 +602,33 @@
 
 /* Destructive unassign action inside the Edit-badge-settings popup. */
 .dangerZone {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid #e4e4e4;
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e6ebf1;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.dangerText {
+  margin: 0;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.55;
+  color: #556070;
 }
 
 .dangerLink {
-  margin-top: 18px;
+  align-self: flex-start;
+  margin-top: 0.25rem;
+  padding: 0;
   border: 0;
   background: none;
   color: #b3261e;
   cursor: pointer;
-  font-family: 'Lato', sans-serif;
-  font-size: 15px;
+  font-family: 'Lato', system-ui, sans-serif;
+  font-size: 0.85rem;
   font-weight: 700;
   text-decoration: underline;
 }

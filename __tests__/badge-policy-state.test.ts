@@ -81,4 +81,18 @@ describe('resolveFailAcknowledge', () => {
     expect(result.status).toBe(BadgeStatus.LOCKED);
     expect(result.cooldownUntil).toBeNull();
   });
+
+  it('suppresses the lock in alpha mode, keeping the badge retryable with its cooldown', () => {
+    const policy = { reassessmentLimit: 0, cooldownDays: 5, reassessmentRequired: false };
+    const now = new Date('2026-07-18T00:00:00Z');
+    const result = resolveFailAcknowledge(1, policy, now, { alphaMode: true });
+    expect(result.status).toBe(BadgeStatus.READY_FOR_ASSESSMENT);
+    expect(result.cooldownUntil).toEqual(new Date('2026-07-23T00:00:00Z'));
+  });
+
+  it('still locks when alpha mode is off', () => {
+    const policy = { reassessmentLimit: 0, cooldownDays: 5, reassessmentRequired: false };
+    const result = resolveFailAcknowledge(1, policy, new Date('2026-07-18T00:00:00Z'), { alphaMode: false });
+    expect(result.status).toBe(BadgeStatus.LOCKED);
+  });
 });
