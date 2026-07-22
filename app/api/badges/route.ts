@@ -60,6 +60,11 @@ export async function GET(req: NextRequest) {
           availableOn: badge.availableOn?.toISOString() ?? null,
           closesOn: badge.closesOn?.toISOString() ?? null,
           neverCloses: badge.neverCloses ?? null,
+          // Authored assessment policy so the editor rehydrates the real values
+          // instead of the draft defaults (which a save would then persist).
+          reassessmentLimit: badge.reassessmentLimit ?? null,
+          cooldownDays: badge.cooldownDays ?? null,
+          reassessmentRequired: badge.reassessmentRequired ?? null,
           createdAt: badge.createdAt.toISOString(),
           assignedStudentCount: badge._count.studentProgress,
           rubricGoal: badge.rubricGoal,

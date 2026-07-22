@@ -586,6 +586,49 @@ describe('badge creation API', () => {
     });
   });
 
+  it('returns the authored assessment policy so the editor rehydrates it (not defaults)', async () => {
+    // Regression: the GET fetch/select dropped these fields, so the editor loaded
+    // 0/0/false and a subsequent save overwrote the stored policy in the DB.
+    mockPrisma.badge.findMany.mockResolvedValue([
+      {
+        id: 'badge-1',
+        slug: 'bunsen-burner-badge',
+        name: 'Bunsen Burner Badge',
+        description: null,
+        reassessmentLimit: 3,
+        cooldownDays: 7,
+        reassessmentRequired: true,
+        createdAt: new Date('2025-02-20T17:00:00.000Z'),
+        rubricGoal: null,
+        requirements: [],
+        _count: { studentProgress: 0 },
+      },
+    ]);
+
+    const response = await getBadges();
+    expect(response.status).toBe(200);
+
+    // The Prisma select must actually request the policy columns.
+    expect(mockPrisma.badge.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        select: expect.objectContaining({
+          reassessmentLimit: true,
+          cooldownDays: true,
+          reassessmentRequired: true,
+        }),
+      })
+    );
+
+    const body = await response.json();
+    expect(body.badges[0]).toEqual(
+      expect.objectContaining({
+        reassessmentLimit: 3,
+        cooldownDays: 7,
+        reassessmentRequired: true,
+      })
+    );
+  });
+
   it('updates badge details and stores clean rubric metadata', async () => {
     const response = await patchBadge({
       id: 'badge-1',
