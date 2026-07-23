@@ -91,7 +91,12 @@ export default function RubricStep({
             return (
               <div key={subgoal.id} className={styles.rubricSubgoalBlock} data-subgoal-id={subgoal.id}>
                 <div className={styles.rubricSubgoalHeader}>
-                  <span className={styles.rubricOrderedNumber}>{subgoalIndex + 1}.</span>
+                  <span className={styles.rubricOrderedNumber}>
+                    {subgoalIndex + 1}.
+                    <span className={styles.rubricRequiredMark} aria-hidden="true">
+                      *
+                    </span>
+                  </span>
                   <input
                     aria-label={`Subgoal ${subgoalIndex + 1} title`}
                     className={styles.rubricSubgoalTitleInput}
@@ -114,7 +119,12 @@ export default function RubricStep({
                 <ol className={styles.rubricOrderedList}>
                   {subgoal.tasks.map((task, taskIndex) => (
                     <li key={task.id} className={styles.rubricOrderedItem}>
-                      <span className={styles.rubricOrderedNumber}>{taskIndex + 1}.</span>
+                      <span className={styles.rubricOrderedNumber}>
+                        {taskIndex + 1}.
+                        <span className={styles.rubricRequiredMark} aria-hidden="true">
+                          *
+                        </span>
+                      </span>
                       <textarea
                         aria-label={`Subgoal ${subgoalIndex + 1} task ${taskIndex + 1}`}
                         className={styles.rubricLineInput}
