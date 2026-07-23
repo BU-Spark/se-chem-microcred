@@ -307,6 +307,27 @@ export async function GET(req: Request) {
   const studentSections = new Set((enrollment?.sections ?? []).map((s) => s.section));
   const primarySection = enrollment?.sections[0]?.section ?? enrollment?.course.section ?? null;
 
+  // Scope the student's badges to THIS course. A badge belongs to the course when it has a
+  // requirement whose lesson lives in the course — the same rule courseBadges uses above.
+  // Without this filter the status buckets leak in badges from the student's other courses.
+  const studentBadgeWhere = {
+    studentId: student.id,
+    ...(enrollment ? { badge: { requirements: { some: { lesson: { courseId: enrollment.courseId } } } } } : {}),
+  };
+  const studentBadgeInclude = {
+    badge: {
+      include: {
+        requirements: {
+          include: {
+            lesson: {
+              select: { courseId: true, slug: true, title: true },
+            },
+          },
+        },
+      },
+    },
+  } as const;
+
   // Build the instructor + checker contact list from enrollments (the section-aware source
   // of truth) rather than CourseContact (which has no section). The query is folded into the
   // Promise.all below so it runs in parallel with the other reads instead of adding a serial
@@ -347,20 +368,8 @@ export async function GET(req: Request) {
     fetchLessonProgress(student.id),
     enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
     prisma.studentBadge.findMany({
-      where: { studentId: student.id },
-      include: {
-        badge: {
-          include: {
-            requirements: {
-              include: {
-                lesson: {
-                  select: { courseId: true, slug: true, title: true },
-                },
-              },
-            },
-          },
-        },
-      },
+      where: studentBadgeWhere,
+      include: studentBadgeInclude,
     }),
     prisma.checkpointAttempt.findMany({
       // archivedAt: null excludes sealed failed-run answers so the student's
@@ -430,20 +439,8 @@ export async function GET(req: Request) {
     });
 
     studentBadges = await prisma.studentBadge.findMany({
-      where: { studentId: student.id },
-      include: {
-        badge: {
-          include: {
-            requirements: {
-              include: {
-                lesson: {
-                  select: { courseId: true, slug: true, title: true },
-                },
-              },
-            },
-          },
-        },
-      },
+      where: studentBadgeWhere,
+      include: studentBadgeInclude,
     });
   }
 

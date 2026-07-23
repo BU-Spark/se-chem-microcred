@@ -256,40 +256,6 @@
 }
 
 /* =========================
-   Stat tiles
-   ========================= */
-.statRow {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1.25rem;
-}
-
-.statCard {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-
-  background: #ffffff;
-  border: 3px solid #dedede;
-  border-radius: 18px;
-  padding: 1.25rem 1.5rem;
-}
-
-.statNumber {
-  font-family: 'Lato', sans-serif;
-  font-size: 2.5rem;
-  font-weight: 700;
-  line-height: 1;
-  color: #1f5fab;
-}
-
-.statLabel {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 0.95rem;
-  color: #4b5563;
-}
-
-/* =========================
    Two-column body
    ========================= */
 .dashboardGrid {
@@ -335,20 +301,45 @@
   padding: 1.5rem;
 }
 
-.panelTitle {
-  margin: 0;
-  font-family: 'Lato', sans-serif;
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #000000;
-}
-
 .panelText {
   margin: 0;
   font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;
   line-height: 1.5;
   color: #4b5563;
+}
+
+/* Compact course stats: plain text lines instead of large stat boxes. */
+.progressSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #4b5563;
+}
+
+.progressSummary strong {
+  color: #1f5fab;
+  font-weight: 700;
+}
+
+/* A titled block inside the combined right-hand panel (progress / finalize / about). */
+.panelSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid #ededed;
+}
+
+.panelSubtitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #000000;
 }
 
 /* Ready-to-finalize list */
@@ -741,4 +732,193 @@
   .brandMark {
     align-self: flex-start;
   }
+}
+
+/* =========================
+   Tab strip (Overview + one per badge)
+   ========================= */
+.tabStrip {
+  display: flex;
+  gap: 6px;
+  padding: 4px;
+  background: #eef2f6;
+  border-radius: 14px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  border-radius: 10px;
+  padding: 0.55rem 1rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #4a5568;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab:hover {
+  color: #2e6aa9;
+}
+
+.tabActive {
+  background: #ffffff;
+  color: #1f5fab;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12);
+}
+
+.tabLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 16rem;
+}
+
+.tabDot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  flex: 0 0 auto;
+}
+
+/* =========================
+   Badges section (tab strip + selected badge panel)
+   ========================= */
+.badgesSection {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* =========================
+   Per-badge panel
+   ========================= */
+.badgePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.badgeHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+
+  background: #ffffff;
+  border: 3px solid #dedede;
+  border-radius: 18px;
+  padding: 1.5rem 1.75rem;
+}
+
+.badgeHeaderText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.badgeHeaderTop {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.badgeHeaderTitle {
+  font-family: 'Lato', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.1;
+  color: #000000;
+  margin: 0;
+}
+
+.badgeHeaderDescription {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #4b5563;
+  max-width: 60ch;
+}
+
+.badgeHeaderMeta {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #374151;
+}
+
+.badgeHeaderAction {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 12px;
+  padding: 0.7rem 1.25rem;
+  background: #1f5fab;
+  color: #ffffff;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.badgeHeaderAction:hover {
+  background: #184c88;
+}
+
+/* =========================
+   Status pill + tone colors (shared by pill and tab dot)
+   ========================= */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.25rem 0.75rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
+}
+
+.status_notStarted {
+  background: #9ca3af;
+}
+
+.status_learning {
+  background: #2e6aa9;
+}
+
+.status_assess {
+  background: #b45309;
+}
+
+.status_review {
+  background: #b91c1c;
+}
+
+.status_finalize {
+  background: #7c3aed;
+}
+
+.status_completed {
+  background: #15803d;
+}
+
+.status_locked {
+  background: #4b5563;
 }
