@@ -468,6 +468,11 @@
   font-weight: 600;
   cursor: pointer;
   transition: transform 0.2s ease;
+  /* Answer choices render as buttons; long ones must wrap rather than
+     stretch the button past the question card. */
+  max-width: 100%;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .controlButton:active {

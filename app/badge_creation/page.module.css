@@ -373,6 +373,7 @@
 .textField,
 .textAreaCompact,
 .longTextArea,
+.optionField,
 .selectField,
 .dateField input {
   width: 100%;
@@ -386,10 +387,31 @@
   padding: 12px 14px;
 }
 
+/* Wrap long content instead of letting it overflow the field. Chemistry
+   answers often contain long unbroken formulas, which wrap only with
+   overflow-wrap; 80ch keeps lines at a readable measure. */
+.descriptionInput,
+.textAreaCompact,
+.longTextArea,
+.optionField {
+  max-width: 80ch;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
 .descriptionInput,
 .textAreaCompact {
   min-height: 96px;
   resize: vertical;
+}
+
+/* Answer choices grow with their content (see AutoGrowTextarea), so they must
+   not scroll or be resized to a height that hides text. */
+.optionField {
+  display: block;
+  overflow: hidden;
+  resize: none;
+  line-height: 1.4;
 }
 
 .longTextArea {
@@ -403,6 +425,7 @@
 
 .descriptionInput:focus,
 .textField:focus,
+.optionField:focus,
 .textAreaCompact:focus,
 .longTextArea:focus,
 .selectField:focus,
@@ -1364,6 +1387,14 @@
 .optionRow {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  /* The choice field grows with its text, so pin the controls to the first
+     line instead of letting them drift to the vertical middle. */
+  align-items: start;
+}
+
+.optionRow > input[type='checkbox'],
+.optionRow > .removeTextButton {
+  margin-top: 14px;
 }
 
 .numberedRubricItem {
@@ -1588,5 +1619,11 @@
   .numberedRubricItem,
   .optionRow {
     grid-template-columns: 1fr;
+  }
+
+  /* Stacked single column: no first-line to align the controls to. */
+  .optionRow > input[type='checkbox'],
+  .optionRow > .removeTextButton {
+    margin-top: 0;
   }
 }

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import RichTextEditor from '@/app/components/RichText/RichTextEditor';
 
+import AutoGrowTextarea from '../components/AutoGrowTextarea';
 import QuestionModal from '../components/QuestionModal';
 import VideoCheckpointPlayer from '../components/VideoCheckpointPlayer';
 import { parseTimecodeToSeconds } from '../lib/badge-helpers';
@@ -223,8 +224,8 @@ export default function CheckpointsStep({
                             }
                             aria-label={`Question ${questionIndex + 1} choice ${optionIndex + 1} is correct`}
                           />
-                          <input
-                            className={styles.textField}
+                          <AutoGrowTextarea
+                            className={styles.optionField}
                             value={option}
                             placeholder={`Choice ${optionIndex + 1}`}
                             onChange={(event) =>
