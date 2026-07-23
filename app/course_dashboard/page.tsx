@@ -8,7 +8,8 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal';
-import { useStudentData, type LessonRecord } from '../hooks/useStudentData';
+import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
+import { useStudentData, type BadgeRecord, type LessonRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 import veryUnhappy from '../../public/assets/survey_faces/very_unhappy.svg';
 import slightlyUnhappy from '../../public/assets/survey_faces/slightly_unhappy.svg';
@@ -146,7 +147,7 @@ function resolveLessonImage(record: LessonRecord) {
   return DEFAULT_LESSON_IMAGE;
 }
 
-function lessonRecordToCard(record: LessonRecord): LessonCard {
+function lessonRecordToCard(record: LessonRecord, assessedBadgeSlugs?: Set<string>): LessonCard {
   const due = formatDueDate(record.dueDate);
   const metaParts: string[] = [];
   if (due) {
@@ -173,6 +174,19 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
   const variant: LessonCard['variant'] =
     record.status === 'COMPLETED' ? 'completed' : record.status === 'IN_PROGRESS' ? 'continue' : 'start';
 
+  // A completed badge lesson's "Review" opens the badge feedback (assessment
+  // results) page instead of replaying the lesson video — but only once the badge
+  // has actually been assessed. Assessment outcome lives on the badge, not the
+  // lesson: passing (COMPLETED) OR failing (IN_REVIEW/LOCKED) the in-person
+  // assessment both belong here, while a lesson whose badge is only awaiting
+  // assessment (READY_FOR_ASSESSMENT) has no feedback yet and stays on the lesson.
+  const badgeSlug = record.badgeRequirements?.[0]?.badgeSlug ?? null;
+  const badgeAssessed = badgeSlug ? (assessedBadgeSlugs?.has(badgeSlug) ?? false) : false;
+  const href =
+    record.status === 'COMPLETED' && badgeSlug && badgeAssessed
+      ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
+      : `/lessons/${record.slug}`;
+
   return {
     id: record.id,
     title: record.title,
@@ -181,9 +195,54 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
     actionLabel,
     variant,
     image: resolveLessonImage(record),
-    href: `/lessons/${record.slug}`,
+    href,
   };
 }
+
+type BadgeStatusTone = 'notStarted' | 'learning' | 'assess' | 'review' | 'finalize' | 'completed' | 'locked';
+
+interface BadgeStatusDisplay {
+  label: string;
+  tone: BadgeStatusTone;
+}
+
+function formatBadgeDate(value: string | null) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+/**
+ * Map a badge's assessment state to a student-facing label + a tone for the status pill.
+ * IN_REVIEW splits on the latest attempt: a passing attempt awaits the student's rating
+ * ("Ready to finalize"), a failing one awaits their feedback review ("Ready to be reviewed").
+ */
+function badgeStatusDisplay(badge: BadgeRecord): BadgeStatusDisplay {
+  switch (badge.status) {
+    case 'COMPLETED':
+      return { label: 'Completed', tone: 'completed' };
+    case 'READY_FOR_ASSESSMENT':
+      return { label: 'Ready to be assessed', tone: 'assess' };
+    case 'IN_REVIEW':
+      return badge.latestAttemptPassed === true
+        ? { label: 'Ready to finalize', tone: 'finalize' }
+        : { label: 'Ready to be reviewed', tone: 'review' };
+    case 'LOCKED': {
+      const until = formatBadgeDate(badge.cooldownUntil);
+      const future = badge.cooldownUntil ? Date.parse(badge.cooldownUntil) > Date.now() : false;
+      return { label: until && future ? `Locked until ${until}` : 'Locked', tone: 'locked' };
+    }
+    case 'LEARNING':
+      return { label: 'In progress', tone: 'learning' };
+    case 'NOT_STARTED':
+    default:
+      return { label: 'Not started', tone: 'notStarted' };
+  }
+}
+
+// Badges whose assessment feedback page is worth linking to (an attempt exists / is resolved).
+const BADGE_STATUSES_WITH_FEEDBACK = new Set<BadgeRecord['status']>(['IN_REVIEW', 'COMPLETED', 'LOCKED']);
 
 function HomePageContent() {
   const router = useRouter();
@@ -202,6 +261,11 @@ function HomePageContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
+  // Currently selected badge tab (a badge id). null falls back to the first badge.
+  // The Overview is rendered separately and is always visible, so it is not a tab.
+  const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
+  // Badge whose in-person assessment code/QR modal is open (READY_FOR_ASSESSMENT only).
+  const [codeBadge, setCodeBadge] = useState<BadgeRecord | null>(null);
 
   const FACE_IMAGES: Record<number, StaticImageData> = {
     1: veryUnhappy,
@@ -282,17 +346,77 @@ function HomePageContent() {
     }
   }, [pendingSurveyBadges]);
 
-  const upNextLessons = useMemo(() => {
-    return studentData?.lessons.upNext.map(lessonRecordToCard) ?? [];
+  // Badges with an assessment outcome (passed → COMPLETED, failed → IN_REVIEW/LOCKED).
+  // A completed lesson's "Review" only routes to feedback once its badge is in here.
+  const assessedBadgeSlugs = useMemo(() => {
+    const slugs = new Set<string>();
+    const badges = studentData?.badges;
+    if (badges) {
+      for (const badge of [...(badges.completed ?? []), ...(badges.inReview ?? []), ...(badges.locked ?? [])]) {
+        if (badge.slug) slugs.add(badge.slug);
+      }
+    }
+    return slugs;
   }, [studentData]);
 
-  const continueLessons = useMemo(() => {
-    return studentData?.lessons.inProgress.map(lessonRecordToCard) ?? [];
+  // Group lessons under the badges they belong to. Driven from the lesson side because
+  // every returned lesson carries its badge ids, whereas a never-started badge's own
+  // `requirements` list comes back empty. In practice the link is 1:1, but a lesson
+  // required by multiple badges is placed under each (many-to-many is schema-legal).
+  const lessonsByBadgeId = useMemo(() => {
+    const map = new Map<string, LessonRecord[]>();
+    for (const lesson of studentData?.lessons.catalog ?? []) {
+      for (const req of lesson.badgeRequirements ?? []) {
+        const list = map.get(req.badgeId) ?? [];
+        list.push(lesson);
+        map.set(req.badgeId, list);
+      }
+    }
+    for (const list of map.values()) {
+      list.sort((a, b) => a.sortOrder - b.sortOrder);
+    }
+    return map;
   }, [studentData]);
 
-  const completedLessons = useMemo(() => {
-    return studentData?.lessons.completed?.map(lessonRecordToCard) ?? [];
+  // Flatten all badge buckets into one ordered list for the tab strip. A badge earns a
+  // tab when it has at least one visible lesson OR the student has begun it (status other
+  // than NOT_STARTED) — this suppresses empty tabs for never-started, unreleased badges.
+  // Ordered by the badge's earliest lesson so tabs follow the course's learning sequence.
+  const orderedBadges = useMemo(() => {
+    const badges = studentData?.badges;
+    if (!badges) return [] as BadgeRecord[];
+    const all = [
+      ...(badges.completed ?? []),
+      ...(badges.readyForAssessment ?? []),
+      ...(badges.inReview ?? []),
+      ...(badges.learning ?? []),
+      ...(badges.locked ?? []),
+      ...(badges.notStarted ?? []),
+    ];
+    const earliestSort = (badge: BadgeRecord) =>
+      lessonsByBadgeId.get(badge.id)?.[0]?.sortOrder ?? Number.MAX_SAFE_INTEGER;
+    return all
+      .filter((badge) => (lessonsByBadgeId.get(badge.id)?.length ?? 0) > 0 || badge.status !== 'NOT_STARTED')
+      .sort((a, b) => earliestSort(a) - earliestSort(b) || a.name.localeCompare(b.name));
+  }, [studentData, lessonsByBadgeId]);
+
+  // Overall course progress for the Overview tab.
+  const badgeProgress = useMemo(() => {
+    const completed = studentData?.badges.completed?.length ?? 0;
+    return { completed, total: orderedBadges.length };
+  }, [studentData, orderedBadges]);
+
+  const lessonProgress = useMemo(() => {
+    const all = studentData?.lessons.catalog ?? [];
+    return { completed: all.filter((lesson) => lesson.status === 'COMPLETED').length, total: all.length };
   }, [studentData]);
+
+  // If the selected badge disappears after a data refresh, fall back to the first badge.
+  useEffect(() => {
+    if (activeBadgeId !== null && !orderedBadges.some((badge) => badge.id === activeBadgeId)) {
+      setActiveBadgeId(null);
+    }
+  }, [activeBadgeId, orderedBadges]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
@@ -440,6 +564,63 @@ function HomePageContent() {
     </li>
   );
 
+  const renderBadgePanel = (badge: BadgeRecord) => {
+    const display = badgeStatusDisplay(badge);
+    const cards = (lessonsByBadgeId.get(badge.id) ?? []).map((record) =>
+      lessonRecordToCard(record, assessedBadgeSlugs)
+    );
+    const feedbackHref =
+      BADGE_STATUSES_WITH_FEEDBACK.has(badge.status) && badge.slug
+        ? courseId
+          ? `/badges/${encodeURIComponent(badge.slug)}/feedback?courseId=${encodeURIComponent(courseId)}`
+          : `/badges/${encodeURIComponent(badge.slug)}/feedback`
+        : null;
+    const feedbackLabel =
+      badge.status === 'COMPLETED'
+        ? 'View feedback'
+        : badge.latestAttemptPassed
+          ? 'Review & finalize'
+          : 'Review feedback';
+
+    return (
+      <section className={styles.badgePanel}>
+        <div className={styles.badgeHeader}>
+          <div className={styles.badgeHeaderText}>
+            <div className={styles.badgeHeaderTop}>
+              <h2 className={styles.badgeHeaderTitle}>{badge.name}</h2>
+              <span className={`${styles.statusPill} ${styles[`status_${display.tone}`]}`}>{display.label}</span>
+            </div>
+            {badge.description ? <p className={styles.badgeHeaderDescription}>{badge.description}</p> : null}
+            <div className={styles.badgeHeaderMeta}>
+              {badge.score != null ? <span>Score: {badge.score}%</span> : null}
+              {badge.latestAttemptPassed != null ? (
+                <span>Last attempt: {badge.latestAttemptPassed ? 'Passed' : 'Not passed'}</span>
+              ) : null}
+            </div>
+          </div>
+          {badge.status === 'READY_FOR_ASSESSMENT' ? (
+            <button type="button" className={styles.badgeHeaderAction} onClick={() => setCodeBadge(badge)}>
+              Show code
+            </button>
+          ) : feedbackHref ? (
+            <Link href={feedbackHref} className={styles.badgeHeaderAction}>
+              {feedbackLabel}
+            </Link>
+          ) : null}
+        </div>
+
+        {cards.length === 0 ? (
+          <div className={styles.emptyState}>No lessons are available for this badge yet.</div>
+        ) : (
+          <div className={styles.cardGrid}>{cards.map(renderCard)}</div>
+        )}
+      </section>
+    );
+  };
+
+  // The selected badge tab; defaults to the first badge when nothing is chosen yet.
+  const selectedBadge = orderedBadges.find((badge) => badge.id === activeBadgeId) ?? orderedBadges[0] ?? null;
+
   return (
     <div className={`page ${styles.page}`}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
@@ -459,85 +640,88 @@ function HomePageContent() {
           </div>
         </section>
 
-        <div className={styles.statRow}>
-          <div className={styles.statCard}>
-            <span className={styles.statNumber}>{upNextLessons.length}</span>
-            <span className={styles.statLabel}>Lessons up next</span>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statNumber}>{continueLessons.length}</span>
-            <span className={styles.statLabel}>In progress</span>
-          </div>
-          <div className={styles.statCard}>
-            <span className={styles.statNumber}>{readyBadgeAlerts.length}</span>
-            <span className={styles.statLabel}>Ready to finalize</span>
-          </div>
-        </div>
-
         <div className={styles.dashboardGrid}>
+          {/* Left: badges — one tab per badge, the selected badge's lessons below. */}
           <div className={styles.mainColumn}>
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Up next</h2>
+            <section className={styles.badgesSection}>
+              <h2 className={styles.sectionTitle}>Badges</h2>
               {isLoading ? (
-                <div className={styles.emptyState}>Loading lessons…</div>
-              ) : upNextLessons.length === 0 ? (
-                <div className={styles.emptyState}>No lessons ready to start.</div>
+                <div className={styles.emptyState}>Loading your badges…</div>
+              ) : orderedBadges.length === 0 ? (
+                <div className={styles.emptyState}>This course doesn&apos;t have any badges yet.</div>
               ) : (
-                <div className={styles.cardGrid}>{upNextLessons.map(renderCard)}</div>
-              )}
-            </section>
+                <>
+                  <div className={styles.tabStrip} role="tablist" aria-label="Badges">
+                    {orderedBadges.map((badge) => {
+                      const isActive = selectedBadge?.id === badge.id;
+                      const display = badgeStatusDisplay(badge);
+                      return (
+                        <button
+                          key={badge.id}
+                          type="button"
+                          role="tab"
+                          aria-selected={isActive}
+                          className={`${styles.tab} ${isActive ? styles.tabActive : ''}`}
+                          onClick={() => setActiveBadgeId(badge.id)}
+                        >
+                          <span className={styles.tabLabel}>{badge.name}</span>
+                          <span className={`${styles.tabDot} ${styles[`status_${display.tone}`]}`} aria-hidden="true" />
+                        </button>
+                      );
+                    })}
+                  </div>
 
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Pick up where you left off</h2>
-              {isLoading ? (
-                <div className={styles.emptyState}>Loading your progress…</div>
-              ) : continueLessons.length === 0 ? (
-                <div className={styles.emptyState}>There are no in-progress lessons right now.</div>
-              ) : (
-                <div className={styles.cardGrid}>{continueLessons.map(renderCard)}</div>
-              )}
-            </section>
-
-            <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Completed</h2>
-              {isLoading ? (
-                <div className={styles.emptyState}>Loading your progress…</div>
-              ) : completedLessons.length === 0 ? (
-                <div className={styles.emptyState}>You haven&apos;t completed any lessons yet.</div>
-              ) : (
-                <div className={styles.cardGrid}>{completedLessons.map(renderCard)}</div>
+                  {selectedBadge ? renderBadgePanel(selectedBadge) : null}
+                </>
               )}
             </section>
           </div>
 
+          {/* Right: Overview + course info combined into one always-visible panel. */}
           <aside className={styles.sideColumn}>
             <section className={styles.panel}>
-              <h2 className={styles.panelTitle}>Ready to finalize</h2>
-              {isLoading ? (
-                <p className={styles.emptyState}>Loading your badges…</p>
-              ) : readyBadgeAlerts.length === 0 ? (
-                <p className={styles.emptyState}>No badges ready to finalize right now.</p>
-              ) : (
-                <ul className={styles.badgeList}>{readyBadgeAlerts.map(renderBadgeListItem)}</ul>
-              )}
-            </section>
+              <p className={styles.progressSummary}>
+                <span>
+                  <strong>
+                    {badgeProgress.completed}/{badgeProgress.total}
+                  </strong>{' '}
+                  badges completed
+                </span>
+                <span>
+                  <strong>
+                    {lessonProgress.completed}/{lessonProgress.total}
+                  </strong>{' '}
+                  lessons completed
+                </span>
+                <span>
+                  <strong>{readyBadgeAlerts.length}</strong> ready to finalize
+                </span>
+              </p>
 
-            {courseDescription || courseContacts.length > 0 ? (
-              <section className={styles.panel}>
-                <h2 className={styles.panelTitle}>About this course</h2>
-                {courseDescription ? <p className={styles.panelText}>{courseDescription}</p> : null}
-                {courseContacts.length > 0 ? (
-                  <ul className={styles.contactList}>
-                    {courseContacts.map((contact) => (
-                      <li key={contact.id} className={styles.contactItem}>
-                        <span className={styles.contactName}>{contact.name}</span>
-                        <span className={styles.contactMeta}>{contact.type}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </section>
-            ) : null}
+              {readyBadgeAlerts.length > 0 ? (
+                <div className={styles.panelSection}>
+                  <h3 className={styles.panelSubtitle}>Ready to finalize</h3>
+                  <ul className={styles.badgeList}>{readyBadgeAlerts.map(renderBadgeListItem)}</ul>
+                </div>
+              ) : null}
+
+              {courseDescription || courseContacts.length > 0 ? (
+                <div className={styles.panelSection}>
+                  <h3 className={styles.panelSubtitle}>About this course</h3>
+                  {courseDescription ? <p className={styles.panelText}>{courseDescription}</p> : null}
+                  {courseContacts.length > 0 ? (
+                    <ul className={styles.contactList}>
+                      {courseContacts.map((contact) => (
+                        <li key={contact.id} className={styles.contactItem}>
+                          <span className={styles.contactName}>{contact.name}</span>
+                          <span className={styles.contactMeta}>{contact.type}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
           </aside>
         </div>
       </main>
@@ -569,6 +753,16 @@ function HomePageContent() {
             selectedOptionImage: styles.surveyFaceImageSelected,
             submit: styles.surveySubmit,
           }}
+        />
+      ) : null}
+
+      {codeBadge ? (
+        <AssessmentCodeModal
+          badgeId={codeBadge.id}
+          badgeName={codeBadge.name}
+          courseId={codeBadge.courseId ?? studentData?.course?.id ?? courseId}
+          studentId={studentData?.student.id}
+          onClose={() => setCodeBadge(null)}
         />
       ) : null}
     </div>
