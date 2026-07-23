@@ -4,6 +4,8 @@ import { CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { normalizeEmail } from '@/lib/text/email';
 import prisma from '@/lib/prisma';
+import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
+import { parseTimeToSeconds } from '@/lib/utils';
 
 /**
  * Deep-copies a course the caller owns into a brand-new course owned by the caller.
@@ -110,6 +112,19 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
         // createMany.
         // ---------------------------------------------------------------------
 
+        // Older imported lessons stored their authored video length only in the badge
+        // requirement summary JSON, leaving estimatedMinutes / segment.duration null. Derive
+        // the seconds per source lesson so a duplicate self-heals such a source instead of
+        // copying the nulls forward. Mirrors the fallback in badge-import.service.
+        const videoSecondsBySourceLesson = new Map<string, number>();
+        for (const lesson of source.lessons) {
+          const summaryLength = lesson.badgeRequirements
+            .map((req) => parseRequirementSummary(req.summary).videoLength)
+            .find((videoLength) => Boolean(videoLength));
+          const seconds = summaryLength ? parseTimeToSeconds(summaryLength) : 0;
+          if (seconds > 0) videoSecondsBySourceLesson.set(lesson.id, seconds);
+        }
+
         // 1. Lessons. Precompute a unique slug per source lesson and remember
         //    the mapping so we can recover new ids by slug after createMany.
         const newSlugBySourceLesson = new Map<string, string>();
@@ -123,7 +138,11 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
             summary: lesson.summary,
             description: lesson.description,
             thumbnailUrl: lesson.thumbnailUrl,
-            estimatedMinutes: lesson.estimatedMinutes,
+            estimatedMinutes:
+              lesson.estimatedMinutes ??
+              (videoSecondsBySourceLesson.has(lesson.id)
+                ? Math.max(1, Math.round(videoSecondsBySourceLesson.get(lesson.id)! / 60))
+                : null),
             dueDate: lesson.dueDate,
             passingPercent: lesson.passingPercent,
             sortOrder: lesson.sortOrder,
@@ -157,7 +176,10 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
             sortOrder: segment.sortOrder,
             title: segment.title,
             summary: segment.summary,
-            duration: segment.duration,
+            // Backfill the primary segment's length from the summary when the source lacked it.
+            duration:
+              segment.duration ??
+              (segment.sortOrder === 0 ? (videoSecondsBySourceLesson.get(lesson.id) ?? null) : null),
             videoUrl: segment.videoUrl,
             muxPlaybackId: segment.muxPlaybackId,
             thumbnailUrl: segment.thumbnailUrl,

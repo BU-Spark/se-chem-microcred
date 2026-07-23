@@ -26,6 +26,21 @@ function formatQuestionCount(count?: number | null) {
   return `${safeCount} question${safeCount === 1 ? '' : 's'}`;
 }
 
+/** "3 minutes long" / "<1 minute long" for a segment's length (in seconds). */
+function formatSegmentDuration(totalSeconds: number) {
+  if (!totalSeconds || totalSeconds <= 0) return 'Video segment';
+  if (totalSeconds < 60) return '<1 minute long';
+  const minutes = Math.round(totalSeconds / 60);
+  return `${minutes} minute${minutes === 1 ? '' : 's'} long`;
+}
+
+/** "~12 min" / "<1 min" / "—" for the lesson's total estimated time (in seconds). */
+function formatEstTime(totalSeconds: number) {
+  if (!totalSeconds || totalSeconds <= 0) return '—';
+  if (totalSeconds < 60) return '<1 min';
+  return `~${Math.round(totalSeconds / 60)} min`;
+}
+
 function LessonDetailContent() {
   const router = useRouter();
   const params = useParams<{ lessonId: string }>();
@@ -82,12 +97,17 @@ function LessonDetailContent() {
     img: string;
   };
 
-  const { items: timelineItems, extraPart } = useMemo<{
+  const {
+    items: timelineItems,
+    extraPart,
+    totalSeconds,
+  } = useMemo<{
     items: TimelineItem[];
     extraPart: { title: string; duration: string; img: string } | null;
+    totalSeconds: number;
   }>(() => {
     if (!lessonRecord) {
-      return { items: [], extraPart: null };
+      return { items: [], extraPart: null, totalSeconds: 0 };
     }
 
     const checkpoints = lessonRecord.checkpoints ?? [];
@@ -102,10 +122,11 @@ function LessonDetailContent() {
       }
     });
 
-    // 所有 LessonSegment.duration 之和（假定单位是分钟）
+    // Sum of every LessonSegment.duration. These are stored in SECONDS (see badge.service /
+    // badge-import.service, which write parseTimeToSeconds output), so no unit conversion here.
     const totalSecondsFromSegments = segments.reduce(
       (sum: number, seg: LessonRecord['segments'][number]) =>
-        sum + (typeof seg.duration === 'number' ? seg.duration * 60 : 0),
+        sum + (typeof seg.duration === 'number' ? seg.duration : 0),
       0
     );
 
@@ -136,17 +157,13 @@ function LessonDetailContent() {
       let durationSeconds = curOffset - prevOffset;
       if (durationSeconds < 0) durationSeconds = 0;
 
-      let durationMinutes: number | null = null;
-
-      if (durationSeconds > 0) {
-        durationMinutes = Math.round(durationSeconds / 60);
-      } else if (typeof seg?.duration === 'number') {
-        // fallback：用 segment.duration
-        durationMinutes = seg.duration;
+      // Fall back to the segment's own stored length (also in seconds) when the checkpoint
+      // offsets don't yield a positive span.
+      if (durationSeconds <= 0 && typeof seg?.duration === 'number') {
+        durationSeconds = seg.duration;
       }
 
-      const durationText =
-        durationMinutes != null ? `${durationMinutes} minute${durationMinutes === 1 ? '' : 's'} long` : 'Video segment';
+      const durationText = formatSegmentDuration(durationSeconds);
 
       const title = `Part ${idx + 1}`;
 
@@ -172,9 +189,8 @@ function LessonDetailContent() {
       if (tailSeconds < 0) tailSeconds = 0;
 
       if (tailSeconds > 0) {
-        const minutes = Math.round(tailSeconds / 60);
         const title = `Part ${checkpoints.length + 1}`;
-        const duration = `${minutes} minute${minutes === 1 ? '' : 's'} long`;
+        const duration = formatSegmentDuration(tailSeconds);
 
         const extraSeg = segments[checkpoints.length] ?? segments.at(-1);
         const youtubeId =
@@ -190,13 +206,44 @@ function LessonDetailContent() {
       }
     }
 
-    return { items, extraPart };
+    return { items, extraPart, totalSeconds: totalSecondsFromSegments };
   }, [lessonRecord]);
 
   if (!isLoaded || signedOut) return null;
 
   const title = lessonRecord?.title ?? (isLoading ? 'Loading lesson…' : 'Lesson unavailable');
   const skills = lessonRecord?.skills.map((skill) => skill.trim()).filter(Boolean) ?? [];
+
+  // Parts = one card per checkpoint, plus the optional trailing segment (extraPart).
+  const partsCount = timelineItems.length + (extraPart ? 1 : 0);
+  // Steps shown in the outline = every part card plus the closing survey step.
+  const stepCount = partsCount + 1;
+  // Prefer the summed segment length (seconds) so sub-minute lessons read "<1 min"; fall back
+  // to the coarser stored estimatedMinutes when segments carry no duration.
+  const estSeconds = totalSeconds > 0 ? totalSeconds : (lessonRecord?.estimatedMinutes ?? 0) * 60;
+  const estTime = formatEstTime(estSeconds);
+
+  const videoHref = lessonRecord
+    ? courseId
+      ? `/lessons/${lessonRecord.slug}/video?courseId=${encodeURIComponent(courseId)}`
+      : `/lessons/${lessonRecord.slug}/video`
+    : '#';
+
+  const renderPartCard = (part: { id?: string; title: string; duration: string; img: string }) => (
+    <div key={part.id ?? part.title} className={styles.stepCard}>
+      <div className={styles.stepThumb}>
+        {part.img ? (
+          <Image src={part.img} alt={part.title} width={112} height={72} className={styles.thumbImg} />
+        ) : (
+          <span className={styles.thumbPlaceholder}>Thumbnail</span>
+        )}
+      </div>
+      <div className={styles.stepText}>
+        <div className={styles.stepTitle}>{part.title}</div>
+        <div className={styles.stepDuration}>{part.duration}</div>
+      </div>
+    </div>
+  );
 
   return (
     <div className="page">
@@ -205,153 +252,105 @@ function LessonDetailContent() {
 
       {/* Main */}
       <main className="main">
-        <div className={styles.root}>
-          <header className={styles.header}>
-            <BackButton onClick={handleBack} />
-          </header>
+        {lessonRecord ? (
+          <div className={styles.previewCard}>
+            <aside className={styles.aside}>
+              <BackButton onClick={handleBack} />
 
-          <h1 className={styles.lessonTitle}>{title}</h1>
-
-          {lessonRecord ? (
-            <>
-              <section className={`${styles.section} ${styles.overviewCard}`}>
-                <h2 className={styles.sectionHeading}>About this unit</h2>
-                <p className={styles.body}>{lessonRecord.description || 'Get ready to explore this lesson.'}</p>
-              </section>
+              <h1 className={styles.title}>{title}</h1>
+              <p className={styles.desc}>{lessonRecord.description || 'Get ready to explore this lesson.'}</p>
 
               {skills.length > 0 ? (
-                <section className={`${styles.section} ${styles.overviewCard}`}>
-                  <h2 className={styles.sectionHeading}>Skills you’ll learn</h2>
-                  <ul className={styles.bullets}>
-                    {skills.map((s) => (
-                      <li key={s}>{s}</li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-
-              {/* Lesson outline: checkpoint thumbnails + connectors */}
-              {timelineItems.length > 0 ? (
-                <section className={`${styles.section} ${styles.timelineSection}`}>
-                  <h2 className={styles.sectionHeading}>Lesson outline</h2>
-                  <div className={styles.timeline} aria-label="Lesson outline">
-                    {timelineItems.map((item) => (
-                      <div key={item.id} className={styles.timelineGroup}>
-                        <div className={styles.timelineItem}>
-                          <div className={styles.thumb}>
-                            {item.img ? (
-                              <Image
-                                src={item.img}
-                                alt={item.title}
-                                width={190}
-                                height={120}
-                                className={styles.thumbImg}
-                              />
-                            ) : (
-                              <span className={styles.thumbPlaceholder}>Preview</span>
-                            )}
-                          </div>
-                          <div className={styles.partTitle}>{item.title}</div>
-                          <div className={styles.partDuration}>{item.duration}</div>
-                        </div>
-
-                        <div className={styles.timelineConnectorBlock}>
-                          <div className={styles.timelineCheckpointLabel}>
-                            <div>{item.cpLabel}</div>
-                            <div className={styles.timelineCheckpointMeta}>{item.cpMeta}</div>
-                          </div>
-                          <div className={styles.timelineConnector}>
-                            <span className={styles.timelineLine} />
-                            <span className={styles.timelineCircle} />
-                            <span className={styles.timelineLine} />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Final section — keep only ONE version */}
-                    {extraPart ? (
-                      <div className={styles.timelineGroup}>
-                        <div className={styles.timelineItem}>
-                          <div className={styles.thumb}>
-                            {extraPart.img ? (
-                              <Image
-                                src={extraPart.img}
-                                alt={extraPart.title}
-                                width={190}
-                                height={120}
-                                className={styles.thumbImg}
-                              />
-                            ) : (
-                              <span className={styles.thumbPlaceholder}>Preview</span>
-                            )}
-                          </div>
-                          <div className={styles.partTitle}>{extraPart.title}</div>
-                          <div className={styles.partDuration}>{extraPart.duration}</div>
-                        </div>
-
-                        <div className={styles.timelineEndBlock}>
-                          <div className={styles.timelineCheckpointLabel}>
-                            <div>End of lesson</div>
-                            <div className={styles.timelineCheckpointMeta}>one survey</div>
-                          </div>
-                          <div className={styles.timelineConnector}>
-                            <span className={styles.timelineLine} />
-                            <div className={styles.timelineFinalCircle}>
-                              <Image
-                                src="/assets/lesson/lesson_preview/finish_logo.svg"
-                                alt="End of lesson"
-                                width={61}
-                                height={62}
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className={styles.timelineEndBlock}>
-                        <div className={styles.timelineCheckpointLabel}>
-                          <div>End of lesson</div>
-                          <div className={styles.timelineCheckpointMeta}>one survey</div>
-                        </div>
-                        <div className={styles.timelineConnector}>
-                          <span className={styles.timelineLine} />
-                          <div className={styles.timelineFinalCircle}>
-                            <Image src={finishLogo} alt="End of lesson" width={72} height={72} />
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                <>
+                  <hr className={styles.divider} />
+                  <div className={styles.skills}>
+                    <span className={styles.railLabel}>Skills you’ll learn</span>
+                    <ul className={styles.pills}>
+                      {skills.map((s) => (
+                        <li key={s}>{s}</li>
+                      ))}
+                    </ul>
                   </div>
-                </section>
+                </>
               ) : null}
 
-              <div className={styles.actionsRow}>
-                <Link
-                  href={
-                    courseId
-                      ? `/lessons/${lessonRecord.slug}/video?courseId=${encodeURIComponent(courseId)}`
-                      : `/lessons/${lessonRecord.slug}/video`
-                  }
-                  className={styles.primaryButton}
-                >
-                  {lessonRecord.status === LessonStatus.COMPLETED ? 'Review Lesson' : 'Start Lesson'}
-                </Link>
-              </div>
-            </>
-          ) : (
-            <section className={styles.section}>
-              <p className={styles.body}>
-                {isLoading ? 'Loading lesson details…' : 'We could not find this lesson. Please head back to the list.'}
+              <hr className={styles.divider} />
+              <dl className={styles.stats}>
+                <div className={styles.statRow}>
+                  <dt>Parts</dt>
+                  <dd>{partsCount}</dd>
+                </div>
+                <div className={styles.statRow}>
+                  <dt>Checkpoints</dt>
+                  <dd>{lessonRecord.checkpoints?.length ?? timelineItems.length}</dd>
+                </div>
+                <div className={styles.statRow}>
+                  <dt>Final survey</dt>
+                  <dd>1</dd>
+                </div>
+                <div className={styles.statRow}>
+                  <dt>Est. time</dt>
+                  <dd>{estTime}</dd>
+                </div>
+              </dl>
+
+              <p className={styles.note}>
+                Finish {partsCount === 1 ? 'the part' : 'both parts'} and their checkpoints to unlock the closing
+                survey.
               </p>
-              {!isLoading && (
-                <Link href="/" className={styles.primaryButton}>
-                  Browse Lessons
-                </Link>
-              )}
+
+              <Link href={videoHref} className={styles.primaryButton}>
+                {lessonRecord.status === LessonStatus.COMPLETED ? 'Review Lesson' : 'Start Lesson'}
+              </Link>
+            </aside>
+
+            <section className={styles.outline}>
+              <h2 className={styles.outlineHeading}>Lesson outline</h2>
+              <p className={styles.outlineSub}>
+                {stepCount} step{stepCount === 1 ? '' : 's'}, in order
+              </p>
+
+              <div className={styles.steps}>
+                {timelineItems.map((item) => (
+                  <div key={item.id} className={styles.stepGroup}>
+                    {renderPartCard(item)}
+                    <div className={styles.checkpoint}>
+                      <span className={styles.checkpointDot} />
+                      <span className={styles.checkpointText}>
+                        {item.cpLabel} · {item.cpMeta}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                {extraPart ? renderPartCard(extraPart) : null}
+
+                <div className={styles.endCard}>
+                  <div className={styles.endLogo}>
+                    <Image src={finishLogo} alt="End of lesson" width={40} height={40} />
+                  </div>
+                  <div className={styles.endText}>
+                    <div className={styles.endTitle}>End of lesson</div>
+                    <div className={styles.endMeta}>One survey</div>
+                  </div>
+                </div>
+              </div>
             </section>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className={styles.fallback}>
+            <BackButton onClick={handleBack} />
+            <h1 className={styles.title}>{title}</h1>
+            <p className={styles.desc}>
+              {isLoading ? 'Loading lesson details…' : 'We could not find this lesson. Please head back to the list.'}
+            </p>
+            {!isLoading && (
+              <Link href="/" className={styles.primaryButton}>
+                Browse Lessons
+              </Link>
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

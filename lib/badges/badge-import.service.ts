@@ -166,6 +166,12 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
       const sourceRequirement = sourceBadge.requirements[0] ?? null;
       const sourceLesson = sourceRequirement?.lesson ?? null;
       const summary = parseRequirementSummary(sourceRequirement?.summary);
+      // The authored video length only ever lives in the requirement summary JSON. When the
+      // source lesson/segment rows never captured it (estimatedMinutes/duration null), derive
+      // it here so the imported lesson carries the length forward instead of dropping it.
+      const summaryVideoSeconds = summary.videoLength ? parseTimeToSeconds(summary.videoLength) : 0;
+      const summaryEstimatedMinutes =
+        summaryVideoSeconds > 0 ? Math.max(1, Math.round(summaryVideoSeconds / 60)) : null;
       const lessonSkills =
         sourceLesson?.skills?.map((skill) => skill.text).filter((skill): skill is string => Boolean(skill)) ??
         normalizeSkills(summary.skills);
@@ -204,7 +210,7 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
           description: sourceLesson?.description ?? sourceBadge.description,
           thumbnailUrl: sourceLesson?.thumbnailUrl ?? buildYoutubeThumbnail(summary.youtubeUrl),
           dueDate: closesOn,
-          estimatedMinutes: sourceLesson?.estimatedMinutes ?? null,
+          estimatedMinutes: sourceLesson?.estimatedMinutes ?? summaryEstimatedMinutes,
           passingPercent: sourceLesson?.passingPercent ?? summary.passingPercent ?? 70,
           sortOrder: (course.lessons[0]?.sortOrder ?? -1) + 1,
         },
@@ -237,7 +243,10 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
             sortOrder: segment.sortOrder,
             title: segment.title,
             summary: segment.summary,
-            duration: segment.duration,
+            // Backfill the primary segment's length from the summary when the source never
+            // stored one, so the imported lesson's duration matches the authored video length.
+            duration:
+              segment.duration ?? (segment.sortOrder === 0 && summaryVideoSeconds > 0 ? summaryVideoSeconds : null),
             videoUrl: segment.videoUrl,
             muxPlaybackId: segment.muxPlaybackId,
             thumbnailUrl: segment.thumbnailUrl,
