@@ -13,6 +13,7 @@ import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
 import { isLessonReleased, lessonReleaseDate } from '../../../../lib/lessonVisibility';
+import { deriveCatalogLessonStatus } from '../../../../lib/lessonStatus';
 
 function avatarPathForBase(base?: string | null): string {
   switch (base) {
@@ -533,12 +534,13 @@ export async function GET(req: Request) {
       progress: lessonProgress
         ? {
             ...lessonProgress,
-            status:
-              gradedPassed || allCheckpointsPassed
-                ? LessonStatus.COMPLETED
-                : answeredCount > 0
-                  ? LessonStatus.IN_PROGRESS
-                  : LessonStatus.NOT_STARTED,
+            status: deriveCatalogLessonStatus({
+              storedStatus: lessonProgress.status,
+              gradedPassed,
+              allCheckpointsPassed,
+              answeredCount,
+              checkpointCount: lesson.checkpoints.length,
+            }),
           }
         : undefined,
       completedCheckpointIds,
