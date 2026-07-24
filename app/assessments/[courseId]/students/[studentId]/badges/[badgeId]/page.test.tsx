@@ -286,6 +286,43 @@ describe('Assessment readiness page', () => {
     expect(screen.queryByLabelText('Override to still learning (optional)')).not.toBeInTheDocument();
   });
 
+  it('keeps each task feedback box collapsed until its toggle is clicked', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createBadgePayload() } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+
+    const toggles = screen.getAllByRole('button', { name: 'Feedback (optional)' });
+    expect(toggles).toHaveLength(2);
+    expect(toggles[0]).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+
+    fireEvent.click(toggles[0]);
+    expect(toggles[0]).toHaveAttribute('aria-expanded', 'true');
+    // Only the opened task exposes its textarea; the other stays collapsed.
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(toggles[1]).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Watch the flame color.' } });
+    expect(screen.getByRole('textbox')).toHaveValue('Watch the flame color.');
+
+    fireEvent.click(toggles[0]);
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
   it('hides the assessor instructions once the assessor moves to the review step', async () => {
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
