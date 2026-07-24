@@ -100,14 +100,14 @@
    as attached to the sidebar's border rather than sitting inside the panel. */
 .collapseToggle {
   position: absolute;
-  top: 1.25rem;
-  right: -14px;
+  top: 31em;
+  right: -15px;
   z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;
-  height: 44px;
+  height: 144px;
   padding: 0;
   border: none;
   border-radius: 0 0.5rem 0.5rem 0;
