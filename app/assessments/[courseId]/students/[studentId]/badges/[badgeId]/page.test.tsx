@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import AssessmentReadinessPage from './page';
 
@@ -113,6 +113,116 @@ describe('Assessment readiness page', () => {
     });
     mockUseAuth.mockReturnValue({ signOut: jest.fn() });
     global.fetch = mockFetch as unknown as typeof fetch;
+  });
+
+  it('previews the rubric read-only before the assessment starts', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        const payload = createBadgePayload();
+        return {
+          ok: true,
+          json: async () => ({
+            ...payload,
+            assessment: {
+              rubric: {
+                ...payload.assessment.rubric,
+                instructions: '<p>Have the student demonstrate the flame independently.</p>',
+              },
+            },
+          }),
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    await screen.findByRole('button', { name: 'Confirm and Start' });
+
+    const overview = screen.getByLabelText('Assessment rubric overview');
+    expect(within(overview).getByText(/Adjust the burner to get a tight and blue flame\./)).toBeInTheDocument();
+    expect(within(overview).getByText(/Produce a tight blue flame/)).toBeInTheDocument();
+    expect(within(overview).getByText(/Close the gas valve/)).toBeInTheDocument();
+    expect(within(overview).getByText('3 pts possible · pass at 3')).toBeInTheDocument();
+    expect(within(overview).getByText('3 pts')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How this assessment works' })).toBeInTheDocument();
+
+    // The preview orients the assessor; it never grades.
+    expect(screen.queryAllByRole('switch')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Feedback (optional)' })).not.toBeInTheDocument();
+    // Assessors read the instructions before starting, not just while grading.
+    expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
+    expect(screen.getByText('Have the student demonstrate the flame independently.')).toBeInTheDocument();
+  });
+
+  it('moves from the rubric preview into grading on Confirm and Start', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createBadgePayload() } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+
+    expect(screen.getByRole('switch', { name: 'Task 1.1 failed' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Assessment rubric overview')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'How this assessment works' })).not.toBeInTheDocument();
+  });
+
+  it('shows the recorded task results and feedback on the review step', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createBadgePayload() } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Task 1.1 failed' }));
+    // Feedback boxes stay collapsed until opened (issue #179), so expand task 1.1's first.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Feedback (optional)' })[0]);
+    fireEvent.change(screen.getByLabelText('Feedback for task 1.1 (optional)'), {
+      target: { value: 'Great flame control.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
+
+    const results = screen.getByLabelText('Results by task');
+    expect(within(results).getByText('3 / 3 pts · pass at 3 · Passed')).toBeInTheDocument();
+    expect(within(results).getByText('0 / 2 pts · pass at 2 · Not passed')).toBeInTheDocument();
+    expect(within(results).getByText('Passed')).toBeInTheDocument();
+    expect(within(results).getByText('Not passed')).toBeInTheDocument();
+    expect(within(results).getByText('Feedback: Great flame control.')).toBeInTheDocument();
+
+    // The outcome message still follows the breakdown.
+    expect(
+      screen.getByText('This student has failed the assessment and will be placed into still learning.')
+    ).toBeInTheDocument();
   });
 
   it('starts and submits an assessment attempt', async () => {
@@ -352,9 +462,14 @@ describe('Assessment readiness page', () => {
 
     render(<AssessmentReadinessPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+    const start = await screen.findByRole('button', { name: 'Confirm and Start' });
 
-    // Instructions guide grading and are visible during the grading phase.
+    // Instructions are available before the assessment starts...
+    expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
+
+    fireEvent.click(start);
+
+    // ...and stay visible during the grading phase.
     expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
 
     // Once the assessor advances to the review step, the instructions are hidden.

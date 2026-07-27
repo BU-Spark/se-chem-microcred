@@ -270,6 +270,17 @@
   color: #111111;
 }
 
+.processSteps {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.25rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #111111;
+}
+
 .thresholdMet {
   color: #2f7d45;
 }
@@ -383,6 +394,31 @@
 
 .subgoalGroupFail {
   color: #a33d38;
+}
+
+/* Read-only verdicts on the review step's task breakdown. */
+.taskResultPass,
+.taskResultFail {
+  white-space: nowrap;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.taskResultPass {
+  color: #15803d;
+}
+
+.taskResultFail {
+  color: #a33d38;
+}
+
+.taskResultFeedback {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #374151;
 }
 
 .confirmPanel {

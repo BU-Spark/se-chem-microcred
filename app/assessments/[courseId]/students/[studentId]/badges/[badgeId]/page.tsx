@@ -59,9 +59,9 @@ export default function AssessmentReadinessPage() {
   const { isLoaded, isSignedIn, user } = useUser();
   const signOut = useSignOut();
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [isAssessmentStarted, setIsAssessmentStarted] = useState(false);
-  // Two-step flow (issue #119): grade every task, then confirm the outcome.
-  const [phase, setPhase] = useState<'grading' | 'confirm'>('grading');
+  // Three-step flow: preview the rubric (issue #195), grade every task, then
+  // confirm the outcome (issue #119).
+  const [phase, setPhase] = useState<'overview' | 'grading' | 'confirm'>('overview');
   const [subgoalGroups, setSubgoalGroups] = useState<SubgoalGroupDraft[]>([]);
   // Only used when the computed outcome is a pass: any text here downgrades the
   // student to "still learning" and is sent as the assessor override.
@@ -120,6 +120,7 @@ export default function AssessmentReadinessPage() {
   const canStartAssessment = badgeDetail?.progress.precheckComplete === true;
   const assessmentComplete = badgeDetail?.progress.assessmentComplete === true;
   const canStartNewAssessment = canStartAssessment && !assessmentComplete;
+  const isAssessmentStarted = phase !== 'overview';
   const assessmentStatus = badgeDetail?.progress.assessmentComplete ? 'Complete' : 'Incomplete';
   const currentStep = badgeDetail?.progress.currentCheckpoint || (canStartAssessment ? 'Assessment' : 'Precheck');
   const displayName = user?.fullName || profile?.course.createdBy?.name || '';
@@ -149,9 +150,7 @@ export default function AssessmentReadinessPage() {
       }))
     );
     setOverrideFeedback('');
-    setOpenFeedbackTaskIds([]);
-    setPhase('grading');
-    setIsAssessmentStarted(false);
+    setPhase('overview');
     setSubmitError(null);
   }, [badgeDetail]);
 
@@ -172,6 +171,21 @@ export default function AssessmentReadinessPage() {
   };
 
   const rubric = badgeDetail?.assessment?.rubric ?? null;
+
+  // Instructions orient the assessor before grading and stay available while
+  // grading; they are hidden on the review step so they don't linger over the
+  // pass/fail result (bug #177).
+  const assessorInstructions = rubric?.instructions ? (
+    <div className={styles.taInstructions}>
+      <h3 className={styles.taInstructionsTitle}>Instructions for the assessor</h3>
+      {/* Instructions are authored in the badge editor's rich-text field and
+          stored as sanitized HTML; render read-only for the assessor. */}
+      <div
+        className={`${styles.taInstructionsBody} rte-readonly`}
+        dangerouslySetInnerHTML={{ __html: rubric.instructions }}
+      />
+    </div>
+  ) : null;
 
   // A subgoal passes when its passed tasks' weights meet its threshold; the
   // badge passes only when every subgoal passes.
@@ -226,7 +240,7 @@ export default function AssessmentReadinessPage() {
       }
 
       setSubmitStatus(finalPassed ? 'Assessment recorded. Badge is ready for finalization.' : 'Assessment recorded.');
-      setIsAssessmentStarted(false);
+      setPhase('overview');
       router.push(`/courses/${courseId}?view=assessor`);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to record assessment.');
@@ -326,26 +340,64 @@ export default function AssessmentReadinessPage() {
                     </div>
                   ) : null}
 
+                  {/* Assessors used to land straight in the rubric with no sense of
+                      what the assessment covers; this read-only preview runs before
+                      grading starts (issue #195). */}
+                  {canStartNewAssessment && phase === 'overview' ? (
+                    <div className={styles.assessmentPanel}>
+                      <div className={styles.assessmentPanelHeader}>
+                        <h2>{rubric?.goalName || 'Assessment overview'}</h2>
+                      </div>
+
+                      <div className={styles.taInstructions}>
+                        <h3 className={styles.taInstructionsTitle}>How this assessment works</h3>
+                        <ol className={styles.processSteps}>
+                          <li>Mark each task below as passed or failed, adding feedback where it helps the student.</li>
+                          <li>Continue to review to check the outcome and everything you recorded.</li>
+                          <li>Submit the assessment to save the result to the student&apos;s badge.</li>
+                        </ol>
+                      </div>
+
+                      {assessorInstructions}
+
+                      <div className={styles.criteriaList} aria-label="Assessment rubric overview">
+                        {(rubric?.subgoals ?? []).map((subgoal, groupIndex) => (
+                          <div key={subgoal.id} className={styles.subgoalGroup}>
+                            <div className={styles.subgoalGroupHeader}>
+                              <h3>
+                                {groupIndex + 1}. {subgoal.text}
+                              </h3>
+                              <span className={styles.subgoalPoints}>
+                                {subgoal.tasks.reduce((sum, task) => sum + task.points, 0)} pts possible · pass at{' '}
+                                {subgoal.passThreshold}
+                              </span>
+                            </div>
+
+                            {subgoal.tasks.map((task, taskIndex) => (
+                              <div key={task.id} className={styles.criterionCard}>
+                                <div className={styles.criterionHeader}>
+                                  <h3>
+                                    {groupIndex + 1}.{taskIndex + 1} {task.text}
+                                  </h3>
+                                  <span className={styles.subgoalPoints}>
+                                    {task.points} {task.points === 1 ? 'pt' : 'pts'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
                   {canStartNewAssessment && isAssessmentStarted ? (
                     <div className={styles.assessmentPanel}>
                       <div className={styles.assessmentPanelHeader}>
                         <h2>{rubric?.goalName || 'Assessor Grading'}</h2>
                       </div>
 
-                      {/* Instructions guide the assessor while grading, not the outcome
-                          review — hide them once the assessor moves to the confirm step
-                          so they don't linger over the pass/fail result (bug #177). */}
-                      {phase === 'grading' && rubric?.instructions ? (
-                        <div className={styles.taInstructions}>
-                          <h3 className={styles.taInstructionsTitle}>Instructions for the assessor</h3>
-                          {/* Instructions are authored in the badge editor's rich-text field and
-                              stored as sanitized HTML; render read-only for the assessor. */}
-                          <div
-                            className={`${styles.taInstructionsBody} rte-readonly`}
-                            dangerouslySetInnerHTML={{ __html: rubric.instructions }}
-                          />
-                        </div>
-                      ) : null}
+                      {phase === 'grading' ? assessorInstructions : null}
 
                       {phase === 'grading' ? (
                         <div className={styles.criteriaList}>
@@ -432,6 +484,46 @@ export default function AssessmentReadinessPage() {
                         </div>
                       ) : (
                         <div className={styles.confirmPanel}>
+                          {/* Review step shows everything the assessor recorded rather
+                              than just the verdict (issue #195). */}
+                          <div className={styles.criteriaList} aria-label="Results by task">
+                            {subgoalResults.map((group, groupIndex) => (
+                              <div key={group.subgoalId} className={styles.subgoalGroup}>
+                                <div className={styles.subgoalGroupHeader}>
+                                  <h3>
+                                    {groupIndex + 1}. {group.text}
+                                  </h3>
+                                  <span className={group.passed ? styles.subgoalGroupPass : styles.subgoalGroupFail}>
+                                    {group.earned} / {group.possible} pts · pass at {group.passThreshold} ·{' '}
+                                    {group.passed ? 'Passed' : 'Not passed'}
+                                  </span>
+                                </div>
+
+                                {group.tasks.map((task, taskIndex) => (
+                                  <div key={task.taskId} className={styles.criterionCard}>
+                                    <div className={styles.criterionHeader}>
+                                      <h3>
+                                        {groupIndex + 1}.{taskIndex + 1} {task.text}
+                                      </h3>
+                                      <div className={styles.subgoalControl}>
+                                        <span className={styles.subgoalPoints}>
+                                          {task.points} {task.points === 1 ? 'pt' : 'pts'}
+                                        </span>
+                                        <span className={task.passed ? styles.taskResultPass : styles.taskResultFail}>
+                                          {task.passed ? 'Passed' : 'Not passed'}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {task.feedback.trim() ? (
+                                      <p className={styles.taskResultFeedback}>Feedback: {task.feedback}</p>
+                                    ) : null}
+                                  </div>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+
                           {computedPassed ? (
                             <>
                               <p className={finalPassed ? styles.confirmMessagePass : styles.confirmMessageFail}>
@@ -467,7 +559,7 @@ export default function AssessmentReadinessPage() {
 
               <div className={styles.actionRow}>
                 <BackButton onClick={handleBack} />
-                {isAssessmentStarted && phase === 'confirm' ? (
+                {phase === 'confirm' ? (
                   <button
                     type="button"
                     className={styles.toggleButton}
@@ -480,15 +572,10 @@ export default function AssessmentReadinessPage() {
                 <button
                   type="button"
                   className={styles.primaryButton}
-                  style={
-                    isAssessmentStarted && phase === 'confirm'
-                      ? { backgroundColor: finalPassed ? '#15803d' : '#b91c1c' }
-                      : undefined
-                  }
+                  style={phase === 'confirm' ? { backgroundColor: finalPassed ? '#15803d' : '#b91c1c' } : undefined}
                   disabled={!canStartNewAssessment || isSubmitting}
                   onClick={() => {
-                    if (!isAssessmentStarted) {
-                      setIsAssessmentStarted(true);
+                    if (phase === 'overview') {
                       setPhase('grading');
                       return;
                     }
@@ -503,7 +590,7 @@ export default function AssessmentReadinessPage() {
                 >
                   {assessmentComplete
                     ? 'Assessment complete'
-                    : !isAssessmentStarted
+                    : phase === 'overview'
                       ? 'Confirm and Start'
                       : phase === 'grading'
                         ? 'Continue to review'
