@@ -55,6 +55,12 @@ type UploadDialogState =
       message: string;
     };
 
+type PendingRowRemoval = {
+  target: UploadTarget;
+  key: string;
+  label: string;
+};
+
 type ConfigRowProps = {
   label: string;
   checked: boolean;
@@ -223,6 +229,9 @@ export default function CourseNewPage() {
   // A ref mutates immediately, so it blocks re-entrant calls within the same tick.
   const isSubmittingRef = useRef(false);
   const [uploadDialog, setUploadDialog] = useState<UploadDialogState | null>(null);
+  // Pending roster-row removal awaiting confirmation. Only used in edit mode, where
+  // removing a row deletes a real enrollment on save. (#205)
+  const [rowToRemove, setRowToRemove] = useState<PendingRowRemoval | null>(null);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
@@ -563,15 +572,72 @@ export default function CourseNewPage() {
   // section dropdowns so the prof can reassign a student's section inline.
   const availableSections = Array.from(new Set(studentRows.flatMap((student) => student.sections ?? []))).sort();
 
-  const updateStudentSection = (index: number, value: string) => {
-    setStudentRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value ? [value] : [] } : row)));
+  // Rows are addressed by rosterKey rather than array index. The positional version
+  // was not itself wrong (the render slice always starts at 0, so slice index ==
+  // array index), but paired with `key={index}` React reuses a row's DOM node for a
+  // different person after a removal. Keying by identity makes both correct. (#205)
+  const updateStudentSection = (key: string, value: string) => {
+    setStudentRows((prev) =>
+      prev.map((row) => (rosterKey(row) === key ? { ...row, sections: value ? [value] : [] } : row))
+    );
   };
 
   // Same inline-section-reassignment for the checker roster.
   const availableCheckerSections = Array.from(new Set(checkerRows.flatMap((checker) => checker.sections ?? []))).sort();
 
-  const updateCheckerSection = (index: number, value: string) => {
-    setCheckerRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value ? [value] : [] } : row)));
+  const updateCheckerSection = (key: string, value: string) => {
+    setCheckerRows((prev) =>
+      prev.map((row) => (rosterKey(row) === key ? { ...row, sections: value ? [value] : [] } : row))
+    );
+  };
+
+  // Emails present in BOTH rosters. Used to highlight the offending rows so the
+  // person blocking submission can actually be found and removed, rather than only
+  // being named in the error text. (#205)
+  // Computed inline rather than memoized: this sits after the component's early
+  // returns, where a hook would break the rules-of-hooks call order (and the roster
+  // is small enough that the memo would not pay for itself).
+  const conflictEmails = (() => {
+    const studentEmails = new Set(studentRows.map((row) => row.email.trim().toLowerCase()).filter(Boolean));
+
+    const conflicts = new Set<string>();
+    for (const checker of checkerRows) {
+      const email = checker.email.trim().toLowerCase();
+      if (email && studentEmails.has(email)) conflicts.add(email);
+    }
+    return conflicts;
+  })();
+
+  const isConflictRow = (row: RosterRow) => {
+    const email = row.email.trim().toLowerCase();
+    return Boolean(email) && conflictEmails.has(email);
+  };
+
+  const applyRowRemoval = (target: UploadTarget, key: string) => {
+    const setRows = target === 'checker' ? setCheckerRows : setStudentRows;
+    setRows((prev) => prev.filter((row) => rosterKey(row) !== key));
+  };
+
+  // Creating a course: the roster is unsaved wizard state, so removal is free and
+  // immediate. Editing: the save wipes and rebuilds enrollments from this roster, so
+  // removing a row deletes a real enrollment — confirm first.
+  const requestRowRemoval = (target: UploadTarget, row: RosterRow) => {
+    const key = rosterKey(row);
+    if (!isEditMode) {
+      applyRowRemoval(target, key);
+      return;
+    }
+    setRowToRemove({
+      target,
+      key,
+      label: `${row.firstName} ${row.lastName}`.trim() || row.email || 'this person',
+    });
+  };
+
+  const confirmRowRemoval = () => {
+    if (!rowToRemove) return;
+    applyRowRemoval(rowToRemove.target, rowToRemove.key);
+    setRowToRemove(null);
   };
 
   function ConfigRow({ label, checked, onChange, infoText }: ConfigRowProps) {
@@ -770,25 +836,32 @@ export default function CourseNewPage() {
                         <th>ID Number</th>
                         <th>Email</th>
                         <th>Sections</th>
+                        <th className={styles.actionsHeader}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {studentRows.slice(0, visibleCount).map((student, index) => {
+                      {studentRows.slice(0, visibleCount).map((student) => {
                         const primarySection = student.sections?.[0] ?? '';
+                        const key = rosterKey(student);
+                        const conflicted = isConflictRow(student);
                         const sectionOptions = Array.from(
                           new Set([...availableSections, primarySection].filter(Boolean))
                         );
+                        const name = `${student.firstName} ${student.lastName}`.trim() || student.email;
                         return (
-                          <tr key={index}>
+                          <tr key={key} className={conflicted ? styles.conflictRow : undefined}>
                             <td>{student.lastName}</td>
                             <td>{student.firstName}</td>
                             <td>{student.externalId}</td>
-                            <td>{student.email}</td>
+                            <td>
+                              {student.email}
+                              {conflicted ? <span className={styles.conflictBadge}>Also a checker</span> : null}
+                            </td>
                             <td>
                               <select
                                 className={styles.sectionSelect}
                                 value={primarySection}
-                                onChange={(e) => updateStudentSection(index, e.target.value)}
+                                onChange={(e) => updateStudentSection(key, e.target.value)}
                                 aria-label={`Section for ${student.firstName} ${student.lastName}`}
                               >
                                 {sectionOptions.length === 0 ? <option value="">—</option> : null}
@@ -798,6 +871,16 @@ export default function CourseNewPage() {
                                   </option>
                                 ))}
                               </select>
+                            </td>
+                            <td className={styles.actionsCell}>
+                              <button
+                                type="button"
+                                className={styles.removeButton}
+                                onClick={() => requestRowRemoval('student', student)}
+                                aria-label={`Remove ${name} from the student roster`}
+                              >
+                                Remove
+                              </button>
                             </td>
                           </tr>
                         );
@@ -879,24 +962,31 @@ export default function CourseNewPage() {
                           <th>First Name</th>
                           <th>Email</th>
                           <th>Section</th>
+                          <th className={styles.actionsHeader}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {checkerRows.slice(0, checkerVisibleCount).map((checker, index) => {
+                        {checkerRows.slice(0, checkerVisibleCount).map((checker) => {
                           const primarySection = checker.sections?.[0] ?? '';
+                          const key = rosterKey(checker);
+                          const conflicted = isConflictRow(checker);
                           const sectionOptions = Array.from(
                             new Set([...availableCheckerSections, primarySection].filter(Boolean))
                           );
+                          const name = `${checker.firstName} ${checker.lastName}`.trim() || checker.email;
                           return (
-                            <tr key={index}>
+                            <tr key={key} className={conflicted ? styles.conflictRow : undefined}>
                               <td>{checker.lastName}</td>
                               <td>{checker.firstName}</td>
-                              <td>{checker.email}</td>
+                              <td>
+                                {checker.email}
+                                {conflicted ? <span className={styles.conflictBadge}>Also a student</span> : null}
+                              </td>
                               <td>
                                 <select
                                   className={styles.sectionSelect}
                                   value={primarySection}
-                                  onChange={(e) => updateCheckerSection(index, e.target.value)}
+                                  onChange={(e) => updateCheckerSection(key, e.target.value)}
                                   aria-label={`Section for ${checker.firstName} ${checker.lastName}`}
                                 >
                                   {sectionOptions.length === 0 ? <option value="">—</option> : null}
@@ -906,6 +996,16 @@ export default function CourseNewPage() {
                                     </option>
                                   ))}
                                 </select>
+                              </td>
+                              <td className={styles.actionsCell}>
+                                <button
+                                  type="button"
+                                  className={styles.removeButton}
+                                  onClick={() => requestRowRemoval('checker', checker)}
+                                  aria-label={`Remove ${name} from the checker roster`}
+                                >
+                                  Remove
+                                </button>
                               </td>
                             </tr>
                           );
@@ -1148,6 +1248,34 @@ export default function CourseNewPage() {
                     Close
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {rowToRemove ? (
+          <div
+            className={styles.uploadWarningOverlay}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-row-title"
+          >
+            <div className={styles.uploadWarningModal}>
+              <p className={styles.uploadWarningEyebrow}>Warning</p>
+              <h2 id="remove-row-title" className={styles.uploadWarningTitle}>
+                Remove {rowToRemove.label} from this course?
+              </h2>
+              <p className={styles.uploadWarningText}>
+                They will lose access to this course when you save. Their badge progress is kept, so re-adding them
+                later restores it.
+              </p>
+              <div className={styles.uploadWarningActions}>
+                <button type="button" className={styles.uploadWarningSecondary} onClick={() => setRowToRemove(null)}>
+                  Cancel
+                </button>
+                <button type="button" className={styles.uploadWarningPrimary} onClick={confirmRowRemoval}>
+                  Remove
+                </button>
               </div>
             </div>
           </div>

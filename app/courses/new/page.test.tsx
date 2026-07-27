@@ -404,3 +404,161 @@ describe('Course new page edit mode', () => {
     expect(screen.getByText('Allow checkers to view other sections?')).toBeInTheDocument();
   });
 });
+
+// #205: the same email in both rosters blocks submission, and before this there was
+// no way to remove anyone — re-uploading a corrected CSV only appends (#168), so the
+// wizard was a dead end.
+describe('Course new page roster row removal', () => {
+  function courseWithConflict() {
+    return {
+      course: {
+        id: 'course-1',
+        title: 'Chemistry 101',
+        sectionCount: 3,
+        settings: {
+          allowCooldownOverride: false,
+          allowCheckerMessages: true,
+          allowCrossSectionView: false,
+        },
+        contacts: [],
+        enrollments: [
+          {
+            id: 'enrollment-1',
+            role: 'STUDENT',
+            sections: ['1'],
+            student: { id: 'u-1', name: 'Jane Student', email: 'jane@bu.edu', externalId: 'U1' },
+          },
+          {
+            id: 'enrollment-2',
+            role: 'STUDENT',
+            sections: ['2'],
+            student: { id: 'u-2', name: 'Sam Both', email: 'both@bu.edu', externalId: 'U2' },
+          },
+          {
+            id: 'enrollment-3',
+            role: 'CHECKER',
+            sections: ['2'],
+            student: { id: 'u-2', name: 'Sam Both', email: 'both@bu.edu', externalId: 'U2' },
+          },
+          {
+            id: 'enrollment-4',
+            role: 'STUDENT',
+            sections: ['3'],
+            student: { id: 'u-3', name: 'Kim Lee', email: 'kim@bu.edu', externalId: 'U3' },
+          },
+        ],
+      },
+    };
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSearchParams = new URLSearchParams('courseId=course-1');
+    mockUsePathname.mockReturnValue('/courses/new');
+    mockUseUser.mockReturnValue(createClerkState());
+    mockUseAuth.mockReturnValue(createAuthState());
+    mockUseStudentData.mockReturnValue({
+      data: { student: { name: 'Professor Demo' } },
+      isLoading: false,
+      error: null,
+      refresh: jest.fn(),
+    });
+    global.fetch = mockFetch as unknown as typeof fetch;
+  });
+
+  it('flags a person listed in both rosters so they can be found and removed', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => courseWithConflict() });
+
+    render(<CourseNewPage />);
+
+    expect(await screen.findByText('Chemistry 101')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View Student Roster' }));
+
+    // The duplicate is called out inline; the person who is only a student is not.
+    expect(await screen.findByText('Also a checker')).toBeInTheDocument();
+    expect(screen.getAllByText('Also a checker')).toHaveLength(1);
+  });
+
+  it('confirms before removing in edit mode, and cancelling keeps the row', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => courseWithConflict() });
+
+    render(<CourseNewPage />);
+
+    expect(await screen.findByText('Chemistry 101')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View Student Roster' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Sam Both from the student roster' }));
+
+    expect(await screen.findByRole('heading', { name: 'Remove Sam Both from this course?' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Remove Sam Both from this course?' })).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: 'Remove Sam Both from the student roster' })).toBeInTheDocument();
+  });
+
+  it('removes the duplicate and omits them from the saved roster, unblocking the save', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => courseWithConflict() })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ course: { id: 'course-1' } }) });
+
+    render(<CourseNewPage />);
+
+    expect(await screen.findByText('Chemistry 101')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View Student Roster' }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Sam Both from the student roster' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+
+    // Row is gone, and with it the cross-roster conflict.
+    await waitFor(() => {
+      expect(screen.queryByRole('button', { name: 'Remove Sam Both from the student roster' })).not.toBeInTheDocument();
+    });
+    expect(screen.queryByText('Also a checker')).not.toBeInTheDocument();
+
+    // Student roster -> checker roster -> review.
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    const [, saveOptions] = mockFetch.mock.calls[1];
+    const saveBody = JSON.parse((saveOptions as RequestInit).body as string);
+
+    // Sam survives once, as a checker only — the student enrollment is gone, so the
+    // server's roster rebuild will not recreate it.
+    const samEntries = saveBody.roster.filter((row: { email: string }) => row.email === 'both@bu.edu');
+    expect(samEntries).toEqual([expect.objectContaining({ role: 'CHECKER' })]);
+    expect(saveBody.roster).toEqual(
+      expect.arrayContaining([expect.objectContaining({ email: 'jane@bu.edu', role: 'STUDENT' })])
+    );
+  });
+
+  it('keeps section selections with the right person after a removal', async () => {
+    mockFetch.mockResolvedValue({ ok: true, json: async () => courseWithConflict() });
+
+    render(<CourseNewPage />);
+
+    expect(await screen.findByText('Chemistry 101')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'View Student Roster' }));
+
+    // Remove the FIRST student, shifting every later row's array index down by one.
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove Jane Student from the student roster' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+
+    // Survivors keep their own sections.
+    expect(await screen.findByLabelText('Section for Sam Both')).toHaveValue('2');
+    expect(screen.getByLabelText('Section for Kim Lee')).toHaveValue('3');
+
+    // Reassigning a survivor updates that person and nobody else.
+    fireEvent.change(screen.getByLabelText('Section for Kim Lee'), { target: { value: '2' } });
+
+    expect(await screen.findByLabelText('Section for Kim Lee')).toHaveValue('2');
+    expect(screen.getByLabelText('Section for Sam Both')).toHaveValue('2');
+  });
+});
