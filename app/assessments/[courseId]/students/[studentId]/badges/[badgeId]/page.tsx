@@ -66,6 +66,9 @@ export default function AssessmentReadinessPage() {
   // Only used when the computed outcome is a pass: any text here downgrades the
   // student to "still learning" and is sent as the assessor override.
   const [overrideFeedback, setOverrideFeedback] = useState('');
+  // Per-task feedback is optional and noisy when always visible, so each box is
+  // collapsed until the assessor opens it (issue #179).
+  const [openFeedbackTaskIds, setOpenFeedbackTaskIds] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -158,6 +161,12 @@ export default function AssessmentReadinessPage() {
           ? { ...group, tasks: group.tasks.map((task) => (task.taskId === taskId ? { ...task, ...patch } : task)) }
           : group
       )
+    );
+  };
+
+  const toggleTaskFeedback = (taskId: string) => {
+    setOpenFeedbackTaskIds((current) =>
+      current.includes(taskId) ? current.filter((id) => id !== taskId) : [...current, taskId]
     );
   };
 
@@ -431,16 +440,43 @@ export default function AssessmentReadinessPage() {
                                     </div>
                                   </div>
 
-                                  <label className={styles.criteriaField}>
-                                    <span>Feedback (optional)</span>
-                                    <textarea
-                                      value={task.feedback}
-                                      onChange={(event) =>
-                                        updateTaskDraft(group.subgoalId, task.taskId, { feedback: event.target.value })
+                                  <button
+                                    type="button"
+                                    className={styles.feedbackToggle}
+                                    aria-expanded={openFeedbackTaskIds.includes(task.taskId)}
+                                    aria-controls={`feedback-${task.taskId}`}
+                                    onClick={() => toggleTaskFeedback(task.taskId)}
+                                  >
+                                    <span
+                                      className={
+                                        openFeedbackTaskIds.includes(task.taskId)
+                                          ? styles.feedbackChevronOpen
+                                          : styles.feedbackChevron
                                       }
-                                      rows={2}
-                                    />
-                                  </label>
+                                      aria-hidden="true"
+                                    >
+                                      ›
+                                    </span>
+                                    <span>Feedback (optional)</span>
+                                  </button>
+
+                                  {openFeedbackTaskIds.includes(task.taskId) ? (
+                                    <label className={styles.criteriaField} id={`feedback-${task.taskId}`}>
+                                      <span className={styles.visuallyHidden}>
+                                        Feedback for task {groupIndex + 1}.{taskIndex + 1} (optional)
+                                      </span>
+                                      <textarea
+                                        value={task.feedback}
+                                        onChange={(event) =>
+                                          updateTaskDraft(group.subgoalId, task.taskId, {
+                                            feedback: event.target.value,
+                                          })
+                                        }
+                                        rows={2}
+                                        autoFocus
+                                      />
+                                    </label>
+                                  ) : null}
                                 </div>
                               ))}
                             </div>

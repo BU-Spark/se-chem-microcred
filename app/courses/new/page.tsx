@@ -351,23 +351,23 @@ export default function CourseNewPage() {
     }
   };
 
-  // The same person (by email or ID) can't be both a student and an assessor in one
+  // The same person (by email) can't be both a student and an assessor in one
   // course (one enrollment per person per course). Catch it here with a clear message
   // instead of letting the server reject it with a cryptic error.
   const findRosterRoleConflict = () => {
     const studentKeys = new Map<string, string>();
     for (const student of studentRows) {
-      const label = `${student.firstName} ${student.lastName}`.trim() || student.email || student.externalId;
-      for (const key of [student.email.trim().toLowerCase(), student.externalId.trim()].filter(Boolean)) {
+      const label = `${student.firstName} ${student.lastName}`.trim() || student.email;
+      for (const key of [student.email.trim().toLowerCase()].filter(Boolean)) {
         studentKeys.set(key, label);
       }
     }
 
     const conflicts = new Set<string>();
     for (const assessor of assessorRows) {
-      const keys = [assessor.email.trim().toLowerCase(), assessor.externalId.trim()].filter(Boolean);
+      const keys = [assessor.email.trim().toLowerCase()].filter(Boolean);
       if (keys.some((key) => studentKeys.has(key))) {
-        conflicts.add(`${assessor.firstName} ${assessor.lastName}`.trim() || assessor.email || assessor.externalId);
+        conflicts.add(`${assessor.firstName} ${assessor.lastName}`.trim() || assessor.email);
       }
     }
 
@@ -375,6 +375,19 @@ export default function CourseNewPage() {
 
     const names = Array.from(conflicts);
     return `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} listed as both a student and an assessor. Each person can have only one role per course — remove the duplicate from one roster to continue.`;
+  };
+
+  // Assessors are keyed by email now that the ID is optional, so a row with
+  // neither an email nor an ID can't be resolved server-side. Catch it here with
+  // a clear message instead of the server's generic rejection.
+  const findAssessorsMissingIdentity = () => {
+    const missing = assessorRows
+      .filter((assessor) => !assessor.email.trim() && !assessor.externalId?.trim())
+      .map((assessor) => `${assessor.firstName} ${assessor.lastName}`.trim() || 'an unnamed assessor');
+
+    if (missing.length === 0) return null;
+
+    return `${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} missing an email. Assessors need an email address (their ID is optional) — add one to continue.`;
   };
 
   const hasAtLeastOneSection = () => Number(sections) >= 1;
@@ -393,6 +406,12 @@ export default function CourseNewPage() {
 
       if (!hasAtLeastOneSection()) {
         setSubmitError('Course must have at least 1 section.');
+        return;
+      }
+
+      const assessorIdentityError = findAssessorsMissingIdentity();
+      if (assessorIdentityError) {
+        setSubmitError(assessorIdentityError);
         return;
       }
 
@@ -441,7 +460,7 @@ export default function CourseNewPage() {
 
     try {
       const text = await file.text();
-      const parsedRows = parseRosterCsv(text).map((row) => ({
+      const parsedRows = parseRosterCsv(text, { requireId: target !== 'assessor' }).map((row) => ({
         ...row,
         sections: parseSections(row.sections),
       }));
@@ -493,6 +512,7 @@ export default function CourseNewPage() {
         ...assessorRows.map((assessor) => ({
           email: assessor.email.trim().toLowerCase(),
           name: `${assessor.firstName} ${assessor.lastName}`.trim(),
+          // This is a optional field now -- Later when we do an ID overhaul this gets omitted
           externalId: assessor.externalId || null,
           role: CourseRole.CHECKER,
           sections: assessor.sections ?? [],
@@ -859,7 +879,6 @@ export default function CourseNewPage() {
                         <tr>
                           <th>Last Name</th>
                           <th>First Name</th>
-                          <th>ID Number</th>
                           <th>Email</th>
                           <th>Section</th>
                         </tr>
@@ -874,7 +893,6 @@ export default function CourseNewPage() {
                             <tr key={index}>
                               <td>{assessor.lastName}</td>
                               <td>{assessor.firstName}</td>
-                              <td>{assessor.externalId}</td>
                               <td>{assessor.email}</td>
                               <td>
                                 <select
@@ -1106,8 +1124,12 @@ export default function CourseNewPage() {
                 <>
                   <p className={styles.uploadWarningText}>
                     Use the headers{' '}
-                    <strong>lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections</strong>.{' '}
-                    <br />
+                    <strong>
+                      {uploadDialog.target === 'assessor'
+                        ? 'lastName, firstName, email, sections'
+                        : 'lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections'}
+                    </strong>
+                    . <br />
                     For multiple sections, separate them with <strong>|</strong>
                   </p>
                 </>

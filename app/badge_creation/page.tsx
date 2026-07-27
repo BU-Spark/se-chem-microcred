@@ -468,6 +468,24 @@ export default function BadgeCreationPage() {
     );
   };
 
+  const validateSubgoals = (subgoals: RubricSubgoalDraft[]) => {
+    for (const subgoal of subgoals) {
+      if (subgoal.text.trim().length < 1) {
+        setSubmitError('Subgoals can not be blank');
+        return true;
+      }
+      for (const task of subgoal.tasks) {
+        if (task.text.trim().length < 1) {
+          setSubmitError('Tasks must contain text');
+          return true;
+        }
+      }
+    }
+
+    setSubmitError('');
+    return false;
+  };
+
   const goToStep = (stepIndex: number) => {
     setCurrentStep(stepIndex);
     setSubmissionState(null);
@@ -538,6 +556,12 @@ export default function BadgeCreationPage() {
     // Require a rubric goal name before leaving the Create Rubric step.
     if (currentStep === 3 && !draft.rubricGoal.name.trim()) {
       setSubmitError('Add a rubric goal name before continuing.');
+      return;
+    }
+
+    // Require a rubric subgoal before leaving
+
+    if (currentStep === 3 && validateSubgoals(draft.rubricGoal.subgoals)) {
       return;
     }
 

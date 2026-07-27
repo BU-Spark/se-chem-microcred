@@ -308,6 +308,12 @@ describe('Badge creation page', () => {
     fireEvent.change(screen.getByLabelText('Rubric goal name'), {
       target: { value: 'Demonstrate the skill' },
     });
+    fireEvent.change(screen.getByLabelText('Subgoal 1 title'), {
+      target: { value: 'Perform the skill' },
+    });
+    fireEvent.change(screen.getByLabelText('Subgoal 1 task 1'), {
+      target: { value: 'Student demonstrates the skill.' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> review
     fireEvent.click(screen.getByRole('button', { name: 'Create Badge' }));
 
@@ -473,6 +479,12 @@ describe('Badge creation page', () => {
     fireEvent.change(screen.getByLabelText('Rubric goal name'), {
       target: { value: 'Pipette accurately' },
     });
+    fireEvent.change(screen.getByLabelText('Subgoal 1 title'), {
+      target: { value: 'Measure precisely' },
+    });
+    fireEvent.change(screen.getByLabelText('Subgoal 1 task 1'), {
+      target: { value: 'Student pipettes the target volume.' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> review
     fireEvent.click(screen.getByRole('button', { name: 'Create Badge' }));
 
@@ -510,7 +522,7 @@ describe('Badge creation page', () => {
     expect(screen.getByLabelText('Paste YouTube link here')).toBeInTheDocument();
   });
 
-  it('blocks advancing past the rubric step without a goal name', async () => {
+  it('blocks advancing past the rubric step until goal, subgoal, and task text are provided', async () => {
     render(<BadgeCreationPage />);
 
     fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Burner' } });
@@ -518,14 +530,33 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> rubric
 
-    // Leaving the goal name blank blocks the step and surfaces an error.
+    // 1. Leaving the goal name blank blocks the step and surfaces an error.
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByText('Add a rubric goal name before continuing.')).toBeInTheDocument();
     // Still on the rubric step (the goal name field remains visible).
     expect(screen.getByLabelText('Rubric goal name')).toBeInTheDocument();
 
-    // Providing a name unblocks advancing to review.
+    // 2. Goal name given, but the default blank subgoal title still blocks.
     fireEvent.change(screen.getByLabelText('Rubric goal name'), { target: { value: 'Operate the burner safely' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Subgoals can not be blank')).toBeInTheDocument();
+    expect(screen.getByLabelText('Rubric goal name')).toBeInTheDocument();
+
+    // 3. A whitespace-only subgoal title is still treated as blank.
+    fireEvent.change(screen.getByLabelText('Subgoal 1 title'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Subgoals can not be blank')).toBeInTheDocument();
+
+    // 4. Subgoal titled, but the default blank task still blocks.
+    fireEvent.change(screen.getByLabelText('Subgoal 1 title'), { target: { value: 'Setup and shutdown' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByText('Tasks must contain text')).toBeInTheDocument();
+    expect(screen.getByLabelText('Rubric goal name')).toBeInTheDocument();
+
+    // 5. With goal, subgoal, and task text all filled, advancing to review is unblocked.
+    fireEvent.change(screen.getByLabelText('Subgoal 1 task 1'), {
+      target: { value: 'Student sets up and shuts down the burner safely.' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByRole('button', { name: 'Create Badge' })).toBeInTheDocument();
   });

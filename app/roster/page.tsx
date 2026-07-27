@@ -262,7 +262,7 @@ export default function StudentRosterPage() {
       return;
     }
     try {
-      const members = parseRosterCsv(await selectedCsv.text());
+      const members = parseRosterCsv(await selectedCsv.text(), { requireId: !isCheckerRoster });
       if (members.some((member) => !member.email.trim() && !member.externalId.trim())) {
         throw new Error('Every CSV row must include an email or ID.');
       }
@@ -608,20 +608,22 @@ export default function StudentRosterPage() {
                       />
                     </label>
 
-                    <label className={styles.filterField}>
-                      <span className={styles.filterFieldLabel}>ID Number</span>
-                      <input
-                        type="text"
-                        value={draftFilters.externalId}
-                        onChange={(event) =>
-                          setDraftFilters((current) => ({
-                            ...current,
-                            externalId: event.target.value,
-                          }))
-                        }
-                        className={styles.filterInput}
-                      />
-                    </label>
+                    {!isCheckerRoster ? (
+                      <label className={styles.filterField}>
+                        <span className={styles.filterFieldLabel}>ID Number</span>
+                        <input
+                          type="text"
+                          value={draftFilters.externalId}
+                          onChange={(event) =>
+                            setDraftFilters((current) => ({
+                              ...current,
+                              externalId: event.target.value,
+                            }))
+                          }
+                          className={styles.filterInput}
+                        />
+                      </label>
+                    ) : null}
 
                     <label className={styles.filterField}>
                       <span className={styles.filterFieldLabel}>Email</span>
@@ -714,7 +716,7 @@ export default function StudentRosterPage() {
                       <tr>
                         <th>Last Name</th>
                         <th>First Name</th>
-                        <th>ID Number</th>
+                        {!isCheckerRoster ? <th>ID Number</th> : null}
                         <th>Email</th>
                         <th>Section</th>
                         {canRemoveMembers ? <th className={styles.actionsHeader}>Actions</th> : null}
@@ -738,7 +740,7 @@ export default function StudentRosterPage() {
                           >
                             <td>{member.lastName || '—'}</td>
                             <td>{member.firstName || '—'}</td>
-                            <td>{member.externalId || '—'}</td>
+                            {!isCheckerRoster ? <td>{member.externalId || '—'}</td> : null}
                             <td>{member.email || '—'}</td>
                             <td>
                               {canManageSections ? (
@@ -781,7 +783,10 @@ export default function StudentRosterPage() {
                         ))
                       ) : (
                         <tr>
-                          <td className={styles.emptyCell} colSpan={canRemoveMembers ? 6 : 5}>
+                          <td
+                            className={styles.emptyCell}
+                            colSpan={(isCheckerRoster ? 4 : 5) + (canRemoveMembers ? 1 : 0)}
+                          >
                             {emptyResultsMessage}
                           </td>
                         </tr>
@@ -860,7 +865,7 @@ export default function StudentRosterPage() {
                     })}
                     {isCheckerRoster ? (
                       <p className={styles.addHint}>
-                        Email or ID is required. Separate multiple assessor sections with |.
+                        Email is required (ID optional). Separate multiple assessor sections with |.
                       </p>
                     ) : (
                       <p className={styles.addHint}>
@@ -871,8 +876,9 @@ export default function StudentRosterPage() {
                 ) : (
                   <div className={styles.csvPanel}>
                     <p className={styles.modalBody}>
-                      Upload a CSV with headers: lastName, firstName, an ID column (e.g. BUID or Student ID), email,
-                      sections.
+                      {isCheckerRoster
+                        ? 'Upload a CSV with headers: lastName, firstName, email, sections.'
+                        : 'Upload a CSV with headers: lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections.'}
                     </p>
                     <input
                       ref={csvInputRef}

@@ -6,7 +6,9 @@ export type RosterCsvRow = {
   sections: string;
 };
 
-export function parseRosterCsv(csv: string): RosterCsvRow[] {
+// Assessors (TFs) don't need a BUID, so their roster CSV may omit the ID column
+// entirely — pass `{ requireId: false }` for that path. Students still require one.
+export function parseRosterCsv(csv: string, { requireId = true }: { requireId?: boolean } = {}): RosterCsvRow[] {
   const lines = csv
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -29,9 +31,17 @@ export function parseRosterCsv(csv: string): RosterCsvRow[] {
     sections: indexOf('sections', 'section'),
   };
 
-  if (Object.values(indices).some((index) => index < 0)) {
+  // A missing ID column leaves externalId at -1; the row mapper below turns that
+  // into '' for every row, so we only need to gate the required-header check.
+  const missingRequired = Object.entries(indices).some(
+    ([key, index]) => index < 0 && (requireId || key !== 'externalId')
+  );
+
+  if (missingRequired) {
     throw new Error(
-      'CSV must contain headers: lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections'
+      requireId
+        ? 'CSV must contain headers: lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections'
+        : 'CSV must contain headers: lastName, firstName, email, sections'
     );
   }
   return lines.slice(1).map((line) => {
