@@ -157,8 +157,9 @@ describe('Assessment readiness page', () => {
     // The preview orients the assessor; it never grades.
     expect(screen.queryAllByRole('switch')).toHaveLength(0);
     expect(screen.queryByLabelText('Feedback (optional)')).not.toBeInTheDocument();
-    // Instructions belong to the grading step only (bug #177).
-    expect(screen.queryByRole('heading', { name: 'Instructions for the assessor' })).not.toBeInTheDocument();
+    // Assessors read the instructions before starting, not just while grading.
+    expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
+    expect(screen.getByText('Have the student demonstrate the flame independently.')).toBeInTheDocument();
   });
 
   it('moves from the rubric preview into grading on Confirm and Start', async () => {
@@ -422,9 +423,14 @@ describe('Assessment readiness page', () => {
 
     render(<AssessmentReadinessPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+    const start = await screen.findByRole('button', { name: 'Confirm and Start' });
 
-    // Instructions guide grading and are visible during the grading phase.
+    // Instructions are available before the assessment starts...
+    expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
+
+    fireEvent.click(start);
+
+    // ...and stay visible during the grading phase.
     expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
 
     // Once the assessor advances to the review step, the instructions are hidden.

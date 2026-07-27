@@ -163,6 +163,21 @@ export default function AssessmentReadinessPage() {
 
   const rubric = badgeDetail?.assessment?.rubric ?? null;
 
+  // Instructions orient the assessor before grading and stay available while
+  // grading; they are hidden on the review step so they don't linger over the
+  // pass/fail result (bug #177).
+  const assessorInstructions = rubric?.instructions ? (
+    <div className={styles.taInstructions}>
+      <h3 className={styles.taInstructionsTitle}>Instructions for the assessor</h3>
+      {/* Instructions are authored in the badge editor's rich-text field and
+          stored as sanitized HTML; render read-only for the assessor. */}
+      <div
+        className={`${styles.taInstructionsBody} rte-readonly`}
+        dangerouslySetInnerHTML={{ __html: rubric.instructions }}
+      />
+    </div>
+  ) : null;
+
   // A subgoal passes when its passed tasks' weights meet its threshold; the
   // badge passes only when every subgoal passes.
   const subgoalResults = subgoalGroups.map((group) => {
@@ -334,6 +349,8 @@ export default function AssessmentReadinessPage() {
                         </ol>
                       </div>
 
+                      {assessorInstructions}
+
                       <div className={styles.criteriaList} aria-label="Assessment rubric overview">
                         {(rubric?.subgoals ?? []).map((subgoal, groupIndex) => (
                           <div key={subgoal.id} className={styles.subgoalGroup}>
@@ -371,20 +388,7 @@ export default function AssessmentReadinessPage() {
                         <h2>{rubric?.goalName || 'Assessor Grading'}</h2>
                       </div>
 
-                      {/* Instructions guide the assessor while grading, not the outcome
-                          review — hide them once the assessor moves to the confirm step
-                          so they don't linger over the pass/fail result (bug #177). */}
-                      {phase === 'grading' && rubric?.instructions ? (
-                        <div className={styles.taInstructions}>
-                          <h3 className={styles.taInstructionsTitle}>Instructions for the assessor</h3>
-                          {/* Instructions are authored in the badge editor's rich-text field and
-                              stored as sanitized HTML; render read-only for the assessor. */}
-                          <div
-                            className={`${styles.taInstructionsBody} rte-readonly`}
-                            dangerouslySetInnerHTML={{ __html: rubric.instructions }}
-                          />
-                        </div>
-                      ) : null}
+                      {phase === 'grading' ? assessorInstructions : null}
 
                       {phase === 'grading' ? (
                         <div className={styles.criteriaList}>
