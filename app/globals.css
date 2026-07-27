@@ -859,7 +859,7 @@ html.dark .rte-quote {
   font-size: 0.75em;
 }
 
-/* Read-only rendering of editor HTML (e.g. TA instructions in the assessor view). */
+/* Read-only rendering of editor HTML (e.g. TA instructions in the checker view). */
 .rte-readonly > :last-child {
   margin-bottom: 0;
 }

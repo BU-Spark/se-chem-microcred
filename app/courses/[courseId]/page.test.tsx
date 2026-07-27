@@ -84,7 +84,7 @@ describe('Created course detail page', () => {
           },
           settings: {
             allowCooldownOverride: true,
-            allowAssessorMessages: true,
+            allowCheckerMessages: true,
             allowCrossSectionView: true,
           },
           contacts: [
@@ -251,7 +251,7 @@ describe('Created course detail page', () => {
       'href',
       '/roster?courseId=course-1&role=STUDENT'
     );
-    expect(screen.getByRole('link', { name: 'View Assessor Roster' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View Checker Roster' })).toHaveAttribute(
       'href',
       '/roster?courseId=course-1&role=CHECKER'
     );
@@ -342,8 +342,8 @@ describe('Created course detail page', () => {
     expect(screen.queryByRole('button', { name: 'Import Existing Badge' })).not.toBeInTheDocument();
   });
 
-  it('renders assessor mode for an instructor entering through the assessor card', async () => {
-    mockUseSearchParams.mockReturnValue(new URLSearchParams('view=assessor'));
+  it('renders checker mode for an instructor entering through the checker card', async () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams('view=checker'));
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -394,7 +394,7 @@ describe('Created course detail page', () => {
 
     render(<CreatedCourseDetailPage />);
 
-    expect(await screen.findByText('Your Role: ASSESSOR')).toBeInTheDocument();
+    expect(await screen.findByText('Your Role: CHECKER')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'View Students to Assess' })).toHaveAttribute(
       'href',
       '/roster?courseId=course-1&role=STUDENT'
@@ -408,7 +408,7 @@ describe('Created course detail page', () => {
     fireEvent.change(screen.getByLabelText('Assessment code'), { target: { value: 'abcd-2345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(mockPush).toHaveBeenCalledWith('/qr/assessment-code?code=ABCD2345');
-    expect(screen.queryByRole('link', { name: 'View Assessor Roster' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View Checker Roster' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Edit Course' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Import Existing Badge' })).not.toBeInTheDocument();

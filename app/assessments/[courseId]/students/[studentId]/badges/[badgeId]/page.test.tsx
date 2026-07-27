@@ -154,11 +154,11 @@ describe('Assessment readiness page', () => {
     expect(within(overview).getByText('3 pts')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'How this assessment works' })).toBeInTheDocument();
 
-    // The preview orients the assessor; it never grades.
+    // The preview orients the checker; it never grades.
     expect(screen.queryAllByRole('switch')).toHaveLength(0);
     expect(screen.queryByRole('button', { name: 'Feedback (optional)' })).not.toBeInTheDocument();
-    // Assessors read the instructions before starting, not just while grading.
-    expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
+    // Checkers read the instructions before starting, not just while grading.
+    expect(screen.getByRole('heading', { name: 'Instructions for the checker' })).toBeInTheDocument();
     expect(screen.getByText('Have the student demonstrate the flame independently.')).toBeInTheDocument();
   });
 
@@ -307,7 +307,7 @@ describe('Assessment readiness page', () => {
     });
 
     expect(await screen.findByText('Assessment recorded. Badge is ready for finalization.')).toBeInTheDocument();
-    expect(mockPush).toHaveBeenCalledWith('/courses/course-1?view=assessor');
+    expect(mockPush).toHaveBeenCalledWith('/courses/course-1?view=checker');
   });
 
   it('downgrades a passing student to still learning with override feedback', async () => {
@@ -433,7 +433,7 @@ describe('Assessment readiness page', () => {
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
   });
 
-  it('hides the assessor instructions once the assessor moves to the review step', async () => {
+  it('hides the checker instructions once the checker moves to the review step', async () => {
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
 
@@ -465,16 +465,16 @@ describe('Assessment readiness page', () => {
     const start = await screen.findByRole('button', { name: 'Confirm and Start' });
 
     // Instructions are available before the assessment starts...
-    expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Instructions for the checker' })).toBeInTheDocument();
 
     fireEvent.click(start);
 
     // ...and stay visible during the grading phase.
-    expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Instructions for the checker' })).toBeInTheDocument();
 
-    // Once the assessor advances to the review step, the instructions are hidden.
+    // Once the checker advances to the review step, the instructions are hidden.
     fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
-    expect(screen.queryByRole('heading', { name: 'Instructions for the assessor' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Instructions for the checker' })).not.toBeInTheDocument();
   });
 
   it('disables the assessment action once the badge has already been assessed', async () => {

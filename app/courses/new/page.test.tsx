@@ -93,7 +93,7 @@ describe('Course new page edit mode', () => {
             sectionCount: 3,
             settings: {
               allowCooldownOverride: false,
-              allowAssessorMessages: true,
+              allowCheckerMessages: true,
               allowCrossSectionView: false,
             },
             contacts: [
@@ -150,7 +150,7 @@ describe('Course new page edit mode', () => {
     expect(await screen.findByText('Chemistry 101')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Edit course' })).toBeInTheDocument();
     expect(screen.getByText('1 students enrolled')).toBeInTheDocument();
-    expect(screen.getByText('1 assessors enrolled')).toBeInTheDocument();
+    expect(screen.getByText('1 checkers enrolled')).toBeInTheDocument();
 
     const saveButton = screen.getByRole('button', { name: 'Save Changes' });
     await waitFor(() => {
@@ -183,7 +183,7 @@ describe('Course new page edit mode', () => {
         sectionCount: '3',
         settings: {
           allowCooldownOverride: false,
-          allowAssessorMessages: true,
+          allowCheckerMessages: true,
           allowCrossSectionView: false,
         },
       })
@@ -223,7 +223,7 @@ describe('Course new page edit mode', () => {
           sectionCount: 3,
           settings: {
             allowCooldownOverride: false,
-            allowAssessorMessages: true,
+            allowCheckerMessages: true,
             allowCrossSectionView: false,
           },
           contacts: [],
@@ -285,7 +285,7 @@ describe('Course new page edit mode', () => {
           sectionCount: 3,
           settings: {
             allowCooldownOverride: false,
-            allowAssessorMessages: true,
+            allowCheckerMessages: true,
             allowCrossSectionView: false,
           },
           contacts: [],
@@ -362,7 +362,7 @@ describe('Course new page edit mode', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
-  it('renders the assessor configuration toggles reflecting the loaded settings', async () => {
+  it('renders the checker configuration toggles reflecting the loaded settings', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: async () => ({
@@ -372,7 +372,7 @@ describe('Course new page edit mode', () => {
           sectionCount: 3,
           settings: {
             allowCooldownOverride: false,
-            allowAssessorMessages: true,
+            allowCheckerMessages: true,
             allowCrossSectionView: false,
           },
           contacts: [],
@@ -387,11 +387,11 @@ describe('Course new page edit mode', () => {
     // the review renders immediately in edit mode, but the settings arrive async.
     expect(await screen.findByText('Chemistry 101')).toBeInTheDocument();
 
-    // The Assessor Configurations section is no longer feature-flagged out — it
+    // The Checker Configurations section is no longer feature-flagged out — it
     // always renders in the review, with each toggle set from the loaded course.
-    expect(screen.getByText('Assessor Configurations')).toBeInTheDocument();
+    expect(screen.getByText('Checker Configurations')).toBeInTheDocument();
 
-    const messagesToggle = within(screen.getByText('Allow assessor messages?').parentElement as HTMLElement).getByRole(
+    const messagesToggle = within(screen.getByText('Allow checker messages?').parentElement as HTMLElement).getByRole(
       'button'
     );
     expect(messagesToggle).toHaveAttribute('aria-pressed', 'true');
@@ -401,6 +401,6 @@ describe('Course new page edit mode', () => {
     ).getByRole('button');
     expect(cooldownToggle).toHaveAttribute('aria-pressed', 'false');
 
-    expect(screen.getByText('Allow assessors to view other sections?')).toBeInTheDocument();
+    expect(screen.getByText('Allow checkers to view other sections?')).toBeInTheDocument();
   });
 });

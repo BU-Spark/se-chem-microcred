@@ -128,7 +128,7 @@ type FeedbackDetail = {
     pointsPossible: number | null;
     feedback: string | null;
     completedAt: string | null;
-    assessorName: string | null;
+    checkerName: string | null;
     responses: Array<{
       id: string;
       subgoalText: string;
@@ -455,7 +455,7 @@ export default function BadgeFeedbackPage() {
             {latestAttempt ? (
               <div className={styles.assessmentSummary}>
                 <span>Outcome: {latestAttempt.passed ? 'Passed' : 'Needs reassessment'}</span>
-                {latestAttempt.assessorName ? <span>Assessor: {latestAttempt.assessorName}</span> : null}
+                {latestAttempt.checkerName ? <span>Checker: {latestAttempt.checkerName}</span> : null}
               </div>
             ) : null}
             {rubric ? (
@@ -490,7 +490,7 @@ export default function BadgeFeedbackPage() {
                     <div key={response.id} className={styles.rubricRow}>
                       <div>
                         <strong>{response.subgoalText}</strong>
-                        <p>Assessor decision</p>
+                        <p>Checker decision</p>
                       </div>
                       <div>
                         <span className={response.passed ? styles.rubricPassed : styles.rubricNeedsWork}>

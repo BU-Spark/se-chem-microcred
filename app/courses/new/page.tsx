@@ -16,17 +16,17 @@ import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
 import { splitName } from '@/lib/text/name';
 import { parseRosterCsv } from '@/lib/csv';
 
-const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Assessor Roster', 'Review'];
+const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Checker Roster', 'Review'];
 
 // Named step indices so the wizard's conditionals and edit links stay readable
 // (and survive future reordering) rather than depending on bare numbers.
 const STEP_INFO = 0;
 const STEP_IMAGE = 1;
 const STEP_ROSTER = 2;
-const STEP_ASSESSOR = 3;
+const STEP_CHECKER = 3;
 const STEP_REVIEW = 4;
 
-// Old Student row and assessor row types were the exact same colsolidating
+// Old Student row and checker row types were the exact same colsolidating
 type RosterRow = {
   lastName: string;
   firstName: string;
@@ -42,7 +42,7 @@ interface Person {
   sections: string[] | null;
 }
 
-type UploadTarget = 'student' | 'assessor';
+type UploadTarget = 'student' | 'checker';
 
 type UploadDialogState =
   | {
@@ -72,7 +72,7 @@ type EditableCourseResponse = {
     iconFgColor: string | null;
     settings: {
       allowCooldownOverride: boolean;
-      allowAssessorMessages: boolean;
+      allowCheckerMessages: boolean;
       allowCrossSectionView: boolean;
     } | null;
     contacts: Array<{
@@ -141,8 +141,8 @@ function mergeRosterRows(existing: RosterRow[], incoming: RosterRow[]): RosterRo
   return merged;
 }
 
-// made change to remove putting multiple sections for an assessor in the during the csv upload going to give that responsiblity to an assessor update in the future
-function mergeAssessorRows(rows: RosterRow[]) {
+// made change to remove putting multiple sections for a checker in the during the csv upload going to give that responsiblity to a checker update in the future
+function mergeCheckerRows(rows: RosterRow[]) {
   return Array.from(
     rows.reduce((map, row) => {
       const email = row.email.trim().toLowerCase();
@@ -199,21 +199,21 @@ export default function CourseNewPage() {
 
   // settings
   const [allowCooldownOverride, setAllowCooldownOverride] = useState(true);
-  const [allowAssessorMessages, setAllowAssessorMessages] = useState(true);
+  const [allowCheckerMessages, setAllowCheckerMessages] = useState(true);
   const [allowCrossSectionView, setAllowCrossSectionView] = useState(true);
 
   // csv upload
   const [studentRows, setStudentRows] = useState<RosterRow[]>([]);
-  const [assessorRows, setAssessorRows] = useState<RosterRow[]>([]);
+  const [checkerRows, setCheckerRows] = useState<RosterRow[]>([]);
 
   const [visibleCount, setVisibleCount] = useState(10);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const [assessorVisibleCount, setAssessorVisibleCount] = useState(10);
-  const [showAssessorDropdown, setShowAssessorDropdown] = useState(false);
+  const [checkerVisibleCount, setCheckerVisibleCount] = useState(10);
+  const [showCheckerDropdown, setShowCheckerDropdown] = useState(false);
 
   const studentFileInputRef = useRef<HTMLInputElement | null>(null);
-  const assessorFileInputRef = useRef<HTMLInputElement | null>(null);
+  const checkerFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -282,7 +282,7 @@ export default function CourseNewPage() {
         if (course.iconBgColor) setIconBgColor(course.iconBgColor);
         if (course.iconFgColor) setIconFgColor(course.iconFgColor);
         setAllowCooldownOverride(course.settings?.allowCooldownOverride ?? false);
-        setAllowAssessorMessages(course.settings?.allowAssessorMessages ?? false);
+        setAllowCheckerMessages(course.settings?.allowCheckerMessages ?? false);
         setAllowCrossSectionView(course.settings?.allowCrossSectionView ?? false);
         setStudentRows(
           studentEnrollments.map((enrollment) =>
@@ -294,7 +294,7 @@ export default function CourseNewPage() {
             })
           )
         );
-        setAssessorRows(
+        setCheckerRows(
           checkerEnrollments.length > 0
             ? checkerEnrollments.map((enrollment) =>
                 toRosterRow({
@@ -351,7 +351,7 @@ export default function CourseNewPage() {
     }
   };
 
-  // The same person (by email) can't be both a student and an assessor in one
+  // The same person (by email) can't be both a student and a checker in one
   // course (one enrollment per person per course). Catch it here with a clear message
   // instead of letting the server reject it with a cryptic error.
   const findRosterRoleConflict = () => {
@@ -364,30 +364,30 @@ export default function CourseNewPage() {
     }
 
     const conflicts = new Set<string>();
-    for (const assessor of assessorRows) {
-      const keys = [assessor.email.trim().toLowerCase()].filter(Boolean);
+    for (const checker of checkerRows) {
+      const keys = [checker.email.trim().toLowerCase()].filter(Boolean);
       if (keys.some((key) => studentKeys.has(key))) {
-        conflicts.add(`${assessor.firstName} ${assessor.lastName}`.trim() || assessor.email);
+        conflicts.add(`${checker.firstName} ${checker.lastName}`.trim() || checker.email);
       }
     }
 
     if (conflicts.size === 0) return null;
 
     const names = Array.from(conflicts);
-    return `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} listed as both a student and an assessor. Each person can have only one role per course — remove the duplicate from one roster to continue.`;
+    return `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} listed as both a student and a checker. Each person can have only one role per course — remove the duplicate from one roster to continue.`;
   };
 
-  // Assessors are keyed by email now that the ID is optional, so a row with
+  // Checkers are keyed by email now that the ID is optional, so a row with
   // neither an email nor an ID can't be resolved server-side. Catch it here with
   // a clear message instead of the server's generic rejection.
-  const findAssessorsMissingIdentity = () => {
-    const missing = assessorRows
-      .filter((assessor) => !assessor.email.trim() && !assessor.externalId?.trim())
-      .map((assessor) => `${assessor.firstName} ${assessor.lastName}`.trim() || 'an unnamed assessor');
+  const findCheckersMissingIdentity = () => {
+    const missing = checkerRows
+      .filter((checker) => !checker.email.trim() && !checker.externalId?.trim())
+      .map((checker) => `${checker.firstName} ${checker.lastName}`.trim() || 'an unnamed checker');
 
     if (missing.length === 0) return null;
 
-    return `${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} missing an email. Assessors need an email address (their ID is optional) — add one to continue.`;
+    return `${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} missing an email. Checkers need an email address (their ID is optional) — add one to continue.`;
   };
 
   const hasAtLeastOneSection = () => Number(sections) >= 1;
@@ -409,9 +409,9 @@ export default function CourseNewPage() {
         return;
       }
 
-      const assessorIdentityError = findAssessorsMissingIdentity();
-      if (assessorIdentityError) {
-        setSubmitError(assessorIdentityError);
+      const checkerIdentityError = findCheckersMissingIdentity();
+      if (checkerIdentityError) {
+        setSubmitError(checkerIdentityError);
         return;
       }
 
@@ -460,11 +460,11 @@ export default function CourseNewPage() {
 
     try {
       const text = await file.text();
-      const parsedRows = parseRosterCsv(text, { requireId: target !== 'assessor' }).map((row) => ({
+      const parsedRows = parseRosterCsv(text, { requireId: target !== 'checker' }).map((row) => ({
         ...row,
         sections: parseSections(row.sections),
       }));
-      const incoming = target === 'assessor' ? mergeAssessorRows(parsedRows) : parsedRows;
+      const incoming = target === 'checker' ? mergeCheckerRows(parsedRows) : parsedRows;
       // Append to whatever's already loaded (DB roster in edit mode, or a prior
       // upload) rather than replacing it, deduping by person. (#168)
       setRows((prev) => mergeRosterRows(prev, incoming));
@@ -492,13 +492,13 @@ export default function CourseNewPage() {
       iconFgColor,
       settings: {
         allowCooldownOverride,
-        allowAssessorMessages,
+        allowCheckerMessages,
         allowCrossSectionView,
       },
-      contacts: assessorRows.map((assessor) => ({
+      contacts: checkerRows.map((checker) => ({
         type: 'CHECKER',
-        name: `${assessor.firstName} ${assessor.lastName}`.trim(),
-        email: assessor.email.trim().toLowerCase(),
+        name: `${checker.firstName} ${checker.lastName}`.trim(),
+        email: checker.email.trim().toLowerCase(),
         avatarUrl: null,
       })),
       roster: [
@@ -509,13 +509,13 @@ export default function CourseNewPage() {
           role: CourseRole.STUDENT,
           sections: student.sections ?? [],
         })),
-        ...assessorRows.map((assessor) => ({
-          email: assessor.email.trim().toLowerCase(),
-          name: `${assessor.firstName} ${assessor.lastName}`.trim(),
+        ...checkerRows.map((checker) => ({
+          email: checker.email.trim().toLowerCase(),
+          name: `${checker.firstName} ${checker.lastName}`.trim(),
           // This is a optional field now -- Later when we do an ID overhaul this gets omitted
-          externalId: assessor.externalId || null,
+          externalId: checker.externalId || null,
           role: CourseRole.CHECKER,
-          sections: assessor.sections ?? [],
+          sections: checker.sections ?? [],
         })),
       ],
     };
@@ -553,7 +553,7 @@ export default function CourseNewPage() {
       return;
     }
 
-    const targetInput = uploadDialog.target === 'assessor' ? assessorFileInputRef.current : studentFileInputRef.current;
+    const targetInput = uploadDialog.target === 'checker' ? checkerFileInputRef.current : studentFileInputRef.current;
 
     setUploadDialog(null);
     targetInput?.click();
@@ -567,13 +567,11 @@ export default function CourseNewPage() {
     setStudentRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value ? [value] : [] } : row)));
   };
 
-  // Same inline-section-reassignment for the assessor roster.
-  const availableAssessorSections = Array.from(
-    new Set(assessorRows.flatMap((assessor) => assessor.sections ?? []))
-  ).sort();
+  // Same inline-section-reassignment for the checker roster.
+  const availableCheckerSections = Array.from(new Set(checkerRows.flatMap((checker) => checker.sections ?? []))).sort();
 
-  const updateAssessorSection = (index: number, value: string) => {
-    setAssessorRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value ? [value] : [] } : row)));
+  const updateCheckerSection = (index: number, value: string) => {
+    setCheckerRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value ? [value] : [] } : row)));
   };
 
   function ConfigRow({ label, checked, onChange, infoText }: ConfigRowProps) {
@@ -615,7 +613,7 @@ export default function CourseNewPage() {
     );
   }
 
-  const assessorConfigs: Array<{
+  const checkerConfigs: Array<{
     label: string;
     checked: boolean;
     setChecked: React.Dispatch<React.SetStateAction<boolean>>;
@@ -631,17 +629,17 @@ export default function CourseNewPage() {
             If a student does not complete a satisfactory in-person assessment, they must wait during a cooldown period
             before they are able to reassess.
           </p>
-          <p>Enabling manual override allows assessors to override this cooldown period and assess students earlier.</p>
+          <p>Enabling manual override allows checkers to override this cooldown period and assess students earlier.</p>
         </>
       ),
     },
     {
-      label: 'Allow assessor messages?',
-      checked: allowAssessorMessages,
-      setChecked: setAllowAssessorMessages,
+      label: 'Allow checker messages?',
+      checked: allowCheckerMessages,
+      setChecked: setAllowCheckerMessages,
     },
     {
-      label: 'Allow assessors to view other sections?',
+      label: 'Allow checkers to view other sections?',
       checked: allowCrossSectionView,
       setChecked: setAllowCrossSectionView,
     },
@@ -845,32 +843,32 @@ export default function CourseNewPage() {
           </>
         )}
 
-        {currentStep === STEP_ASSESSOR && (
+        {currentStep === STEP_CHECKER && (
           <>
             <div className={styles.topUploadBar}>
-              <button type="button" className={styles.uploadButton} onClick={() => openUploadWarning('assessor')}>
-                Upload Assessor CSV
+              <button type="button" className={styles.uploadButton} onClick={() => openUploadWarning('checker')}>
+                Upload Checker CSV
               </button>
 
               <input
-                ref={assessorFileInputRef}
+                ref={checkerFileInputRef}
                 type="file"
                 accept=".csv,text/csv"
                 style={{ display: 'none' }}
-                onChange={(e) => handleRosterUpload(e, 'assessor', setAssessorRows)}
+                onChange={(e) => handleRosterUpload(e, 'checker', setCheckerRows)}
               />
             </div>
 
             <section className={styles.card}>
               <div className={styles.tableHeaderRow}>
-                <h2 className={styles.rosterTitle}>Assessor Roster</h2>
+                <h2 className={styles.rosterTitle}>Checker Roster</h2>
                 <span className={styles.tableMeta}>
-                  Showing: {Math.min(assessorVisibleCount, assessorRows.length)} of {assessorRows.length}
+                  Showing: {Math.min(checkerVisibleCount, checkerRows.length)} of {checkerRows.length}
                 </span>
               </div>
 
-              {assessorRows.length === 0 ? (
-                <p className={styles.emptyState}>No assessor roster uploaded yet.</p>
+              {checkerRows.length === 0 ? (
+                <p className={styles.emptyState}>No checker roster uploaded yet.</p>
               ) : (
                 <>
                   <div className={styles.tableWrap}>
@@ -884,22 +882,22 @@ export default function CourseNewPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {assessorRows.slice(0, assessorVisibleCount).map((assessor, index) => {
-                          const primarySection = assessor.sections?.[0] ?? '';
+                        {checkerRows.slice(0, checkerVisibleCount).map((checker, index) => {
+                          const primarySection = checker.sections?.[0] ?? '';
                           const sectionOptions = Array.from(
-                            new Set([...availableAssessorSections, primarySection].filter(Boolean))
+                            new Set([...availableCheckerSections, primarySection].filter(Boolean))
                           );
                           return (
                             <tr key={index}>
-                              <td>{assessor.lastName}</td>
-                              <td>{assessor.firstName}</td>
-                              <td>{assessor.email}</td>
+                              <td>{checker.lastName}</td>
+                              <td>{checker.firstName}</td>
+                              <td>{checker.email}</td>
                               <td>
                                 <select
                                   className={styles.sectionSelect}
                                   value={primarySection}
-                                  onChange={(e) => updateAssessorSection(index, e.target.value)}
-                                  aria-label={`Section for ${assessor.firstName} ${assessor.lastName}`}
+                                  onChange={(e) => updateCheckerSection(index, e.target.value)}
+                                  aria-label={`Section for ${checker.firstName} ${checker.lastName}`}
                                 >
                                   {sectionOptions.length === 0 ? <option value="">—</option> : null}
                                   {sectionOptions.map((section) => (
@@ -917,8 +915,8 @@ export default function CourseNewPage() {
                   </div>
 
                   <div className={styles.showMoreWrapper}>
-                    {!showAssessorDropdown ? (
-                      <button type="button" className={styles.showMore} onClick={() => setShowAssessorDropdown(true)}>
+                    {!showCheckerDropdown ? (
+                      <button type="button" className={styles.showMore} onClick={() => setShowCheckerDropdown(true)}>
                         <span>Show more items</span>
                         <svg className={styles.showMoreChevron} viewBox="0 0 24 24" fill="none" aria-hidden="true">
                           <path
@@ -933,8 +931,8 @@ export default function CourseNewPage() {
                     ) : (
                       <select
                         className={styles.dropdown}
-                        value={assessorVisibleCount}
-                        onChange={(e) => setAssessorVisibleCount(Number(e.target.value))}
+                        value={checkerVisibleCount}
+                        onChange={(e) => setCheckerVisibleCount(Number(e.target.value))}
                       >
                         <option value={10}>10</option>
                         <option value={25}>25</option>
@@ -948,10 +946,10 @@ export default function CourseNewPage() {
             </section>
 
             <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Assessor Configurations</h2>
+              <h2 className={styles.cardTitle}>Checker Configurations</h2>
 
               <div className={styles.configList}>
-                {assessorConfigs.map((config) => (
+                {checkerConfigs.map((config) => (
                   <ConfigRow
                     key={config.label}
                     label={config.label}
@@ -1033,17 +1031,17 @@ export default function CourseNewPage() {
 
             <div className={styles.reviewSection}>
               <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Assessor Roster</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ASSESSOR)}>
+                <h3 className={styles.reviewTitle}>Checker Roster</h3>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_CHECKER)}>
                   <span className={styles.editLabel}>Edit</span>
                   <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
                 </button>
               </div>
 
               <div className={styles.reviewBody}>
-                <p className={styles.rosterRows}>{assessorRows.length} assessors enrolled</p>
-                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_ASSESSOR)}>
-                  View Assessors
+                <p className={styles.rosterRows}>{checkerRows.length} checkers enrolled</p>
+                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_CHECKER)}>
+                  View Checkers
                 </button>
               </div>
             </div>
@@ -1052,15 +1050,15 @@ export default function CourseNewPage() {
 
             <div className={styles.reviewSection}>
               <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Assessor Configurations</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ASSESSOR)}>
+                <h3 className={styles.reviewTitle}>Checker Configurations</h3>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_CHECKER)}>
                   <span className={styles.editLabel}>Edit</span>
                   <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
                 </button>
               </div>
 
               <div className={styles.reviewConfigList}>
-                {assessorConfigs.map((config) => (
+                {checkerConfigs.map((config) => (
                   <div key={config.label} className={styles.reviewConfigItem}>
                     <span className={styles.reviewConfigLabel}>{config.label}</span>
                     <div className={styles.toggleRow}>
@@ -1125,7 +1123,7 @@ export default function CourseNewPage() {
                   <p className={styles.uploadWarningText}>
                     Use the headers{' '}
                     <strong>
-                      {uploadDialog.target === 'assessor'
+                      {uploadDialog.target === 'checker'
                         ? 'lastName, firstName, email, sections'
                         : 'lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections'}
                     </strong>

@@ -129,7 +129,7 @@ export default function SplashPage() {
               <div className={styles.cardNumber}>02</div>
               <h3 className={styles.cardTitle}>Show your skill</h3>
               <p className={styles.cardText}>
-                They receive a QR code to show an assessor, who watches them perform the task in person and grades
+                They receive a QR code to show a checker, who watches them perform the task in person and grades
                 accordingly.
               </p>
             </div>

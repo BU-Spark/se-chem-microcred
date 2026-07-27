@@ -30,7 +30,7 @@ model User {
   createdCourses      Course[]             @relation("CourseCreator")
   createdBadges       Badge[]              @relation("BadgeCreator")
   assessmentAttempts  AssessmentAttempt[]  @relation("AssessmentStudent")
-  assessmentsGiven    AssessmentAttempt[]  @relation("AssessmentAssessor")
+  assessmentsGiven    AssessmentAttempt[]  @relation("AssessmentChecker")
   receivedMessages    Message[]            @relation("MessageRecipient")
   sentMessages        Message[]            @relation("MessageSender")
 
@@ -92,7 +92,9 @@ enum AvatarAccessory {
 model Course {
   id           String  @id @default(cuid())
   code         String? @unique
-  assessorCode String? @unique
+  // Field renamed assessor -> checker; the physical column keeps its original
+  // name via @map so no migration is needed.
+  checkerCode  String? @unique @map("assessorCode")
   title        String
   section      String?
   sectionCount Int
@@ -119,7 +121,7 @@ model CourseSettings {
   id                    String   @id @default(cuid())
   courseId              String   @unique
   allowCooldownOverride Boolean  @default(false)
-  allowAssessorMessages Boolean  @default(false)
+  allowCheckerMessages  Boolean  @default(false) @map("allowAssessorMessages")
   allowCrossSectionView Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -536,7 +538,7 @@ model AssessmentAttempt {
   courseId       String
   badgeId        String
   studentId      String
-  assessorId     String
+  checkerId      String    @map("assessorId")
   passed         Boolean
   score          Int?
   pointsEarned   Int?
@@ -550,12 +552,12 @@ model AssessmentAttempt {
   course    Course                   @relation(fields: [courseId], references: [id])
   badge     Badge                    @relation(fields: [badgeId], references: [id])
   student   User                     @relation("AssessmentStudent", fields: [studentId], references: [id])
-  assessor  User                     @relation("AssessmentAssessor", fields: [assessorId], references: [id])
+  checker   User                     @relation("AssessmentChecker", fields: [checkerId], references: [id])
   responses AssessmentTaskResponse[]
 
   @@index([courseId, badgeId])
   @@index([studentId, badgeId])
-  @@index([assessorId])
+  @@index([checkerId])
   @@index([completedAt])
 }
 
@@ -596,7 +598,7 @@ model AssessmentTaskResponse {
 // BADGE LIFECYCLE STATE
 //   LEARNING             default at enroll; QEV projected from LessonProgress
 //   READY_FOR_ASSESSMENT qevPassedAt set; assessment gated while now < cooldownUntil
-//   IN_REVIEW            assessor submitted an attempt; pass/fail derived from latest attempt
+//   IN_REVIEW            checker submitted an attempt; pass/fail derived from latest attempt
 //   COMPLETED           passed + acknowledged + rated; awardedAt set
 //   LOCKED              failed past the reassessment limit; terminal for this run
 enum BadgeStatus {

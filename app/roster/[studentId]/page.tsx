@@ -89,7 +89,7 @@ function resolveParam(value: string | string[] | undefined) {
 
 function profileLabel(role?: EnrollmentRole | null) {
   if (role === 'CHECKER') {
-    return 'Assessor';
+    return 'Checker';
   }
 
   if (role === 'INSTRUCTOR') {
@@ -295,7 +295,7 @@ export default function InstructorStudentProfilePage() {
     selectedBadgeDetail?.progress.assessmentComplete === true ? 'completed' : selectedBadgeTone;
 
   // A badge is in cooldown only after a failed in-person assessment: it sits at
-  // READY_FOR_ASSESSMENT with a future cooldownUntil. The assessor can clear that
+  // READY_FOR_ASSESSMENT with a future cooldownUntil. The checker can clear that
   // block with one click when the course allows cooldown overrides.
   const selectedCooldownUntil = selectedBadgeDetail?.badge.cooldownUntil ?? null;
   const isBadgeInCooldown =

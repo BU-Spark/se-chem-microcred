@@ -88,9 +88,9 @@ const failedAttempt = {
   pointsPossible: 5,
   feedback: 'Review PPE expectations.',
   completedAt: new Date('2026-07-02T12:00:00.000Z'),
-  assessor: {
-    name: 'Assessor Demo',
-    email: 'assessor@example.edu',
+  checker: {
+    name: 'Checker Demo',
+    email: 'checker@example.edu',
   },
   responses: [
     {
@@ -124,7 +124,7 @@ describe('/api/badges/[badgeId]/feedback', () => {
     });
   });
 
-  it('returns the latest assessor rubric feedback for the signed-in student', async () => {
+  it('returns the latest checker rubric feedback for the signed-in student', async () => {
     const response = await GET(new Request('http://localhost/api/badges/badge-1/feedback'), routeContext());
     const body = await response.json();
 

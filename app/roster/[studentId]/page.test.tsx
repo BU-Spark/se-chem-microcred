@@ -238,7 +238,7 @@ function createCompletedBadgeDetailPayload() {
       gradingRows: [
         {
           id: 'grading-1',
-          title: 'Assessor observed correct hood setup.',
+          title: 'Checker observed correct hood setup.',
           outcome: 'Assessment score recorded: 95%',
           passed: true,
         },
@@ -251,7 +251,7 @@ function createCompletedBadgeDetailPayload() {
           completedAt: '2026-03-22T10:00:00.000Z',
           passed: true,
           feedback: 'Student demonstrated safe setup and shutdown.',
-          assessorName: 'Alex Checker',
+          checkerName: 'Alex Rivera',
           responses: [
             {
               id: 'resp-1',
@@ -417,7 +417,7 @@ describe('Roster member profile page', () => {
 
     expect(screen.getByText('Score: 95%')).toBeInTheDocument();
     expect(screen.getByText('Assessment result:')).toBeInTheDocument();
-    expect(screen.getByText('Checker: Alex Checker')).toBeInTheDocument();
+    expect(screen.getByText('Checker: Alex Rivera')).toBeInTheDocument();
     expect(screen.getByText('Student demonstrated safe setup and shutdown.')).toBeInTheDocument();
   });
 
@@ -527,13 +527,13 @@ describe('Roster member profile page', () => {
       const patchCall = mockFetch.mock.calls.find((call) => call[1]?.method === 'PATCH');
       expect(patchCall).toBeTruthy();
       const body = JSON.parse(patchCall![1].body as string);
-      // The assessor sets reassessment count + requirement, but NOT the cooldown length.
+      // The checker sets reassessment count + requirement, but NOT the cooldown length.
       expect(body).toEqual({ reassessmentLimit: 3, reassessmentRequired: true });
       expect(body).not.toHaveProperty('cooldownDays');
     });
   });
 
-  it('lets the assessor override an active cooldown so the student can retake now', async () => {
+  it('lets the checker override an active cooldown so the student can retake now', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
     const detailPayload = createInProgressBadgeDetailPayload() as ReturnType<
       typeof createInProgressBadgeDetailPayload
@@ -595,7 +595,7 @@ describe('Roster member profile page', () => {
     expect(screen.queryByRole('button', { name: /Override cooldown/i })).not.toBeInTheDocument();
   });
 
-  it('loads and displays the selected assessor profile', async () => {
+  it('loads and displays the selected checker profile', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1');
     mockUsePathname.mockReturnValue('/roster/checker-1');
     mockUseParams.mockReturnValue({ studentId: 'checker-1' });
@@ -606,7 +606,7 @@ describe('Roster member profile page', () => {
         memberRole: 'CHECKER',
         member: {
           id: 'checker-1',
-          name: 'Alex Checker',
+          name: 'Alex Rivera',
           email: 'checker@bu.edu',
           externalId: 'U33333333',
           gender: 'Man',
@@ -635,7 +635,7 @@ describe('Roster member profile page', () => {
           {
             id: 'contact-1',
             type: 'CHECKER',
-            name: 'Alex Checker',
+            name: 'Alex Rivera',
             email: 'checker@bu.edu',
             avatarUrl: null,
           },
@@ -675,18 +675,18 @@ describe('Roster member profile page', () => {
       });
     });
 
-    expect(await screen.findByRole('heading', { name: 'Assessor Profile' })).toBeInTheDocument();
-    expect(screen.getByText(/^Checker,?$/)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Checker Profile' })).toBeInTheDocument();
+    expect(screen.getByText(/^Rivera,?$/)).toBeInTheDocument();
     expect(screen.getByText('Alex')).toBeInTheDocument();
     expect(screen.getByText('checker@bu.edu')).toBeInTheDocument();
     expect(screen.getByText('U33333333')).toBeInTheDocument();
-    expect(screen.getByText('Assessor Info:')).toBeInTheDocument();
+    expect(screen.getByText('Checker Info:')).toBeInTheDocument();
     expect(screen.getByText('Instructor')).toBeInTheDocument();
     expect(screen.getByText('Professor Demo')).toBeInTheDocument();
-    const assessorCourseInfoSection = screen.getByText('Course Info:').closest('section');
-    expect(assessorCourseInfoSection).not.toBeNull();
-    expect(assessorCourseInfoSection).toHaveTextContent('Sections: K1, K2');
-    expect(screen.queryByText('Assessor Badges')).not.toBeInTheDocument();
+    const checkerCourseInfoSection = screen.getByText('Course Info:').closest('section');
+    expect(checkerCourseInfoSection).not.toBeNull();
+    expect(checkerCourseInfoSection).toHaveTextContent('Sections: K1, K2');
+    expect(screen.queryByText('Checker Badges')).not.toBeInTheDocument();
     expect(screen.queryByText('Waste Handling')).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Demographic Info/i }));

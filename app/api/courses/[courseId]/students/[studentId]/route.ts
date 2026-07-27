@@ -96,7 +96,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
 
     // Derive the instructor/checker contacts from enrollments (the section-aware source of
     // truth) rather than CourseContact, which has no section. This ensures a student's side
-    // "Checker" card shows the assessor assigned to *their* section, not a fixed first one.
+    // "Checker" card shows the checker assigned to *their* section, not a fixed first one.
     const memberSectionSet = new Set(enrollment.sections.map((assignment) => assignment.section));
     const courseStaff = await prisma.enrollment.findMany({
       where: {

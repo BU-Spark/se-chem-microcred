@@ -37,7 +37,7 @@ function latestAttemptSelect() {
     pointsPossible: true,
     feedback: true,
     completedAt: true,
-    assessor: {
+    checker: {
       select: {
         name: true,
         email: true,
@@ -171,7 +171,7 @@ export async function GET(_request: Request, context: RouteContext) {
           pointsPossible: latestAttempt.pointsPossible,
           feedback: latestAttempt.feedback,
           completedAt: latestAttempt.completedAt?.toISOString() ?? null,
-          assessorName: latestAttempt.assessor.name ?? latestAttempt.assessor.email ?? null,
+          checkerName: latestAttempt.checker.name ?? latestAttempt.checker.email ?? null,
           responses: latestAttempt.responses,
         }
       : null,

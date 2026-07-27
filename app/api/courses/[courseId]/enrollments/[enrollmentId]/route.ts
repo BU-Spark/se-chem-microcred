@@ -7,15 +7,15 @@ import prisma from '@/lib/prisma';
 type RouteContext = { params: Promise<{ courseId: string; enrollmentId: string }> };
 
 // Confirm the signed-in user owns the course and the target enrollment is a
-// pending assessor (CHECKER) request on it. Returns the enrollment id, or an
+// pending checker (CHECKER) request on it. Returns the enrollment id, or an
 // error response to short-circuit with.
-async function loadPendingAssessor(courseId: string, enrollmentId: string) {
+async function loadPendingChecker(courseId: string, enrollmentId: string) {
   const user = await ensureCurrentUser();
   if (!user) {
     return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
   }
 
-  // Only the course creator (instructor) may approve/decline assessor requests.
+  // Only the course creator (instructor) may approve/decline checker requests.
   const course = await prisma.course.findFirst({
     where: { id: courseId, createdById: user.id },
     select: { id: true },
@@ -39,17 +39,17 @@ async function loadPendingAssessor(courseId: string, enrollmentId: string) {
     select: { id: true },
   });
   if (!enrollment) {
-    return { error: NextResponse.json({ error: 'Pending assessor request not found.' }, { status: 404 }) };
+    return { error: NextResponse.json({ error: 'Pending checker request not found.' }, { status: 404 }) };
   }
 
   return { enrollmentId: enrollment.id };
 }
 
-// Approve a pending assessor: flip the enrollment to ACTIVE.
+// Approve a pending checker: flip the enrollment to ACTIVE.
 export async function PATCH(_req: NextRequest, context: RouteContext) {
   try {
     const { courseId, enrollmentId } = await context.params;
-    const result = await loadPendingAssessor(courseId, enrollmentId);
+    const result = await loadPendingChecker(courseId, enrollmentId);
     if ('error' in result) return result.error;
 
     const enrollment = await prisma.enrollment.update({
@@ -58,25 +58,25 @@ export async function PATCH(_req: NextRequest, context: RouteContext) {
       select: { id: true, role: true, status: true },
     });
 
-    return NextResponse.json({ message: 'Assessor approved.', enrollment }, { status: 200 });
+    return NextResponse.json({ message: 'Checker approved.', enrollment }, { status: 200 });
   } catch (error) {
     console.error('PATCH /api/courses/[courseId]/enrollments/[enrollmentId] failed:', error);
-    return NextResponse.json({ error: 'Failed to approve assessor.' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to approve checker.' }, { status: 500 });
   }
 }
 
-// Decline a pending assessor: remove the request.
+// Decline a pending checker: remove the request.
 export async function DELETE(_req: NextRequest, context: RouteContext) {
   try {
     const { courseId, enrollmentId } = await context.params;
-    const result = await loadPendingAssessor(courseId, enrollmentId);
+    const result = await loadPendingChecker(courseId, enrollmentId);
     if ('error' in result) return result.error;
 
     await prisma.enrollment.delete({ where: { id: result.enrollmentId } });
 
-    return NextResponse.json({ message: 'Assessor request declined.' }, { status: 200 });
+    return NextResponse.json({ message: 'Checker request declined.' }, { status: 200 });
   } catch (error) {
     console.error('DELETE /api/courses/[courseId]/enrollments/[enrollmentId] failed:', error);
-    return NextResponse.json({ error: 'Failed to decline assessor.' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to decline checker.' }, { status: 500 });
   }
 }

@@ -115,7 +115,7 @@ describe('POST /api/messages', () => {
     // Default: sender is the course creator.
     mockPrisma.course.findFirst.mockResolvedValue({
       createdById: 'sender-1',
-      settings: { allowAssessorMessages: false },
+      settings: { allowCheckerMessages: false },
       enrollments: [],
     });
     mockPrisma.enrollment.findMany.mockResolvedValue([{ studentId: 'student-1' }]);
@@ -144,10 +144,10 @@ describe('POST /api/messages', () => {
     expect(mockPrisma.message.createMany).not.toHaveBeenCalled();
   });
 
-  it('blocks a checker when assessor messaging is disabled', async () => {
+  it('blocks a checker when checker messaging is disabled', async () => {
     mockPrisma.course.findFirst.mockResolvedValue({
       createdById: 'someone-else',
-      settings: { allowAssessorMessages: false },
+      settings: { allowCheckerMessages: false },
       enrollments: [{ role: 'CHECKER' }],
     });
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 'student-1', body: 'Hi' }));
@@ -155,10 +155,10 @@ describe('POST /api/messages', () => {
     expect(mockPrisma.message.createMany).not.toHaveBeenCalled();
   });
 
-  it('allows a checker when assessor messaging is enabled', async () => {
+  it('allows a checker when checker messaging is enabled', async () => {
     mockPrisma.course.findFirst.mockResolvedValue({
       createdById: 'someone-else',
-      settings: { allowAssessorMessages: true },
+      settings: { allowCheckerMessages: true },
       enrollments: [{ role: 'CHECKER' }],
     });
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 'student-1', body: 'Hi' }));

@@ -195,7 +195,7 @@ describe('Courses Page', () => {
                 },
               ],
             },
-            assessor: {
+            checker: {
               count: 1,
               enrollments: [
                 {
@@ -203,8 +203,8 @@ describe('Courses Page', () => {
                   role: 'CHECKER',
                   sections: ['K1'],
                   course: {
-                    id: 'assessor-course-1',
-                    title: 'Assessor Course 1',
+                    id: 'checker-course-1',
+                    title: 'Checker Course 1',
                     description: null,
                     section: null,
                     sectionCount: 1,
@@ -237,12 +237,12 @@ describe('Courses Page', () => {
     global.fetch = mockFetch as unknown as typeof fetch;
   });
 
-  it('renders courses page with instructors, student, and assessor courses', async () => {
+  it('renders courses page with instructors, student, and checker courses', async () => {
     renderCourses();
 
     expect(screen.getByText('Student Demo')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Instructor Courses' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Assessor Courses' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Checker Courses' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'My Enrolled Courses' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Courses' })).toBeInTheDocument();
@@ -268,10 +268,10 @@ describe('Courses Page', () => {
       'href',
       '/courses/created-course-2'
     );
-    expect(screen.getByText('Assessor Course 1')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open Assessor Course 1' })).toHaveAttribute(
+    expect(screen.getByText('Checker Course 1')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open Checker Course 1' })).toHaveAttribute(
       'href',
-      '/courses/assessor-course-1?view=assessor'
+      '/courses/checker-course-1?view=checker'
     );
 
     expect(screen.getByText('General Chemistry')).toBeInTheDocument();
@@ -293,14 +293,14 @@ describe('Courses Page', () => {
     // #17: the Duplicate Course action renders inline in the Instructor Courses header.
     expect(screen.getByRole('button', { name: 'Duplicate course' })).toBeInTheDocument();
 
-    // #19: sections render in order Instructor Courses -> My Enrolled Courses -> Assessor Courses.
+    // #19: sections render in order Instructor Courses -> My Enrolled Courses -> Checker Courses.
     const instructorCoursesHeading = screen.getByRole('heading', { name: 'Instructor Courses' });
     const enrolledHeading = screen.getByRole('heading', { name: 'My Enrolled Courses' });
-    const assessorHeading = screen.getByRole('heading', { name: 'Assessor Courses' });
+    const checkerHeading = screen.getByRole('heading', { name: 'Checker Courses' });
     expect(
       instructorCoursesHeading.compareDocumentPosition(enrolledHeading) & Node.DOCUMENT_POSITION_FOLLOWING
     ).toBeTruthy();
-    expect(enrolledHeading.compareDocumentPosition(assessorHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(enrolledHeading.compareDocumentPosition(checkerHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('does not show a create-course modal when the user has no courses', async () => {
@@ -314,7 +314,7 @@ describe('Courses Page', () => {
             user: { name: 'Student Demo', email: 'student@example.edu' },
             created: { count: 0, courses: [] },
             enrolled: { count: 0, enrollments: [] },
-            assessor: { count: 0, enrollments: [] },
+            checker: { count: 0, enrollments: [] },
           }),
         };
       }

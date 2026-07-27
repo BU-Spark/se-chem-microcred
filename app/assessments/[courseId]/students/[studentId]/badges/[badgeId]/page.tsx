@@ -64,10 +64,10 @@ export default function AssessmentReadinessPage() {
   const [phase, setPhase] = useState<'overview' | 'grading' | 'confirm'>('overview');
   const [subgoalGroups, setSubgoalGroups] = useState<SubgoalGroupDraft[]>([]);
   // Only used when the computed outcome is a pass: any text here downgrades the
-  // student to "still learning" and is sent as the assessor override.
+  // student to "still learning" and is sent as the checker override.
   const [overrideFeedback, setOverrideFeedback] = useState('');
   // Per-task feedback is optional and noisy when always visible, so each box is
-  // collapsed until the assessor opens it (issue #179).
+  // collapsed until the checker opens it (issue #179).
   const [openFeedbackTaskIds, setOpenFeedbackTaskIds] = useState<string[]>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitStatus, setSubmitStatus] = useState<string | null>(null);
@@ -133,7 +133,7 @@ export default function AssessmentReadinessPage() {
 
     const rubric = badgeDetail.assessment?.rubric ?? null;
 
-    // Every task starts failed: the assessor affirmatively marks each one the
+    // Every task starts failed: the checker affirmatively marks each one the
     // student demonstrated.
     setSubgoalGroups(
       (rubric?.subgoals ?? []).map((subgoal) => ({
@@ -172,14 +172,14 @@ export default function AssessmentReadinessPage() {
 
   const rubric = badgeDetail?.assessment?.rubric ?? null;
 
-  // Instructions orient the assessor before grading and stay available while
+  // Instructions orient the checker before grading and stay available while
   // grading; they are hidden on the review step so they don't linger over the
   // pass/fail result (bug #177).
-  const assessorInstructions = rubric?.instructions ? (
+  const checkerInstructions = rubric?.instructions ? (
     <div className={styles.taInstructions}>
-      <h3 className={styles.taInstructionsTitle}>Instructions for the assessor</h3>
+      <h3 className={styles.taInstructionsTitle}>Instructions for the checker</h3>
       {/* Instructions are authored in the badge editor's rich-text field and
-          stored as sanitized HTML; render read-only for the assessor. */}
+          stored as sanitized HTML; render read-only for the checker. */}
       <div
         className={`${styles.taInstructionsBody} rte-readonly`}
         dangerouslySetInnerHTML={{ __html: rubric.instructions }}
@@ -241,7 +241,7 @@ export default function AssessmentReadinessPage() {
 
       setSubmitStatus(finalPassed ? 'Assessment recorded. Badge is ready for finalization.' : 'Assessment recorded.');
       setPhase('overview');
-      router.push(`/courses/${courseId}?view=assessor`);
+      router.push(`/courses/${courseId}?view=checker`);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to record assessment.');
     } finally {
@@ -340,7 +340,7 @@ export default function AssessmentReadinessPage() {
                     </div>
                   ) : null}
 
-                  {/* Assessors used to land straight in the rubric with no sense of
+                  {/* Checkers used to land straight in the rubric with no sense of
                       what the assessment covers; this read-only preview runs before
                       grading starts (issue #195). */}
                   {canStartNewAssessment && phase === 'overview' ? (
@@ -358,7 +358,7 @@ export default function AssessmentReadinessPage() {
                         </ol>
                       </div>
 
-                      {assessorInstructions}
+                      {checkerInstructions}
 
                       <div className={styles.criteriaList} aria-label="Assessment rubric overview">
                         {(rubric?.subgoals ?? []).map((subgoal, groupIndex) => (
@@ -394,10 +394,10 @@ export default function AssessmentReadinessPage() {
                   {canStartNewAssessment && isAssessmentStarted ? (
                     <div className={styles.assessmentPanel}>
                       <div className={styles.assessmentPanelHeader}>
-                        <h2>{rubric?.goalName || 'Assessor Grading'}</h2>
+                        <h2>{rubric?.goalName || 'Checker Grading'}</h2>
                       </div>
 
-                      {phase === 'grading' ? assessorInstructions : null}
+                      {phase === 'grading' ? checkerInstructions : null}
 
                       {phase === 'grading' ? (
                         <div className={styles.criteriaList}>
@@ -484,7 +484,7 @@ export default function AssessmentReadinessPage() {
                         </div>
                       ) : (
                         <div className={styles.confirmPanel}>
-                          {/* Review step shows everything the assessor recorded rather
+                          {/* Review step shows everything the checker recorded rather
                               than just the verdict (issue #195). */}
                           <div className={styles.criteriaList} aria-label="Results by task">
                             {subgoalResults.map((group, groupIndex) => (
