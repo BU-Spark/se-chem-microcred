@@ -156,7 +156,7 @@ describe('Assessment readiness page', () => {
 
     // The preview orients the assessor; it never grades.
     expect(screen.queryAllByRole('switch')).toHaveLength(0);
-    expect(screen.queryByLabelText('Feedback (optional)')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Feedback (optional)' })).not.toBeInTheDocument();
     // Assessors read the instructions before starting, not just while grading.
     expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
     expect(screen.getByText('Have the student demonstrate the flame independently.')).toBeInTheDocument();
@@ -205,7 +205,9 @@ describe('Assessment readiness page', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
     fireEvent.click(screen.getByRole('switch', { name: 'Task 1.1 failed' }));
-    fireEvent.change(screen.getAllByLabelText('Feedback (optional)')[0], {
+    // Feedback boxes stay collapsed until opened (issue #179), so expand task 1.1's first.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Feedback (optional)' })[0]);
+    fireEvent.change(screen.getByLabelText('Feedback for task 1.1 (optional)'), {
       target: { value: 'Great flame control.' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
