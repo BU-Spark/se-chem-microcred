@@ -146,7 +146,7 @@ function resolveLessonImage(record: LessonRecord) {
   return DEFAULT_LESSON_IMAGE;
 }
 
-function lessonRecordToCard(record: LessonRecord): LessonCard {
+function lessonRecordToCard(record: LessonRecord, startedBadgeSlugs?: Set<string>): LessonCard {
   const due = formatDueDate(record.dueDate);
   const metaParts: string[] = [];
   if (due) {
@@ -173,6 +173,23 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
   const variant: LessonCard['variant'] =
     record.status === 'COMPLETED' ? 'completed' : record.status === 'IN_PROGRESS' ? 'continue' : 'start';
 
+  // Where the card's action button goes (issue #194). Neither destination is the
+  // lesson preview page at /lessons/<slug> — the dashboard never wants that.
+  //
+  // Completed: the badge feedback page, which holds the review material and any
+  // assessment results. This holds regardless of assessment state; see
+  // startedBadgeSlugs for why only started badges qualify.
+  //
+  // Start/Continue: straight into the QEV route — the video plus its checkpoint
+  // questions — rather than the preview. A completed lesson whose badge isn't
+  // resolvable falls back here too; the QEV route re-enters it in review mode.
+  const badgeSlug = record.badgeRequirements?.[0]?.badgeSlug ?? null;
+  const badgeStarted = badgeSlug ? (startedBadgeSlugs?.has(badgeSlug) ?? false) : false;
+  const href =
+    record.status === 'COMPLETED' && badgeSlug && badgeStarted
+      ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
+      : `/lessons/${record.slug}/video`;
+
   return {
     id: record.id,
     title: record.title,
@@ -181,7 +198,7 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
     actionLabel,
     variant,
     image: resolveLessonImage(record),
-    href: `/lessons/${record.slug}`,
+    href,
   };
 }
 
@@ -282,17 +299,46 @@ function HomePageContent() {
     }
   }, [pendingSurveyBadges]);
 
+  // Slugs of every badge the student has started. A completed lesson's "Review" routes
+  // to the badge feedback page — that page is where the review material lives, whether
+  // or not an assessment has happened yet — so this deliberately does NOT filter on
+  // badge status or attempt history. Status would be the wrong signal regardless: a
+  // failed badge only sits at IN_REVIEW until the student acknowledges the feedback,
+  // then drops to READY_FOR_ASSESSMENT or LOCKED, and the state-machine backfill landed
+  // every pre-existing failed badge at READY_FOR_ASSESSMENT.
+  //
+  // These are the same five buckets the feedback page resolves its badge from, so a
+  // slug in this set is guaranteed to render there rather than bounce to /badges. A
+  // badge with no StudentBadge row (NOT_STARTED) is excluded for exactly that reason.
+  const startedBadgeSlugs = useMemo(() => {
+    const slugs = new Set<string>();
+    const badges = studentData?.badges;
+    if (badges) {
+      const started = [
+        ...(badges.completed ?? []),
+        ...(badges.inReview ?? []),
+        ...(badges.locked ?? []),
+        ...(badges.readyForAssessment ?? []),
+        ...(badges.learning ?? []),
+      ];
+      for (const badge of started) {
+        if (badge.slug) slugs.add(badge.slug);
+      }
+    }
+    return slugs;
+  }, [studentData]);
+
   const upNextLessons = useMemo(() => {
-    return studentData?.lessons.upNext.map(lessonRecordToCard) ?? [];
+    return studentData?.lessons.upNext.map((record) => lessonRecordToCard(record)) ?? [];
   }, [studentData]);
 
   const continueLessons = useMemo(() => {
-    return studentData?.lessons.inProgress.map(lessonRecordToCard) ?? [];
+    return studentData?.lessons.inProgress.map((record) => lessonRecordToCard(record)) ?? [];
   }, [studentData]);
 
   const completedLessons = useMemo(() => {
-    return studentData?.lessons.completed?.map(lessonRecordToCard) ?? [];
-  }, [studentData]);
+    return studentData?.lessons.completed?.map((record) => lessonRecordToCard(record, startedBadgeSlugs)) ?? [];
+  }, [studentData, startedBadgeSlugs]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
