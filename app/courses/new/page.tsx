@@ -10,6 +10,7 @@ import styles from './page.module.css';
 import Image from 'next/image';
 import BackButton from '@/app/components/BackButton/BackButton';
 import CourseImagePicker from './components/CourseImagePicker';
+import SectionChips from './components/SectionChips';
 import CourseTileImage from '@/app/components/Courses/CourseTileImage';
 import { CourseRole } from '@prisma/client';
 import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
@@ -107,6 +108,10 @@ function toRosterRow(person: Person): RosterRow {
   };
 }
 
+// Section names are strings but usually read as numbers ("1", "2", "10"), so sort
+// numerically-aware to avoid 1, 10, 2.
+const compareSections = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
+
 function parseSections(sectionValue?: string | null): string[] {
   return (sectionValue ?? '')
     .split('|')
@@ -141,7 +146,8 @@ function mergeRosterRows(existing: RosterRow[], incoming: RosterRow[]): RosterRo
   return merged;
 }
 
-// made change to remove putting multiple sections for an assessor in the during the csv upload going to give that responsiblity to an assessor update in the future
+// Assessors can cover several sections, so a person listed on more than one CSV row
+// collapses into a single roster entry whose sections are the union of those rows. (#206)
 function mergeAssessorRows(rows: RosterRow[]) {
   return Array.from(
     rows.reduce((map, row) => {
@@ -159,6 +165,10 @@ function mergeAssessorRows(rows: RosterRow[]) {
         });
         return map;
       }
+
+      existing.sections = Array.from(new Set([...(existing.sections ?? []), ...(row.sections ?? [])]));
+      // A later row may fill in an ID the first one omitted.
+      if (!existing.externalId && externalId) existing.externalId = externalId;
       return map;
     }, new Map<string, RosterRow>())
   ).map(([, row]) => row);
@@ -205,6 +215,29 @@ export default function CourseNewPage() {
   // csv upload
   const [studentRows, setStudentRows] = useState<RosterRow[]>([]);
   const [assessorRows, setAssessorRows] = useState<RosterRow[]>([]);
+
+  // Every section name seen on either roster so far. This accumulates rather than being
+  // derived from the current rows: an assessor's section pills must stay on screen after
+  // the last person assigned to a section is toggled off, otherwise the pill would vanish
+  // and the section could never be re-selected. (#206)
+  const [knownSections, setKnownSections] = useState<string[]>([]);
+
+  useEffect(() => {
+    const seen = [
+      ...studentRows.flatMap((student) => student.sections ?? []),
+      ...assessorRows.flatMap((assessor) => assessor.sections ?? []),
+    ].filter(Boolean);
+
+    if (seen.length === 0) return;
+
+    setKnownSections((prev) => {
+      const next = new Set(prev);
+      const sizeBefore = next.size;
+      for (const section of seen) next.add(section);
+      if (next.size === sizeBefore) return prev;
+      return Array.from(next).sort(compareSections);
+    });
+  }, [studentRows, assessorRows]);
 
   const [visibleCount, setVisibleCount] = useState(10);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -464,10 +497,13 @@ export default function CourseNewPage() {
         ...row,
         sections: parseSections(row.sections),
       }));
-      const incoming = target === 'assessor' ? mergeAssessorRows(parsedRows) : parsedRows;
       // Append to whatever's already loaded (DB roster in edit mode, or a prior
-      // upload) rather than replacing it, deduping by person. (#168)
-      setRows((prev) => mergeRosterRows(prev, incoming));
+      // upload) rather than replacing it, deduping by person. (#168) For assessors the
+      // merge also unions sections, so re-uploading adds sections to an existing
+      // assessor instead of dropping them. (#206)
+      setRows((prev) =>
+        target === 'assessor' ? mergeAssessorRows([...prev, ...parsedRows]) : mergeRosterRows(prev, parsedRows)
+      );
     } catch (error) {
       console.error('Failed to parse CSV:', error);
       const message = error instanceof Error ? error.message : 'Failed to read CSV file.';
@@ -559,21 +595,17 @@ export default function CourseNewPage() {
     targetInput?.click();
   };
 
-  // Unique section names found across the uploaded roster — populates the per-student
-  // section dropdowns so the prof can reassign a student's section inline.
-  const availableSections = Array.from(new Set(studentRows.flatMap((student) => student.sections ?? []))).sort();
+  // Populates the per-student section dropdowns so the prof can reassign a student's
+  // section inline. Uses the accumulated list so moving the last student out of a
+  // section doesn't remove that section from the dropdown.
+  const availableSections = knownSections;
 
   const updateStudentSection = (index: number, value: string) => {
     setStudentRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value ? [value] : [] } : row)));
   };
 
-  // Same inline-section-reassignment for the assessor roster.
-  const availableAssessorSections = Array.from(
-    new Set(assessorRows.flatMap((assessor) => assessor.sections ?? []))
-  ).sort();
-
-  const updateAssessorSection = (index: number, value: string) => {
-    setAssessorRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value ? [value] : [] } : row)));
+  const updateAssessorSections = (index: number, nextSections: string[]) => {
+    setAssessorRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: nextSections } : row)));
   };
 
   function ConfigRow({ label, checked, onChange, infoText }: ConfigRowProps) {
@@ -880,34 +912,27 @@ export default function CourseNewPage() {
                           <th>Last Name</th>
                           <th>First Name</th>
                           <th>Email</th>
-                          <th>Section</th>
+                          <th>Sections</th>
                         </tr>
                       </thead>
                       <tbody>
                         {assessorRows.slice(0, assessorVisibleCount).map((assessor, index) => {
-                          const primarySection = assessor.sections?.[0] ?? '';
+                          const selectedSections = assessor.sections ?? [];
                           const sectionOptions = Array.from(
-                            new Set([...availableAssessorSections, primarySection].filter(Boolean))
-                          );
+                            new Set([...knownSections, ...selectedSections].filter(Boolean))
+                          ).sort(compareSections);
                           return (
                             <tr key={index}>
                               <td>{assessor.lastName}</td>
                               <td>{assessor.firstName}</td>
                               <td>{assessor.email}</td>
                               <td>
-                                <select
-                                  className={styles.sectionSelect}
-                                  value={primarySection}
-                                  onChange={(e) => updateAssessorSection(index, e.target.value)}
-                                  aria-label={`Section for ${assessor.firstName} ${assessor.lastName}`}
-                                >
-                                  {sectionOptions.length === 0 ? <option value="">—</option> : null}
-                                  {sectionOptions.map((section) => (
-                                    <option key={section} value={section}>
-                                      {section}
-                                    </option>
-                                  ))}
-                                </select>
+                                <SectionChips
+                                  options={sectionOptions}
+                                  selected={selectedSections}
+                                  onChange={(next) => updateAssessorSections(index, next)}
+                                  subject={`${assessor.firstName} ${assessor.lastName}`}
+                                />
                               </td>
                             </tr>
                           );

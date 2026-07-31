@@ -362,6 +362,131 @@ describe('Course new page edit mode', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it('lets an assessor be assigned to multiple sections from the uploaded roster', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          course: {
+            id: 'course-1',
+            title: 'Chemistry 101',
+            sectionCount: 3,
+            settings: {
+              allowCooldownOverride: false,
+              allowAssessorMessages: true,
+              allowCrossSectionView: false,
+            },
+            contacts: [],
+            enrollments: [
+              {
+                id: 'enrollment-1',
+                role: 'STUDENT',
+                sections: ['3'],
+                student: {
+                  id: 'student-1',
+                  name: 'Jane Student',
+                  email: 'jane@bu.edu',
+                  externalId: 'U12345678',
+                },
+              },
+            ],
+          },
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ course: { id: 'course-1' } }),
+      });
+
+    const { container } = render(<CourseNewPage />);
+
+    expect(await screen.findByText('Chemistry 101')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'View Assessors' }));
+
+    await waitFor(() => {
+      expect(container.querySelector('input[type="file"]')).not.toBeNull();
+    });
+
+    const assessorUploadInput = container.querySelector('input[type="file"]') as HTMLInputElement;
+
+    // Alex is listed twice — the two rows collapse into one assessor covering both
+    // sections, and Sam's piped sections both survive the upload. (#206)
+    const csv = [
+      'lastName,firstName,email,sections',
+      'Checker,Alex,checker@bu.edu,1',
+      'Checker,Alex,checker@bu.edu,2',
+      'Grader,Sam,grader@bu.edu,1|2',
+    ].join('\n');
+
+    const csvFile = new File([csv], 'assessors.csv', { type: 'text/csv' });
+    Object.defineProperty(csvFile, 'text', { value: async () => csv });
+
+    fireEvent.change(assessorUploadInput, { target: { files: [csvFile] } });
+
+    // Every section on the roster is a chip — including section 3, which only appears
+    // on the student roster — and the ones the CSV assigned are switched on.
+    const alexChips = await screen.findByRole('group', { name: 'Sections for Alex Checker' });
+    await waitFor(() => {
+      expect(
+        within(alexChips)
+          .getAllByRole('button')
+          .map((chip) => chip.textContent)
+      ).toEqual(['1', '2', '3']);
+    });
+    expect(within(alexChips).getByRole('button', { name: '1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(alexChips).getByRole('button', { name: '2' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(alexChips).getByRole('button', { name: '3' })).toHaveAttribute('aria-pressed', 'false');
+
+    const samChips = screen.getByRole('group', { name: 'Sections for Sam Grader' });
+    expect(within(samChips).getByRole('button', { name: '1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(within(samChips).getByRole('button', { name: '2' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Chips toggle on and off freely before moving to the next step, and a section
+    // stays on screen even when nobody is assigned to it any more — otherwise it could
+    // never be re-selected.
+    fireEvent.click(within(alexChips).getByRole('button', { name: '3' }));
+    fireEvent.click(within(alexChips).getByRole('button', { name: '1' }));
+    fireEvent.click(within(samChips).getByRole('button', { name: '1' }));
+
+    await waitFor(() => {
+      expect(within(alexChips).getByRole('button', { name: '1' })).toHaveAttribute('aria-pressed', 'false');
+    });
+    expect(within(samChips).getByRole('button', { name: '1' })).toHaveAttribute('aria-pressed', 'false');
+    expect(within(alexChips).getByRole('button', { name: '3' })).toHaveAttribute('aria-pressed', 'true');
+
+    // Section 1 is now unused but still selectable.
+    fireEvent.click(within(samChips).getByRole('button', { name: '1' }));
+    await waitFor(() => {
+      expect(within(samChips).getByRole('button', { name: '1' })).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    const [, saveOptions] = mockFetch.mock.calls[1];
+    const saveBody = JSON.parse((saveOptions as RequestInit).body as string);
+
+    expect(saveBody.roster).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          email: 'checker@bu.edu',
+          role: 'CHECKER',
+          sections: ['2', '3'],
+        }),
+        expect.objectContaining({
+          email: 'grader@bu.edu',
+          role: 'CHECKER',
+          sections: ['1', '2'],
+        }),
+      ])
+    );
+  });
+
   it('renders the assessor configuration toggles reflecting the loaded settings', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
