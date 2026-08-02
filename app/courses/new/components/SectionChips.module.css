@@ -1,5 +1,5 @@
 /* Mirrors the section filter pills on the roster page (app/roster/page.module.css)
-   so toggling an assessor's sections looks like the filters elsewhere in the app. */
+   so toggling a checker's sections looks like the filters elsewhere in the app. */
 .chips {
     display: flex;
     align-items: center;

@@ -1428,7 +1428,7 @@ export function LessonVideoPage({
                         <>
                           <h2 className={styles.modalTitle}>Lesson Completed</h2>
                           <p className={styles.modalDescription}>
-                            You’re all set! Show your assessor the QR code to finalize this lesson.
+                            You’re all set! Show your checker the QR code to finalize this lesson.
                           </p>
                           <div className={styles.modalStats}>
                             <div className={styles.modalStat}>

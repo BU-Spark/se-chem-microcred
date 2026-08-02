@@ -221,9 +221,9 @@ export default function RubricStep({
       </div>
 
       <div className={styles.editorCard}>
-        <h3 className={styles.panelTitle}>Assessor Instructions</h3>
+        <h3 className={styles.panelTitle}>Checker Instructions</h3>
         <p className={styles.panelHint}>
-          Notes for the assessor to relay to students during assessment. Shown alongside this rubric while grading.
+          Notes for the checker to relay to students during assessment. Shown alongside this rubric while grading.
         </p>
         <RichTextEditor
           namespace="ta-instructions"

@@ -30,7 +30,7 @@ function clerkName(user: NonNullable<Awaited<ReturnType<typeof currentUser>>>): 
  *
  * Idempotent and non-destructive: it never overwrites profile data the user has
  * already set; it only fills in a missing name and guarantees an analytics row.
- * Safe under the concurrent calls the home page makes (created/enrolled/assessor
+ * Safe under the concurrent calls the home page makes (created/enrolled/checker
  * fire in parallel): a losing INSERT race throws P2002, which we treat as "already
  * exists" and read back. Returns null when there is no authenticated user.
  */

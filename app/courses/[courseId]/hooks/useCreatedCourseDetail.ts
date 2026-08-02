@@ -53,7 +53,7 @@ type CourseLesson = {
 type CourseDetail = {
   id: string;
   code: string | null;
-  assessorCode: string | null;
+  checkerCode: string | null;
   title: string;
   description: string | null;
   sectionCount: number;
@@ -67,7 +67,7 @@ type CourseDetail = {
   } | null;
   settings: {
     allowCooldownOverride: boolean;
-    allowAssessorMessages: boolean;
+    allowCheckerMessages: boolean;
     allowCrossSectionView: boolean;
   } | null;
   contacts: CourseContact[];

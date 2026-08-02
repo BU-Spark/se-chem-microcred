@@ -298,9 +298,9 @@ export default function CreatedCourseDetailPage() {
 
   const course = data?.course ?? null;
   const viewerRole = data?.viewerRole ?? null;
-  const isAssessorView = searchParams.get('view') === 'assessor';
-  const isInstructorFlag = isInstructor(viewerRole) && !isAssessorView;
-  const canAssess = isAssessorView && viewerRole !== 'STUDENT';
+  const isCheckerView = searchParams.get('view') === 'checker';
+  const isInstructorFlag = isInstructor(viewerRole) && !isCheckerView;
+  const canAssess = isCheckerView && viewerRole !== 'STUDENT';
   const isStudent = viewerRole === 'STUDENT';
   const displayName = isInstructorFlag ? course?.createdBy?.name || '' : user?.fullName || '';
 
@@ -525,13 +525,13 @@ export default function CreatedCourseDetailPage() {
                         Course Code: <span className={styles.courseCode}>{course.code}</span>
                       </p>
                     ) : null}
-                    {isInstructorFlag && course.assessorCode ? (
+                    {isInstructorFlag && course.checkerCode ? (
                       <p className={styles.statLine}>
-                        Assessor Code: <span className={styles.courseCode}>{course.assessorCode}</span>
+                        Checker Code: <span className={styles.courseCode}>{course.checkerCode}</span>
                       </p>
                     ) : null}
                     {viewerRole ? (
-                      <p className={styles.statLine}>Your Role: {isAssessorView ? 'ASSESSOR' : viewerRole}</p>
+                      <p className={styles.statLine}>Your Role: {isCheckerView ? 'CHECKER' : viewerRole}</p>
                     ) : null}
                   </div>
 
@@ -570,7 +570,7 @@ export default function CreatedCourseDetailPage() {
                   {isInstructorFlag ? (
                     <div className={styles.sideActionRow}>
                       <Link href={`/roster?courseId=${course.id}&role=CHECKER`} className={styles.primaryButton}>
-                        View Assessor Roster
+                        View Checker Roster
                       </Link>
                       <Link href={`/courses/new?courseId=${course.id}`} className={styles.primaryButton}>
                         Edit Course

@@ -70,7 +70,7 @@ type EnrolledCourse = {
   };
 };
 
-type AssessorCourseEnrollment = {
+type CheckerCourseEnrollment = {
   id: string;
   role: 'INSTRUCTOR' | 'CHECKER';
   sections: string[];
@@ -253,7 +253,7 @@ function HomeContent() {
     data: myCourses,
     created,
     enrolled,
-    assessor,
+    checker,
     isLoading,
     error: fetchError,
     mutate: refreshCourses,
@@ -269,8 +269,8 @@ function HomeContent() {
   const createdError = coursesError;
   const isLoadingEnrolled = isLoading;
   const enrolledError = coursesError;
-  const isLoadingAssessorCourses = isLoading;
-  const assessorCoursesError = coursesError;
+  const isLoadingCheckerCourses = isLoading;
+  const checkerCoursesError = coursesError;
 
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{
@@ -293,12 +293,12 @@ function HomeContent() {
   const [isJoinModalOpen, setIsJoinModalOpen] = useState(false);
   // Which entry point opened the join modal — drives the modal's copy. The
   // backend still resolves the actual role from whichever code is entered.
-  const [joinMode, setJoinMode] = useState<'student' | 'assessor'>('student');
-  // True after an assessor request is submitted (pending approval) — keeps the
+  const [joinMode, setJoinMode] = useState<'student' | 'checker'>('student');
+  // True after a checker request is submitted (pending approval) — keeps the
   // modal open briefly to show the confirmation before it auto-closes.
   const [joinPending, setJoinPending] = useState(false);
 
-  const openJoinModal = useCallback((mode: 'student' | 'assessor') => {
+  const openJoinModal = useCallback((mode: 'student' | 'checker') => {
     setJoinMode(mode);
     setJoinError(null);
     setJoinStatus(null);
@@ -313,7 +313,7 @@ function HomeContent() {
     setJoinPending(false);
   }, []);
 
-  // Auto-close the modal a few seconds after a pending assessor request lands.
+  // Auto-close the modal a few seconds after a pending checker request lands.
   useEffect(() => {
     if (!isJoinModalOpen || !joinPending || !joinStatus) return;
     const timer = setTimeout(() => closeJoinModal(), 3000);
@@ -348,7 +348,7 @@ function HomeContent() {
   }, [pendingSurveyBadges, readyForFinalization]);
 
   const createdCourses = useMemo<CreatedCourse[]>(() => created?.courses ?? [], [created]);
-  const assessorEnrollments = useMemo<AssessorCourseEnrollment[]>(() => assessor?.enrollments ?? [], [assessor]);
+  const checkerEnrollments = useMemo<CheckerCourseEnrollment[]>(() => checker?.enrollments ?? [], [checker]);
 
   const enrolledCourseCards = useMemo(
     () => (enrolled?.enrollments ?? []).map((e: EnrolledCourse) => enrollmentToCard(e)),
@@ -358,11 +358,11 @@ function HomeContent() {
   // Role gating: the three course endpoints already segment by role, so data presence
   // is a reliable signal for which sections to surface.
   const hasCreated = createdCourses.length > 0;
-  const hasAssessor = assessorEnrollments.length > 0;
+  const hasChecker = checkerEnrollments.length > 0;
   const hasEnrolled = enrolledCourseCards.length > 0;
-  const isLoadingRoles = isLoadingCreated || isLoadingAssessorCourses || isLoadingEnrolled;
+  const isLoadingRoles = isLoadingCreated || isLoadingCheckerCourses || isLoadingEnrolled;
   // Instructors (and brand-new users with no role context) see "My Courses".
-  const showMyCourses = hasCreated || (!hasAssessor && !hasEnrolled);
+  const showMyCourses = hasCreated || (!hasChecker && !hasEnrolled);
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.replace('/splash');
@@ -522,7 +522,7 @@ function HomeContent() {
 
       setJoinCode('');
       setJoinStatus(payload.message ?? `You joined ${payload.course?.title ?? 'the course'}.`);
-      // Assessor joins return a pending request — keep the modal open so the
+      // Checker joins return a pending request — keep the modal open so the
       // confirmation is visible (it auto-closes after a few seconds). Direct
       // (student) joins close the modal right away.
       setJoinPending(Boolean(payload.pending));
@@ -598,7 +598,7 @@ function HomeContent() {
                   : 'You have no existing courses.'
                 : hasEnrolled
                   ? `You are enrolled in ${enrolledCourseCards.length} course${enrolledCourseCards.length === 1 ? '' : 's'}.`
-                  : `You are assessing ${assessorEnrollments.length} course${assessorEnrollments.length === 1 ? '' : 's'}.`}
+                  : `You are assessing ${checkerEnrollments.length} course${checkerEnrollments.length === 1 ? '' : 's'}.`}
           </p>
         </header>
 
@@ -624,7 +624,7 @@ function HomeContent() {
         ) : null}
 
         {/* All three role sections are shown together on Home — the client validated this
-            combined professor/assessor/student view, so we intentionally do not role-gate them. */}
+            combined professor/checker/student view, so we intentionally do not role-gate them. */}
         <section className={courseStyles.section}>
           <div className={styles.sectionHeaderRow}>
             <h2 className={courseStyles.sectionTitle}>Instructor Courses</h2>
@@ -688,12 +688,12 @@ function HomeContent() {
 
         <section className={courseStyles.section}>
           <div className={styles.sectionHeaderRow}>
-            <h2 className={courseStyles.sectionTitle}>Assessor Courses</h2>
+            <h2 className={courseStyles.sectionTitle}>Checker Courses</h2>
             <button
               type="button"
               className={styles.joinButton}
-              aria-label="Join a course as an assessor"
-              onClick={() => openJoinModal('assessor')}
+              aria-label="Join a course as a checker"
+              onClick={() => openJoinModal('checker')}
             >
               <span className={styles.joinPlus} aria-hidden="true">
                 +
@@ -702,24 +702,24 @@ function HomeContent() {
             </button>
           </div>
 
-          <div className={styles.myCoursesGrid} data-testid="assessor-courses-grid">
-            {assessorEnrollments.map((enrollment) => (
+          <div className={styles.myCoursesGrid} data-testid="checker-courses-grid">
+            {checkerEnrollments.map((enrollment) => (
               <CreatedCourseCard
                 key={enrollment.id}
                 course={enrollment.course}
-                href={`/courses/${enrollment.course.id}?view=assessor`}
+                href={`/courses/${enrollment.course.id}?view=checker`}
               />
             ))}
           </div>
 
-          {isLoadingAssessorCourses ? <p className={courseStyles.statusMessage}>Loading assessor courses...</p> : null}
+          {isLoadingCheckerCourses ? <p className={courseStyles.statusMessage}>Loading checker courses...</p> : null}
 
-          {!isLoadingAssessorCourses && assessorCoursesError ? (
-            <p className={courseStyles.statusMessage}>{assessorCoursesError}</p>
+          {!isLoadingCheckerCourses && checkerCoursesError ? (
+            <p className={courseStyles.statusMessage}>{checkerCoursesError}</p>
           ) : null}
 
-          {!isLoadingAssessorCourses && !assessorCoursesError && assessorEnrollments.length === 0 ? (
-            <p className={courseStyles.statusMessage}>No assessor courses assigned yet.</p>
+          {!isLoadingCheckerCourses && !checkerCoursesError && checkerEnrollments.length === 0 ? (
+            <p className={courseStyles.statusMessage}>No checker courses assigned yet.</p>
           ) : null}
         </section>
       </main>
@@ -771,11 +771,11 @@ function HomeContent() {
         <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
           <div className={styles.joinModal}>
             <h2 id="join-modal-title" className={styles.joinModalTitle}>
-              {joinMode === 'assessor' ? 'Join as an assessor' : 'Join a course'}
+              {joinMode === 'checker' ? 'Join as a checker' : 'Join a course'}
             </h2>
             <p className={styles.joinModalHint}>
-              {joinMode === 'assessor'
-                ? 'Enter the assessor code your instructor shared. Your request is sent to the instructor for approval.'
+              {joinMode === 'checker'
+                ? 'Enter the checker code your instructor shared. Your request is sent to the instructor for approval.'
                 : 'Enter the course code your instructor shared to enroll as a student.'}
             </p>
             <div className={styles.joinControls}>
@@ -784,8 +784,8 @@ function HomeContent() {
                 className={styles.joinInput}
                 value={joinCode}
                 onChange={(event) => setJoinCode(event.target.value)}
-                placeholder={joinMode === 'assessor' ? 'Enter assessor code' : 'Enter course code'}
-                aria-label={joinMode === 'assessor' ? 'Assessor code' : 'Course code'}
+                placeholder={joinMode === 'checker' ? 'Enter checker code' : 'Enter course code'}
+                aria-label={joinMode === 'checker' ? 'Checker code' : 'Course code'}
                 disabled={isJoiningCourse}
                 autoFocus
               />

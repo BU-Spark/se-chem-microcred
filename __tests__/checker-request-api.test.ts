@@ -44,7 +44,7 @@ async function callRoute(method: 'PATCH' | 'DELETE', courseId = 'course-1', enro
   })) as Response;
 }
 
-describe('assessor request approve/decline API', () => {
+describe('checker request approve/decline API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockEnsureCurrentUser.mockResolvedValue({ id: 'instructor-1', email: 'prof@example.edu' });
@@ -54,7 +54,7 @@ describe('assessor request approve/decline API', () => {
     mockEnrollmentDelete.mockResolvedValue({ id: 'enr-1' });
   });
 
-  it('approves a pending assessor (PATCH -> status ACTIVE)', async () => {
+  it('approves a pending checker (PATCH -> status ACTIVE)', async () => {
     const response = await callRoute('PATCH');
 
     expect(response.status).toBe(200);
@@ -69,7 +69,7 @@ describe('assessor request approve/decline API', () => {
     expect(mockEnrollmentDelete).not.toHaveBeenCalled();
   });
 
-  it('declines a pending assessor (DELETE -> removes the row)', async () => {
+  it('declines a pending checker (DELETE -> removes the row)', async () => {
     const response = await callRoute('DELETE');
 
     expect(response.status).toBe(200);

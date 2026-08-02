@@ -58,7 +58,7 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
     settings: {
       id: 'settings-1',
       courseId: 'course-1',
-      allowAssessorMessages: true,
+      allowCheckerMessages: true,
       allowCooldownOverride: false,
       allowCrossSectionView: true,
       createdAt,

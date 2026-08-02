@@ -422,7 +422,7 @@ export default function BadgeWalletPage() {
 
                       {activeBadge.status === 'READY_FOR_ASSESSMENT' && (
                         <p className={styles.popoverHelperText}>
-                          Show your assessor this QR code during the in-person skill check.
+                          Show your checker this QR code during the in-person skill check.
                         </p>
                       )}
                       {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed === true && (
@@ -432,7 +432,7 @@ export default function BadgeWalletPage() {
                       )}
                       {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed !== true && (
                         <p className={styles.popoverHelperText}>
-                          Review your assessor&apos;s feedback to unlock your next attempt.
+                          Review your checker&apos;s feedback to unlock your next attempt.
                         </p>
                       )}
                       {activeBadge.status === 'LEARNING' && (

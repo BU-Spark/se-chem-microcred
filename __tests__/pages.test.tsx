@@ -165,7 +165,7 @@ beforeEach(() => {
               },
             ],
           },
-          assessor: { count: 0, enrollments: [] },
+          checker: { count: 0, enrollments: [] },
         }),
       };
     }
@@ -420,7 +420,7 @@ describe('Badge Wallet page', () => {
     const assessmentToggle = document.querySelector('button[aria-controls="assessment-badges"]') as HTMLButtonElement;
     fireEvent.click(assessmentToggle);
     fireEvent.click(screen.getByRole('button', { name: /^Assessment$/i }));
-    expect(screen.getByText(/Show your assessor this QR code/i)).toBeInTheDocument();
+    expect(screen.getByText(/Show your checker this QR code/i)).toBeInTheDocument();
   });
 });
 

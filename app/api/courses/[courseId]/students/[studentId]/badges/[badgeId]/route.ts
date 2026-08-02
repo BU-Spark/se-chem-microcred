@@ -84,7 +84,7 @@ function fetchRubricGoal(badgeId: string) {
   });
 }
 
-// The assessor submits a pass/fail per task. The badge outcome is computed
+// The checker submits a pass/fail per task. The badge outcome is computed
 // server-side (per-subgoal thresholds, all subgoals must pass), so the payload
 // carries no score. An optional override downgrades a passing result to "still
 // learning" and, when present, must carry feedback (validated in POST).
@@ -431,7 +431,7 @@ export async function GET(
         createdAt: 'asc',
       },
       include: {
-        assessor: {
+        checker: {
           select: {
             name: true,
             email: true,
@@ -650,7 +650,7 @@ export async function GET(
       latestAssessment?.responses && latestAssessment.responses.length > 0
         ? latestAssessment.responses.map((response) => ({
             id: response.id,
-            title: response.isOverride ? 'Assessor override' : `${response.subgoalText} › ${response.taskText}`,
+            title: response.isOverride ? 'Checker override' : `${response.subgoalText} › ${response.taskText}`,
             outcome:
               response.feedback ||
               (response.isOverride
@@ -723,11 +723,11 @@ export async function GET(
             completedAt: attempt.completedAt?.toISOString() ?? null,
             passed: attempt.passed,
             feedback: attempt.feedback,
-            assessorName: attempt.assessor.name ?? attempt.assessor.email ?? null,
+            checkerName: attempt.checker.name ?? attempt.checker.email ?? null,
             // Per-attempt rubric breakdown for the "Assessment history" dropdown.
             responses: attempt.responses.map((response) => ({
               id: response.id,
-              title: response.isOverride ? 'Assessor override' : `${response.subgoalText} › ${response.taskText}`,
+              title: response.isOverride ? 'Checker override' : `${response.subgoalText} › ${response.taskText}`,
               subgoalText: response.subgoalText,
               taskText: response.taskText,
               points: response.points,
@@ -957,8 +957,8 @@ export async function POST(
     if (body.override) {
       taskResponses.push({
         taskId: null,
-        subgoalText: 'Assessor override',
-        taskText: 'Assessor override',
+        subgoalText: 'Checker override',
+        taskText: 'Checker override',
         points: 0,
         passed: false,
         feedback: body.override.feedback,
@@ -973,7 +973,7 @@ export async function POST(
           courseId,
           badgeId,
           studentId,
-          assessorId: user.id,
+          checkerId: user.id,
           passed,
           score,
           pointsEarned: pointsPossible > 0 ? pointsEarned : null,
@@ -1026,7 +1026,7 @@ export async function POST(
 type StudentBadgeConfigPayload = {
   reassessmentLimit?: unknown;
   reassessmentRequired?: unknown;
-  // One-click assessor action: clear the cooldown so a student who failed the
+  // One-click checker action: clear the cooldown so a student who failed the
   // in-person assessment can re-assess immediately. The cooldown *length* is
   // authored on the badge, not set per student here.
   overrideCooldown?: unknown;

@@ -851,3 +851,50 @@
         width: 100%;
     }
 }
+
+/* Per-row roster removal in the create/edit wizard (#205) */
+.actionsHeader {
+    text-align: center !important;
+    white-space: nowrap;
+}
+
+.actionsCell {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.removeButton {
+    background: #ffffff;
+    color: #b42318;
+    border: 1px solid #e2b8b2;
+    border-radius: 12px;
+    padding: 0.4rem 0.9rem;
+    font-family: 'Lato', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.removeButton:hover {
+    filter: brightness(0.97);
+}
+
+/* A person listed in both rosters blocks submission — flag the rows so they can be
+   found and removed instead of only being named in the error text. */
+.conflictRow td {
+    background: #fdf3f2;
+}
+
+.conflictBadge {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #b42318;
+    color: #ffffff;
+    font-family: 'Lato', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+}

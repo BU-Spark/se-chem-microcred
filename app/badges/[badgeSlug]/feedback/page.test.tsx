@@ -130,9 +130,9 @@ describe('Badge feedback page', () => {
             score: 40,
             pointsEarned: 2,
             pointsPossible: 5,
-            feedback: 'Assessor override: unsafe flame control.',
+            feedback: 'Checker override: unsafe flame control.',
             completedAt: '2026-07-02T12:00:00.000Z',
-            assessorName: 'Assessor Demo',
+            checkerName: 'Checker Demo',
             responses: [
               {
                 id: 'response-1',
@@ -146,11 +146,11 @@ describe('Badge feedback page', () => {
               },
               {
                 id: 'response-override',
-                subgoalText: 'Assessor override',
-                taskText: 'Assessor override',
+                subgoalText: 'Checker override',
+                taskText: 'Checker override',
                 points: 0,
                 passed: false,
-                feedback: 'Assessor override: unsafe flame control.',
+                feedback: 'Checker override: unsafe flame control.',
                 isOverride: true,
                 sortOrder: 1,
               },
@@ -164,16 +164,16 @@ describe('Badge feedback page', () => {
       }) as unknown as typeof fetch;
   });
 
-  it('renders assessor rubric feedback read-only and acknowledges failed feedback review', async () => {
+  it('renders checker rubric feedback read-only and acknowledges failed feedback review', async () => {
     render(<BadgeFeedbackPage />);
 
     expect(await screen.findByRole('heading', { name: 'Assessment Rubric' })).toBeInTheDocument();
     expect(await screen.findByText('Operate safely')).toBeInTheDocument();
     expect(screen.getByText('Wear PPE')).toBeInTheDocument();
     expect(screen.getByText('Goggles were missing.')).toBeInTheDocument();
-    expect(screen.getByText('Assessor override')).toBeInTheDocument();
-    expect(screen.getByText('Assessor override: unsafe flame control.')).toBeInTheDocument();
-    expect(document.querySelector('.badgeCard')).not.toHaveTextContent('Assessor override: unsafe flame control.');
+    expect(screen.getByText('Checker override')).toBeInTheDocument();
+    expect(screen.getByText('Checker override: unsafe flame control.')).toBeInTheDocument();
+    expect(document.querySelector('.badgeCard')).not.toHaveTextContent('Checker override: unsafe flame control.');
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Review Lesson/i })).toHaveAttribute(

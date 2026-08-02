@@ -328,7 +328,7 @@ export async function GET(req: Request) {
           where: {
             courseId: enrollment.courseId,
             role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
-            // Exclude pending assessor requests — they aren't staff until approved.
+            // Exclude pending checker requests — they aren't staff until approved.
             status: EnrollmentStatus.ACTIVE,
           },
           include: {

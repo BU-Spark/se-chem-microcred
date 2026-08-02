@@ -6,7 +6,7 @@ import { fetcher } from './lib/fetcher';
 
 /**
  * Response shape of the consolidated /api/courses/mine endpoint. The three
- * sections (created/enrolled/assessor) are drop-in equivalents of the bodies
+ * sections (created/enrolled/checker) are drop-in equivalents of the bodies
  * returned by the old per-role endpoints.
  */
 export interface MyCoursesResponse {
@@ -24,7 +24,7 @@ export interface MyCoursesResponse {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     enrollments: any[];
   };
-  assessor: {
+  checker: {
     count: number;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     enrollments: any[];
@@ -51,7 +51,7 @@ export function useMyCourses(enabled: boolean) {
     data,
     created: data?.created,
     enrolled: data?.enrolled,
-    assessor: data?.assessor,
+    checker: data?.checker,
     isLoading,
     error,
     mutate,

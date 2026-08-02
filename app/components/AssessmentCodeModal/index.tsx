@@ -109,8 +109,8 @@ export default function AssessmentCodeModal({
       </div>
       <p className={styles.description}>
         {isLesson
-          ? 'Have your assessor scan this code to open the assessment for this student and badge.'
-          : "Show your assessor this QR code to complete the in-person assessment. Don't forget to bring your student ID for verification."}
+          ? 'Have your checker scan this code to open the assessment for this student and badge.'
+          : "Show your checker this QR code to complete the in-person assessment. Don't forget to bring your student ID for verification."}
       </p>
     </Modal>
   );

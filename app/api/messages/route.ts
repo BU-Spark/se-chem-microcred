@@ -75,7 +75,7 @@ export async function GET() {
 // POST: send a message from a course instructor/checker to one student or to
 // every student in the course. Only the course creator or an enrolled
 // INSTRUCTOR/CHECKER may send; CHECKERs additionally require the course's
-// allowAssessorMessages setting to be enabled.
+// allowCheckerMessages setting to be enabled.
 export async function POST(req: Request) {
   try {
     const clerkUser = await currentUser();
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
     }
 
     // Authorize the sender against the course and capture their role so we can
-    // enforce the assessor-messaging setting for CHECKERs.
+    // enforce the checker-messaging setting for CHECKERs.
     const course = await prisma.course.findFirst({
       where: {
         id: courseId,
@@ -122,7 +122,7 @@ export async function POST(req: Request) {
       },
       select: {
         createdById: true,
-        settings: { select: { allowAssessorMessages: true } },
+        settings: { select: { allowCheckerMessages: true } },
         enrollments: {
           where: { studentId: sender.id },
           select: { role: true },
@@ -133,13 +133,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Course not found or you do not have permission.' }, { status: 403 });
     }
 
-    // A CHECKER (assessor) who is not the course creator may only message when
-    // the course allows assessor messages.
+    // A CHECKER (checker) who is not the course creator may only message when
+    // the course allows checker messages.
     const isCreator = course.createdById === sender.id;
     const isChecker = course.enrollments.some((enrollment) => enrollment.role === CourseRole.CHECKER);
     const isInstructor = course.enrollments.some((enrollment) => enrollment.role === CourseRole.INSTRUCTOR);
-    if (!isCreator && !isInstructor && isChecker && !course.settings?.allowAssessorMessages) {
-      return NextResponse.json({ error: 'Assessor messaging is disabled for this course.' }, { status: 403 });
+    if (!isCreator && !isInstructor && isChecker && !course.settings?.allowCheckerMessages) {
+      return NextResponse.json({ error: 'Checker messaging is disabled for this course.' }, { status: 403 });
     }
 
     // Resolve recipients: a single enrolled student, or all enrolled students.

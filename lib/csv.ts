@@ -6,7 +6,7 @@ export type RosterCsvRow = {
   sections: string;
 };
 
-// Assessors (TFs) don't need a BUID, so their roster CSV may omit the ID column
+// Checkers (TFs) don't need a BUID, so their roster CSV may omit the ID column
 // entirely — pass `{ requireId: false }` for that path. Students still require one.
 export function parseRosterCsv(csv: string, { requireId = true }: { requireId?: boolean } = {}): RosterCsvRow[] {
   const lines = csv

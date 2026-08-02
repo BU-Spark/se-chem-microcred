@@ -15,14 +15,14 @@ describe('parseRosterCsv', () => {
     );
   });
 
-  it('allows an assessor roster with no ID column when requireId is false', () => {
+  it('allows a checker roster with no ID column when requireId is false', () => {
     const csv = ['lastName,firstName,email,sections', 'Ta,Sam,sam@bu.edu,A1'].join('\n');
     expect(parseRosterCsv(csv, { requireId: false })).toEqual([
       { lastName: 'Ta', firstName: 'Sam', externalId: '', email: 'sam@bu.edu', sections: 'A1' },
     ]);
   });
 
-  it('still reads the ID column for assessors when one is present', () => {
+  it('still reads the ID column for checkers when one is present', () => {
     const csv = ['lastName,firstName,BUID,email,sections', 'Ta,Sam,U9999,sam@bu.edu,A1'].join('\n');
     expect(parseRosterCsv(csv, { requireId: false })[0].externalId).toBe('U9999');
   });

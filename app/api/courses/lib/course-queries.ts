@@ -35,13 +35,13 @@ export async function fetchCreatedCourses(userId: string) {
   });
 }
 
-export async function fetchAssessorCourseEnrollments(userId: string) {
+export async function fetchCheckerCourseEnrollments(userId: string) {
   return prisma.enrollment.findMany({
     where: {
       studentId: userId,
       role: { in: ['INSTRUCTOR', 'CHECKER'] },
-      // Pending assessor requests don't grant access yet — only active staff
-      // enrollments surface in the assessor's course list.
+      // Pending checker requests don't grant access yet — only active staff
+      // enrollments surface in the checker's course list.
       status: 'ACTIVE',
       course: { createdById: { not: userId } },
     },

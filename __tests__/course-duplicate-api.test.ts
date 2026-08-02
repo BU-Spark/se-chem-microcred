@@ -56,7 +56,7 @@ describe('POST /api/courses/[courseId]/duplicate', () => {
           description: 'Source description',
           settings: {
             allowCooldownOverride: true,
-            allowAssessorMessages: true,
+            allowCheckerMessages: true,
             allowCrossSectionView: false,
           },
           contacts: [

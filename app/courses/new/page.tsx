@@ -17,17 +17,17 @@ import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
 import { splitName } from '@/lib/text/name';
 import { parseRosterCsv } from '@/lib/csv';
 
-const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Assessor Roster', 'Review'];
+const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Checker Roster', 'Review'];
 
 // Named step indices so the wizard's conditionals and edit links stay readable
 // (and survive future reordering) rather than depending on bare numbers.
 const STEP_INFO = 0;
 const STEP_IMAGE = 1;
 const STEP_ROSTER = 2;
-const STEP_ASSESSOR = 3;
+const STEP_CHECKER = 3;
 const STEP_REVIEW = 4;
 
-// Old Student row and assessor row types were the exact same colsolidating
+// Old Student row and checker row types were the exact same colsolidating
 type RosterRow = {
   lastName: string;
   firstName: string;
@@ -43,7 +43,7 @@ interface Person {
   sections: string[] | null;
 }
 
-type UploadTarget = 'student' | 'assessor';
+type UploadTarget = 'student' | 'checker';
 
 type UploadDialogState =
   | {
@@ -55,6 +55,12 @@ type UploadDialogState =
       target: UploadTarget;
       message: string;
     };
+
+type PendingRowRemoval = {
+  target: UploadTarget;
+  key: string;
+  label: string;
+};
 
 type ConfigRowProps = {
   label: string;
@@ -73,7 +79,7 @@ type EditableCourseResponse = {
     iconFgColor: string | null;
     settings: {
       allowCooldownOverride: boolean;
-      allowAssessorMessages: boolean;
+      allowCheckerMessages: boolean;
       allowCrossSectionView: boolean;
     } | null;
     contacts: Array<{
@@ -146,9 +152,9 @@ function mergeRosterRows(existing: RosterRow[], incoming: RosterRow[]): RosterRo
   return merged;
 }
 
-// Assessors can cover several sections, so a person listed on more than one CSV row
+// Checkers can cover several sections, so a person listed on more than one CSV row
 // collapses into a single roster entry whose sections are the union of those rows. (#206)
-function mergeAssessorRows(rows: RosterRow[]) {
+function mergeCheckerRows(rows: RosterRow[]) {
   return Array.from(
     rows.reduce((map, row) => {
       const email = row.email.trim().toLowerCase();
@@ -209,15 +215,15 @@ export default function CourseNewPage() {
 
   // settings
   const [allowCooldownOverride, setAllowCooldownOverride] = useState(true);
-  const [allowAssessorMessages, setAllowAssessorMessages] = useState(true);
+  const [allowCheckerMessages, setAllowCheckerMessages] = useState(true);
   const [allowCrossSectionView, setAllowCrossSectionView] = useState(true);
 
   // csv upload
   const [studentRows, setStudentRows] = useState<RosterRow[]>([]);
-  const [assessorRows, setAssessorRows] = useState<RosterRow[]>([]);
+  const [checkerRows, setCheckerRows] = useState<RosterRow[]>([]);
 
   // Every section name seen on either roster so far. This accumulates rather than being
-  // derived from the current rows: an assessor's section pills must stay on screen after
+  // derived from the current rows: a checker's section pills must stay on screen after
   // the last person assigned to a section is toggled off, otherwise the pill would vanish
   // and the section could never be re-selected. (#206)
   const [knownSections, setKnownSections] = useState<string[]>([]);
@@ -225,7 +231,7 @@ export default function CourseNewPage() {
   useEffect(() => {
     const seen = [
       ...studentRows.flatMap((student) => student.sections ?? []),
-      ...assessorRows.flatMap((assessor) => assessor.sections ?? []),
+      ...checkerRows.flatMap((checker) => checker.sections ?? []),
     ].filter(Boolean);
 
     if (seen.length === 0) return;
@@ -237,16 +243,16 @@ export default function CourseNewPage() {
       if (next.size === sizeBefore) return prev;
       return Array.from(next).sort(compareSections);
     });
-  }, [studentRows, assessorRows]);
+  }, [studentRows, checkerRows]);
 
   const [visibleCount, setVisibleCount] = useState(10);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const [assessorVisibleCount, setAssessorVisibleCount] = useState(10);
-  const [showAssessorDropdown, setShowAssessorDropdown] = useState(false);
+  const [checkerVisibleCount, setCheckerVisibleCount] = useState(10);
+  const [showCheckerDropdown, setShowCheckerDropdown] = useState(false);
 
   const studentFileInputRef = useRef<HTMLInputElement | null>(null);
-  const assessorFileInputRef = useRef<HTMLInputElement | null>(null);
+  const checkerFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -256,6 +262,9 @@ export default function CourseNewPage() {
   // A ref mutates immediately, so it blocks re-entrant calls within the same tick.
   const isSubmittingRef = useRef(false);
   const [uploadDialog, setUploadDialog] = useState<UploadDialogState | null>(null);
+  // Pending roster-row removal awaiting confirmation. Only used in edit mode, where
+  // removing a row deletes a real enrollment on save. (#205)
+  const [rowToRemove, setRowToRemove] = useState<PendingRowRemoval | null>(null);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
@@ -315,7 +324,7 @@ export default function CourseNewPage() {
         if (course.iconBgColor) setIconBgColor(course.iconBgColor);
         if (course.iconFgColor) setIconFgColor(course.iconFgColor);
         setAllowCooldownOverride(course.settings?.allowCooldownOverride ?? false);
-        setAllowAssessorMessages(course.settings?.allowAssessorMessages ?? false);
+        setAllowCheckerMessages(course.settings?.allowCheckerMessages ?? false);
         setAllowCrossSectionView(course.settings?.allowCrossSectionView ?? false);
         setStudentRows(
           studentEnrollments.map((enrollment) =>
@@ -327,7 +336,7 @@ export default function CourseNewPage() {
             })
           )
         );
-        setAssessorRows(
+        setCheckerRows(
           checkerEnrollments.length > 0
             ? checkerEnrollments.map((enrollment) =>
                 toRosterRow({
@@ -384,7 +393,7 @@ export default function CourseNewPage() {
     }
   };
 
-  // The same person (by email) can't be both a student and an assessor in one
+  // The same person (by email) can't be both a student and a checker in one
   // course (one enrollment per person per course). Catch it here with a clear message
   // instead of letting the server reject it with a cryptic error.
   const findRosterRoleConflict = () => {
@@ -397,30 +406,30 @@ export default function CourseNewPage() {
     }
 
     const conflicts = new Set<string>();
-    for (const assessor of assessorRows) {
-      const keys = [assessor.email.trim().toLowerCase()].filter(Boolean);
+    for (const checker of checkerRows) {
+      const keys = [checker.email.trim().toLowerCase()].filter(Boolean);
       if (keys.some((key) => studentKeys.has(key))) {
-        conflicts.add(`${assessor.firstName} ${assessor.lastName}`.trim() || assessor.email);
+        conflicts.add(`${checker.firstName} ${checker.lastName}`.trim() || checker.email);
       }
     }
 
     if (conflicts.size === 0) return null;
 
     const names = Array.from(conflicts);
-    return `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} listed as both a student and an assessor. Each person can have only one role per course — remove the duplicate from one roster to continue.`;
+    return `${names.join(', ')} ${names.length === 1 ? 'is' : 'are'} listed as both a student and a checker. Each person can have only one role per course — remove the duplicate from one roster to continue.`;
   };
 
-  // Assessors are keyed by email now that the ID is optional, so a row with
+  // Checkers are keyed by email now that the ID is optional, so a row with
   // neither an email nor an ID can't be resolved server-side. Catch it here with
   // a clear message instead of the server's generic rejection.
-  const findAssessorsMissingIdentity = () => {
-    const missing = assessorRows
-      .filter((assessor) => !assessor.email.trim() && !assessor.externalId?.trim())
-      .map((assessor) => `${assessor.firstName} ${assessor.lastName}`.trim() || 'an unnamed assessor');
+  const findCheckersMissingIdentity = () => {
+    const missing = checkerRows
+      .filter((checker) => !checker.email.trim() && !checker.externalId?.trim())
+      .map((checker) => `${checker.firstName} ${checker.lastName}`.trim() || 'an unnamed checker');
 
     if (missing.length === 0) return null;
 
-    return `${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} missing an email. Assessors need an email address (their ID is optional) — add one to continue.`;
+    return `${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} missing an email. Checkers need an email address (their ID is optional) — add one to continue.`;
   };
 
   const hasAtLeastOneSection = () => Number(sections) >= 1;
@@ -442,9 +451,9 @@ export default function CourseNewPage() {
         return;
       }
 
-      const assessorIdentityError = findAssessorsMissingIdentity();
-      if (assessorIdentityError) {
-        setSubmitError(assessorIdentityError);
+      const checkerIdentityError = findCheckersMissingIdentity();
+      if (checkerIdentityError) {
+        setSubmitError(checkerIdentityError);
         return;
       }
 
@@ -493,16 +502,16 @@ export default function CourseNewPage() {
 
     try {
       const text = await file.text();
-      const parsedRows = parseRosterCsv(text, { requireId: target !== 'assessor' }).map((row) => ({
+      const parsedRows = parseRosterCsv(text, { requireId: target !== 'checker' }).map((row) => ({
         ...row,
         sections: parseSections(row.sections),
       }));
       // Append to whatever's already loaded (DB roster in edit mode, or a prior
-      // upload) rather than replacing it, deduping by person. (#168) For assessors the
+      // upload) rather than replacing it, deduping by person. (#168) For checkers the
       // merge also unions sections, so re-uploading adds sections to an existing
-      // assessor instead of dropping them. (#206)
+      // checker instead of dropping them. (#206)
       setRows((prev) =>
-        target === 'assessor' ? mergeAssessorRows([...prev, ...parsedRows]) : mergeRosterRows(prev, parsedRows)
+        target === 'checker' ? mergeCheckerRows([...prev, ...parsedRows]) : mergeRosterRows(prev, parsedRows)
       );
     } catch (error) {
       console.error('Failed to parse CSV:', error);
@@ -528,13 +537,13 @@ export default function CourseNewPage() {
       iconFgColor,
       settings: {
         allowCooldownOverride,
-        allowAssessorMessages,
+        allowCheckerMessages,
         allowCrossSectionView,
       },
-      contacts: assessorRows.map((assessor) => ({
+      contacts: checkerRows.map((checker) => ({
         type: 'CHECKER',
-        name: `${assessor.firstName} ${assessor.lastName}`.trim(),
-        email: assessor.email.trim().toLowerCase(),
+        name: `${checker.firstName} ${checker.lastName}`.trim(),
+        email: checker.email.trim().toLowerCase(),
         avatarUrl: null,
       })),
       roster: [
@@ -545,13 +554,13 @@ export default function CourseNewPage() {
           role: CourseRole.STUDENT,
           sections: student.sections ?? [],
         })),
-        ...assessorRows.map((assessor) => ({
-          email: assessor.email.trim().toLowerCase(),
-          name: `${assessor.firstName} ${assessor.lastName}`.trim(),
+        ...checkerRows.map((checker) => ({
+          email: checker.email.trim().toLowerCase(),
+          name: `${checker.firstName} ${checker.lastName}`.trim(),
           // This is a optional field now -- Later when we do an ID overhaul this gets omitted
-          externalId: assessor.externalId || null,
+          externalId: checker.externalId || null,
           role: CourseRole.CHECKER,
-          sections: assessor.sections ?? [],
+          sections: checker.sections ?? [],
         })),
       ],
     };
@@ -589,7 +598,7 @@ export default function CourseNewPage() {
       return;
     }
 
-    const targetInput = uploadDialog.target === 'assessor' ? assessorFileInputRef.current : studentFileInputRef.current;
+    const targetInput = uploadDialog.target === 'checker' ? checkerFileInputRef.current : studentFileInputRef.current;
 
     setUploadDialog(null);
     targetInput?.click();
@@ -600,12 +609,69 @@ export default function CourseNewPage() {
   // section doesn't remove that section from the dropdown.
   const availableSections = knownSections;
 
-  const updateStudentSection = (index: number, value: string) => {
-    setStudentRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: value ? [value] : [] } : row)));
+  // Rows are addressed by rosterKey rather than array index. The positional version
+  // was not itself wrong (the render slice always starts at 0, so slice index ==
+  // array index), but paired with `key={index}` React reuses a row's DOM node for a
+  // different person after a removal. Keying by identity makes both correct. (#205)
+  const updateStudentSection = (key: string, value: string) => {
+    setStudentRows((prev) =>
+      prev.map((row) => (rosterKey(row) === key ? { ...row, sections: value ? [value] : [] } : row))
+    );
   };
 
-  const updateAssessorSections = (index: number, nextSections: string[]) => {
-    setAssessorRows((prev) => prev.map((row, i) => (i === index ? { ...row, sections: nextSections } : row)));
+  // Same inline-section-reassignment for the checker roster, except a checker can hold
+  // several sections at once, so the whole set is replaced rather than a single value. (#206)
+  const updateCheckerSections = (key: string, nextSections: string[]) => {
+    setCheckerRows((prev) => prev.map((row) => (rosterKey(row) === key ? { ...row, sections: nextSections } : row)));
+  };
+
+  // Emails present in BOTH rosters. Used to highlight the offending rows so the
+  // person blocking submission can actually be found and removed, rather than only
+  // being named in the error text. (#205)
+  // Computed inline rather than memoized: this sits after the component's early
+  // returns, where a hook would break the rules-of-hooks call order (and the roster
+  // is small enough that the memo would not pay for itself).
+  const conflictEmails = (() => {
+    const studentEmails = new Set(studentRows.map((row) => row.email.trim().toLowerCase()).filter(Boolean));
+
+    const conflicts = new Set<string>();
+    for (const checker of checkerRows) {
+      const email = checker.email.trim().toLowerCase();
+      if (email && studentEmails.has(email)) conflicts.add(email);
+    }
+    return conflicts;
+  })();
+
+  const isConflictRow = (row: RosterRow) => {
+    const email = row.email.trim().toLowerCase();
+    return Boolean(email) && conflictEmails.has(email);
+  };
+
+  const applyRowRemoval = (target: UploadTarget, key: string) => {
+    const setRows = target === 'checker' ? setCheckerRows : setStudentRows;
+    setRows((prev) => prev.filter((row) => rosterKey(row) !== key));
+  };
+
+  // Creating a course: the roster is unsaved wizard state, so removal is free and
+  // immediate. Editing: the save wipes and rebuilds enrollments from this roster, so
+  // removing a row deletes a real enrollment — confirm first.
+  const requestRowRemoval = (target: UploadTarget, row: RosterRow) => {
+    const key = rosterKey(row);
+    if (!isEditMode) {
+      applyRowRemoval(target, key);
+      return;
+    }
+    setRowToRemove({
+      target,
+      key,
+      label: `${row.firstName} ${row.lastName}`.trim() || row.email || 'this person',
+    });
+  };
+
+  const confirmRowRemoval = () => {
+    if (!rowToRemove) return;
+    applyRowRemoval(rowToRemove.target, rowToRemove.key);
+    setRowToRemove(null);
   };
 
   function ConfigRow({ label, checked, onChange, infoText }: ConfigRowProps) {
@@ -647,7 +713,7 @@ export default function CourseNewPage() {
     );
   }
 
-  const assessorConfigs: Array<{
+  const checkerConfigs: Array<{
     label: string;
     checked: boolean;
     setChecked: React.Dispatch<React.SetStateAction<boolean>>;
@@ -663,17 +729,17 @@ export default function CourseNewPage() {
             If a student does not complete a satisfactory in-person assessment, they must wait during a cooldown period
             before they are able to reassess.
           </p>
-          <p>Enabling manual override allows assessors to override this cooldown period and assess students earlier.</p>
+          <p>Enabling manual override allows checkers to override this cooldown period and assess students earlier.</p>
         </>
       ),
     },
     {
-      label: 'Allow assessor messages?',
-      checked: allowAssessorMessages,
-      setChecked: setAllowAssessorMessages,
+      label: 'Allow checker messages?',
+      checked: allowCheckerMessages,
+      setChecked: setAllowCheckerMessages,
     },
     {
-      label: 'Allow assessors to view other sections?',
+      label: 'Allow checkers to view other sections?',
       checked: allowCrossSectionView,
       setChecked: setAllowCrossSectionView,
     },
@@ -804,25 +870,32 @@ export default function CourseNewPage() {
                         <th>ID Number</th>
                         <th>Email</th>
                         <th>Sections</th>
+                        <th className={styles.actionsHeader}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {studentRows.slice(0, visibleCount).map((student, index) => {
+                      {studentRows.slice(0, visibleCount).map((student) => {
                         const primarySection = student.sections?.[0] ?? '';
+                        const key = rosterKey(student);
+                        const conflicted = isConflictRow(student);
                         const sectionOptions = Array.from(
                           new Set([...availableSections, primarySection].filter(Boolean))
                         );
+                        const name = `${student.firstName} ${student.lastName}`.trim() || student.email;
                         return (
-                          <tr key={index}>
+                          <tr key={key} className={conflicted ? styles.conflictRow : undefined}>
                             <td>{student.lastName}</td>
                             <td>{student.firstName}</td>
                             <td>{student.externalId}</td>
-                            <td>{student.email}</td>
+                            <td>
+                              {student.email}
+                              {conflicted ? <span className={styles.conflictBadge}>Also a checker</span> : null}
+                            </td>
                             <td>
                               <select
                                 className={styles.sectionSelect}
                                 value={primarySection}
-                                onChange={(e) => updateStudentSection(index, e.target.value)}
+                                onChange={(e) => updateStudentSection(key, e.target.value)}
                                 aria-label={`Section for ${student.firstName} ${student.lastName}`}
                               >
                                 {sectionOptions.length === 0 ? <option value="">—</option> : null}
@@ -832,6 +905,16 @@ export default function CourseNewPage() {
                                   </option>
                                 ))}
                               </select>
+                            </td>
+                            <td className={styles.actionsCell}>
+                              <button
+                                type="button"
+                                className={styles.removeButton}
+                                onClick={() => requestRowRemoval('student', student)}
+                                aria-label={`Remove ${name} from the student roster`}
+                              >
+                                Remove
+                              </button>
                             </td>
                           </tr>
                         );
@@ -877,32 +960,32 @@ export default function CourseNewPage() {
           </>
         )}
 
-        {currentStep === STEP_ASSESSOR && (
+        {currentStep === STEP_CHECKER && (
           <>
             <div className={styles.topUploadBar}>
-              <button type="button" className={styles.uploadButton} onClick={() => openUploadWarning('assessor')}>
-                Upload Assessor CSV
+              <button type="button" className={styles.uploadButton} onClick={() => openUploadWarning('checker')}>
+                Upload Checker CSV
               </button>
 
               <input
-                ref={assessorFileInputRef}
+                ref={checkerFileInputRef}
                 type="file"
                 accept=".csv,text/csv"
                 style={{ display: 'none' }}
-                onChange={(e) => handleRosterUpload(e, 'assessor', setAssessorRows)}
+                onChange={(e) => handleRosterUpload(e, 'checker', setCheckerRows)}
               />
             </div>
 
             <section className={styles.card}>
               <div className={styles.tableHeaderRow}>
-                <h2 className={styles.rosterTitle}>Assessor Roster</h2>
+                <h2 className={styles.rosterTitle}>Checker Roster</h2>
                 <span className={styles.tableMeta}>
-                  Showing: {Math.min(assessorVisibleCount, assessorRows.length)} of {assessorRows.length}
+                  Showing: {Math.min(checkerVisibleCount, checkerRows.length)} of {checkerRows.length}
                 </span>
               </div>
 
-              {assessorRows.length === 0 ? (
-                <p className={styles.emptyState}>No assessor roster uploaded yet.</p>
+              {checkerRows.length === 0 ? (
+                <p className={styles.emptyState}>No checker roster uploaded yet.</p>
               ) : (
                 <>
                   <div className={styles.tableWrap}>
@@ -913,26 +996,43 @@ export default function CourseNewPage() {
                           <th>First Name</th>
                           <th>Email</th>
                           <th>Sections</th>
+                          <th className={styles.actionsHeader}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {assessorRows.slice(0, assessorVisibleCount).map((assessor, index) => {
-                          const selectedSections = assessor.sections ?? [];
+                        {checkerRows.slice(0, checkerVisibleCount).map((checker) => {
+                          const selectedSections = checker.sections ?? [];
+                          const key = rosterKey(checker);
+                          const conflicted = isConflictRow(checker);
                           const sectionOptions = Array.from(
                             new Set([...knownSections, ...selectedSections].filter(Boolean))
                           ).sort(compareSections);
+                          const name = `${checker.firstName} ${checker.lastName}`.trim() || checker.email;
                           return (
-                            <tr key={index}>
-                              <td>{assessor.lastName}</td>
-                              <td>{assessor.firstName}</td>
-                              <td>{assessor.email}</td>
+                            <tr key={key} className={conflicted ? styles.conflictRow : undefined}>
+                              <td>{checker.lastName}</td>
+                              <td>{checker.firstName}</td>
+                              <td>
+                                {checker.email}
+                                {conflicted ? <span className={styles.conflictBadge}>Also a student</span> : null}
+                              </td>
                               <td>
                                 <SectionChips
                                   options={sectionOptions}
                                   selected={selectedSections}
-                                  onChange={(next) => updateAssessorSections(index, next)}
-                                  subject={`${assessor.firstName} ${assessor.lastName}`}
+                                  onChange={(next) => updateCheckerSections(key, next)}
+                                  subject={name}
                                 />
+                              </td>
+                              <td className={styles.actionsCell}>
+                                <button
+                                  type="button"
+                                  className={styles.removeButton}
+                                  onClick={() => requestRowRemoval('checker', checker)}
+                                  aria-label={`Remove ${name} from the checker roster`}
+                                >
+                                  Remove
+                                </button>
                               </td>
                             </tr>
                           );
@@ -942,8 +1042,8 @@ export default function CourseNewPage() {
                   </div>
 
                   <div className={styles.showMoreWrapper}>
-                    {!showAssessorDropdown ? (
-                      <button type="button" className={styles.showMore} onClick={() => setShowAssessorDropdown(true)}>
+                    {!showCheckerDropdown ? (
+                      <button type="button" className={styles.showMore} onClick={() => setShowCheckerDropdown(true)}>
                         <span>Show more items</span>
                         <svg className={styles.showMoreChevron} viewBox="0 0 24 24" fill="none" aria-hidden="true">
                           <path
@@ -958,8 +1058,8 @@ export default function CourseNewPage() {
                     ) : (
                       <select
                         className={styles.dropdown}
-                        value={assessorVisibleCount}
-                        onChange={(e) => setAssessorVisibleCount(Number(e.target.value))}
+                        value={checkerVisibleCount}
+                        onChange={(e) => setCheckerVisibleCount(Number(e.target.value))}
                       >
                         <option value={10}>10</option>
                         <option value={25}>25</option>
@@ -973,10 +1073,10 @@ export default function CourseNewPage() {
             </section>
 
             <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Assessor Configurations</h2>
+              <h2 className={styles.cardTitle}>Checker Configurations</h2>
 
               <div className={styles.configList}>
-                {assessorConfigs.map((config) => (
+                {checkerConfigs.map((config) => (
                   <ConfigRow
                     key={config.label}
                     label={config.label}
@@ -1058,17 +1158,17 @@ export default function CourseNewPage() {
 
             <div className={styles.reviewSection}>
               <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Assessor Roster</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ASSESSOR)}>
+                <h3 className={styles.reviewTitle}>Checker Roster</h3>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_CHECKER)}>
                   <span className={styles.editLabel}>Edit</span>
                   <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
                 </button>
               </div>
 
               <div className={styles.reviewBody}>
-                <p className={styles.rosterRows}>{assessorRows.length} assessors enrolled</p>
-                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_ASSESSOR)}>
-                  View Assessors
+                <p className={styles.rosterRows}>{checkerRows.length} checkers enrolled</p>
+                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_CHECKER)}>
+                  View Checkers
                 </button>
               </div>
             </div>
@@ -1077,15 +1177,15 @@ export default function CourseNewPage() {
 
             <div className={styles.reviewSection}>
               <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Assessor Configurations</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ASSESSOR)}>
+                <h3 className={styles.reviewTitle}>Checker Configurations</h3>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_CHECKER)}>
                   <span className={styles.editLabel}>Edit</span>
                   <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
                 </button>
               </div>
 
               <div className={styles.reviewConfigList}>
-                {assessorConfigs.map((config) => (
+                {checkerConfigs.map((config) => (
                   <div key={config.label} className={styles.reviewConfigItem}>
                     <span className={styles.reviewConfigLabel}>{config.label}</span>
                     <div className={styles.toggleRow}>
@@ -1150,7 +1250,7 @@ export default function CourseNewPage() {
                   <p className={styles.uploadWarningText}>
                     Use the headers{' '}
                     <strong>
-                      {uploadDialog.target === 'assessor'
+                      {uploadDialog.target === 'checker'
                         ? 'lastName, firstName, email, sections'
                         : 'lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections'}
                     </strong>
@@ -1175,6 +1275,34 @@ export default function CourseNewPage() {
                     Close
                   </button>
                 )}
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {rowToRemove ? (
+          <div
+            className={styles.uploadWarningOverlay}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-row-title"
+          >
+            <div className={styles.uploadWarningModal}>
+              <p className={styles.uploadWarningEyebrow}>Warning</p>
+              <h2 id="remove-row-title" className={styles.uploadWarningTitle}>
+                Remove {rowToRemove.label} from this course?
+              </h2>
+              <p className={styles.uploadWarningText}>
+                They will lose access to this course when you save. Their badge progress is kept, so re-adding them
+                later restores it.
+              </p>
+              <div className={styles.uploadWarningActions}>
+                <button type="button" className={styles.uploadWarningSecondary} onClick={() => setRowToRemove(null)}>
+                  Cancel
+                </button>
+                <button type="button" className={styles.uploadWarningPrimary} onClick={confirmRowRemoval}>
+                  Remove
+                </button>
               </div>
             </div>
           </div>

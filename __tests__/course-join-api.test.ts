@@ -49,7 +49,7 @@ describe('course join API', () => {
       id: 'course-1',
       title: 'Chemistry 101',
       code: 'CHEM101',
-      assessorCode: 'CHECK101',
+      checkerCode: 'CHECK101',
       createdById: 'instructor-1',
       enrollments: [],
     });
@@ -65,7 +65,7 @@ describe('course join API', () => {
     expect(response.status).toBe(201);
     expect(mockCourseFindFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { OR: [{ code: 'CHEM101' }, { assessorCode: 'CHEM101' }] },
+        where: { OR: [{ code: 'CHEM101' }, { checkerCode: 'CHEM101' }] },
       })
     );
     expect(mockEnrollmentCreate).toHaveBeenCalledWith(
@@ -127,7 +127,7 @@ describe('course join API', () => {
       id: 'course-1',
       title: 'Chemistry 101',
       code: 'CHEM101',
-      assessorCode: 'CHECK101',
+      checkerCode: 'CHECK101',
       createdById: 'instructor-1',
       enrollments: [{ id: 'checker-enrollment', role: 'CHECKER' }],
     });
@@ -141,12 +141,12 @@ describe('course join API', () => {
     expect(body.error).toMatch(/different role/i);
   });
 
-  it('creates a PENDING assessor request (not an immediate enrollment) for the assessor code', async () => {
+  it('creates a PENDING checker request (not an immediate enrollment) for the checker code', async () => {
     mockCourseFindFirst.mockResolvedValue({
       id: 'course-1',
       title: 'Chemistry 101',
       code: 'CHEM101',
-      assessorCode: 'CHECK101',
+      checkerCode: 'CHECK101',
       createdById: 'instructor-1',
       enrollments: [],
     });
@@ -172,12 +172,12 @@ describe('course join API', () => {
     expect(body.message).toMatch(/approve|pending|request/i);
   });
 
-  it('reports an already-pending assessor request without creating another', async () => {
+  it('reports an already-pending checker request without creating another', async () => {
     mockCourseFindFirst.mockResolvedValue({
       id: 'course-1',
       title: 'Chemistry 101',
       code: 'CHEM101',
-      assessorCode: 'CHECK101',
+      checkerCode: 'CHECK101',
       createdById: 'instructor-1',
       enrollments: [{ id: 'checker-enrollment', role: 'CHECKER', status: 'PENDING' }],
     });
