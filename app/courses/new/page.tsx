@@ -152,7 +152,8 @@ function mergeRosterRows(existing: RosterRow[], incoming: RosterRow[]): RosterRo
   return merged;
 }
 
-// made change to remove putting multiple sections for a checker in the during the csv upload going to give that responsiblity to a checker update in the future
+// Checkers can cover several sections, so a person listed on more than one CSV row
+// collapses into a single roster entry whose sections are the union of those rows. (#206)
 function mergeCheckerRows(rows: RosterRow[]) {
   return Array.from(
     rows.reduce((map, row) => {
@@ -222,7 +223,7 @@ export default function CourseNewPage() {
   const [checkerRows, setCheckerRows] = useState<RosterRow[]>([]);
 
   // Every section name seen on either roster so far. This accumulates rather than being
-  // derived from the current rows: an assessor's section pills must stay on screen after
+  // derived from the current rows: a checker's section pills must stay on screen after
   // the last person assigned to a section is toggled off, otherwise the pill would vanish
   // and the section could never be re-selected. (#206)
   const [knownSections, setKnownSections] = useState<string[]>([]);
@@ -230,7 +231,7 @@ export default function CourseNewPage() {
   useEffect(() => {
     const seen = [
       ...studentRows.flatMap((student) => student.sections ?? []),
-      ...assessorRows.flatMap((assessor) => assessor.sections ?? []),
+      ...checkerRows.flatMap((checker) => checker.sections ?? []),
     ].filter(Boolean);
 
     if (seen.length === 0) return;
@@ -242,7 +243,7 @@ export default function CourseNewPage() {
       if (next.size === sizeBefore) return prev;
       return Array.from(next).sort(compareSections);
     });
-  }, [studentRows, assessorRows]);
+  }, [studentRows, checkerRows]);
 
   const [visibleCount, setVisibleCount] = useState(10);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -505,13 +506,12 @@ export default function CourseNewPage() {
         ...row,
         sections: parseSections(row.sections),
       }));
-      const incoming = target === 'checker' ? mergeCheckerRows(parsedRows) : parsedRows;
       // Append to whatever's already loaded (DB roster in edit mode, or a prior
-      // upload) rather than replacing it, deduping by person. (#168) For assessors the
+      // upload) rather than replacing it, deduping by person. (#168) For checkers the
       // merge also unions sections, so re-uploading adds sections to an existing
-      // assessor instead of dropping them. (#206)
+      // checker instead of dropping them. (#206)
       setRows((prev) =>
-        target === 'assessor' ? mergeAssessorRows([...prev, ...parsedRows]) : mergeRosterRows(prev, parsedRows)
+        target === 'checker' ? mergeCheckerRows([...prev, ...parsedRows]) : mergeRosterRows(prev, parsedRows)
       );
     } catch (error) {
       console.error('Failed to parse CSV:', error);
@@ -619,13 +619,10 @@ export default function CourseNewPage() {
     );
   };
 
-  // Same inline-section-reassignment for the checker roster.
-  const availableCheckerSections = Array.from(new Set(checkerRows.flatMap((checker) => checker.sections ?? []))).sort();
-
-  const updateCheckerSection = (key: string, value: string) => {
-    setCheckerRows((prev) =>
-      prev.map((row) => (rosterKey(row) === key ? { ...row, sections: value ? [value] : [] } : row))
-    );
+  // Same inline-section-reassignment for the checker roster, except a checker can hold
+  // several sections at once, so the whole set is replaced rather than a single value. (#206)
+  const updateCheckerSections = (key: string, nextSections: string[]) => {
+    setCheckerRows((prev) => prev.map((row) => (rosterKey(row) === key ? { ...row, sections: nextSections } : row)));
   };
 
   // Emails present in BOTH rosters. Used to highlight the offending rows so the
@@ -998,18 +995,18 @@ export default function CourseNewPage() {
                           <th>Last Name</th>
                           <th>First Name</th>
                           <th>Email</th>
-                          <th>Section</th>
+                          <th>Sections</th>
                           <th className={styles.actionsHeader}>Actions</th>
                         </tr>
                       </thead>
                       <tbody>
                         {checkerRows.slice(0, checkerVisibleCount).map((checker) => {
-                          const primarySection = checker.sections?.[0] ?? '';
+                          const selectedSections = checker.sections ?? [];
                           const key = rosterKey(checker);
                           const conflicted = isConflictRow(checker);
                           const sectionOptions = Array.from(
-                            new Set([...availableCheckerSections, primarySection].filter(Boolean))
-                          );
+                            new Set([...knownSections, ...selectedSections].filter(Boolean))
+                          ).sort(compareSections);
                           const name = `${checker.firstName} ${checker.lastName}`.trim() || checker.email;
                           return (
                             <tr key={key} className={conflicted ? styles.conflictRow : undefined}>
@@ -1020,19 +1017,12 @@ export default function CourseNewPage() {
                                 {conflicted ? <span className={styles.conflictBadge}>Also a student</span> : null}
                               </td>
                               <td>
-                                <select
-                                  className={styles.sectionSelect}
-                                  value={primarySection}
-                                  onChange={(e) => updateCheckerSection(key, e.target.value)}
-                                  aria-label={`Section for ${checker.firstName} ${checker.lastName}`}
-                                >
-                                  {sectionOptions.length === 0 ? <option value="">—</option> : null}
-                                  {sectionOptions.map((section) => (
-                                    <option key={section} value={section}>
-                                      {section}
-                                    </option>
-                                  ))}
-                                </select>
+                                <SectionChips
+                                  options={sectionOptions}
+                                  selected={selectedSections}
+                                  onChange={(next) => updateCheckerSections(key, next)}
+                                  subject={name}
+                                />
                               </td>
                               <td className={styles.actionsCell}>
                                 <button

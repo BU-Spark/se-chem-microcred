@@ -10,7 +10,7 @@ type SectionChipsProps = {
   subject: string;
 };
 
-// Assessors may cover more than one section (#206), so their sections are toggle
+// Checkers may cover more than one section (#206), so their sections are toggle
 // pills styled like the roster page's section filters — every section on the roster is
 // shown, and clicking one turns it on or off. Selection order follows the option order
 // so the row reads the same no matter which pill was clicked first.
