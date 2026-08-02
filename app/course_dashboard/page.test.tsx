@@ -109,4 +109,105 @@ describe('Course dashboard page', () => {
     expect(img.getAttribute('src')).toContain('dQw4w9WgXcQ');
     expect(img.getAttribute('src')).not.toContain('ChemSkills');
   });
+
+  const completedBadgeLesson = (badgeSlug: string) => ({
+    id: 'lesson-done',
+    slug: 'lab-safety',
+    title: 'Lab Safety Basics',
+    status: 'COMPLETED',
+    percentComplete: 100,
+    dueDate: null,
+    estimatedMinutes: null,
+    thumbnailUrl: null,
+    segments: [],
+    badgeRequirements: [{ badgeId: 'b1', badgeName: 'Safety', badgeSlug, youtubeUrl: null }],
+  });
+
+  const makeBadge = (slug: string, status: string, latestAttemptPassed: boolean | null) => ({
+    id: `id-${slug}`,
+    slug,
+    name: 'Safety',
+    status,
+    latestAttemptPassed,
+  });
+
+  const dataWithCompletedLesson = (
+    badgeSlug: string,
+    bucket: string,
+    status: string,
+    latestAttemptPassed: boolean | null
+  ) => ({
+    data: {
+      student: { name: 'Student Demo', email: 'student@example.edu' },
+      lessons: { upNext: [], inProgress: [], completed: [completedBadgeLesson(badgeSlug)] },
+      badges: { inReview: [], [bucket]: [makeBadge(badgeSlug, status, latestAttemptPassed)] },
+      surveys: { pendingBadge: [] },
+    },
+    isLoading: false,
+    refresh: jest.fn(),
+  });
+
+  // Issue #194: a completed badge lesson's "Review" points at the badge feedback page,
+  // which is where the review material lives — in every assessment state, not just the
+  // failing one. Routing can't key off badge status: a failed badge only sits at
+  // IN_REVIEW until the feedback is acknowledged, then drops to READY_FOR_ASSESSMENT or
+  // LOCKED, and the state machine backfill put every pre-existing failed badge at
+  // READY_FOR_ASSESSMENT.
+  it.each([
+    ['passed the assessment (badge COMPLETED)', 'COMPLETED', 'completed', true],
+    ['failed, feedback not yet acknowledged (badge IN_REVIEW)', 'IN_REVIEW', 'inReview', false],
+    ['failed terminally (badge LOCKED)', 'LOCKED', 'locked', false],
+    ['failed and acknowledged, retry allowed', 'READY_FOR_ASSESSMENT', 'readyForAssessment', false],
+    ['failed on a legacy/backfilled badge still at LEARNING', 'LEARNING', 'learning', false],
+    ['has not been assessed yet', 'READY_FOR_ASSESSMENT', 'readyForAssessment', null],
+  ])(
+    'routes a completed badge lesson to the feedback page when the student %s',
+    async (_label, status, bucket, passed) => {
+      mockUseStudentData.mockReturnValue(dataWithCompletedLesson('safety', bucket, status, passed as boolean | null));
+
+      render(<CourseDashboardPage />);
+
+      const review = await screen.findByRole('link', { name: 'Review' });
+      expect(review.getAttribute('href')).toBe('/badges/safety/feedback?courseId=course-2');
+    }
+  );
+
+  // A badge with no StudentBadge row isn't resolvable on the feedback page (it would
+  // bounce to /badges), so the card falls back to the QEV route in review mode.
+  it('falls back to the QEV route when the badge has not been started', async () => {
+    mockUseStudentData.mockReturnValue(dataWithCompletedLesson('safety', 'notStarted', 'NOT_STARTED', null));
+
+    render(<CourseDashboardPage />);
+
+    const review = await screen.findByRole('link', { name: 'Review' });
+    expect(review.getAttribute('href')).toBe('/lessons/lab-safety/video?courseId=course-2');
+  });
+
+  // Start/Continue drop the student straight into the video + checkpoint questions,
+  // never the lesson preview page.
+  it.each([
+    ['not started', 'NOT_STARTED', 'upNext', 'Start'],
+    ['in progress', 'IN_PROGRESS', 'inProgress', 'Continue'],
+  ])('routes a %s lesson to the QEV route', async (_label, status, bucket, action) => {
+    mockUseStudentData.mockReturnValue({
+      data: {
+        student: { name: 'Student Demo', email: 'student@example.edu' },
+        lessons: {
+          upNext: [],
+          inProgress: [],
+          completed: [],
+          [bucket]: [{ ...completedBadgeLesson('safety'), id: 'lesson-open', status }],
+        },
+        badges: { inReview: [] },
+        surveys: { pendingBadge: [] },
+      },
+      isLoading: false,
+      refresh: jest.fn(),
+    });
+
+    render(<CourseDashboardPage />);
+
+    const link = await screen.findByRole('link', { name: action });
+    expect(link.getAttribute('href')).toBe('/lessons/lab-safety/video?courseId=course-2');
+  });
 });

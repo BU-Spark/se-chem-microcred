@@ -1,0 +1,39 @@
+/* Mirrors the section filter pills on the roster page (app/roster/page.module.css)
+   so toggling an assessor's sections looks like the filters elsewhere in the app. */
+.chips {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    font-family: 'Open Sans', sans-serif;
+}
+
+.chip {
+    min-height: 2.15rem;
+    padding: 0.35rem 0.95rem;
+    border-radius: 999px;
+    border: 2px solid #d7d7d7;
+    background: #ffffff;
+    color: #3b3b3b;
+    font-family: 'Lato', sans-serif;
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.chip:hover {
+    border-color: #2e6aa9;
+    color: #2e6aa9;
+}
+
+.chipSelected,
+.chipSelected:hover {
+    background: #2e6aa9;
+    border-color: #2e6aa9;
+    color: #ffffff;
+}
+
+.placeholder {
+    font-family: 'Open Sans', sans-serif;
+    font-size: 0.92rem;
+    color: #6b7280;
+}

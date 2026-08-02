@@ -10,6 +10,7 @@ import styles from './page.module.css';
 import Image from 'next/image';
 import BackButton from '@/app/components/BackButton/BackButton';
 import CourseImagePicker from './components/CourseImagePicker';
+import SectionChips from './components/SectionChips';
 import CourseTileImage from '@/app/components/Courses/CourseTileImage';
 import { CourseRole } from '@prisma/client';
 import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
@@ -113,6 +114,10 @@ function toRosterRow(person: Person): RosterRow {
   };
 }
 
+// Section names are strings but usually read as numbers ("1", "2", "10"), so sort
+// numerically-aware to avoid 1, 10, 2.
+const compareSections = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
+
 function parseSections(sectionValue?: string | null): string[] {
   return (sectionValue ?? '')
     .split('|')
@@ -165,6 +170,10 @@ function mergeCheckerRows(rows: RosterRow[]) {
         });
         return map;
       }
+
+      existing.sections = Array.from(new Set([...(existing.sections ?? []), ...(row.sections ?? [])]));
+      // A later row may fill in an ID the first one omitted.
+      if (!existing.externalId && externalId) existing.externalId = externalId;
       return map;
     }, new Map<string, RosterRow>())
   ).map(([, row]) => row);
@@ -211,6 +220,29 @@ export default function CourseNewPage() {
   // csv upload
   const [studentRows, setStudentRows] = useState<RosterRow[]>([]);
   const [checkerRows, setCheckerRows] = useState<RosterRow[]>([]);
+
+  // Every section name seen on either roster so far. This accumulates rather than being
+  // derived from the current rows: an assessor's section pills must stay on screen after
+  // the last person assigned to a section is toggled off, otherwise the pill would vanish
+  // and the section could never be re-selected. (#206)
+  const [knownSections, setKnownSections] = useState<string[]>([]);
+
+  useEffect(() => {
+    const seen = [
+      ...studentRows.flatMap((student) => student.sections ?? []),
+      ...assessorRows.flatMap((assessor) => assessor.sections ?? []),
+    ].filter(Boolean);
+
+    if (seen.length === 0) return;
+
+    setKnownSections((prev) => {
+      const next = new Set(prev);
+      const sizeBefore = next.size;
+      for (const section of seen) next.add(section);
+      if (next.size === sizeBefore) return prev;
+      return Array.from(next).sort(compareSections);
+    });
+  }, [studentRows, assessorRows]);
 
   const [visibleCount, setVisibleCount] = useState(10);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -475,8 +507,12 @@ export default function CourseNewPage() {
       }));
       const incoming = target === 'checker' ? mergeCheckerRows(parsedRows) : parsedRows;
       // Append to whatever's already loaded (DB roster in edit mode, or a prior
-      // upload) rather than replacing it, deduping by person. (#168)
-      setRows((prev) => mergeRosterRows(prev, incoming));
+      // upload) rather than replacing it, deduping by person. (#168) For assessors the
+      // merge also unions sections, so re-uploading adds sections to an existing
+      // assessor instead of dropping them. (#206)
+      setRows((prev) =>
+        target === 'assessor' ? mergeAssessorRows([...prev, ...parsedRows]) : mergeRosterRows(prev, parsedRows)
+      );
     } catch (error) {
       console.error('Failed to parse CSV:', error);
       const message = error instanceof Error ? error.message : 'Failed to read CSV file.';
@@ -568,9 +604,10 @@ export default function CourseNewPage() {
     targetInput?.click();
   };
 
-  // Unique section names found across the uploaded roster — populates the per-student
-  // section dropdowns so the prof can reassign a student's section inline.
-  const availableSections = Array.from(new Set(studentRows.flatMap((student) => student.sections ?? []))).sort();
+  // Populates the per-student section dropdowns so the prof can reassign a student's
+  // section inline. Uses the accumulated list so moving the last student out of a
+  // section doesn't remove that section from the dropdown.
+  const availableSections = knownSections;
 
   // Rows are addressed by rosterKey rather than array index. The positional version
   // was not itself wrong (the render slice always starts at 0, so slice index ==
