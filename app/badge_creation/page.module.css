@@ -1043,10 +1043,308 @@
   flex: 1;
 }
 
+/* ---- Checkpoint modal ---------------------------------------------------
+   Body sits between the modal's own header/footer rules: a timestamp/points
+   meta row, then one prompt-plus-settings pair per question. */
 .checkpointEditor {
   display: flex;
   flex-direction: column;
+  gap: 20px;
+  padding: 22px 26px 26px;
+}
+
+.cpMetaGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.cpMetaGrid > .cpField {
+  width: 300px;
+  max-width: 100%;
+}
+
+.cpField {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cpFieldLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #4b5563;
+}
+
+.cpInput,
+.cpSelect {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #111418;
+}
+
+.cpInput:focus,
+.cpSelect:focus {
+  outline: none;
+  border-color: #2e6aa9;
+}
+
+.cpSelect {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5 10 12.5 15 7.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px 18px;
+}
+
+.cpQuestionList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Prompt editor on the left, answer settings in a matching card on the right. */
+.cpQuestionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.62fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.cpCard {
+  border: 1px solid #e3e7ec;
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cpCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cpQuestionTitle {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.cpRemoveQuestion {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #c0392b;
+  cursor: pointer;
+}
+
+.cpRemoveQuestion:hover {
+  text-decoration: underline;
+}
+
+.cpPrompt :global(.rte-container) {
+  border-color: #e3e7ec;
+  border-radius: 10px;
+}
+
+.cpPrompt :global(.rte-container--compact) :global(.rte-content-editable) {
+  min-height: 230px;
+}
+
+.cpDivider {
+  height: 1px;
+  background: #e3e7ec;
+  margin: 4px 0;
+}
+
+.cpChoiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cpChoiceRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.cpCheckbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #1a56b8;
+  cursor: pointer;
+}
+
+.cpChoiceInput {
+  min-width: 0;
+}
+
+.cpRemoveChoice {
+  border: none;
+  background: transparent;
+  padding: 0 2px;
+  font-size: 18px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.cpRemoveChoice:hover {
+  color: #c0392b;
+}
+
+/* Outlined blue pill with a circled plus, matching the rubric step's add
+   controls. */
+.cpAddChoiceButton {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px;
+  border: 1px solid #1a56b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1a56b8;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cpAddChoiceButton:hover:not(:disabled) {
+  background: #eef4fd;
+}
+
+.cpAddChoiceButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cpAddIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.cpShortAnswerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cpFeedbackRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #111418;
+  cursor: pointer;
+}
+
+.cpFeedbackText {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.cpModalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   gap: 16px;
+  padding: 18px 26px;
+  border-top: 1px solid #e3e7ec;
+}
+
+.cpFooterActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cpRemoveCheckpoint {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #c0392b;
+  cursor: pointer;
+}
+
+.cpRemoveCheckpoint:hover {
+  text-decoration: underline;
+}
+
+.cpSecondaryAction {
+  padding: 11px 22px;
+  border: 1px solid #1a56b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1a56b8;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cpSecondaryAction:hover {
+  background: #eef4fd;
+}
+
+.cpPrimaryAction {
+  padding: 12px 30px;
+  border: none;
+  border-radius: 8px;
+  background: #0b57d0;
+  color: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cpPrimaryAction:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-width: 900px) {
+  .cpQuestionRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cpMetaGrid > .cpField {
+    width: 100%;
+  }
 }
 
 /* Create Rubric — goal header over a two-column body: subgoals & tasks on the
