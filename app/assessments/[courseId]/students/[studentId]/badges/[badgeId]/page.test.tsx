@@ -150,7 +150,7 @@ describe('Assessment readiness page', () => {
     expect(within(overview).getByText(/Adjust the burner to get a tight and blue flame\./)).toBeInTheDocument();
     expect(within(overview).getByText(/Produce a tight blue flame/)).toBeInTheDocument();
     expect(within(overview).getByText(/Close the gas valve/)).toBeInTheDocument();
-    expect(within(overview).getByText('3 pts possible · pass at 3')).toBeInTheDocument();
+    expect(within(overview).getByText('Pass at 3 of 3 points')).toBeInTheDocument();
     expect(within(overview).getByText('3 pts')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'How this assessment works' })).toBeInTheDocument();
 
@@ -266,7 +266,8 @@ describe('Assessment readiness page', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
 
-    expect(screen.getByRole('heading', { name: 'Safe burner operation' })).toBeInTheDocument();
+    // The grading step shows the rubric's goal and subgoals in the authored layout.
+    expect(screen.getByText('Safe burner operation')).toBeInTheDocument();
     expect(screen.getByText(/Adjust the burner to get a tight and blue flame\./)).toBeInTheDocument();
 
     // Tasks default to red/failed.
@@ -512,6 +513,6 @@ describe('Assessment readiness page', () => {
 
     const action = await screen.findByRole('button', { name: 'Assessment complete' });
     expect(action).toBeDisabled();
-    expect(screen.queryByRole('heading', { name: 'Safe burner operation' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Safe burner operation')).not.toBeInTheDocument();
   });
 });
