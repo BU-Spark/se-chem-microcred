@@ -4,6 +4,25 @@
   padding-bottom: 3rem;
 }
 
+/* Instructor preview: the player is embedded inside another page's card, so it
+   drops the full-viewport chrome and lets the host page own the background. */
+.pageEmbedded {
+  min-height: 0;
+  background: transparent;
+  padding-bottom: 0;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.pageEmbedded .content {
+  margin-top: 0;
+  padding: 0 0 0.5rem;
+}
+
+.pageEmbedded .videoTitle {
+  font-size: clamp(1.4rem, 2vw, 1.9rem);
+}
+
 /* ===== Page main content (under global header) ===== */
 
 .content {

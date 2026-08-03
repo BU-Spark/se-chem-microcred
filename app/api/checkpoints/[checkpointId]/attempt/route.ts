@@ -3,13 +3,8 @@ import { LessonStatus } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 import prisma from '../../../../../lib/prisma';
 import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
-import {
-  isAnswerWithinAcceptedRange,
-  isAnswerWithinTolerance,
-  normalizeCheckpointQuestion,
-  parseNumericAnswer,
-  type NormalizedCheckpointQuestion,
-} from '../../../../../lib/checkpointQuestions';
+import { normalizeCheckpointQuestion } from '../../../../../lib/checkpointQuestions';
+import { evaluateCheckpointAttempt } from '../../../../../lib/checkpointGrading';
 
 interface AttemptRequestBody {
   email?: string;
@@ -30,51 +25,6 @@ type RouteContext = {
     checkpointId: string;
   }>;
 };
-
-function evaluateAttempt(answers: AttemptRequestBody['answers'], questions: NormalizedCheckpointQuestion[]) {
-  return questions.map((question) => {
-    const answer = answers?.find((item) => item.questionId === question.id);
-    const selectedIndex = typeof answer?.selectedIndex === 'number' ? answer.selectedIndex : null;
-    const selectedIndices = Array.isArray(answer?.selectedIndices)
-      ? Array.from(
-          new Set(
-            answer.selectedIndices
-              .map((index) => Number(index))
-              .filter((index) => Number.isInteger(index) && index >= 0)
-          )
-        ).sort((left, right) => left - right)
-      : selectedIndex !== null
-        ? [selectedIndex]
-        : [];
-    const numericAnswer = parseNumericAnswer(answer?.numericAnswer);
-    const isExactMultipleChoiceAnswer =
-      selectedIndices.length === question.correctIndices.length &&
-      question.correctIndices.every((correctIndex, index) => selectedIndices[index] === correctIndex);
-
-    const isCorrect =
-      question.type === 'shortAnswer'
-        ? numericAnswer != null &&
-          (isAnswerWithinAcceptedRange(question.acceptedRange, numericAnswer) ||
-            (question.expectedAnswer != null &&
-              isAnswerWithinTolerance(question.expectedAnswer, numericAnswer, question.tolerancePercent)))
-        : isExactMultipleChoiceAnswer;
-    return {
-      questionId: question.id,
-      prompt: question.prompt,
-      options: question.options,
-      type: question.type,
-      selectedIndex: question.type === 'multipleChoice' ? (selectedIndices[0] ?? null) : null,
-      selectedIndices: question.type === 'multipleChoice' ? selectedIndices : [],
-      numericAnswer: question.type === 'shortAnswer' ? numericAnswer : null,
-      correctIndex: question.correctIndex ?? null,
-      correctIndices: question.correctIndices,
-      expectedAnswer: question.expectedAnswer ?? null,
-      tolerancePercent: question.tolerancePercent,
-      acceptedRange: question.acceptedRange,
-      isCorrect,
-    };
-  });
-}
 
 export async function POST(request: Request, context: RouteContext) {
   const { checkpointId } = await context.params;
@@ -122,7 +72,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   const normalizedQuestions = checkpoint.questions.map((question) => normalizeCheckpointQuestion(question));
-  const evaluation = evaluateAttempt(payload.answers, normalizedQuestions);
+  const evaluation = evaluateCheckpointAttempt(payload.answers, normalizedQuestions);
   const isPassing = normalizedQuestions.length === 0 || evaluation.every((entry) => entry.isCorrect === true);
 
   // Practice (review/rewatch) submissions are graded for feedback only — skip all
