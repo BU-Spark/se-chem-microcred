@@ -37,15 +37,15 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin: 18px 60px 34px;
+  margin: 2px 40px 16px;
 }
 
 .progressTrack::before {
   content: '';
   position: absolute;
-  top: 14px;
-  left: 95px;
-  right: 95px;
+  top: 9px;
+  left: 75px;
+  right: 75px;
   height: 2px;
   background: #2e6aa9;
   z-index: 0;
@@ -54,7 +54,7 @@
 .progressStep {
   position: relative;
   z-index: 1;
-  width: 190px;
+  width: 150px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -63,12 +63,12 @@
 
 .progressDot {
   position: relative;
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
   background: #ffffff;
   border: 2px solid #2e6aa9;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .progressDot[data-active='true'],
@@ -82,7 +82,7 @@
 
 .progressLabel {
   font-family: Lato, sans-serif;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: #222222;
 }
 
@@ -101,6 +101,16 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+/* Steps that render their own panel chrome (Create Rubric) drop the outer card
+   so the eyebrow leads straight into the step content. */
+.canvasCardBare {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  gap: 14px;
 }
 
 .cardHeader {
@@ -1033,144 +1043,539 @@
   flex: 1;
 }
 
+/* ---- Checkpoint modal ---------------------------------------------------
+   Body sits between the modal's own header/footer rules: a timestamp/points
+   meta row, then one prompt-plus-settings pair per question. */
 .checkpointEditor {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  padding: 22px 26px 26px;
 }
 
-/* Create Rubric — Figma 425-2278: two stacked full-width cards. */
-.rubricStack {
+.cpMetaGrid {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: 18px;
 }
 
-.rubricOrderedList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+.cpMetaGrid > .cpField {
+  width: 300px;
+  max-width: 100%;
 }
 
-.rubricOrderedItem {
+.cpField {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cpFieldLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #4b5563;
+}
+
+.cpInput,
+.cpSelect {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #111418;
+}
+
+.cpInput:focus,
+.cpSelect:focus {
+  outline: none;
+  border-color: #2e6aa9;
+}
+
+.cpSelect {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5 10 12.5 15 7.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px 18px;
+}
+
+.cpQuestionList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Prompt editor on the left, answer settings in a matching card on the right. */
+.cpQuestionRow {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.62fr);
+  gap: 20px;
   align-items: start;
 }
 
-.rubricPointsInput {
-  width: 64px;
-  padding: 6px 8px;
-  border: 1px solid #d7dbe1;
-  border-radius: 6px;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 15px;
-  color: #000000;
-  text-align: center;
+.cpCard {
+  border: 1px solid #e3e7ec;
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
 }
 
-.rubricPointsInput:focus {
-  outline: none;
-  border-color: #4f7396;
-}
-
-.rubricPointsLabel {
-  align-self: center;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 14px;
-  color: #61758a;
-}
-
-.rubricThresholdRow {
+.cpCardHeader {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-top: 14px;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 15px;
-  color: #000000;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.rubricThresholdWarning {
-  margin: 8px 0 0;
+.cpQuestionTitle {
+  margin: 0;
   font-family: 'Open Sans', sans-serif;
-  font-size: 13px;
-  color: #b91c1c;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111418;
 }
 
-.rubricTotalRow {
-  margin-top: 12px;
+.cpRemoveQuestion {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #c0392b;
+  cursor: pointer;
+}
+
+.cpRemoveQuestion:hover {
+  text-decoration: underline;
+}
+
+.cpPrompt :global(.rte-container) {
+  border-color: #e3e7ec;
+  border-radius: 10px;
+}
+
+.cpPrompt :global(.rte-container--compact) :global(.rte-content-editable) {
+  min-height: 230px;
+}
+
+.cpDivider {
+  height: 1px;
+  background: #e3e7ec;
+  margin: 4px 0;
+}
+
+.cpChoiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cpChoiceRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.cpCheckbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #1a56b8;
+  cursor: pointer;
+}
+
+.cpChoiceInput {
+  min-width: 0;
+}
+
+.cpRemoveChoice {
+  border: none;
+  background: transparent;
+  padding: 0 2px;
+  font-size: 18px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.cpRemoveChoice:hover {
+  color: #c0392b;
+}
+
+/* Outlined blue pill with a circled plus, matching the rubric step's add
+   controls. */
+.cpAddChoiceButton {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px;
+  border: 1px solid #1a56b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1a56b8;
   font-family: 'Open Sans', sans-serif;
   font-size: 15px;
   font-weight: 600;
-  color: #000000;
-}
-
-.rubricOrderedNumber {
-  padding-top: 8px;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  color: #000000;
-}
-
-.rubricGhostRemove {
-  align-self: center;
-  background: transparent;
-  border: none;
-  color: #9aa1ab;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 14px;
   line-height: 1;
   cursor: pointer;
-  padding: 2px 4px;
 }
 
-.rubricGhostRemove:hover {
-  color: #b91c1c;
+.cpAddChoiceButton:hover:not(:disabled) {
+  background: #eef4fd;
+}
+
+.cpAddChoiceButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cpAddIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.cpShortAnswerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cpFeedbackRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #111418;
+  cursor: pointer;
+}
+
+.cpFeedbackText {
+  min-height: 84px;
+  resize: vertical;
+}
+
+.cpModalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 26px;
+  border-top: 1px solid #e3e7ec;
+}
+
+.cpFooterActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cpRemoveCheckpoint {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #c0392b;
+  cursor: pointer;
+}
+
+.cpRemoveCheckpoint:hover {
   text-decoration: underline;
+}
+
+.cpSecondaryAction {
+  padding: 11px 22px;
+  border: 1px solid #1a56b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #1a56b8;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cpSecondaryAction:hover {
+  background: #eef4fd;
+}
+
+.cpPrimaryAction {
+  padding: 12px 30px;
+  border: none;
+  border-radius: 8px;
+  background: #0b57d0;
+  color: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cpPrimaryAction:hover {
+  filter: brightness(1.08);
+}
+
+@media (max-width: 900px) {
+  .cpQuestionRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cpMetaGrid > .cpField {
+    width: 100%;
+  }
+}
+
+/* Create Rubric — goal header over a two-column body: subgoals & tasks on the
+   left, assessor instructions in a tinted rail on the right. */
+.rubricPanel {
+  background: #ffffff;
+  border: 1px solid #e3e7ec;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.rubricGoalSection {
+  padding: 20px 24px 22px;
+  border-bottom: 1px solid #e3e7ec;
+}
+
+.rubricSectionHeading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.rubricSectionTitle {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.rubricSectionHint,
+.rubricColumnHint {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.rubricColumnHint {
+  display: block;
+  margin: 6px 0 18px;
+  max-width: 62ch;
+  line-height: 1.5;
+}
+
+.rubricGoalInput {
+  width: 100%;
+  max-width: 720px;
+  margin-top: 12px;
+  padding: 11px 14px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #111418;
+}
+
+.rubricGoalInput:focus {
+  outline: none;
+  border-color: #2e6aa9;
+}
+
+.rubricBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.62fr);
+  align-items: stretch;
+}
+
+.rubricSubgoalColumn {
+  padding: 22px 24px 26px;
+  min-width: 0;
+}
+
+.rubricInstructionsColumn {
+  padding: 22px 24px 26px;
+  border-left: 1px solid #e3e7ec;
+  background: #f7f8fa;
+  min-width: 0;
 }
 
 .rubricSubgoalList {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
+/* Subgoals are separated by hairlines rather than cards, per the layout spec. */
 .rubricSubgoalBlock {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px;
-  border: 1px solid #e3e7ec;
-  border-radius: 10px;
-  background: #fbfcfd;
+  padding: 18px 0;
+  border-bottom: 1px solid #eceff3;
+}
+
+.rubricSubgoalBlock:first-child {
+  padding-top: 0;
 }
 
 .rubricSubgoalHeader {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: 28px minmax(0, 1fr) auto 28px;
+  gap: 8px;
   align-items: center;
+}
+
+.rubricSubgoalNumber {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #111418;
 }
 
 .rubricSubgoalTitleInput {
   width: 100%;
-  padding: 8px 10px;
+  padding: 9px 12px;
   border: 1px solid #d7dbe1;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: #000000;
+  font-size: 15px;
+  color: #111418;
+  background: #ffffff;
 }
 
 .rubricSubgoalTitleInput:focus {
   outline: none;
-  border-color: #4f7396;
+  border-color: #2e6aa9;
+}
+
+.rubricThresholdRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.rubricThresholdLabel,
+.rubricThresholdTotal {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.rubricSelect {
+  padding: 8px 10px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #111418;
+  cursor: pointer;
+}
+
+.rubricSelect:focus {
+  outline: none;
+  border-color: #2e6aa9;
+}
+
+.rubricTaskList {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rubricTaskRow {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 92px 28px;
+  gap: 8px;
+  align-items: center;
+}
+
+.rubricTaskNumber {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.rubricTaskInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #111418;
+  resize: vertical;
+  min-height: 38px;
+}
+
+.rubricTaskInput:focus {
+  outline: none;
+  border-color: #2e6aa9;
+}
+
+.rubricTaskInput::placeholder {
+  color: #9aa1ab;
+}
+
+.rubricRemoveButton {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #6b7280;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rubricRemoveButton:hover {
+  background: #f1f3f6;
+  color: #b91c1c;
+}
+
+.rubricRemoveSpacer {
+  display: block;
+  width: 28px;
+}
+
+.rubricThresholdWarning {
+  margin: 0 0 0 28px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #b91c1c;
 }
 
 /* LEGACY-RUBRIC: remove .gradingList through .gradingAddItem (except
@@ -1322,54 +1727,54 @@
 }
 
 .addSubgoalButton {
-  align-self: flex-start;
-  margin-top: 6px;
-  padding: 10px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 0;
   border: none;
-  border-radius: 10px;
-  background: #2e6aa9;
-  color: #ffffff;
-  font-family: Lato, sans-serif;
+  background: transparent;
+  color: #1a56b8;
+  font-family: 'Open Sans', sans-serif;
   font-size: 15px;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
 }
 
-.addSubgoalButton:hover {
-  filter: brightness(1.08);
+.addSubgoalIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid #1a56b8;
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.addSubgoalButton:hover,
+.addTaskButton:hover {
+  text-decoration: underline;
 }
 
 .addTaskButton {
   align-self: flex-start;
-  margin-top: 2px;
-  padding: 7px 14px;
-  border: 1px solid #2e6aa9;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 28px;
+  padding: 0;
+  border: none;
   background: transparent;
-  color: #2e6aa9;
-  font-family: Lato, sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.addTaskButton:hover {
-  background: #eaf1f9;
-}
-
-.rubricFieldLabel {
+  color: #1a56b8;
   font-family: 'Open Sans', sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: #2b2f36;
-}
-
-.rubricRequiredMark {
-  margin-left: 2px;
-  color: #b91c1c;
-  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .removeTextButton,
@@ -1438,11 +1843,12 @@
 }
 
 .navigationRow {
-  justify-content: flex-end;
+  justify-content: space-between;
   margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid #e3e7ec;
 }
 
-.nextButton,
 .plusButton,
 .secondaryButton {
   display: inline-block;
@@ -1459,7 +1865,42 @@
 }
 
 .nextButton {
-  padding: 14px 35px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: 8px;
+  background: #1a56b8;
+  color: #ffffff;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.nextButton:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+/* Outlined counterpart to .nextButton for the step footer's Back control. */
+.stepBackButton {
+  padding: 10px 20px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #111418;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.stepBackButton:hover:not(:disabled) {
+  background: #f1f3f6;
+  text-decoration: none;
 }
 
 .secondaryButton {
@@ -1579,10 +2020,17 @@
   .videoStepLayout,
   .checkpointLayout,
   .rubricLayout,
+  .rubricBody,
   .feedbackGrid,
   .editorGrid,
   .shortAnswerGrid {
     grid-template-columns: 1fr;
+  }
+
+  /* Stacked: the instructions rail becomes a full-width section below. */
+  .rubricInstructionsColumn {
+    border-left: none;
+    border-top: 1px solid #e3e7ec;
   }
 }
 
@@ -1616,6 +2064,21 @@
   .navigationRow {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .rubricGoalSection,
+  .rubricSubgoalColumn,
+  .rubricInstructionsColumn {
+    padding: 18px;
+  }
+
+  .rubricSubgoalHeader {
+    grid-template-columns: 24px minmax(0, 1fr) 28px;
+  }
+
+  /* Drop the threshold controls onto their own line under the title. */
+  .rubricThresholdRow {
+    grid-column: 2 / 4;
   }
 
   .numberedRubricItem,

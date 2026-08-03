@@ -604,13 +604,19 @@ export default function BadgeCreationPage() {
             ))}
           </section>
 
-          <section className={styles.canvasCard}>
+          <section
+            className={`${styles.canvasCard} ${activeStep.key === 'rubric' ? styles.canvasCardBare : ''}`.trim()}
+          >
             <div className={styles.cardHeader}>
               <div>
                 <p className={styles.cardEyebrow}>{activeStep.label}</p>
-                <h2 className={styles.cardTitle}>
-                  {activeStep.key === 'checkpoints' ? 'Add Checkpoints for:' : draft.badgeName}
-                </h2>
+                {/* The rubric step leads straight into its Goal field — repeating the
+                    badge name under the eyebrow duplicated the goal it seeds. */}
+                {activeStep.key !== 'rubric' && (
+                  <h2 className={styles.cardTitle}>
+                    {activeStep.key === 'checkpoints' ? 'Add Checkpoints for:' : draft.badgeName}
+                  </h2>
+                )}
                 {activeStep.key === 'checkpoints' && (
                   <p className={styles.cardSubtitle}>
                     Select where you want to add a checkpoint in the video timeline, and click the plus button to create
@@ -666,6 +672,7 @@ export default function BadgeCreationPage() {
             <div className={styles.navigationRow}>
               <BackButton
                 inline
+                className={styles.stepBackButton}
                 onClick={() => setCurrentStep((step) => Math.max(step - 1, 0))}
                 disabled={currentStep === 0}
               />
@@ -675,15 +682,24 @@ export default function BadgeCreationPage() {
                 onClick={handleNext}
                 disabled={isSubmitting || isLoadingEditBadge}
               >
-                {currentStep === STEP_DEFINITIONS.length - 1
-                  ? isSubmitting
-                    ? isEditMode
-                      ? 'Saving...'
-                      : 'Creating...'
-                    : isEditMode
-                      ? 'Save Badge'
-                      : 'Create Badge'
-                  : 'Next'}
+                {currentStep === STEP_DEFINITIONS.length - 1 ? (
+                  isSubmitting ? (
+                    isEditMode ? (
+                      'Saving...'
+                    ) : (
+                      'Creating...'
+                    )
+                  ) : isEditMode ? (
+                    'Save Badge'
+                  ) : (
+                    'Create Badge'
+                  )
+                ) : (
+                  <>
+                    Next
+                    <span aria-hidden="true">→</span>
+                  </>
+                )}
               </button>
             </div>
           </section>

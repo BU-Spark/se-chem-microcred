@@ -6,9 +6,11 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { generateInitials, getNameForProfile } from '@/lib/text/name';
 
+import Image from 'next/image';
+
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
-import StudentProfileCard from '@/app/components/StudentProfileCard';
+import RubricPreview from '@/app/components/Rubric/RubricPreview';
 import styles from './page.module.css';
 import { useAssessmentReadiness } from './hooks/useAssessmentReadiness';
 
@@ -172,21 +174,6 @@ export default function AssessmentReadinessPage() {
 
   const rubric = badgeDetail?.assessment?.rubric ?? null;
 
-  // Instructions orient the checker before grading and stay available while
-  // grading; they are hidden on the review step so they don't linger over the
-  // pass/fail result (bug #177).
-  const checkerInstructions = rubric?.instructions ? (
-    <div className={styles.taInstructions}>
-      <h3 className={styles.taInstructionsTitle}>Instructions for the checker</h3>
-      {/* Instructions are authored in the badge editor's rich-text field and
-          stored as sanitized HTML; render read-only for the checker. */}
-      <div
-        className={`${styles.taInstructionsBody} rte-readonly`}
-        dangerouslySetInnerHTML={{ __html: rubric.instructions }}
-      />
-    </div>
-  ) : null;
-
   // A subgoal passes when its passed tasks' weights meet its threshold; the
   // badge passes only when every subgoal passes.
   const subgoalResults = subgoalGroups.map((group) => {
@@ -197,6 +184,30 @@ export default function AssessmentReadinessPage() {
   const computedPassed = subgoalResults.every((group) => group.passed);
   const willOverrideToStillLearning = computedPassed && overrideFeedback.trim().length > 0;
   const finalPassed = computedPassed && !willOverrideToStillLearning;
+
+  // The checker flow renders the authored rubric layout, so the drafts are
+  // reshaped into its subgoal/task form and looked up by id from the slots.
+  const rubricSubgoals = subgoalResults.map((group) => ({
+    id: group.subgoalId,
+    text: group.text,
+    passThreshold: group.passThreshold,
+    tasks: group.tasks.map((task) => ({ id: task.taskId, text: task.text, points: task.points })),
+  }));
+  const resultBySubgoalId = new Map(subgoalResults.map((group) => [group.subgoalId, group]));
+  const taskDraftById = new Map(
+    subgoalGroups.flatMap((group) => group.tasks.map((task) => [task.taskId, task] as const))
+  );
+
+  const renderSubgoalTally = (subgoalId: string) => {
+    const group = resultBySubgoalId.get(subgoalId);
+    if (!group) return null;
+
+    return (
+      <span className={group.passed ? styles.subgoalGroupPass : styles.subgoalGroupFail}>
+        {group.earned} / {group.possible} pts · pass at {group.passThreshold} · {group.passed ? 'Passed' : 'Not passed'}
+      </span>
+    );
+  };
 
   const submitAssessment = async () => {
     if (!courseId || !studentId || !badgeId || !email) {
@@ -269,62 +280,9 @@ export default function AssessmentReadinessPage() {
           {!isLoading && error ? <p className={styles.statusMessage}>{error}</p> : null}
 
           {!isLoading && !error && profile && badgeDetail ? (
-            <>
-              <StudentProfileCard
-                kicker="Student Info:"
-                headlineTop={memberDisplay.headlineTop}
-                headlineBottom={memberDisplay.headlineBottom}
-                email={profile.member.email}
-                externalId={profile.member.externalId}
-                avatarSrc={profile.member.avatar ? avatarAsset(profile.member.avatar.base) : null}
-                avatarAlt="Student avatar"
-                avatarFallback={generateInitials(profile.member.name)}
-                courseTitle={profile.course.title}
-                courseSectionsLabel={`${profile.course.sections.length > 1 ? 'Sections' : 'Section'}: ${
-                  profile.course.sections.join(', ') || 'Not provided'
-                }`}
-                contactTitle="Instructor"
-                contactName={sideContact ? contactDisplayName(sideContact.name, sideContact.email) : null}
-                contactEmail={sideContact?.email}
-                contactAvatarSrc={sideContact && 'avatarUrl' in sideContact ? sideContact.avatarUrl : null}
-                contactAvatarAlt={sideContact ? contactDisplayName(sideContact.name, sideContact.email) : ''}
-                contactFallback={
-                  sideContact ? generateInitials(contactDisplayName(sideContact.name, sideContact.email)) : ''
-                }
-                emptyContactMessage="No instructor assigned."
-              />
-
-              <section className={styles.detailCard}>
-                <div className={styles.detailCardHeader}>
-                  <span className={styles.detailCardKicker}>Student Progress for:</span>
-                  <span className={styles.detailCardHeading}>{badgeDetail.badge.name}</span>
-                </div>
-
+            <div className={styles.assessmentLayout}>
+              <section className={styles.assessmentColumn}>
                 <div className={styles.readinessBody}>
-                  <div className={styles.progressStatusColumn}>
-                    <p className={styles.progressStatusLine}>
-                      <span className={styles.progressStatusLabel}>Precheck status:</span>{' '}
-                      <span className={styles.progressStatusValue}>
-                        {badgeDetail.progress.precheckComplete ? 'Complete' : 'Incomplete'}
-                      </span>
-                    </p>
-                    <p className={styles.progressStatusLine}>
-                      <span className={styles.progressStatusLabel}>Assessment status:</span>{' '}
-                      <span className={styles.progressStatusValue}>{assessmentStatus}</span>
-                    </p>
-                    <p className={styles.progressStatusLine}>
-                      <span className={styles.progressStatusLabel}>Currently at:</span>{' '}
-                      <span className={styles.progressStatusValue}>{currentStep}</span>
-                    </p>
-                  </div>
-
-                  <div className={styles.clearanceRow}>
-                    <span className={canStartAssessment ? styles.clearanceSuccess : styles.clearanceBlocked}>
-                      {canStartAssessment ? '✓' : '×'}
-                    </span>
-                    <strong>{canStartAssessment ? 'Cleared for Assessment' : 'Not cleared for Assessment'}</strong>
-                  </div>
-
                   {!canStartAssessment ? (
                     <div className={styles.unablePanel}>
                       <h2>Unable to assess</h2>
@@ -344,11 +302,7 @@ export default function AssessmentReadinessPage() {
                       what the assessment covers; this read-only preview runs before
                       grading starts (issue #195). */}
                   {canStartNewAssessment && phase === 'overview' ? (
-                    <div className={styles.assessmentPanel}>
-                      <div className={styles.assessmentPanelHeader}>
-                        <h2>{rubric?.goalName || 'Assessment overview'}</h2>
-                      </div>
-
+                    <div className={styles.overviewStack}>
                       <div className={styles.taInstructions}>
                         <h3 className={styles.taInstructionsTitle}>How this assessment works</h3>
                         <ol className={styles.processSteps}>
@@ -358,171 +312,115 @@ export default function AssessmentReadinessPage() {
                         </ol>
                       </div>
 
-                      {checkerInstructions}
-
-                      <div className={styles.criteriaList} aria-label="Assessment rubric overview">
-                        {(rubric?.subgoals ?? []).map((subgoal, groupIndex) => (
-                          <div key={subgoal.id} className={styles.subgoalGroup}>
-                            <div className={styles.subgoalGroupHeader}>
-                              <h3>
-                                {groupIndex + 1}. {subgoal.text}
-                              </h3>
-                              <span className={styles.subgoalPoints}>
-                                {subgoal.tasks.reduce((sum, task) => sum + task.points, 0)} pts possible · pass at{' '}
-                                {subgoal.passThreshold}
-                              </span>
-                            </div>
-
-                            {subgoal.tasks.map((task, taskIndex) => (
-                              <div key={task.id} className={styles.criterionCard}>
-                                <div className={styles.criterionHeader}>
-                                  <h3>
-                                    {groupIndex + 1}.{taskIndex + 1} {task.text}
-                                  </h3>
-                                  <span className={styles.subgoalPoints}>
-                                    {task.points} {task.points === 1 ? 'pt' : 'pts'}
-                                  </span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
+                      {/* Same layout the instructor authored the rubric in, read-only. */}
+                      <RubricPreview
+                        goalName={rubric?.goalName}
+                        subgoals={rubric?.subgoals ?? []}
+                        instructions={rubric?.instructions}
+                        instructionsTitle="Instructions for the checker"
+                        subgoalsLabel="Assessment rubric overview"
+                      />
                     </div>
                   ) : null}
 
                   {canStartNewAssessment && isAssessmentStarted ? (
-                    <div className={styles.assessmentPanel}>
-                      <div className={styles.assessmentPanelHeader}>
-                        <h2>{rubric?.goalName || 'Checker Grading'}</h2>
-                      </div>
-
-                      {phase === 'grading' ? checkerInstructions : null}
-
+                    <div className={styles.overviewStack}>
                       {phase === 'grading' ? (
-                        <div className={styles.criteriaList}>
-                          {subgoalResults.map((group, groupIndex) => (
-                            <div key={group.subgoalId} className={styles.subgoalGroup}>
-                              <div className={styles.subgoalGroupHeader}>
-                                <h3>
-                                  {groupIndex + 1}. {group.text}
-                                </h3>
-                                <span className={group.passed ? styles.subgoalGroupPass : styles.subgoalGroupFail}>
-                                  {group.earned} / {group.possible} pts · pass at {group.passThreshold} ·{' '}
-                                  {group.passed ? 'Passed' : 'Not passed'}
-                                </span>
-                              </div>
+                        <RubricPreview
+                          goalName={rubric?.goalName}
+                          subgoals={rubricSubgoals}
+                          instructions={rubric?.instructions}
+                          instructionsTitle="Instructions for the checker"
+                          subgoalsLabel="Assessment rubric grading"
+                          columnHint="Mark each task the student demonstrated. Add feedback wherever it helps them."
+                          renderSubgoalStatus={(subgoal) => renderSubgoalTally(subgoal.id)}
+                          renderTaskControl={({ subgoal, task, subgoalIndex, taskIndex }) => {
+                            const draft = taskDraftById.get(task.id);
+                            const passed = draft?.passed ?? false;
 
-                              {group.tasks.map((task, taskIndex) => (
-                                <div key={task.taskId} className={styles.criterionCard}>
-                                  <div className={styles.criterionHeader}>
-                                    <h3>
-                                      {groupIndex + 1}.{taskIndex + 1} {task.text}
-                                    </h3>
-                                    <div className={styles.subgoalControl}>
-                                      <span className={styles.subgoalPoints}>
-                                        {task.points} {task.points === 1 ? 'pt' : 'pts'}
-                                      </span>
-                                      <button
-                                        type="button"
-                                        role="switch"
-                                        aria-checked={task.passed}
-                                        aria-label={`Task ${groupIndex + 1}.${taskIndex + 1} ${
-                                          task.passed ? 'passed' : 'failed'
-                                        }`}
-                                        className={task.passed ? styles.subgoalSliderOn : styles.subgoalSliderOff}
-                                        onClick={() =>
-                                          updateTaskDraft(group.subgoalId, task.taskId, { passed: !task.passed })
-                                        }
-                                      >
-                                        <span className={styles.subgoalSliderKnob} aria-hidden="true" />
-                                      </button>
-                                    </div>
-                                  </div>
+                            return (
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={passed}
+                                aria-label={`Task ${subgoalIndex + 1}.${taskIndex + 1} ${passed ? 'passed' : 'failed'}`}
+                                className={passed ? styles.subgoalSliderOn : styles.subgoalSliderOff}
+                                onClick={() => updateTaskDraft(subgoal.id, task.id, { passed: !passed })}
+                              >
+                                <span className={styles.subgoalSliderKnob} aria-hidden="true" />
+                              </button>
+                            );
+                          }}
+                          renderTaskFooter={({ subgoal, task, subgoalIndex, taskIndex }) => {
+                            const draft = taskDraftById.get(task.id);
+                            const isOpen = openFeedbackTaskIds.includes(task.id);
 
-                                  <button
-                                    type="button"
-                                    className={styles.feedbackToggle}
-                                    aria-expanded={openFeedbackTaskIds.includes(task.taskId)}
-                                    aria-controls={`feedback-${task.taskId}`}
-                                    onClick={() => toggleTaskFeedback(task.taskId)}
+                            return (
+                              <>
+                                <button
+                                  type="button"
+                                  className={styles.feedbackToggle}
+                                  aria-expanded={isOpen}
+                                  aria-controls={`feedback-${task.id}`}
+                                  onClick={() => toggleTaskFeedback(task.id)}
+                                >
+                                  <span
+                                    className={isOpen ? styles.feedbackChevronOpen : styles.feedbackChevron}
+                                    aria-hidden="true"
                                   >
-                                    <span
-                                      className={
-                                        openFeedbackTaskIds.includes(task.taskId)
-                                          ? styles.feedbackChevronOpen
-                                          : styles.feedbackChevron
-                                      }
-                                      aria-hidden="true"
-                                    >
-                                      ›
-                                    </span>
-                                    <span>Feedback (optional)</span>
-                                  </button>
+                                    ›
+                                  </span>
+                                  <span>Feedback (optional)</span>
+                                </button>
 
-                                  {openFeedbackTaskIds.includes(task.taskId) ? (
-                                    <label className={styles.criteriaField} id={`feedback-${task.taskId}`}>
-                                      <span className={styles.visuallyHidden}>
-                                        Feedback for task {groupIndex + 1}.{taskIndex + 1} (optional)
-                                      </span>
-                                      <textarea
-                                        value={task.feedback}
-                                        onChange={(event) =>
-                                          updateTaskDraft(group.subgoalId, task.taskId, {
-                                            feedback: event.target.value,
-                                          })
-                                        }
-                                        rows={2}
-                                        autoFocus
-                                      />
-                                    </label>
-                                  ) : null}
-                                </div>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
+                                {isOpen ? (
+                                  <label className={styles.criteriaField} id={`feedback-${task.id}`}>
+                                    <span className={styles.visuallyHidden}>
+                                      Feedback for task {subgoalIndex + 1}.{taskIndex + 1} (optional)
+                                    </span>
+                                    <textarea
+                                      value={draft?.feedback ?? ''}
+                                      onChange={(event) =>
+                                        updateTaskDraft(subgoal.id, task.id, { feedback: event.target.value })
+                                      }
+                                      rows={2}
+                                      autoFocus
+                                    />
+                                  </label>
+                                ) : null}
+                              </>
+                            );
+                          }}
+                        />
                       ) : (
                         <div className={styles.confirmPanel}>
                           {/* Review step shows everything the checker recorded rather
-                              than just the verdict (issue #195). */}
-                          <div className={styles.criteriaList} aria-label="Results by task">
-                            {subgoalResults.map((group, groupIndex) => (
-                              <div key={group.subgoalId} className={styles.subgoalGroup}>
-                                <div className={styles.subgoalGroupHeader}>
-                                  <h3>
-                                    {groupIndex + 1}. {group.text}
-                                  </h3>
-                                  <span className={group.passed ? styles.subgoalGroupPass : styles.subgoalGroupFail}>
-                                    {group.earned} / {group.possible} pts · pass at {group.passThreshold} ·{' '}
-                                    {group.passed ? 'Passed' : 'Not passed'}
-                                  </span>
-                                </div>
+                              than just the verdict (issue #195). Instructions stay
+                              hidden here so they don't linger over the result (#177). */}
+                          <RubricPreview
+                            goalName={rubric?.goalName}
+                            subgoals={rubricSubgoals}
+                            showInstructions={false}
+                            subgoalsLabel="Results by task"
+                            columnHint={null}
+                            renderSubgoalStatus={(subgoal) => renderSubgoalTally(subgoal.id)}
+                            renderTaskControl={({ task }) => {
+                              const passed = taskDraftById.get(task.id)?.passed ?? false;
 
-                                {group.tasks.map((task, taskIndex) => (
-                                  <div key={task.taskId} className={styles.criterionCard}>
-                                    <div className={styles.criterionHeader}>
-                                      <h3>
-                                        {groupIndex + 1}.{taskIndex + 1} {task.text}
-                                      </h3>
-                                      <div className={styles.subgoalControl}>
-                                        <span className={styles.subgoalPoints}>
-                                          {task.points} {task.points === 1 ? 'pt' : 'pts'}
-                                        </span>
-                                        <span className={task.passed ? styles.taskResultPass : styles.taskResultFail}>
-                                          {task.passed ? 'Passed' : 'Not passed'}
-                                        </span>
-                                      </div>
-                                    </div>
+                              return (
+                                <span className={passed ? styles.taskResultPass : styles.taskResultFail}>
+                                  {passed ? 'Passed' : 'Not passed'}
+                                </span>
+                              );
+                            }}
+                            renderTaskFooter={({ task }) => {
+                              const feedback = taskDraftById.get(task.id)?.feedback ?? '';
 
-                                    {task.feedback.trim() ? (
-                                      <p className={styles.taskResultFeedback}>Feedback: {task.feedback}</p>
-                                    ) : null}
-                                  </div>
-                                ))}
-                              </div>
-                            ))}
-                          </div>
+                              return feedback.trim() ? (
+                                <p className={styles.taskResultFeedback}>Feedback: {feedback}</p>
+                              ) : null;
+                            }}
+                          />
 
                           {computedPassed ? (
                             <>
@@ -555,51 +453,120 @@ export default function AssessmentReadinessPage() {
 
                   {submitStatus ? <p className={styles.successText}>{submitStatus}</p> : null}
                 </div>
-              </section>
 
-              <div className={styles.actionRow}>
-                <BackButton onClick={handleBack} />
-                {phase === 'confirm' ? (
+                <div className={styles.actionRow}>
+                  <BackButton onClick={handleBack} />
+                  {phase === 'confirm' ? (
+                    <button
+                      type="button"
+                      className={styles.toggleButton}
+                      onClick={() => setPhase('grading')}
+                      disabled={isSubmitting}
+                    >
+                      Back to grading
+                    </button>
+                  ) : null}
                   <button
                     type="button"
-                    className={styles.toggleButton}
-                    onClick={() => setPhase('grading')}
-                    disabled={isSubmitting}
+                    className={styles.primaryButton}
+                    style={phase === 'confirm' ? { backgroundColor: finalPassed ? '#15803d' : '#b91c1c' } : undefined}
+                    disabled={!canStartNewAssessment || isSubmitting}
+                    onClick={() => {
+                      if (phase === 'overview') {
+                        setPhase('grading');
+                        return;
+                      }
+
+                      if (phase === 'grading') {
+                        setPhase('confirm');
+                        return;
+                      }
+
+                      void submitAssessment();
+                    }}
                   >
-                    Back to grading
+                    {assessmentComplete
+                      ? 'Assessment complete'
+                      : phase === 'overview'
+                        ? 'Confirm and Start'
+                        : phase === 'grading'
+                          ? 'Continue to review'
+                          : isSubmitting
+                            ? 'Recording...'
+                            : 'Submit Assessment'}
                   </button>
-                ) : null}
-                <button
-                  type="button"
-                  className={styles.primaryButton}
-                  style={phase === 'confirm' ? { backgroundColor: finalPassed ? '#15803d' : '#b91c1c' } : undefined}
-                  disabled={!canStartNewAssessment || isSubmitting}
-                  onClick={() => {
-                    if (phase === 'overview') {
-                      setPhase('grading');
-                      return;
-                    }
+                </div>
+              </section>
 
-                    if (phase === 'grading') {
-                      setPhase('confirm');
-                      return;
-                    }
+              {/* Student context lives in a compact rail so the assessment itself
+                  owns the page (previously a full-width profile card on top). */}
+              <aside className={styles.studentRail} aria-label="Student information">
+                <div className={styles.studentIdentity}>
+                  <div className={styles.studentAvatar}>
+                    {profile.member.avatar ? (
+                      <Image
+                        src={avatarAsset(profile.member.avatar.base)}
+                        alt="Student avatar"
+                        width={56}
+                        height={56}
+                      />
+                    ) : (
+                      <span className={styles.studentAvatarFallback}>{generateInitials(profile.member.name)}</span>
+                    )}
+                  </div>
+                  <div>
+                    <p className={styles.studentName}>
+                      {memberDisplay.headlineTop} {memberDisplay.headlineBottom}
+                    </p>
+                    <p className={styles.railMeta}>{profile.member.email || 'No email on file'}</p>
+                  </div>
+                </div>
 
-                    void submitAssessment();
-                  }}
-                >
-                  {assessmentComplete
-                    ? 'Assessment complete'
-                    : phase === 'overview'
-                      ? 'Confirm and Start'
-                      : phase === 'grading'
-                        ? 'Continue to review'
-                        : isSubmitting
-                          ? 'Recording...'
-                          : 'Submit Assessment'}
-                </button>
-              </div>
-            </>
+                <div className={styles.railSection}>
+                  <p className={styles.railTitle}>Student ID</p>
+                  <p className={styles.railMeta}>{profile.member.externalId || 'Not provided'}</p>
+                </div>
+
+                <div className={styles.railSection}>
+                  <p className={styles.railTitle}>Course</p>
+                  <p className={styles.railMeta}>
+                    {profile.course.title}
+                    <br />
+                    {`${profile.course.sections.length > 1 ? 'Sections' : 'Section'}: ${
+                      profile.course.sections.join(', ') || 'Not provided'
+                    }`}
+                  </p>
+                </div>
+
+                <div className={styles.railSection}>
+                  <p className={styles.railTitle}>Instructor</p>
+                  {sideContact ? (
+                    <p className={styles.railMeta}>
+                      {contactDisplayName(sideContact.name, sideContact.email)}
+                      <br />
+                      {sideContact.email || 'Not provided'}
+                    </p>
+                  ) : (
+                    <p className={styles.railMeta}>No instructor assigned.</p>
+                  )}
+                </div>
+
+                <div className={styles.railSection}>
+                  <p className={styles.railTitle}>Progress for {badgeDetail.badge.name}</p>
+                  <p className={styles.railMeta}>
+                    <span className={styles.railLabel}>Precheck:</span>{' '}
+                    {badgeDetail.progress.precheckComplete ? 'Complete' : 'Incomplete'}
+                    <br />
+                    <span className={styles.railLabel}>Assessment:</span> {assessmentStatus}
+                    <br />
+                    <span className={styles.railLabel}>Currently at:</span> {currentStep}
+                  </p>
+                  <p className={canStartAssessment ? styles.railClearanceOk : styles.railClearanceBlocked}>
+                    {canStartAssessment ? '✓ Cleared for Assessment' : '× Not cleared for Assessment'}
+                  </p>
+                </div>
+              </aside>
+            </div>
           ) : null}
         </div>
       </main>
