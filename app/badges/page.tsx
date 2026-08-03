@@ -282,7 +282,7 @@ export default function BadgeWalletPage() {
           onClick={(e) => openBadgePopover(badge, e.currentTarget)}
           aria-pressed={isActive}
         >
-          <span className={styles.srOnly}>{badge.name.replace(/ Badge$/i, '')}</span>
+          <span className={styles.srOnly}>{badge.name}</span>
           {badge.youtubeUrl ? (
             <YoutubeThumbnail videoUrl={badge.youtubeUrl} alt="" className={styles.badgeTokenImage} />
           ) : (

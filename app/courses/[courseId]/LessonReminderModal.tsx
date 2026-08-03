@@ -5,8 +5,16 @@ import { useState } from 'react';
 import Modal from '../../components/Modal';
 import styles from './LessonReminderModal.module.css';
 
-function defaultReminderBody(courseName: string, cleanName: string) {
-  return `${courseName} - Students,\n\nReminder that your assessment for ${cleanName.toUpperCase()} BADGE is due soon. Please finish the lesson and checkpoints before the deadline.\n\nBest,\nProfessor`;
+// Instructor-typed badge names are never rewritten. Append "Badge" only when the
+// name doesn't already end in it, so "Titration" reads "Titration Badge" and
+// "Titration Badge" stays as typed instead of becoming "Titration Badge Badge".
+function withBadgeSuffix(badgeName: string) {
+  const name = badgeName.trim();
+  return /\bbadge$/i.test(name) ? name : `${name} Badge`;
+}
+
+function defaultReminderBody(courseName: string, displayName: string) {
+  return `${courseName} - Students,\n\nReminder that your assessment for ${displayName.toUpperCase()} is due soon. Please finish the lesson and checkpoints before the deadline.\n\nBest,\nProfessor`;
 }
 
 export function LessonReminderModal({
@@ -22,9 +30,9 @@ export function LessonReminderModal({
   courseName: string;
   onClose: () => void;
 }) {
-  const cleanName = badgeName.replace(/ Badge$/i, '').trim();
+  const displayName = withBadgeSuffix(badgeName);
 
-  const [body, setBody] = useState(() => defaultReminderBody(courseName, cleanName));
+  const [body, setBody] = useState(() => defaultReminderBody(courseName, displayName));
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<number | null>(null);
@@ -39,7 +47,7 @@ export function LessonReminderModal({
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ subject: `Lesson reminder: ${cleanName} Badge`, body }),
+          body: JSON.stringify({ subject: `Lesson reminder: ${displayName}`, body }),
         }
       );
       const payload = await response.json().catch(() => ({}));
@@ -67,7 +75,7 @@ export function LessonReminderModal({
 
       <h2 className={styles.title}>Send a lesson reminder</h2>
       <p className={styles.subtitle}>
-        To: <strong>Students with {cleanName} Badge</strong>
+        To: <strong>Students with {displayName}</strong>
       </p>
 
       {result === null ? (

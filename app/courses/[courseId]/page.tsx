@@ -605,11 +605,11 @@ export default function CreatedCourseDetailPage() {
                                 videoUrl={badge.videoUrl}
                                 fallbackThumbnailUrl={fallbackImage}
                                 quality="mqdefault"
-                                alt={`${badge.name.replace(/ Badge$/i, '')} thumbnail`}
+                                alt={`${badge.name} thumbnail`}
                                 className={styles.badgeTokenImage}
                               />
                             </BadgeToken>
-                            <h3 className={styles.badgeName}>{badge.name.replace(/ Badge$/i, '')}</h3>
+                            <h3 className={styles.badgeName}>{badge.name}</h3>
                           </Link>
                           {isInstructorFlag ? (
                             <>
@@ -617,7 +617,7 @@ export default function CreatedCourseDetailPage() {
                                 type="button"
                                 className={styles.badgeReminderButton}
                                 onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
-                                aria-label={`Send a lesson reminder for ${badge.name.replace(/ Badge$/i, '')}`}
+                                aria-label={`Send a lesson reminder for ${badge.name}`}
                               >
                                 <MessageIcon />
                               </button>

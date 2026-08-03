@@ -419,7 +419,7 @@ describe('Badge Wallet page', () => {
 
     const assessmentToggle = document.querySelector('button[aria-controls="assessment-badges"]') as HTMLButtonElement;
     fireEvent.click(assessmentToggle);
-    fireEvent.click(screen.getByRole('button', { name: /^Assessment$/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^Assessment Badge$/i }));
     expect(screen.getByText(/Show your checker this QR code/i)).toBeInTheDocument();
   });
 });

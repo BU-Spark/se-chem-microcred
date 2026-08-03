@@ -244,8 +244,8 @@ describe('Created course detail page', () => {
     expect(screen.getByText('Two, Checker')).toBeInTheDocument();
     expect(screen.queryByText('Xiao, David')).not.toBeInTheDocument();
     expect(screen.getByText('Assigned Badges')).toBeInTheDocument();
-    expect(screen.getByText('Waste Handling')).toBeInTheDocument();
-    expect(screen.getByText('Bunsen Burners')).toBeInTheDocument();
+    expect(screen.getByText('Waste Handling Badge')).toBeInTheDocument();
+    expect(screen.getByText('Bunsen Burners Badge')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Waste Handling/i })).toHaveAttribute('href', '/courses/course-1/badge-1');
     expect(screen.getByRole('link', { name: 'View Student Roster' })).toHaveAttribute(
       'href',
@@ -566,6 +566,6 @@ describe('Created course detail page', () => {
     // The confirmation step renders after a successful import.
     expect(await screen.findByRole('heading', { name: 'Badge imported' })).toBeInTheDocument();
     expect(await screen.findByText('The badge has been added to this course.')).toBeInTheDocument();
-    expect(await screen.findByText('Bunsen Burner')).toBeInTheDocument();
+    expect(await screen.findByText('Bunsen Burner Badge')).toBeInTheDocument();
   });
 });
