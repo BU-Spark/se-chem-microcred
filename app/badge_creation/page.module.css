@@ -167,6 +167,81 @@
   color: #b91c1c;
 }
 
+/* ===== Create / Preview tabs (Create Checkpoints step) ===== */
+
+.previewShell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.previewShell > .cardSubtitle {
+  margin: 0;
+}
+
+.modeTabs {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 4px;
+  border: 2px solid #d0d0d0;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.modeTab {
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  padding: 8px 22px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #4b5563;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.modeTab:hover:not(:disabled) {
+  background: #eaf2fb;
+  color: #2e6aa9;
+}
+
+.modeTab:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.modeTabActive,
+.modeTabActive:hover:not(:disabled) {
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
+.modeTab:focus-visible {
+  outline: 2px solid #2e6aa9;
+  outline-offset: 2px;
+}
+
+.previewPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.previewNotice {
+  margin: 0;
+  border: 2px solid #2e6aa9;
+  border-radius: 19px;
+  background: #eaf2fb;
+  padding: 12px 18px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #1f4b99;
+}
+
 .fieldError {
   margin: 0.3rem 0 0;
   font-family: 'Open Sans', sans-serif;

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { sanitizeQuestionRichText } from '@/lib/question-rich-text';
+import { evaluateCheckpointAttempt } from '@/lib/checkpointGrading';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
@@ -108,6 +109,13 @@ interface LessonVideoPageProps {
   // Completed-lesson "review" flow: start from the beginning, unlocked scrubber,
   // non-blocking checkpoints that can be re-opened for ungraded practice.
   reviewMode?: boolean;
+  // Instructor preview (badge creation): the lesson exists only in the draft, so
+  // every server round-trip is replaced by local grading and nothing is written.
+  // Gating stays exactly as a first-time student would experience it — this is
+  // deliberately NOT reviewMode, which unlocks the timeline.
+  previewMode?: boolean;
+  // Preview-only: end-card actions call this instead of navigating away.
+  onExitPreview?: () => void;
   studentAvatarUrl?: string | null;
 }
 
@@ -193,6 +201,8 @@ export function LessonVideoPage({
   courseId,
   resumeRequested,
   reviewMode = false,
+  previewMode = false,
+  onExitPreview,
 }: LessonVideoPageProps) {
   // const resolvedStudentName = studentName && studentName.trim().length > 0 ? studentName : 'Student Demo';
   // const [firstName, lastName] = useMemo(() => {
@@ -234,6 +244,8 @@ export function LessonVideoPage({
   const [modalState, setModalState] = useState<ModalState>('none');
   const [activeCheckpointId, setActiveCheckpointId] = useState<string | null>(null);
   const [answeredCheckpointIds, setAnsweredCheckpointIds] = useState<string[]>(initialAnsweredIds);
+  // Read inside the playback poll, which must not re-subscribe on every answer.
+  const answeredIdsRef = useRef<string[]>(initialAnsweredIds);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, SelectedAnswerState>>({});
   const [attemptSummary, setAttemptSummary] = useState<AttemptSummary | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -246,6 +258,10 @@ export function LessonVideoPage({
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [assessingLesson, setAssessingLesson] = useState(false);
   const lastCheckpointResumeRef = useRef<number | null>(null);
+  // Preview-only stand-in for the persisted CheckpointAttempt rows: the latest
+  // graded result per checkpoint, used to compute the end-of-lesson grade the
+  // way the server would from the student's most recent attempts.
+  const previewAttemptsRef = useRef<Record<string, AttemptSummary['questions']>>({});
 
   const [showLessonQr, setShowLessonQr] = useState(false);
 
@@ -272,21 +288,35 @@ export function LessonVideoPage({
   const gradingTriggeredRef = useRef<boolean>(false);
   const lessonStartRecordedRef = useRef(false);
 
-  const updateFurthestTime = useCallback((time: number, force = false) => {
-    if (!Number.isFinite(time)) {
-      return;
-    }
-    setFurthestTime((prev) => {
-      if (!force && time <= prev + 0.1) {
-        return prev;
+  const updateFurthestTime = useCallback(
+    (time: number, force = false) => {
+      if (!Number.isFinite(time)) {
+        return;
       }
-      furthestTimeRef.current = time;
-      return time;
-    });
-  }, []);
-  // Hide the global header (from layout.tsx) on this page only
+      // Preview never re-locks the timeline. The student flow lowers the seek
+      // ceiling back to a checkpoint whenever one opens; an instructor checking
+      // their questions needs to keep jumping around, so the ceiling is pinned
+      // to the full duration instead.
+      if (previewMode) {
+        const ceiling = durationRef.current > 0 ? durationRef.current : time;
+        furthestTimeRef.current = ceiling;
+        setFurthestTime(ceiling);
+        return;
+      }
+      setFurthestTime((prev) => {
+        if (!force && time <= prev + 0.1) {
+          return prev;
+        }
+        furthestTimeRef.current = time;
+        return time;
+      });
+    },
+    [previewMode]
+  );
+  // Hide the global header (from layout.tsx) on this page only. The preview is
+  // embedded in another page's chrome, so it must leave that page's header alone.
   useEffect(() => {
-    if (typeof document === 'undefined') return;
+    if (typeof document === 'undefined' || previewMode) return;
 
     const header = document.querySelector<HTMLElement>('.global-header');
     if (!header) return;
@@ -298,10 +328,10 @@ export function LessonVideoPage({
     return () => {
       header.style.display = previousDisplay;
     };
-  }, []);
+  }, [previewMode]);
 
   useEffect(() => {
-    if (lessonStartRecordedRef.current || !studentEmail) return;
+    if (lessonStartRecordedRef.current || !studentEmail || previewMode) return;
 
     lessonStartRecordedRef.current = true;
     void fetch(`/api/lessons/${lesson.id}/start`, {
@@ -311,11 +341,15 @@ export function LessonVideoPage({
     }).catch((error) => {
       console.error('Failed to record lesson start', error);
     });
-  }, [lesson.id, studentEmail]);
+  }, [lesson.id, previewMode, studentEmail]);
 
   useEffect(() => {
     setAnsweredCheckpointIds(initialAnsweredIds);
   }, [initialAnsweredIds]);
+
+  useEffect(() => {
+    answeredIdsRef.current = answeredCheckpointIds;
+  }, [answeredCheckpointIds]);
 
   useEffect(() => {
     setFurthestTime(resumeBaseTime);
@@ -329,13 +363,14 @@ export function LessonVideoPage({
     durationRef.current = duration;
   }, [duration]);
 
-  // In review mode the entire timeline is unlocked; keep the seek ceiling at the
-  // full duration so both the scrubber clamp and seekTo() allow free scrubbing.
+  // In review and instructor-preview modes the entire timeline is unlocked; keep
+  // the seek ceiling at the full duration so both the scrubber clamp and
+  // seekTo() allow free scrubbing.
   useEffect(() => {
-    if (reviewMode && duration > 0) {
+    if ((reviewMode || previewMode) && duration > 0) {
       updateFurthestTime(duration, true);
     }
-  }, [reviewMode, duration, updateFurthestTime]);
+  }, [previewMode, reviewMode, duration, updateFurthestTime]);
 
   useEffect(() => {
     gradingTriggeredRef.current = false;
@@ -346,8 +381,9 @@ export function LessonVideoPage({
 
   const assessmentBadge = useMemo(() => lesson.badgeRequirements[0] ?? null, [lesson.badgeRequirements]);
   const resolveMaxSeekableTime = useCallback(() => {
-    // Review unlocks the whole timeline — the student can scrub anywhere.
-    if (reviewMode) {
+    // Review unlocks the whole timeline — the student can scrub anywhere. So does
+    // the instructor preview, so checkpoints can be spot-checked out of order.
+    if (reviewMode || previewMode) {
       return Number.isFinite(duration) ? duration : furthestTimeRef.current;
     }
     const limit = furthestTimeRef.current;
@@ -355,7 +391,7 @@ export function LessonVideoPage({
       return limit;
     }
     return Math.min(limit, duration);
-  }, [duration, reviewMode]);
+  }, [duration, previewMode, reviewMode]);
 
   const clearHideTimer = useCallback(() => {
     if (visibilityTimerRef.current != null && typeof window !== 'undefined') {
@@ -403,6 +439,10 @@ export function LessonVideoPage({
     () => (orderedCheckpoints.length === 0 || allCheckpointsAnswered) && videoEnded,
     [allCheckpointsAnswered, orderedCheckpoints.length, videoEnded]
   );
+
+  // Preview skips that gate: an instructor spot-checking two checkpoints out of
+  // ten still needs to reach the end card to see how the grade lands.
+  const canFinishLesson = previewMode || lessonReadyToFinish;
 
   const currentCheckpoint = useMemo(() => {
     if (activeCheckpointId) {
@@ -529,6 +569,28 @@ export function LessonVideoPage({
       setModalState('question');
     },
     [ensurePlayerPaused, orderedCheckpoints]
+  );
+
+  // Preview-only opener for the clickable checkpoint markers: seek to the
+  // checkpoint so the frame behind the question matches what a student would be
+  // looking at, then open it. The seek ceiling is left alone (preview keeps the
+  // whole timeline unlocked), so the instructor can jump straight to the next one.
+  const openCheckpointForPreview = useCallback(
+    (checkpointId: string) => {
+      const checkpoint = orderedCheckpoints.find((item) => item.id === checkpointId) ?? null;
+      if (!checkpoint || checkpoint.questions.length === 0) {
+        return;
+      }
+      seekTo(checkpoint.timeOffsetSeconds, true, true);
+      ensurePlayerPaused();
+      setActiveCheckpointId(checkpointId);
+      setSelectedAnswers({});
+      setAttemptSummary(null);
+      setNetworkError(null);
+      setActiveQuestionIndex(0);
+      setModalState('question');
+    },
+    [ensurePlayerPaused, orderedCheckpoints, seekTo]
   );
 
   useEffect(() => {
@@ -685,9 +747,22 @@ export function LessonVideoPage({
           }
         }
 
-        if (!reviewMode && firstIncompleteCheckpoint && playing && modalState === 'none') {
-          const trigger = firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD;
-          if (suppressCheckpointIdRef.current === firstIncompleteCheckpoint.id) {
+        // Which checkpoint is playback about to run into? A student always faces
+        // the first one they haven't answered. An instructor previewing can scrub
+        // freely, so theirs is the first unanswered one still ahead of the
+        // playhead — scrubbing past a checkpoint skips it rather than yanking the
+        // video back to it.
+        const pendingCheckpoint = previewMode
+          ? (orderedCheckpoints.find(
+              (checkpoint) =>
+                !answeredIdsRef.current.includes(checkpoint.id) &&
+                checkpoint.timeOffsetSeconds >= time - CHECKPOINT_TRIGGER_THRESHOLD
+            ) ?? null)
+          : firstIncompleteCheckpoint;
+
+        if (!reviewMode && pendingCheckpoint && playing && modalState === 'none') {
+          const trigger = pendingCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD;
+          if (suppressCheckpointIdRef.current === pendingCheckpoint.id) {
             // Suppression stays active until we observe playback actually land
             // before the trigger point (proof the seek completed). Only then do
             // we "arm" it so the next crossing re-opens the checkpoint. This is
@@ -707,10 +782,10 @@ export function LessonVideoPage({
             }
           }
           if (time >= trigger) {
-            updateFurthestTime(firstIncompleteCheckpoint.timeOffsetSeconds, true);
-            seekTo(firstIncompleteCheckpoint.timeOffsetSeconds, true, true);
+            updateFurthestTime(pendingCheckpoint.timeOffsetSeconds, true);
+            seekTo(pendingCheckpoint.timeOffsetSeconds, true, true);
             player.pauseVideo?.();
-            openCheckpointModal(firstIncompleteCheckpoint.id);
+            openCheckpointModal(pendingCheckpoint.id);
             return;
           }
         }
@@ -723,7 +798,9 @@ export function LessonVideoPage({
     firstIncompleteCheckpoint,
     modalState,
     openCheckpointModal,
+    orderedCheckpoints,
     playerReady,
+    previewMode,
     reviewMode,
     seekTo,
     updateFurthestTime,
@@ -782,6 +859,9 @@ export function LessonVideoPage({
         setLessonAssessment(result);
       }
       gradingTriggeredRef.current = false;
+      // The server archives the failed run's responses so the retry regrades
+      // from a clean slate; the preview's in-memory equivalent is dropping them.
+      previewAttemptsRef.current = {};
       setAnsweredCheckpointIds([]);
       setSelectedAnswers({});
       setAttemptSummary(null);
@@ -807,6 +887,28 @@ export function LessonVideoPage({
   );
 
   const finalizeLessonAssessment = useCallback(async () => {
+    // Preview grades locally, mirroring computeLessonGrade(): every checkpoint
+    // question counts toward the total, and only the latest attempt per
+    // checkpoint contributes correct answers.
+    if (previewMode) {
+      const totalQuestions = orderedCheckpoints.reduce((total, checkpoint) => total + checkpoint.questions.length, 0);
+      const correctAnswers = orderedCheckpoints.reduce((total, checkpoint) => {
+        const attempt = previewAttemptsRef.current[checkpoint.id] ?? [];
+        return total + attempt.filter((entry) => entry.isCorrect === true).length;
+      }, 0);
+      const percent = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+      const passingPercent = lesson.passingPercent ?? 0;
+      const result: LessonAssessmentResult = {
+        passed: percent >= passingPercent,
+        gradePercent: Math.round(percent * 100) / 100,
+        passingPercent,
+        correctAnswers,
+        totalQuestions,
+      };
+      setLessonAssessment(result);
+      return result;
+    }
+
     setAssessingLesson(true);
     setAssessmentError(null);
     try {
@@ -827,7 +929,7 @@ export function LessonVideoPage({
     } finally {
       setAssessingLesson(false);
     }
-  }, [lesson.id, studentEmail]);
+  }, [lesson.id, lesson.passingPercent, orderedCheckpoints, previewMode, studentEmail]);
 
   const handleLessonCompletion = useCallback(async () => {
     if (gradingTriggeredRef.current) {
@@ -880,33 +982,50 @@ export function LessonVideoPage({
     setIsSubmitting(true);
     setNetworkError(null);
 
+    const answers = currentCheckpoint.questions.map((question) => {
+      const selected = selectedAnswers[question.id];
+      return {
+        questionId: question.id,
+        selectedIndex: selected?.kind === 'multipleChoice' ? (selected.selectedIndices[0] ?? null) : null,
+        selectedIndices: selected?.kind === 'multipleChoice' ? selected.selectedIndices : [],
+        numericAnswer: selected?.kind === 'shortAnswer' ? selected.value : null,
+      };
+    });
+
     try {
-      const response = await fetch(`/api/checkpoints/${currentCheckpoint.id}/attempt`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: studentEmail,
-          // In review, submissions are practice only: the server grades for feedback
-          // but records nothing, so the lesson grade/badge stay untouched.
-          practice: reviewMode,
-          answers: currentCheckpoint.questions.map((question) => {
-            const selected = selectedAnswers[question.id];
+      // Instructor preview: grade in the browser with the same function the
+      // attempt route uses, and never call the API — the lesson and its
+      // checkpoints only exist in the unsaved draft.
+      const payload: AttemptSummary = previewMode
+        ? (() => {
+            const questions = evaluateCheckpointAttempt(answers, currentCheckpoint.questions);
+            previewAttemptsRef.current[currentCheckpoint.id] = questions;
             return {
-              questionId: question.id,
-              selectedIndex: selected?.kind === 'multipleChoice' ? (selected.selectedIndices[0] ?? null) : null,
-              selectedIndices: selected?.kind === 'multipleChoice' ? selected.selectedIndices : [],
-              numericAnswer: selected?.kind === 'shortAnswer' ? selected.value : null,
+              isPassing: questions.length === 0 || questions.every((entry) => entry.isCorrect === true),
+              questions,
             };
-          }),
-        }),
-      });
+          })()
+        : await (async () => {
+            const response = await fetch(`/api/checkpoints/${currentCheckpoint.id}/attempt`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                email: studentEmail,
+                // In review, submissions are practice only: the server grades for feedback
+                // but records nothing, so the lesson grade/badge stay untouched.
+                practice: reviewMode,
+                answers,
+              }),
+            });
 
-      if (!response.ok) {
-        const body = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error || 'Unable to record checkpoint attempt.');
-      }
+            if (!response.ok) {
+              const body = (await response.json().catch(() => ({}))) as { error?: string };
+              throw new Error(body.error || 'Unable to record checkpoint attempt.');
+            }
 
-      const payload = (await response.json()) as AttemptSummary;
+            return (await response.json()) as AttemptSummary;
+          })();
+
       setAttemptSummary(payload);
 
       // Practice attempts leave recorded progress untouched — don't retire the
@@ -931,7 +1050,7 @@ export function LessonVideoPage({
     } finally {
       setIsSubmitting(false);
     }
-  }, [currentCheckpoint, reviewMode, scheduleCheckpointSuppression, selectedAnswers, studentEmail]);
+  }, [currentCheckpoint, previewMode, reviewMode, scheduleCheckpointSuppression, selectedAnswers, studentEmail]);
 
   const handleAdvance = useCallback(() => {
     if (!currentCheckpoint) {
@@ -1130,6 +1249,30 @@ export function LessonVideoPage({
     setShowLessonQr(true);
   }, []);
 
+  // Preview-only: rewind to a fresh first-time run without leaving the preview,
+  // so the instructor can immediately re-watch after tweaking nothing.
+  const handleRestartPreview = useCallback(() => {
+    previewAttemptsRef.current = {};
+    gradingTriggeredRef.current = false;
+    setLessonAssessment(null);
+    setAnsweredCheckpointIds([]);
+    setSelectedAnswers({});
+    setAttemptSummary(null);
+    setActiveQuestionIndex(0);
+    setActiveCheckpointId(null);
+    suppressCheckpointIdRef.current = null;
+    suppressArmedRef.current = false;
+    setVideoEnded(false);
+    setNetworkError(null);
+    setFurthestTime(0);
+    furthestTimeRef.current = 0;
+    setCurrentTime(0);
+    lastSeekRef.current = 0;
+    updateFurthestTime(0, true);
+    seekTo(0, true, true);
+    setModalState('none');
+  }, [seekTo, updateFurthestTime]);
+
   const handleRestartAfterFailure = useCallback(() => {
     setModalState('none');
     requestAnimationFrame(() => {
@@ -1137,22 +1280,38 @@ export function LessonVideoPage({
     });
   }, []);
 
+  // Preview is embedded in the badge editor: every "leave the lesson" action
+  // hands control back to the editor instead of navigating the instructor away
+  // from their unsaved draft.
   const handleGoHome = useCallback(() => {
+    if (previewMode) {
+      onExitPreview?.();
+      return;
+    }
     router.push('/');
-  }, [router]);
+  }, [onExitPreview, previewMode, router]);
 
   const handleGoCourseDashboard = useCallback(() => {
+    if (previewMode) {
+      onExitPreview?.();
+      return;
+    }
     router.push(`/course_dashboard?courseId=${courseId}`);
-  }, [router, courseId]);
+  }, [onExitPreview, previewMode, router, courseId]);
 
   const handleBackToLessonDetail = useCallback(() => {
+    if (previewMode) {
+      onExitPreview?.();
+      return;
+    }
+
     if (window.history.length > 1) {
       router.back();
       return;
     }
 
     router.push(`/lessons/${lesson.slug}`);
-  }, [lesson.slug, router]);
+  }, [lesson.slug, onExitPreview, previewMode, router]);
 
   // Review end-card action: dismiss and let the student keep rewatching/scrubbing.
   const handleBackToReview = useCallback(() => {
@@ -1178,7 +1337,7 @@ export function LessonVideoPage({
   }, [duration, orderedCheckpoints]);
 
   return (
-    <div className={styles.page}>
+    <div className={`${styles.page} ${previewMode ? styles.pageEmbedded : ''}`.trim()}>
       <div className={styles.content}>
         <button type="button" className={styles.backButton} onClick={handleBackToLessonDetail}>
           <svg className={styles.backIcon} viewBox="0 0 24 24" aria-hidden="true" focusable="false">
@@ -1191,7 +1350,7 @@ export function LessonVideoPage({
               strokeLinejoin="round"
             />
           </svg>
-          <span>Back</span>
+          <span>{previewMode ? 'Back to editing' : 'Back'}</span>
         </button>
 
         <div className={styles.mainColumn}>
@@ -1232,6 +1391,19 @@ export function LessonVideoPage({
                         ]
                           .filter(Boolean)
                           .join(' ');
+                        if (previewMode && cp.questions.length > 0) {
+                          return (
+                            <button
+                              key={cp.id}
+                              type="button"
+                              className={cls}
+                              style={{ left: `${leftPct}%` }}
+                              title={`Jump to ${cp.title}`}
+                              aria-label={`Jump to checkpoint: ${cp.title}`}
+                              onClick={() => openCheckpointForPreview(cp.id)}
+                            />
+                          );
+                        }
                         if (reviewMode && cp.questions.length > 0) {
                           return (
                             <button
@@ -1270,8 +1442,12 @@ export function LessonVideoPage({
                           scheduleHide();
                         }
 
+                        // Dragging past an unanswered checkpoint drops a student
+                        // straight into it. In preview that would make the
+                        // scrubber useless, so a drag there is a deliberate skip.
                         if (
                           !reviewMode &&
+                          !previewMode &&
                           modalState === 'none' &&
                           firstIncompleteCheckpoint &&
                           val >= firstIncompleteCheckpoint.timeOffsetSeconds - CHECKPOINT_TRIGGER_THRESHOLD
@@ -1350,12 +1526,14 @@ export function LessonVideoPage({
                   </button>
 
                   {/* Finish lesson: grey until the video has played through and every
-                    checkpoint is answered, then blue. Clicking it grades + completes. */}
+                    checkpoint is answered, then blue. Clicking it grades + completes.
+                    Always live in preview so the instructor can jump to the end card
+                    without sitting through the video. */}
                   {!reviewMode ? (
                     <button
                       type="button"
                       onClick={() => void handleLessonCompletion()}
-                      disabled={!lessonReadyToFinish || assessingLesson}
+                      disabled={!canFinishLesson || assessingLesson}
                       aria-label="Finish lesson"
                       style={{
                         marginLeft: 'auto',
@@ -1365,9 +1543,9 @@ export function LessonVideoPage({
                         fontFamily: 'Lato, sans-serif',
                         fontWeight: 600,
                         fontSize: 15,
-                        color: lessonReadyToFinish ? '#ffffff' : '#7a7a7a',
-                        background: lessonReadyToFinish ? '#1f4b99' : '#d4d4d4',
-                        cursor: lessonReadyToFinish && !assessingLesson ? 'pointer' : 'not-allowed',
+                        color: canFinishLesson ? '#ffffff' : '#7a7a7a',
+                        background: canFinishLesson ? '#1f4b99' : '#d4d4d4',
+                        cursor: canFinishLesson && !assessingLesson ? 'pointer' : 'not-allowed',
                         transition: 'background 0.2s ease, color 0.2s ease',
                       }}
                     >
@@ -1410,7 +1588,38 @@ export function LessonVideoPage({
                     ) : null}
 
                     {modalState === 'lessonComplete' ? (
-                      reviewMode ? (
+                      previewMode ? (
+                        // Same grade summary a student sees; the QR is inert
+                        // because no badge exists to be assessed against yet.
+                        <>
+                          <h2 className={styles.modalTitle}>Lesson Completed</h2>
+                          <p className={styles.modalDescription}>
+                            This is where the student shows their checker a QR code to finalize the lesson.
+                          </p>
+                          <div className={styles.modalStats}>
+                            <div className={styles.modalStat}>
+                              Grade
+                              <span className={styles.modalStatValue}>
+                                {lessonAssessment ? `${lessonAssessment.gradePercent.toFixed(1)}%` : '—'}
+                              </span>
+                            </div>
+                            <div className={styles.modalStat}>
+                              Required to pass
+                              <span className={styles.modalStatValue}>
+                                {lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}
+                              </span>
+                            </div>
+                          </div>
+                          <div className={styles.modalActions}>
+                            <button type="button" className={styles.modalSecondary} onClick={handleRestartPreview}>
+                              Restart preview
+                            </button>
+                            <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
+                              Back to editing
+                            </button>
+                          </div>
+                        </>
+                      ) : reviewMode ? (
                         // Review has no assessment QR — the lesson is already finalized.
                         <>
                           <h2 className={styles.modalTitle}>Review complete</h2>
@@ -1632,7 +1841,7 @@ export function LessonVideoPage({
           ) : null}
         </div>
       </div>
-      {showLessonQr && assessmentBadge && !reviewMode ? (
+      {showLessonQr && assessmentBadge && !reviewMode && !previewMode ? (
         <AssessmentCodeModal
           badgeId={assessmentBadge.badgeId}
           badgeName={assessmentBadge.badgeName ?? 'Badge'}

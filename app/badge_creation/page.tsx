@@ -617,12 +617,8 @@ export default function BadgeCreationPage() {
                     {activeStep.key === 'checkpoints' ? 'Add Checkpoints for:' : draft.badgeName}
                   </h2>
                 )}
-                {activeStep.key === 'checkpoints' && (
-                  <p className={styles.cardSubtitle}>
-                    Select where you want to add a checkpoint in the video timeline, and click the plus button to create
-                    the checkpoint.
-                  </p>
-                )}
+                {/* The checkpoints step owns its own subtitle so it can swap it
+                    out when the instructor switches to the student preview tab. */}
               </div>
             </div>
 
