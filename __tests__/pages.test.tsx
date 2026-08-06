@@ -41,6 +41,9 @@ jest.mock('../app/hooks/useStudentData', () => ({
 }));
 
 beforeEach(() => {
+  // Home is asserted here in its stacked layout; pin the flag off so the suite
+  // doesn't depend on the ambient env.
+  delete process.env.NEXT_PUBLIC_HOME_TABS;
   jest.clearAllMocks();
   mockParams = {};
   mockSearchParams = new URLSearchParams();
