@@ -147,12 +147,14 @@ describe('course badge detail API', () => {
             ],
             lessonProgress: [
               {
+                lessonId: 'lesson-1',
                 status: 'COMPLETED',
                 startedAt: new Date('2026-01-01T00:00:00.000Z'),
                 completedAt: new Date('2026-01-03T00:00:00.000Z'),
                 percentComplete: 100,
               },
             ],
+            assessmentAttempts: [{ passed: true }],
           },
         },
         {
@@ -176,12 +178,14 @@ describe('course badge detail API', () => {
             ],
             lessonProgress: [
               {
+                lessonId: 'lesson-1',
                 status: 'COMPLETED',
                 startedAt: new Date('2026-01-01T00:00:00.000Z'),
                 completedAt: new Date('2026-01-02T00:00:00.000Z'),
                 percentComplete: 100,
               },
             ],
+            assessmentAttempts: [],
           },
         },
         {
@@ -195,6 +199,7 @@ describe('course badge detail API', () => {
             externalId: 'U3',
             badgeProgress: [],
             lessonProgress: [],
+            assessmentAttempts: [],
           },
         },
       ],
@@ -250,6 +255,102 @@ describe('course badge detail API', () => {
     expect(body.students[2]).toEqual(expect.objectContaining({ status: 'NOT_STARTED', progress: null }));
   });
 
+  // The instructor-facing rollup: three cohorts, with "still learning" split by
+  // how far each student got. See lib/badgeCohorts.ts.
+  it('returns the three-cohort rollup with a still-learning breakdown', async () => {
+    const response = await getBadgeDetail();
+    const body = await response.json();
+
+    expect(body.cohorts).toEqual({
+      totalStudents: 3,
+      proficient: { count: 1, percent: 33 },
+      notStarted: { count: 1, percent: 33 },
+      stillLearning: {
+        count: 1,
+        percent: 33,
+        lockedCount: 0,
+        stages: {
+          videoIncomplete: { count: 0, percent: 0 },
+          // Finished the lesson, cleared QEV, no in-person attempt yet.
+          videoComplete: { count: 1, percent: 33 },
+          attemptFailed: { count: 0, percent: 0 },
+          awaitingAward: { count: 0, percent: 0 },
+        },
+      },
+    });
+  });
+
+  it('separates students who were assessed in person and have not passed', async () => {
+    const badgeDetail = await mockFetchAccessibleBadgeDetail();
+    const completedLesson = {
+      lessonId: 'lesson-1',
+      status: 'COMPLETED',
+      startedAt: new Date('2026-01-01T00:00:00.000Z'),
+      completedAt: new Date('2026-01-02T00:00:00.000Z'),
+      percentComplete: 100,
+    };
+
+    mockFetchAccessibleBadgeDetail.mockResolvedValue({
+      ...badgeDetail,
+      enrollments: [
+        {
+          id: 'enrollment-failed',
+          role: 'STUDENT',
+          sections: [],
+          student: {
+            id: 'student-failed',
+            name: 'Failed Once',
+            email: 'failed@example.edu',
+            externalId: 'U1',
+            badgeProgress: [
+              {
+                id: 'progress-failed',
+                badgeId: 'badge-1',
+                status: 'READY_FOR_ASSESSMENT',
+                awardedAt: null,
+                score: null,
+                updatedAt: new Date('2026-01-05T00:00:00.000Z'),
+              },
+            ],
+            lessonProgress: [completedLesson],
+            assessmentAttempts: [{ passed: false }],
+          },
+        },
+        {
+          id: 'enrollment-locked',
+          role: 'STUDENT',
+          sections: [],
+          student: {
+            id: 'student-locked',
+            name: 'Out Of Retries',
+            email: 'locked@example.edu',
+            externalId: 'U2',
+            badgeProgress: [
+              {
+                id: 'progress-locked',
+                badgeId: 'badge-1',
+                status: 'LOCKED',
+                awardedAt: null,
+                score: null,
+                updatedAt: new Date('2026-01-06T00:00:00.000Z'),
+              },
+            ],
+            lessonProgress: [completedLesson],
+            assessmentAttempts: [{ passed: false }, { passed: false }],
+          },
+        },
+      ],
+    });
+
+    const response = await getBadgeDetail();
+    const body = await response.json();
+
+    expect(body.cohorts.stillLearning.count).toBe(2);
+    expect(body.cohorts.stillLearning.stages.attemptFailed).toEqual({ count: 2, percent: 100 });
+    expect(body.cohorts.stillLearning.stages.videoComplete).toEqual({ count: 0, percent: 0 });
+    expect(body.cohorts.stillLearning.lockedCount).toBe(1);
+  });
+
   // Regression for #97: StudentBadge rows are eagerly created with LEARNING at
   // badge creation/import, so a LEARNING row without any requirement-lesson
   // activity must still count as NOT_STARTED.
@@ -276,7 +377,10 @@ describe('course badge detail API', () => {
             email: 'untouched@example.edu',
             externalId: 'U1',
             badgeProgress: [{ ...learningProgress }],
-            lessonProgress: [{ status: 'NOT_STARTED', startedAt: null, completedAt: null, percentComplete: 0 }],
+            lessonProgress: [
+              { lessonId: 'lesson-1', status: 'NOT_STARTED', startedAt: null, completedAt: null, percentComplete: 0 },
+            ],
+            assessmentAttempts: [],
           },
         },
         {
@@ -291,12 +395,14 @@ describe('course badge detail API', () => {
             badgeProgress: [{ ...learningProgress, id: 'progress-active' }],
             lessonProgress: [
               {
+                lessonId: 'lesson-1',
                 status: 'IN_PROGRESS',
                 startedAt: new Date('2026-01-02T00:00:00.000Z'),
                 completedAt: null,
                 percentComplete: 20,
               },
             ],
+            assessmentAttempts: [],
           },
         },
       ],

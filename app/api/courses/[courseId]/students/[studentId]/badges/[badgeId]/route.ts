@@ -482,6 +482,43 @@ export async function GET(
           : 0
         : Math.min(100, Math.max(0, Math.round((completedCheckpoints / totalCheckpoints) * 100)));
 
+    // Video-lesson status for the profile overview. Read from LessonProgress
+    // rather than re-derived from checkpoint counts, so it matches what the
+    // student's own lesson list shows. A badge with several requirement lessons
+    // is complete only when every one of them is.
+    const lessonProgressRows = await prisma.lessonProgress.findMany({
+      where: { studentId, lessonId: { in: course.lessons.map((lesson) => lesson.id) } },
+      select: { lessonId: true, status: true, startedAt: true, completedAt: true, percentComplete: true },
+    });
+    const lessonProgressByLessonId = new Map(lessonProgressRows.map((row) => [row.lessonId, row]));
+
+    const lessonStatuses = course.lessons.map((lesson) => {
+      const row = lessonProgressByLessonId.get(lesson.id) ?? null;
+      const started =
+        Boolean(row?.startedAt || row?.completedAt) ||
+        row?.status === 'IN_PROGRESS' ||
+        row?.status === 'COMPLETED' ||
+        (row?.percentComplete ?? 0) > 0;
+      const complete = row?.status === 'COMPLETED' || Boolean(row?.completedAt);
+
+      return {
+        lessonId: lesson.id,
+        title: lesson.title,
+        status: complete ? 'COMPLETED' : started ? 'IN_PROGRESS' : 'NOT_STARTED',
+        percentComplete: row?.percentComplete ?? 0,
+      };
+    });
+
+    const lessonSummary = {
+      status:
+        lessonStatuses.every((entry) => entry.status === 'COMPLETED') && lessonStatuses.length > 0
+          ? 'COMPLETED'
+          : lessonStatuses.some((entry) => entry.status !== 'NOT_STARTED')
+            ? 'IN_PROGRESS'
+            : 'NOT_STARTED',
+      lessons: lessonStatuses,
+    };
+
     const latestActivity = flattenedCheckpoints
       .flatMap((checkpoint) =>
         checkpoint.attempts.map((attempt) => ({
@@ -698,6 +735,7 @@ export async function GET(
           totalCheckpoints,
           completedCheckpoints,
         },
+        lesson: lessonSummary,
         checkpoints,
         // Precheck answer history grouped by watch-through (run) for the viewer.
         qevAttempts,

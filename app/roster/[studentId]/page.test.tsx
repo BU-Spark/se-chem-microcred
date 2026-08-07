@@ -64,7 +64,7 @@ function createStudentProfilePayload() {
       },
     ],
     badges: {
-      inProgress: [
+      stillLearning: [
         {
           id: 'badge-1',
           slug: 'waste-handling',
@@ -73,6 +73,9 @@ function createStudentProfilePayload() {
           status: 'LEARNING',
           awardedAt: null,
           score: null,
+          stage: 'VIDEO_INCOMPLETE',
+          locked: false,
+          attemptCount: 0,
         },
       ],
       notStarted: [
@@ -81,19 +84,15 @@ function createStudentProfilePayload() {
           slug: 'bunsen-burner',
           name: 'Bunsen Burners',
           description: null,
+          status: null,
+          awardedAt: null,
+          score: null,
+          stage: null,
+          locked: false,
+          attemptCount: 0,
         },
       ],
-      inReview: [] as Array<{
-        id: string;
-        slug: string;
-        name: string;
-        description: string | null;
-
-        status: string;
-        awardedAt: string | null;
-        score: number | null;
-      }>,
-      completed: [
+      proficient: [
         {
           id: 'badge-3',
           slug: 'vent-hood',
@@ -103,6 +102,9 @@ function createStudentProfilePayload() {
           status: 'COMPLETED',
           awardedAt: '2026-03-22T10:00:00.000Z',
           score: 95,
+          stage: null,
+          locked: false,
+          attemptCount: 1,
         },
       ],
     },
@@ -120,6 +122,10 @@ function createInProgressBadgeDetailPayload() {
       status: 'LEARNING',
       awardedAt: null,
       score: null,
+    },
+    lesson: {
+      status: 'IN_PROGRESS',
+      lessons: [{ lessonId: 'lesson-1', title: 'Waste Handling Lesson', status: 'IN_PROGRESS', percentComplete: 70 }],
     },
     progress: {
       percentComplete: 70,
@@ -177,7 +183,7 @@ function createInProgressBadgeDetailPayload() {
               {
                 id: 'question-1',
                 title: 'Question 1',
-                prompt: 'Which container should be used?',
+                prompt: '<p>Which container should be used?</p>',
                 answers: [
                   { answeredText: 'Flask', isCorrect: false },
                   { answeredText: 'Beaker', isCorrect: true },
@@ -330,10 +336,14 @@ describe('Roster member profile page', () => {
     expect(screen.getByText('College graduate')).toBeInTheDocument();
     expect(screen.getByText('Yes')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Not yet started/i }));
+    // The three cohorts match the course badge page: Still Learning is open, the
+    // other two collapse.
+    expect(screen.getByRole('heading', { name: 'Still Learning' })).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Not Started/i }));
     expect(screen.getByText('Bunsen Burners')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Completed/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Proficient/i }));
     expect(screen.getByText('Vent Hood Safety')).toBeInTheDocument();
   });
 
@@ -410,7 +420,7 @@ describe('Roster member profile page', () => {
 
     // Completed badges default to the Assessment history tab.
     expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Assessment history' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'In-person assessment' })).toBeInTheDocument();
     expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('100%');
 
     fireEvent.click(screen.getByRole('button', { name: 'Attempt 1' }));
@@ -424,13 +434,13 @@ describe('Roster member profile page', () => {
   it('shows assessment history for a badge ready for finalization', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
     const profilePayload = createStudentProfilePayload();
-    profilePayload.badges.inReview = [
+    profilePayload.badges.stillLearning = [
       {
-        ...profilePayload.badges.inProgress[0],
+        ...profilePayload.badges.stillLearning[0],
         status: 'IN_REVIEW',
       },
     ];
-    profilePayload.badges.inProgress = [];
+
     const detailPayload = createCompletedBadgeDetailPayload();
     detailPayload.badge.id = 'badge-1';
     detailPayload.badge.slug = 'waste-handling';
@@ -458,19 +468,18 @@ describe('Roster member profile page', () => {
     expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
     // Assessment history tab is default; the Precheck tab is available but not active.
     expect(screen.getByRole('button', { name: 'Attempt 1' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Precheck answer history' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Video lesson results' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Open Assessment View' })).not.toBeInTheDocument();
   });
 
   it('lists assessment-passed badges in the ready for finalization section', async () => {
     const profilePayload = createStudentProfilePayload();
-    profilePayload.badges.inReview = [
+    profilePayload.badges.stillLearning = [
       {
-        ...profilePayload.badges.inProgress[0],
+        ...profilePayload.badges.stillLearning[0],
         status: 'IN_REVIEW',
       },
     ];
-    profilePayload.badges.inProgress = [];
 
     mockFetch.mockResolvedValue({
       ok: true,
@@ -479,7 +488,7 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByRole('heading', { name: 'In review' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Still Learning' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Waste Handling' })).toBeInTheDocument();
   });
 
@@ -641,7 +650,7 @@ describe('Roster member profile page', () => {
           },
         ],
         badges: {
-          inProgress: [
+          stillLearning: [
             {
               id: 'badge-1',
               slug: 'waste-handling',
@@ -661,8 +670,7 @@ describe('Roster member profile page', () => {
               description: null,
             },
           ],
-          inReview: [],
-          completed: [],
+          proficient: [],
         },
       }),
     });
@@ -695,6 +703,63 @@ describe('Roster member profile page', () => {
     expect(screen.getByText('College graduate')).toBeInTheDocument();
     expect(screen.getByText('No')).toBeInTheDocument();
 
-    expect(screen.queryByRole('button', { name: /Not yet started/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Not Started/i })).not.toBeInTheDocument();
+  });
+  // Overview: the two lines an instructor reads first — where the video stands and
+  // how the in-person assessment has gone.
+  it('summarises the video lesson and in-person assessment for the selected badge', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    mockFetch.mockImplementation(async (url: RequestInfo | URL) => {
+      if (String(url).includes('/badges/badge-1')) {
+        return { ok: true, json: async () => createInProgressBadgeDetailPayload() } as Response;
+      }
+      return { ok: true, json: async () => createStudentProfilePayload() } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+    expect(screen.getByText('Video lesson:')).toBeInTheDocument();
+    expect(screen.getByText('In progress')).toBeInTheDocument();
+    expect(screen.getByText('In-person assessment:')).toBeInTheDocument();
+    expect(screen.getByText('Not yet assessed')).toBeInTheDocument();
+  });
+
+  it('counts in-person attempts for a student who has not passed yet', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    const detail = createInProgressBadgeDetailPayload();
+    detail.lesson.status = 'COMPLETED';
+    detail.assessment.attemptCount = 2;
+
+    mockFetch.mockImplementation(async (url: RequestInfo | URL) => {
+      if (String(url).includes('/badges/badge-1')) {
+        return { ok: true, json: async () => detail } as Response;
+      }
+      return { ok: true, json: async () => createStudentProfilePayload() } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByText('Completed')).toBeInTheDocument();
+    expect(screen.getByText('2 attempts, not yet passed')).toBeInTheDocument();
+  });
+
+  // Regression: prompts are rich text, and were printed raw so the <p> wrappers
+  // showed up in the answer history.
+  it('renders rich-text question prompts without leaking their markup', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    mockFetch.mockImplementation(async (url: RequestInfo | URL) => {
+      if (String(url).includes('/badges/badge-1')) {
+        return { ok: true, json: async () => createInProgressBadgeDetailPayload() } as Response;
+      }
+      return { ok: true, json: async () => createStudentProfilePayload() } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+    await screen.findByText('Student Progress for:');
+
+    const prompt = await screen.findByText('Which container should be used?');
+    expect(prompt).toBeInTheDocument();
+    expect(document.body.innerHTML).not.toContain('&lt;p&gt;Which container');
   });
 });

@@ -92,6 +92,10 @@ const PREVIEW_DURATION = 300;
 // Minimal stand-in for the YouTube IFrame API. Without it the component never
 // learns the video duration, and the timeline (checkpoint markers, scrubber
 // bounds) stays unrendered.
+// Player event handlers the component registers, so a test can drive playback
+// (e.g. fire ENDED) without a real iframe.
+const playerEvents: { onStateChange?: (event: { data: number }) => void } = {};
+
 function installFakeYouTubePlayer(duration = PREVIEW_DURATION) {
   const player = {
     playVideo: jest.fn(),
@@ -110,8 +114,12 @@ function installFakeYouTubePlayer(duration = PREVIEW_DURATION) {
   (window as unknown as { YT: unknown }).YT = {
     // onReady is deferred because the component assigns playerRef *after* the
     // constructor returns, and reads it inside the handler.
-    Player: function FakePlayer(_element: HTMLElement, options: { events?: { onReady?: () => void } }) {
+    Player: function FakePlayer(
+      _element: HTMLElement,
+      options: { events?: { onReady?: () => void; onStateChange?: (event: { data: number }) => void } }
+    ) {
       setTimeout(() => options.events?.onReady?.(), 0);
+      playerEvents.onStateChange = options.events?.onStateChange;
       return player;
     },
     PlayerState: { UNSTARTED: -1, ENDED: 0, PLAYING: 1, PAUSED: 2, BUFFERING: 3, CUED: 5 },
@@ -347,6 +355,117 @@ describe('LessonVideoPage', () => {
       // is a first-time run, just with the scrubber unlocked.
       expect(screen.queryByRole('button', { name: /Review checkpoint/i })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Finish lesson' })).toBeInTheDocument();
+    });
+  });
+  // The QEV rating is required: a passing student rates the lesson before the
+  // completion card (and its assessment QR) appears. See lib/surveyRatings.ts and
+  // POST /api/lessons/[lessonId]/survey.
+  describe('QEV rating', () => {
+    function mockLessonApis({ passed = true }: { passed?: boolean } = {}) {
+      const calls: string[] = [];
+      global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+        const href = String(url);
+        calls.push(href);
+
+        if (href.includes('/grade')) {
+          return {
+            ok: true,
+            json: async () => ({ passed, gradePercent: 90, passingPercent: 70, correctAnswers: 9, totalQuestions: 10 }),
+          };
+        }
+
+        return { ok: true, json: async () => ({}) };
+      }) as unknown as typeof fetch;
+
+      return calls;
+    }
+
+    async function renderFinishedLesson() {
+      installFakeYouTubePlayer();
+      render(
+        <LessonVideoPage
+          lesson={buildLesson({
+            ...withVideo(),
+            answeredCheckpointIds: ['checkpoint-1', 'checkpoint-2'],
+            completedCheckpointIds: ['checkpoint-1', 'checkpoint-2'],
+          })}
+          studentEmail="student@example.edu"
+          studentId="student-1"
+          resumeRequested={false}
+        />
+      );
+      await flushPlayerReady();
+
+      // Playing through to the end is the other half of the Finish gate.
+      await act(async () => {
+        playerEvents.onStateChange?.({ data: 0 });
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Finish lesson' }));
+      });
+    }
+
+    it('asks a passing student to rate before showing the completion card', async () => {
+      mockLessonApis();
+      await renderFinishedLesson();
+
+      expect(screen.getByText('How was this lesson?')).toBeInTheDocument();
+      expect(screen.queryByText('Lesson Completed')).not.toBeInTheDocument();
+    });
+
+    it('will not submit until a face is picked', async () => {
+      mockLessonApis();
+      await renderFinishedLesson();
+
+      expect(screen.getByRole('button', { name: 'Pick a rating' })).toBeDisabled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Very happy' }));
+      expect(screen.getByRole('button', { name: 'Submit rating' })).toBeEnabled();
+    });
+
+    it('posts the rating, then shows the completion card', async () => {
+      const calls = mockLessonApis();
+      await renderFinishedLesson();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Slightly happy' }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Submit rating' }));
+      });
+
+      expect(calls.some((url) => url.includes('/survey'))).toBe(true);
+      const surveyCall = (global.fetch as jest.Mock).mock.calls.find(([url]) => String(url).includes('/survey'));
+      expect(JSON.parse(surveyCall?.[1]?.body as string)).toEqual({ email: 'student@example.edu', rating: 4 });
+      expect(screen.getByText('Lesson Completed')).toBeInTheDocument();
+    });
+
+    it('never asks a student who failed', async () => {
+      mockLessonApis({ passed: false });
+      await renderFinishedLesson();
+
+      expect(screen.queryByText('How was this lesson?')).not.toBeInTheDocument();
+      expect(screen.getByText('Lesson needs another try')).toBeInTheDocument();
+    });
+
+    it('never asks in instructor preview, which has no student to attribute it to', async () => {
+      mockLessonApis();
+      installFakeYouTubePlayer();
+      render(
+        <LessonVideoPage
+          lesson={buildLesson(withVideo())}
+          studentEmail="instructor@example.edu"
+          studentId="instructor-1"
+          resumeRequested={false}
+          previewMode
+        />
+      );
+      await flushPlayerReady();
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Finish lesson' }));
+      });
+
+      expect(screen.queryByText('How was this lesson?')).not.toBeInTheDocument();
     });
   });
 });

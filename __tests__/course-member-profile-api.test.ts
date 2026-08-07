@@ -17,6 +17,9 @@ jest.mock('../lib/prisma', () => {
     enrollment: {
       findMany: jest.fn(),
     },
+    assessmentAttempt: {
+      findMany: jest.fn(),
+    },
   };
 
   return { __esModule: true, default: prisma, prisma };
@@ -27,6 +30,9 @@ const mockFetchAccessibleCourseMemberDetail = fetchAccessibleCourseMemberDetail 
 >;
 const mockFetchUserByEmail = fetchUserByEmail as jest.MockedFunction<typeof fetchUserByEmail>;
 const mockFindManyEnrollments = prisma.enrollment.findMany as jest.MockedFunction<typeof prisma.enrollment.findMany>;
+const mockFindManyAttempts = prisma.assessmentAttempt.findMany as jest.MockedFunction<
+  typeof prisma.assessmentAttempt.findMany
+>;
 
 function profileRequest() {
   return new NextRequest('http://localhost/api/courses/course-1/students/student-1?email=prof%40example.edu');
@@ -166,6 +172,7 @@ describe('course member profile API badge grouping', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFindManyEnrollments.mockResolvedValue([]);
+    mockFindManyAttempts.mockResolvedValue([]);
     mockFetchUserByEmail.mockResolvedValue({
       id: 'prof-1',
       email: 'prof@example.edu',
@@ -183,7 +190,7 @@ describe('course member profile API badge grouping', () => {
 
     expect(response.status).toBe(200);
     expect(body.badges.notStarted).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'badge-seeded' })]));
-    expect(body.badges.inProgress).not.toEqual(
+    expect(body.badges.stillLearning).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'badge-seeded' })])
     );
   });
@@ -195,9 +202,44 @@ describe('course member profile API badge grouping', () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.badges.inProgress).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'badge-started' })]));
+    expect(body.badges.stillLearning).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'badge-started' })])
+    );
     expect(body.badges.notStarted).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'badge-started' })])
+    );
+  });
+
+  // The profile groups badges with the same rule as the course badge page
+  // (lib/badgeCohorts.ts), so a failed in-person attempt outranks lesson progress.
+  it('moves a badge with a failed in-person attempt into still learning', async () => {
+    mockFetchAccessibleCourseMemberDetail.mockResolvedValue(courseFixture({ seededLearningBadgeStarted: false }));
+    mockFindManyAttempts.mockResolvedValue([{ badgeId: 'badge-seeded', passed: false }] as never);
+
+    const response = await GET(profileRequest(), routeContext());
+    const body = await response.json();
+
+    expect(body.badges.stillLearning).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'badge-seeded', stage: 'ATTEMPT_FAILED', attemptCount: 1 }),
+      ])
+    );
+    expect(body.badges.notStarted).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'badge-seeded' })])
+    );
+  });
+
+  // A student may be enrolled in several courses under different instructors, so
+  // attempts are read for this course only.
+  it('reads assessment attempts scoped to this course and student', async () => {
+    mockFetchAccessibleCourseMemberDetail.mockResolvedValue(courseFixture({ seededLearningBadgeStarted: true }));
+
+    await GET(profileRequest(), routeContext());
+
+    expect(mockFindManyAttempts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ courseId: 'course-1', studentId: 'student-1' }),
+      })
     );
   });
 });

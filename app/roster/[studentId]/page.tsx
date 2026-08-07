@@ -72,10 +72,9 @@ type InstructorMemberProfileResponse = {
   };
   contacts: Contact[];
   badges: {
-    inProgress: StudentProfileBadge[];
+    proficient: StudentProfileBadge[];
+    stillLearning: StudentProfileBadge[];
     notStarted: StudentProfileBadge[];
-    inReview: StudentProfileBadge[];
-    completed: StudentProfileBadge[];
   };
 };
 
@@ -273,10 +272,10 @@ export default function InstructorStudentProfilePage() {
 
   const selectedBadgeTone: BadgeDetailTone | null = useMemo(() => {
     if (!selectedBadgeId || !data) return null;
-    const { inProgress, completed, inReview } = data.badges;
+    const { proficient, stillLearning } = data.badges;
     const matches = (list: { id: string }[]) => list.some((badge) => badge.id === selectedBadgeId);
-    if (matches(completed) || matches(inReview)) return 'completed';
-    if (matches(inProgress)) return 'progress';
+    if (matches(proficient)) return 'completed';
+    if (matches(stillLearning)) return 'progress';
     return null;
   }, [data, selectedBadgeId]);
 
@@ -559,19 +558,44 @@ export default function InstructorStudentProfilePage() {
                       </div>
                     </div>
 
-                    <section className={styles.badgeSection}>
-                      <h3 className={styles.badgeSectionTitle}>In-progress</h3>
-                      <BadgeGrid badges={data.badges.inProgress} onSelectBadge={handleBadgeSelect} />
-                    </section>
+                    <div className={styles.cohortStrip}>
+                      <div className={styles.cohortStat} data-tone="proficient">
+                        <span className={styles.cohortStatValue}>{data.badges.proficient.length}</span>
+                        <span className={styles.cohortStatLabel}>Proficient</span>
+                      </div>
+                      <div className={styles.cohortStat} data-tone="learning">
+                        <span className={styles.cohortStatValue}>{data.badges.stillLearning.length}</span>
+                        <span className={styles.cohortStatLabel}>Still Learning</span>
+                      </div>
+                      <div className={styles.cohortStat} data-tone="notStarted">
+                        <span className={styles.cohortStatValue}>{data.badges.notStarted.length}</span>
+                        <span className={styles.cohortStatLabel}>Not Started</span>
+                      </div>
+                    </div>
 
                     <section className={styles.badgeSection}>
-                      <h3 className={styles.badgeSectionTitle}>In review</h3>
-                      <BadgeGrid badges={data.badges.inReview} tone="completed" onSelectBadge={handleBadgeSelect} />
+                      <h3 className={styles.badgeSectionTitle}>Still Learning</h3>
+                      <BadgeGrid badges={data.badges.stillLearning} onSelectBadge={handleBadgeSelect} />
                     </section>
 
                     <section className={styles.badgeSection}>
                       <CollapsibleSection
-                        title="Not yet started"
+                        title="Proficient"
+                        isOpen={isCompletedOpen}
+                        onToggle={() => setIsCompletedOpen((current) => !current)}
+                        panelId="proficient-badges"
+                        buttonClassName={styles.accordionRow}
+                        panelClassName={styles.accordionPanel}
+                        chevronClassName={styles.chevron}
+                        chevronOpenClassName={styles.chevronOpen}
+                      >
+                        <BadgeGrid badges={data.badges.proficient} tone="completed" onSelectBadge={handleBadgeSelect} />
+                      </CollapsibleSection>
+                    </section>
+
+                    <section className={styles.badgeSection}>
+                      <CollapsibleSection
+                        title="Not Started"
                         isOpen={isNotStartedOpen}
                         onToggle={() => setIsNotStartedOpen((current) => !current)}
                         panelId="not-started-badges"
@@ -581,21 +605,6 @@ export default function InstructorStudentProfilePage() {
                         chevronOpenClassName={styles.chevronOpen}
                       >
                         <BadgeGrid badges={data.badges.notStarted} tone="pending" />
-                      </CollapsibleSection>
-                    </section>
-
-                    <section className={styles.badgeSection}>
-                      <CollapsibleSection
-                        title="Completed"
-                        isOpen={isCompletedOpen}
-                        onToggle={() => setIsCompletedOpen((current) => !current)}
-                        panelId="completed-badges"
-                        buttonClassName={styles.accordionRow}
-                        panelClassName={styles.accordionPanel}
-                        chevronClassName={styles.chevron}
-                        chevronOpenClassName={styles.chevronOpen}
-                      >
-                        <BadgeGrid badges={data.badges.completed} tone="completed" onSelectBadge={handleBadgeSelect} />
                       </CollapsibleSection>
                     </section>
                   </section>

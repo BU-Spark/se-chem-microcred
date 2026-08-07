@@ -1,0 +1,235 @@
+/* Matches the borderless section treatment on the rest of the badge page: a rule
+   under the heading, cards as soft fills. */
+.section {
+  margin-bottom: 2.75rem;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.7rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #e3e6ea;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: #000000;
+  font-family: 'Lato', sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.sectionNote {
+  margin: 0;
+  color: #5f6b7a;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas:
+    'head head'
+    'score histogram'
+    'extra extra';
+  align-items: center;
+  gap: 1rem 1.75rem;
+  padding: 1.35rem 1.5rem;
+  border-radius: 18px;
+  background: #f5f7fa;
+}
+
+.cardHead {
+  grid-area: head;
+}
+
+.cardTitle {
+  margin: 0;
+  color: #1d1d1d;
+  font-family: 'Lato', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.cardHint {
+  margin: 0.2rem 0 0;
+  color: #5f6b7a;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+}
+
+.empty {
+  grid-area: score / score / histogram / histogram;
+  margin: 0;
+  color: #5f6b7a;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+}
+
+.score {
+  grid-area: score;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+}
+
+.scoreFace {
+  width: 3rem;
+  height: 3rem;
+}
+
+.scoreValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  margin: 0.35rem 0 0;
+  color: #1d1d1d;
+  font-family: 'Lato', sans-serif;
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.scoreOutOf {
+  color: #5f6b7a;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.scoreCount {
+  margin: 0;
+  color: #5f6b7a;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Rating / bar / count on one three-column track so bars share a baseline. */
+.histogram {
+  grid-area: histogram;
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) 1.75rem;
+  gap: 0.3rem 0.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.histogramRow {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+}
+
+.histogramLabel,
+.histogramCount {
+  color: #5f6b7a;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.histogramCount {
+  text-align: right;
+}
+
+.histogramTrack {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: #e3e8ee;
+  overflow: hidden;
+}
+
+.histogramFill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #2e6aa9;
+}
+
+.lessonToggle {
+  grid-area: extra;
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #2e6aa9;
+  cursor: pointer;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.lessonList {
+  grid-area: extra;
+  margin: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.lessonList[hidden] {
+  display: none;
+}
+
+.lessonRow {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid #e3e8ee;
+}
+
+.lessonTitle {
+  margin: 0;
+  color: #1d1d1d;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+}
+
+.lessonValue {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  color: #1d1d1d;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.lessonCount {
+  color: #5f6b7a;
+  font-weight: 400;
+}
+
+@media (max-width: 1100px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 800px) {
+  .sectionTitle {
+    font-size: 30px;
+  }
+}

@@ -1,25 +1,16 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import Image, { type StaticImageData } from 'next/image';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal';
+import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import { useStudentData, type LessonRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
-import veryUnhappy from '../../public/assets/survey_faces/very_unhappy.svg';
-import slightlyUnhappy from '../../public/assets/survey_faces/slightly_unhappy.svg';
-import neutral from '../../public/assets/survey_faces/neutral.svg';
-import slightlyHappy from '../../public/assets/survey_faces/slightly_happy.svg';
-import veryHappy from '../../public/assets/survey_faces/very_happy.svg';
-import veryUnhappySelected from '../../public/assets/survey_faces/very_unhappy_selected.svg';
-import slightlyUnhappySelected from '../../public/assets/survey_faces/slightly_unhappy_selected.svg';
-import neutralSelected from '../../public/assets/survey_faces/neutral_selected.svg';
-import slightlyHappySelected from '../../public/assets/survey_faces/slightly_happy_selected.svg';
-import veryHappySelected from '../../public/assets/survey_faces/very_happy_selected.svg';
 
 interface LessonCard {
   id: string;
@@ -219,29 +210,6 @@ function HomePageContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
-
-  const FACE_IMAGES: Record<number, StaticImageData> = {
-    1: veryUnhappy,
-    2: slightlyUnhappy,
-    3: neutral,
-    4: slightlyHappy,
-    5: veryHappy,
-  };
-  const FACE_IMAGES_SELECTED: Record<number, StaticImageData> = {
-    1: veryUnhappySelected,
-    2: slightlyUnhappySelected,
-    3: neutralSelected,
-    4: slightlyHappySelected,
-    5: veryHappySelected,
-  };
-
-  const FACE_ALTS: Record<number, string> = {
-    1: 'Very unhappy',
-    2: 'Slightly unhappy',
-    3: 'Neutral',
-    4: 'Slightly happy',
-    5: 'Very happy',
-  };
 
   const displayName = studentData?.student?.name || user?.fullName || 'Student';
   const courseTitle = studentData?.course?.title ?? '';
@@ -592,12 +560,7 @@ function HomePageContent() {
         <SurveyModal
           title="Tell us about your experience."
           question={activeSurvey.question}
-          options={[1, 2, 3, 4, 5].map((value) => ({
-            value,
-            label: FACE_ALTS[value],
-            icon: FACE_IMAGES[value],
-            selectedIcon: FACE_IMAGES_SELECTED[value],
-          }))}
+          options={surveyFaceOptions()}
           value={surveyRating}
           onChange={setSurveyRating}
           onSubmit={handleSubmitSurvey}
