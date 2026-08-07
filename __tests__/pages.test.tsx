@@ -374,17 +374,25 @@ describe('Home page', () => {
     expect(mockReplace).toHaveBeenCalledWith('/splash');
   });
 
-  it('renders merged course sections and surfaces survey modal when deep-linked', async () => {
-    mockSearchParams = new URLSearchParams({ surveyBadge: 'final-badge' });
+  it('renders merged course sections', async () => {
     render(<HomePage />);
 
     expect(await screen.findByText(/Instructor Courses/i)).toBeInTheDocument();
     expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
     expect(screen.getByText(/My Enrolled Courses/i)).toBeInTheDocument();
     expect(await screen.findByText('Chem 101')).toBeInTheDocument();
+  });
 
-    expect(screen.getByText(/Finish your survey/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Submit/i })).toBeInTheDocument();
+  // Home no longer hosts the badge survey: a ?surveyBadge deep link hands off to
+  // the badge's own feedback page.
+  it('redirects a survey deep link to the badge feedback page', async () => {
+    mockSearchParams = new URLSearchParams({ surveyBadge: 'final-badge' });
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/badges/final-badge/feedback');
+    });
+    expect(screen.queryByText(/Finish your survey/i)).not.toBeInTheDocument();
   });
 
   it('shows an assessment access modal from QR redirects and clears the query on close', async () => {
