@@ -115,6 +115,8 @@ model Course {
   settings    CourseSettings?
   assessments AssessmentAttempt[]
   messages    Message[]
+
+  @@index([createdById])
 }
 
 model CourseSettings {
