@@ -762,4 +762,31 @@ describe('Roster member profile page', () => {
     expect(prompt).toBeInTheDocument();
     expect(document.body.innerHTML).not.toContain('&lt;p&gt;Which container');
   });
+  // Regression: arriving with ?badgeId (badge roster panel, assessment view) used
+  // to render the badge detail alone — no cohort counts, and no way back to the
+  // student's other badges.
+  it('shows the cohort overview and a way back when opened straight into a badge', async () => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+    mockFetch.mockImplementation(async (url: RequestInfo | URL) => {
+      if (String(url).includes('/badges/badge-1')) {
+        return { ok: true, json: async () => createInProgressBadgeDetailPayload() } as Response;
+      }
+      return { ok: true, json: async () => createStudentProfilePayload() } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    // The badge detail still renders...
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+
+    // ...alongside the per-student cohort counts.
+    expect(screen.getByText('Proficient')).toBeInTheDocument();
+    expect(screen.getByText('Still Learning')).toBeInTheDocument();
+    expect(screen.getByText('Not Started')).toBeInTheDocument();
+
+    // And the page is no longer a dead end.
+    const backLink = screen.getByRole('link', { name: /All badges/ });
+    expect(backLink).toHaveAttribute('href', expect.stringContaining('courseId=course-1'));
+    expect(backLink.getAttribute('href')).not.toContain('badgeId');
+  });
 });

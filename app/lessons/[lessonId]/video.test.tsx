@@ -128,10 +128,18 @@ function installFakeYouTubePlayer(duration = PREVIEW_DURATION) {
   return player;
 }
 
+// Booting the player is a chain, not a single tick: loadYouTubeIframeApi()
+// resolves as a microtask, its .then constructs the player, and the fake defers
+// onReady (which sets duration) to a further macrotask. Whether render()'s act
+// happens to drain the microtask first decides whether one tick is enough — which
+// is why a single flush passed alone and failed in a full run. Drain a few ticks
+// so the whole chain has settled regardless of that ordering.
 async function flushPlayerReady() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 0));
-  });
+  for (let tick = 0; tick < 3; tick += 1) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  }
 }
 
 function withVideo(): Partial<LessonRecord> {

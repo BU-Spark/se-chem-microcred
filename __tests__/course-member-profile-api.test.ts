@@ -242,4 +242,43 @@ describe('course member profile API badge grouping', () => {
       })
     );
   });
+  // A student may be enrolled with several instructors. The profile is scoped to
+  // one course, so nothing from another course may appear — not in any cohort,
+  // even when the student carries progress rows for those badges.
+  describe('course scoping', () => {
+    it('never surfaces a badge that no lesson in this course requires', async () => {
+      const fixture = courseFixture({ seededLearningBadgeStarted: true });
+      // Simulate the query leaking a foreign progress row: the badge belongs to a
+      // different instructor's course and has no requirement here.
+      fixture.enrollments[1].student.badgeProgress.push({
+        id: 'student-badge-foreign',
+        badgeId: 'badge-from-other-course',
+        status: BadgeStatus.COMPLETED,
+        awardedAt: new Date('2026-05-01T00:00:00.000Z'),
+        score: 100,
+        badge: badge('badge-from-other-course', 'Other Course Badge'),
+      } as never);
+      mockFetchAccessibleCourseMemberDetail.mockResolvedValue(fixture);
+
+      const body = await (await GET(profileRequest(), routeContext())).json();
+
+      const everyBadgeId = [...body.badges.proficient, ...body.badges.stillLearning, ...body.badges.notStarted].map(
+        (entry: { id: string }) => entry.id
+      );
+
+      expect(everyBadgeId).not.toContain('badge-from-other-course');
+      // Only this course's two badges are reported.
+      expect(everyBadgeId.sort()).toEqual(['badge-seeded', 'badge-started']);
+    });
+
+    it('scopes the badge list to the lessons of the requested course', async () => {
+      mockFetchAccessibleCourseMemberDetail.mockResolvedValue(courseFixture({ seededLearningBadgeStarted: true }));
+
+      await GET(profileRequest(), routeContext());
+
+      // The course lookup itself carries both the course id and the member id, so
+      // a viewer cannot read a student who is not enrolled here.
+      expect(mockFetchAccessibleCourseMemberDetail).toHaveBeenCalledWith('prof-1', 'course-1', 'student-1');
+    });
+  });
 });

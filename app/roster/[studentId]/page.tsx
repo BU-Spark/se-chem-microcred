@@ -406,6 +406,27 @@ export default function InstructorStudentProfilePage() {
   const memberAvatarSrc = avatarAsset(data?.member.avatar?.base);
   const displayName = data?.course.createdBy?.name || '';
 
+  // The per-student cohort counts render on every route into this page, including
+  // the badge-scoped ones (badge roster panel, assessment view) that open straight
+  // into a badge's detail. Without this, arriving with ?badgeId showed the detail
+  // card alone, with no counts and no way back to the student's other badges.
+  const cohortOverview = data ? (
+    <div className={styles.cohortStrip}>
+      <div className={styles.cohortStat} data-tone="proficient">
+        <span className={styles.cohortStatValue}>{data.badges.proficient.length}</span>
+        <span className={styles.cohortStatLabel}>Proficient</span>
+      </div>
+      <div className={styles.cohortStat} data-tone="learning">
+        <span className={styles.cohortStatValue}>{data.badges.stillLearning.length}</span>
+        <span className={styles.cohortStatLabel}>Still Learning</span>
+      </div>
+      <div className={styles.cohortStat} data-tone="notStarted">
+        <span className={styles.cohortStatValue}>{data.badges.notStarted.length}</span>
+        <span className={styles.cohortStatLabel}>Not Started</span>
+      </div>
+    </div>
+  ) : null;
+
   if (!isLoaded || !isSignedIn) {
     return null;
   }
@@ -495,6 +516,30 @@ export default function InstructorStudentProfilePage() {
               {showBadgesSection ? (
                 selectedBadgeId && selectedBadgeTone ? (
                   <>
+                    <section className={styles.badgesCard}>
+                      <div className={styles.badgesHeader}>
+                        <div>
+                          <h2 className={styles.badgesTitle}>{currentProfileLabel} Badges</h2>
+                        </div>
+                        <div className={styles.badgesHeaderMeta}>
+                          <Link href={buildProfileHref(null)} className={styles.assessmentLink}>
+                            ← All badges
+                          </Link>
+                          {MESSAGING_ENABLED ? (
+                            <button
+                              type="button"
+                              className={styles.assessmentLink}
+                              onClick={() => setIsMessageOpen(true)}
+                            >
+                              Message student
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {cohortOverview}
+                    </section>
+
                     {isBadgeDetailLoading ? (
                       <section className={styles.detailCard}>
                         <p className={styles.statusMessage}>Loading badge details...</p>
@@ -558,20 +603,7 @@ export default function InstructorStudentProfilePage() {
                       </div>
                     </div>
 
-                    <div className={styles.cohortStrip}>
-                      <div className={styles.cohortStat} data-tone="proficient">
-                        <span className={styles.cohortStatValue}>{data.badges.proficient.length}</span>
-                        <span className={styles.cohortStatLabel}>Proficient</span>
-                      </div>
-                      <div className={styles.cohortStat} data-tone="learning">
-                        <span className={styles.cohortStatValue}>{data.badges.stillLearning.length}</span>
-                        <span className={styles.cohortStatLabel}>Still Learning</span>
-                      </div>
-                      <div className={styles.cohortStat} data-tone="notStarted">
-                        <span className={styles.cohortStatValue}>{data.badges.notStarted.length}</span>
-                        <span className={styles.cohortStatLabel}>Not Started</span>
-                      </div>
-                    </div>
+                    {cohortOverview}
 
                     <section className={styles.badgeSection}>
                       <h3 className={styles.badgeSectionTitle}>Still Learning</h3>
