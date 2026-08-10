@@ -371,13 +371,13 @@ describe('Home page', () => {
     expect(mockReplace).toHaveBeenCalledWith('/splash');
   });
 
-  it('renders merged course sections and surfaces survey modal when deep-linked', async () => {
+  it('renders tabbed course permissions and surfaces survey modal when deep-linked', async () => {
     mockSearchParams = new URLSearchParams({ surveyBadge: 'final-badge' });
     render(<HomePage />);
 
-    expect(await screen.findByText(/Instructor Courses/i)).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: /Instructor/i })).toBeInTheDocument();
     expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
-    expect(screen.getByText(/My Enrolled Courses/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /Enrolled/i }));
     expect(await screen.findByText('Chem 101')).toBeInTheDocument();
 
     expect(screen.getByText(/Finish your survey/i)).toBeInTheDocument();

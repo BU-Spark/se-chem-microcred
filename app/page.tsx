@@ -7,6 +7,7 @@ import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
+import { Icon } from '@iconify/react';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type StudentData } from './hooks/useStudentData';
 import styles from './page.module.css';
@@ -187,6 +188,7 @@ function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: str
           iconBgColor={course.iconBgColor}
           iconFgColor={course.iconFgColor}
           title={course.title}
+          iconScale={0.38}
           fallback={
             thumbnailUrl ? (
               <Image
@@ -201,22 +203,11 @@ function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: str
             )
           }
         />
+        <div className={courseStyles.courseCardOverlay}>
+          <h3 className={courseStyles.courseCardTitle}>{course.title}</h3>
+          <Icon icon="lucide:arrow-up-right" className={courseStyles.courseCardArrow} aria-hidden="true" />
+        </div>
       </div>
-
-      <div className={courseStyles.courseText}>
-        <h3 className={courseStyles.courseTitle}>{course.title}</h3>
-      </div>
-    </Link>
-  );
-}
-
-function AddCourseCard() {
-  return (
-    <Link href="/courses/new" className={styles.addTile} data-testid="add-course-card" aria-label="Create a course">
-      <div className={styles.addTileMedia}>
-        <span className={styles.addTilePlus}>+</span>
-      </div>
-      <p className={styles.addTileLabel}>Create a Course</p>
     </Link>
   );
 }
@@ -273,6 +264,7 @@ function HomeContent() {
   const checkerCoursesError = coursesError;
 
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [activeCourseTab, setActiveCourseTab] = useState<'instructor' | 'enrolled' | 'checker'>('instructor');
   const [activeSurvey, setActiveSurvey] = useState<{
     promptId: string;
     badgeId: string;
@@ -355,14 +347,7 @@ function HomeContent() {
     [enrolled]
   );
 
-  // Role gating: the three course endpoints already segment by role, so data presence
-  // is a reliable signal for which sections to surface.
-  const hasCreated = createdCourses.length > 0;
-  const hasChecker = checkerEnrollments.length > 0;
-  const hasEnrolled = enrolledCourseCards.length > 0;
   const isLoadingRoles = isLoadingCreated || isLoadingCheckerCourses || isLoadingEnrolled;
-  // Instructors (and brand-new users with no role context) see "My Courses".
-  const showMyCourses = hasCreated || (!hasChecker && !hasEnrolled);
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.replace('/splash');
@@ -558,6 +543,7 @@ function HomeContent() {
             iconBgColor={course.iconBgColor}
             iconFgColor={course.iconFgColor}
             title={course.title}
+            iconScale={0.38}
             fallback={
               isYouTubeThumb ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -573,10 +559,10 @@ function HomeContent() {
               )
             }
           />
-        </div>
-
-        <div className={courseStyles.courseText}>
-          <h3 className={courseStyles.courseTitle}>{course.title}</h3>
+          <div className={courseStyles.courseCardOverlay}>
+            <h3 className={courseStyles.courseCardTitle}>{course.title}</h3>
+            <Icon icon="lucide:arrow-up-right" className={courseStyles.courseCardArrow} aria-hidden="true" />
+          </div>
         </div>
       </Link>
     );
@@ -588,18 +574,8 @@ function HomeContent() {
 
       <main className={`main ${styles.main}`}>
         <header className={styles.welcomeHeader}>
-          <h1 className={styles.welcomeTitle}>Welcome, {displayName || 'Professor'}</h1>
-          <p className={styles.welcomeSubtitle}>
-            {isLoadingRoles
-              ? 'Loading your courses…'
-              : showMyCourses
-                ? hasCreated
-                  ? `You have ${createdCourses.length} course${createdCourses.length === 1 ? '' : 's'}.`
-                  : 'You have no existing courses.'
-                : hasEnrolled
-                  ? `You are enrolled in ${enrolledCourseCards.length} course${enrolledCourseCards.length === 1 ? '' : 's'}.`
-                  : `You are assessing ${checkerEnrollments.length} course${checkerEnrollments.length === 1 ? '' : 's'}.`}
-          </p>
+          <h1 className={styles.welcomeTitle}>Your courses</h1>
+          <p className={styles.welcomeSubtitle}>Manage the courses you teach, take, and review.</p>
         </header>
 
         {readyBadgeAlerts.length > 0 ? (
@@ -623,115 +599,188 @@ function HomeContent() {
           </div>
         ) : null}
 
-        {/* All three role sections are shown together on Home — the client validated this
-            combined professor/checker/student view, so we intentionally do not role-gate them. */}
-        <section className={courseStyles.section}>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={courseStyles.sectionTitle}>Instructor Courses</h2>
-            <button
-              type="button"
-              className={styles.duplicateButton}
-              aria-label="Duplicate course"
-              onClick={() => {
-                setDuplicateError(null);
-                setIsDuplicateOpen(true);
-              }}
-            >
-              <svg className={styles.duplicateIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <rect x="8" y="8" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-                <path d="M4 15.5V5a2 2 0 0 1 2-2h9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-              Duplicate Course
-            </button>
-          </div>
-
-          <div className={styles.myCoursesGrid} data-testid="created-courses-grid">
-            {canCreateContent ? <AddCourseCard /> : null}
-            {createdCourses.map((course) => (
-              <CreatedCourseCard key={course.id} course={course} />
+        <section className={styles.courseWorkspace} aria-label="Courses by permission">
+          <div className={styles.courseTabs} role="tablist" aria-label="Course permissions">
+            {(
+              [
+                { id: 'instructor', label: 'Instructor', icon: 'lucide:graduation-cap', count: createdCourses.length },
+                { id: 'enrolled', label: 'Enrolled', icon: 'lucide:user-round', count: enrolledCourseCards.length },
+                { id: 'checker', label: 'Checker', icon: 'lucide:shield-check', count: checkerEnrollments.length },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`course-tab-${tab.id}`}
+                aria-selected={activeCourseTab === tab.id}
+                aria-controls={`course-panel-${tab.id}`}
+                className={`${styles.courseTab} ${activeCourseTab === tab.id ? styles.courseTabActive : ''}`}
+                onClick={() => setActiveCourseTab(tab.id)}
+              >
+                <Icon icon={tab.icon} className={styles.courseTabIcon} aria-hidden="true" />
+                <span>{tab.label}</span>
+                <span className={styles.courseTabCount}>{isLoadingRoles ? '—' : tab.count}</span>
+              </button>
             ))}
           </div>
 
-          {isLoadingCreated ? <p className={courseStyles.statusMessage}>Loading created courses…</p> : null}
+          <div
+            className={styles.coursePanel}
+            role="tabpanel"
+            id={`course-panel-${activeCourseTab}`}
+            aria-labelledby={`course-tab-${activeCourseTab}`}
+          >
+            <div className={styles.coursePanelHeader}>
+              <div>
+                <h2 className={styles.coursePanelTitle}>
+                  {activeCourseTab === 'instructor'
+                    ? 'Courses you teach'
+                    : activeCourseTab === 'enrolled'
+                      ? 'Courses you take'
+                      : 'Courses you review'}
+                </h2>
+                <p className={styles.coursePanelDescription}>
+                  {activeCourseTab === 'instructor'
+                    ? 'Create, organize, and manage your course content.'
+                    : activeCourseTab === 'enrolled'
+                      ? 'Continue learning in courses where you are enrolled.'
+                      : 'Open courses where you support assessment and feedback.'}
+                </p>
+              </div>
 
-          {!isLoadingCreated && createdError ? <p className={courseStyles.statusMessage}>{createdError}</p> : null}
-        </section>
+              <div className={styles.courseActions}>
+                {activeCourseTab === 'instructor' ? (
+                  <>
+                    {canCreateContent ? (
+                      <Link href="/courses/new" className={styles.primaryCourseAction} data-testid="add-course-card">
+                        <Icon icon="lucide:plus" aria-hidden="true" />
+                        Create course
+                      </Link>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={styles.secondaryCourseAction}
+                      onClick={() => {
+                        setDuplicateError(null);
+                        setIsDuplicateOpen(true);
+                      }}
+                    >
+                      <Icon icon="lucide:copy" aria-hidden="true" />
+                      Duplicate
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.primaryCourseAction}
+                    data-testid={activeCourseTab === 'enrolled' ? 'join-course-card' : undefined}
+                    onClick={() => openJoinModal(activeCourseTab === 'checker' ? 'checker' : 'student')}
+                  >
+                    <Icon icon="lucide:log-in" aria-hidden="true" />
+                    Join course
+                  </button>
+                )}
+              </div>
+            </div>
 
-        <section className={styles.section}>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={courseStyles.sectionTitle}>My Enrolled Courses</h2>
-            <button
-              type="button"
-              className={styles.joinButton}
-              data-testid="join-course-card"
-              aria-label="Join a course as a student"
-              onClick={() => openJoinModal('student')}
-            >
-              <span className={styles.joinPlus} aria-hidden="true">
-                +
-              </span>
-              Join
-            </button>
+            {activeCourseTab === 'instructor' ? (
+              <>
+                <div className={styles.myCoursesGrid} data-testid="created-courses-grid">
+                  {createdCourses.map((course) => (
+                    <CreatedCourseCard key={course.id} course={course} />
+                  ))}
+                </div>
+                {isLoadingCreated ? <p className={courseStyles.statusMessage}>Loading instructor courses…</p> : null}
+                {!isLoadingCreated && createdError ? (
+                  <p className={courseStyles.statusMessage}>{createdError}</p>
+                ) : null}
+                {!isLoadingCreated && !createdError && createdCourses.length === 0 ? (
+                  <div className={styles.courseEmptyState}>
+                    <Icon icon="lucide:book-open" aria-hidden="true" />
+                    <h3>No instructor courses yet</h3>
+                    <p>Create your first course to start building lessons and badges.</p>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+
+            {activeCourseTab === 'enrolled' ? (
+              isLoadingEnrolled ? (
+                <div className={styles.courseEmptyState}>Loading enrolled courses…</div>
+              ) : enrolledError ? (
+                <div className={styles.courseEmptyState}>{enrolledError}</div>
+              ) : enrolledCourseCards.length > 0 ? (
+                <>
+                  <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
+                  {joinStatus && !isJoinModalOpen ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
+                </>
+              ) : (
+                <div className={styles.courseEmptyState}>
+                  <Icon icon="lucide:book-open" aria-hidden="true" />
+                  <h3>No enrolled courses yet</h3>
+                  <p>Use a course code from your instructor to join a course.</p>
+                </div>
+              )
+            ) : null}
+
+            {activeCourseTab === 'checker' ? (
+              <>
+                {checkerEnrollments.length > 0 ? (
+                  <div className={styles.myCoursesGrid} data-testid="checker-courses-grid">
+                    {checkerEnrollments.map((enrollment) => (
+                      <CreatedCourseCard
+                        key={enrollment.id}
+                        course={enrollment.course}
+                        href={`/courses/${enrollment.course.id}?view=checker`}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {isLoadingCheckerCourses ? (
+                  <p className={courseStyles.statusMessage}>Loading checker courses…</p>
+                ) : null}
+                {!isLoadingCheckerCourses && checkerCoursesError ? (
+                  <p className={courseStyles.statusMessage}>{checkerCoursesError}</p>
+                ) : null}
+                {!isLoadingCheckerCourses && !checkerCoursesError && checkerEnrollments.length === 0 ? (
+                  <div className={styles.courseEmptyState}>
+                    <Icon icon="lucide:shield-check" aria-hidden="true" />
+                    <h3>No checker courses yet</h3>
+                    <p>Join with a checker code to request access to a course.</p>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
           </div>
-
-          {isLoadingEnrolled ? (
-            <div className={styles.emptyState}>Loading enrolled courses…</div>
-          ) : enrolledError ? (
-            <div className={styles.emptyState}>{enrolledError}</div>
-          ) : (
-            <>
-              <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
-              {joinStatus && !isJoinModalOpen ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
-            </>
-          )}
-        </section>
-
-        <section className={courseStyles.section}>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={courseStyles.sectionTitle}>Checker Courses</h2>
-            <button
-              type="button"
-              className={styles.joinButton}
-              aria-label="Join a course as a checker"
-              onClick={() => openJoinModal('checker')}
-            >
-              <span className={styles.joinPlus} aria-hidden="true">
-                +
-              </span>
-              Join
-            </button>
-          </div>
-
-          <div className={styles.myCoursesGrid} data-testid="checker-courses-grid">
-            {checkerEnrollments.map((enrollment) => (
-              <CreatedCourseCard
-                key={enrollment.id}
-                course={enrollment.course}
-                href={`/courses/${enrollment.course.id}?view=checker`}
-              />
-            ))}
-          </div>
-
-          {isLoadingCheckerCourses ? <p className={courseStyles.statusMessage}>Loading checker courses...</p> : null}
-
-          {!isLoadingCheckerCourses && checkerCoursesError ? (
-            <p className={courseStyles.statusMessage}>{checkerCoursesError}</p>
-          ) : null}
-
-          {!isLoadingCheckerCourses && !checkerCoursesError && checkerEnrollments.length === 0 ? (
-            <p className={courseStyles.statusMessage}>No checker courses assigned yet.</p>
-          ) : null}
         </section>
       </main>
 
       {isDuplicateOpen ? (
         <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Duplicate course">
           <div className={styles.dupModal}>
-            <h2 className={styles.dupHeader}>Duplicate a course</h2>
-            <p className={styles.dupSubhead}>
-              Pick a course to copy. A new course is created with the same lessons and badges — students and progress
-              are not copied.
-            </p>
+            <div className={styles.modalHeader}>
+              <div className={styles.modalHeadingGroup}>
+                <span className={styles.modalIcon} aria-hidden="true">
+                  <Icon icon="lucide:copy" />
+                </span>
+                <div>
+                  <h2 className={styles.dupHeader}>Duplicate a course</h2>
+                  <p className={styles.dupSubhead}>
+                    Copy lessons and badges into a new course. Students and progress stay with the original.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.modalCloseButton}
+                aria-label="Close duplicate course modal"
+                onClick={() => setIsDuplicateOpen(false)}
+                disabled={duplicatingId !== null}
+              >
+                <Icon icon="lucide:x" aria-hidden="true" />
+              </button>
+            </div>
 
             {duplicateError ? <p className={styles.dupError}>{duplicateError}</p> : null}
 
@@ -741,13 +790,22 @@ function HomeContent() {
               ) : (
                 createdCourses.map((course) => (
                   <div key={course.id} className={styles.dupItem}>
-                    <span className={styles.dupItemTitle}>{course.title}</span>
+                    <span className={styles.dupItemIdentity}>
+                      <span className={styles.dupItemIcon} aria-hidden="true">
+                        <Icon icon="lucide:book-open" />
+                      </span>
+                      <span className={styles.dupItemTitle}>{course.title}</span>
+                    </span>
                     <button
                       type="button"
                       className={styles.dupItemButton}
                       disabled={duplicatingId !== null}
                       onClick={() => handleDuplicateCourse(course.id)}
                     >
+                      <Icon
+                        icon={duplicatingId === course.id ? 'lucide:loader-circle' : 'lucide:copy'}
+                        aria-hidden="true"
+                      />
                       {duplicatingId === course.id ? 'Duplicating…' : 'Duplicate'}
                     </button>
                   </div>
@@ -755,14 +813,16 @@ function HomeContent() {
               )}
             </div>
 
-            <button
-              type="button"
-              className={styles.dupClose}
-              onClick={() => setIsDuplicateOpen(false)}
-              disabled={duplicatingId !== null}
-            >
-              Cancel
-            </button>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.modalSecondaryButton}
+                onClick={() => setIsDuplicateOpen(false)}
+                disabled={duplicatingId !== null}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
@@ -770,34 +830,74 @@ function HomeContent() {
       {isJoinModalOpen ? (
         <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
           <div className={styles.joinModal}>
-            <h2 id="join-modal-title" className={styles.joinModalTitle}>
-              {joinMode === 'checker' ? 'Join as a checker' : 'Join a course'}
-            </h2>
-            <p className={styles.joinModalHint}>
-              {joinMode === 'checker'
-                ? 'Enter the checker code your instructor shared. Your request is sent to the instructor for approval.'
-                : 'Enter the course code your instructor shared to enroll as a student.'}
-            </p>
-            <div className={styles.joinControls}>
-              <input
-                type="text"
-                className={styles.joinInput}
-                value={joinCode}
-                onChange={(event) => setJoinCode(event.target.value)}
-                placeholder={joinMode === 'checker' ? 'Enter checker code' : 'Enter course code'}
-                aria-label={joinMode === 'checker' ? 'Checker code' : 'Course code'}
+            <div className={styles.modalHeader}>
+              <div className={styles.modalHeadingGroup}>
+                <span className={styles.modalIcon} aria-hidden="true">
+                  <Icon icon={joinMode === 'checker' ? 'lucide:shield-check' : 'lucide:log-in'} />
+                </span>
+                <div>
+                  <h2 id="join-modal-title" className={styles.joinModalTitle}>
+                    {joinMode === 'checker' ? 'Join as a checker' : 'Join a course'}
+                  </h2>
+                  <p className={styles.joinModalHint}>
+                    {joinMode === 'checker'
+                      ? 'Enter the checker code your instructor shared. Your request will be sent for approval.'
+                      : 'Enter the course code your instructor shared to enroll as a student.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.modalCloseButton}
+                aria-label="Close join course modal"
                 disabled={isJoiningCourse}
-                autoFocus
-              />
-              <button type="button" className={styles.joinButton} onClick={handleJoinCourse} disabled={isJoiningCourse}>
-                {isJoiningCourse ? 'Joining...' : 'Join'}
+                onClick={closeJoinModal}
+              >
+                <Icon icon="lucide:x" aria-hidden="true" />
               </button>
+            </div>
+            <div className={styles.joinControls}>
+              <label className={styles.joinLabel} htmlFor="join-course-code">
+                {joinMode === 'checker' ? 'Checker code' : 'Course code'}
+              </label>
+              <div className={styles.joinInputShell}>
+                <Icon icon="lucide:key-round" aria-hidden="true" />
+                <input
+                  id="join-course-code"
+                  type="text"
+                  className={styles.joinInput}
+                  value={joinCode}
+                  onChange={(event) => setJoinCode(event.target.value)}
+                  placeholder={joinMode === 'checker' ? 'Enter checker code' : 'Enter course code'}
+                  aria-label={joinMode === 'checker' ? 'Checker code' : 'Course code'}
+                  disabled={isJoiningCourse}
+                  autoFocus
+                />
+              </div>
             </div>
             {joinError ? <p className={styles.joinError}>{joinError}</p> : null}
             {joinStatus ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
-            <button type="button" className={styles.joinCancel} disabled={isJoiningCourse} onClick={closeJoinModal}>
-              {joinStatus ? 'Done' : 'Cancel'}
-            </button>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.modalSecondaryButton}
+                disabled={isJoiningCourse}
+                onClick={closeJoinModal}
+              >
+                {joinStatus ? 'Done' : 'Cancel'}
+              </button>
+              {!joinStatus ? (
+                <button
+                  type="button"
+                  className={styles.modalPrimaryButton}
+                  onClick={handleJoinCourse}
+                  disabled={isJoiningCourse}
+                >
+                  <Icon icon={isJoiningCourse ? 'lucide:loader-circle' : 'lucide:log-in'} aria-hidden="true" />
+                  {isJoiningCourse ? 'Joining…' : 'Join course'}
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}

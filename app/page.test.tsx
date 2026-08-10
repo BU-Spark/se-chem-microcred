@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import type { ImgHTMLAttributes } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SWRConfig } from 'swr';
 import CoursesPage from './page';
 
@@ -237,15 +237,16 @@ describe('Courses Page', () => {
     global.fetch = mockFetch as unknown as typeof fetch;
   });
 
-  it('renders courses page with instructors, student, and checker courses', async () => {
+  it('separates instructor, enrolled, and checker courses into tabs', async () => {
     renderCourses();
 
     expect(screen.getByText('Student Demo')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Instructor Courses' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Checker Courses' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'My Enrolled Courses' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Your courses' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /Instructor/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /Enrolled/ })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tab', { name: /Checker/ })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Courses' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/mine', {
@@ -259,7 +260,7 @@ describe('Courses Page', () => {
 
     expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
     expect(screen.getByText('Created Course 2')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Create a course' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Create course' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Created Course 1' })).toHaveAttribute(
       'href',
       '/courses/created-course-1'
@@ -268,12 +269,16 @@ describe('Courses Page', () => {
       'href',
       '/courses/created-course-2'
     );
+    expect(screen.queryByText('Checker Course 1')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('tab', { name: /Checker/ }));
     expect(screen.getByText('Checker Course 1')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Checker Course 1' })).toHaveAttribute(
       'href',
       '/courses/checker-course-1?view=checker'
     );
 
+    fireEvent.click(screen.getByRole('tab', { name: /Enrolled/ }));
     expect(screen.getByText('General Chemistry')).toBeInTheDocument();
     expect(screen.getByText('Organic Chemistry')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open General Chemistry' })).toHaveAttribute(
@@ -285,22 +290,13 @@ describe('Courses Page', () => {
       '/course_dashboard?courseId=course-2'
     );
 
-    const createdGrid = screen.getByTestId('created-courses-grid');
-    expect(createdGrid.firstElementChild).toHaveAttribute('data-testid', 'add-course-card');
-    expect(screen.getAllByTestId('course-card')).toHaveLength(3);
     expect(screen.getAllByTestId('enrolled-course-card')).toHaveLength(2);
 
-    // #17: the Duplicate Course action renders inline in the Instructor Courses header.
-    expect(screen.getByRole('button', { name: 'Duplicate course' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Join course' })).toBeInTheDocument();
 
-    // #19: sections render in order Instructor Courses -> My Enrolled Courses -> Checker Courses.
-    const instructorCoursesHeading = screen.getByRole('heading', { name: 'Instructor Courses' });
-    const enrolledHeading = screen.getByRole('heading', { name: 'My Enrolled Courses' });
-    const checkerHeading = screen.getByRole('heading', { name: 'Checker Courses' });
-    expect(
-      instructorCoursesHeading.compareDocumentPosition(enrolledHeading) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
-    expect(enrolledHeading.compareDocumentPosition(checkerHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /Instructor/ }));
+    expect(screen.getByRole('button', { name: 'Duplicate' })).toBeInTheDocument();
+    expect(screen.getAllByTestId('course-card')).toHaveLength(2);
   });
 
   it('does not show a create-course modal when the user has no courses', async () => {
@@ -331,7 +327,7 @@ describe('Courses Page', () => {
       });
     });
 
-    expect(screen.getByRole('link', { name: 'Create a course' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Create course' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Welcome' })).not.toBeInTheDocument();
     expect(screen.queryByText('Create Course')).not.toBeInTheDocument();
   });
@@ -344,7 +340,7 @@ describe('Courses Page', () => {
     await screen.findByText('Created Course 1');
 
     const profileLink = screen.getByRole('link', { name: 'My Profile' });
-    const coursesLink = screen.getByRole('link', { name: 'Courses' });
+    const coursesLink = screen.getByRole('link', { name: 'Dashboard' });
 
     expect(profileLink.className).toContain('navItemActive');
     expect(coursesLink.className).not.toContain('navItemActive');
@@ -359,7 +355,7 @@ describe('Courses Page', () => {
 
       await screen.findByText('Created Course 1');
 
-      const coursesLink = screen.getByRole('link', { name: 'Courses' });
+      const coursesLink = screen.getByRole('link', { name: 'Dashboard' });
 
       expect(coursesLink.className).toContain('navItemActive');
     }
@@ -415,13 +411,14 @@ describe('Courses Page', () => {
 
     await screen.findByText('Created Course 1');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Join a course as a student' }));
+    fireEvent.click(screen.getByRole('tab', { name: /Enrolled/ }));
+    fireEvent.click(screen.getByTestId('join-course-card'));
     expect(await screen.findByRole('heading', { name: 'Join a course' })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Course code'), {
       target: { value: 'chem-202' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Join course' }));
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/join', {
