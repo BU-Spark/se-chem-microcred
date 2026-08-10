@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import type { LessonRecord } from '../../hooks/useStudentData';
 import { LessonVideoPage } from './video';
@@ -93,11 +93,14 @@ const PREVIEW_DURATION = 300;
 // learns the video duration, and the timeline (checkpoint markers, scrubber
 // bounds) stays unrendered.
 function installFakeYouTubePlayer(duration = PREVIEW_DURATION) {
+  let currentTime = 0;
   const player = {
     playVideo: jest.fn(),
     pauseVideo: jest.fn(),
-    seekTo: jest.fn(),
-    getCurrentTime: () => 0,
+    seekTo: jest.fn((seconds: number) => {
+      currentTime = seconds;
+    }),
+    getCurrentTime: () => currentTime,
     getDuration: () => duration,
     destroy: jest.fn(),
     mute: jest.fn(),
@@ -244,6 +247,7 @@ describe('LessonVideoPage', () => {
       await flushPlayerReady();
 
       const scrubber = screen.getByRole('slider') as HTMLInputElement;
+      await waitFor(() => expect(scrubber).toHaveAttribute('max', String(PREVIEW_DURATION)));
       // A student's scrubber is capped at how far they have watched (0 here);
       // the preview's reaches the end of the video.
       fireEvent.change(scrubber, { target: { value: String(PREVIEW_DURATION - 10) } });

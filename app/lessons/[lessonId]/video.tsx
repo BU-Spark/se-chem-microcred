@@ -273,7 +273,7 @@ export function LessonVideoPage({
   }, []);
 
   const lastSeekRef = useRef<number | null>(resumeBaseTime);
-  const [furthestTime, setFurthestTime] = useState(resumeBaseTime);
+  const [, setFurthestTime] = useState(resumeBaseTime);
   const furthestTimeRef = useRef(resumeBaseTime);
   const [currentTime, setCurrentTime] = useState(resumeBaseTime);
   const [duration, setDuration] = useState(0);
@@ -698,10 +698,6 @@ export function LessonVideoPage({
   }, [playerElementId, youtubeId, scheduleHide, seekTo]);
 
   useEffect(() => () => clearHideTimer(), [clearHideTimer]);
-
-  useEffect(() => {
-    furthestTimeRef.current = furthestTime;
-  }, [furthestTime]);
 
   useEffect(() => {
     modalStateRef.current = modalState;
