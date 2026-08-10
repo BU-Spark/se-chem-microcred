@@ -73,10 +73,15 @@ export function LessonReminderModal({
         ×
       </button>
 
-      <h2 className={styles.title}>Send a lesson reminder</h2>
-      <p className={styles.subtitle}>
-        To: <strong>Students with {displayName}</strong>
-      </p>
+      <div className={styles.header}>
+        <div className={styles.headerIcon} aria-hidden="true">
+          ↗
+        </div>
+        <div>
+          <h2 className={styles.title}>Send lesson reminder</h2>
+          <p className={styles.subtitle}>Students with {displayName}</p>
+        </div>
+      </div>
 
       {result === null ? (
         <>
@@ -90,6 +95,9 @@ export function LessonReminderModal({
           />
           {error ? <p className={styles.error}>{error}</p> : null}
           <div className={styles.actions}>
+            <button type="button" className={styles.cancelButton} onClick={onClose} disabled={isSending}>
+              Cancel
+            </button>
             <button type="button" className={styles.sendButton} onClick={handleSend} disabled={isSending}>
               {isSending ? 'Sending…' : 'Send'}
             </button>
@@ -97,6 +105,9 @@ export function LessonReminderModal({
         </>
       ) : (
         <div className={styles.resultBlock}>
+          <div className={styles.resultIcon} aria-hidden="true">
+            ✓
+          </div>
           <p className={styles.resultText}>
             {result === 0
               ? 'No students currently have this badge incomplete — nothing was sent.'
