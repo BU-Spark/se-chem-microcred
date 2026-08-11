@@ -1,5 +1,4 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 
 import BadgeCreationPage from './page';
 
@@ -27,6 +26,12 @@ jest.mock('../hooks/useStudentData', () => ({
   useStudentData: () => mockUseStudentData(),
 }));
 
+// The rich-text editor is replaced by a plain controlled textarea that forwards
+// onChange, so prompts are driven with fireEvent.change like every other field in
+// this file. userEvent.type re-rendered the whole checkpoints tree once per
+// keystroke — ~28 macrotask yields for one prompt — which made these tests miss the
+// 5s timeout whenever the suite ran under parallel load. It bought nothing here:
+// there is no real editor to exercise keystroke by keystroke.
 jest.mock(
   '@/app/components/RichText/RichTextEditor',
   () =>
@@ -115,8 +120,11 @@ describe('Badge creation page', () => {
     expect(screen.getByText('Segment 1')).toBeInTheDocument();
   });
 
+  // Walks the whole four-step wizard, so it drives ~60 interactions and re-renders
+  // the checkpoint and rubric trees on each one. That is real work, not a race:
+  // ~850ms on an idle machine, but enough to cross the 5s default on a loaded CI
+  // box. The timeout is raised rather than the coverage trimmed.
   it('submits the badge draft to the badge creation API with the course id', async () => {
-    const user = userEvent.setup();
     render(<BadgeCreationPage />);
 
     fireEvent.change(screen.getByLabelText('Badge Name'), {
@@ -143,7 +151,9 @@ describe('Badge creation page', () => {
     // Checkpoints are authored in a per-checkpoint modal opened from the rail
     // node or auto-opened when a new checkpoint is added via the video "+".
     fireEvent.click(screen.getByRole('button', { name: 'Add a checkpoint at the current time' }));
-    await user.type(screen.getByLabelText('Question 1 prompt'), 'What should you check first?');
+    fireEvent.change(screen.getByLabelText('Question 1 prompt'), {
+      target: { value: 'What should you check first?' },
+    });
     fireEvent.change(screen.getByPlaceholderText('Choice 1'), {
       target: { value: 'Gas valve is off' },
     });
@@ -159,7 +169,9 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Add choice' }));
     expect(screen.getByRole('button', { name: 'Add choice' })).toBeDisabled();
     fireEvent.click(screen.getByRole('button', { name: 'Add question' }));
-    await user.type(screen.getByLabelText('Question 2 prompt'), 'What color should the flame be?');
+    fireEvent.change(screen.getByLabelText('Question 2 prompt'), {
+      target: { value: 'What color should the flame be?' },
+    });
     fireEvent.change(screen.getAllByPlaceholderText('Choice 1')[1], {
       target: { value: 'Orange' },
     });
@@ -169,7 +181,9 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Add a checkpoint at the current time' }));
-    await user.type(screen.getByLabelText('Question 1 prompt'), 'What temperature range is acceptable?');
+    fireEvent.change(screen.getByLabelText('Question 1 prompt'), {
+      target: { value: 'What temperature range is acceptable?' },
+    });
     fireEvent.change(screen.getByLabelText('Checkpoint 2 question 1 type'), {
       target: { value: 'shortAnswer' },
     });
@@ -291,7 +305,7 @@ describe('Badge creation page', () => {
     await waitFor(() => {
       expect(screen.queryByRole('dialog', { name: 'Badge created successfully.' })).not.toBeInTheDocument();
     });
-  });
+  }, 20000);
 
   it('can create a badge without assigning it to a course', async () => {
     mockSearchParams = new URLSearchParams();
@@ -451,7 +465,6 @@ describe('Badge creation page', () => {
   });
 
   it('captures skills and short-answer unit/feedback in the submitted draft', async () => {
-    const user = userEvent.setup();
     render(<BadgeCreationPage />);
 
     fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Pipetting' } });
@@ -463,7 +476,7 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
 
     fireEvent.click(screen.getByRole('button', { name: /Add checkpoint/i }));
-    await user.type(screen.getByLabelText('Question 1 prompt'), 'What volume?');
+    fireEvent.change(screen.getByLabelText('Question 1 prompt'), { target: { value: 'What volume?' } });
     fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 type'), { target: { value: 'shortAnswer' } });
     fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 exact numeric answer'), {
       target: { value: '10' },
