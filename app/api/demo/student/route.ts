@@ -66,6 +66,7 @@ function formatBadge(
     score: number | null;
     awardedAt: Date | null;
     cooldownUntil?: Date | null;
+    qevWaivedAt?: Date | null;
     badge: {
       id: string;
       slug: string;
@@ -100,6 +101,10 @@ function formatBadge(
     score: studentBadge.score ?? null,
     latestAttemptPassed,
     cooldownUntil: studentBadge.cooldownUntil?.toISOString() ?? null,
+    // An instructor cleared the lesson requirement for this student. Their lesson
+    // progress is untouched, so without this the assessment would appear to have
+    // unlocked itself.
+    qevWaivedAt: studentBadge.qevWaivedAt?.toISOString() ?? null,
     youtubeUrl: youtubeUrl ?? null,
     requirements: studentBadge.badge.requirements.map((requirement) => ({
       summary: requirement.summary,
@@ -693,6 +698,7 @@ export async function GET(req: Request) {
       score: null,
       latestAttemptPassed: null,
       cooldownUntil: null,
+      qevWaivedAt: null,
       requirements: [] as Array<{ summary: string | null; lessonSlug: string | null; lessonTitle: string | null }>,
     }));
   const notStartedBadges = [...neverAttemptedBadges, ...unstartedLearningBadges];

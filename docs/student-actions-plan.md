@@ -1,7 +1,6 @@
 # Student Actions (instructor-scoped)
 
-**Status:** spec, ready to build
-**Branch:** `feature/instructor-actions-jg`
+**Status:** implemented on `feature/instructor-actions-jg`; migration not yet applied to any live database
 **Date:** 2026-08-11
 
 Three instructor-only actions on a single student's single badge, surfaced from the
@@ -42,10 +41,16 @@ It imports the same CSS module.
 INSTRUCTOR and course creator only. CHECKERs are excluded even though they can
 already grade through this route.
 
-`resolveBadgeAccess` gains a fourth `BadgeAccessAction` — `'manage'` — that rejects
-`CHECKER` the way the existing actions reject `STUDENT`. The button is hidden
-client-side off `data.memberRole`, and the server enforces it independently; the
-hidden button is convenience, not the gate.
+`resolveBadgeAccess` gained a fourth `BadgeAccessAction` — `'manage'` — that rejects
+`CHECKER` the way the existing actions reject `STUDENT`. It answers **403**, not the
+usual 404: a checker can legitimately see this badge, so hiding it would only
+confuse, and the refusal leaks nothing they don't already know.
+
+The button is hidden client-side off the viewer's own role. The profile route
+already computed `effectiveViewerRole` but didn't return it — the page only knew the
+*subject's* role (`memberRole`), so it had no way to tell an instructor from a
+checker. It now returns `viewerRole` too. The server enforces the rule
+independently; the hidden button is convenience, not the gate.
 
 ---
 
@@ -84,10 +89,12 @@ progress gone, the badge sits honestly at `LEARNING` and re-earns its way up.
 badges for a `lessonId`, so nothing in the schema stops one lesson backing two
 badges. PM confirms lessons are scoped one-per-badge today and will stay that way.
 
-Rather than trust that silently, the confirmation step runs one extra query for other
-badges sharing these lessons. Normally it returns nothing and the user sees no
-difference. If it ever returns something, the confirmation names those badges before
-proceeding. Cheap insurance against silently destroying a second badge's progress.
+Rather than trust that silently, the reset runs one extra query for other badges
+sharing these lessons. Normally it returns nothing and the instructor sees no
+difference. If it ever returns something, the server answers 409 with the affected
+badges listed, and the modal names them behind a second explicit checkbox
+(`acknowledgeSharedBadges`) before the reset can proceed. Cheap insurance against
+silently destroying a second badge's progress.
 
 ### Confirmation
 
@@ -204,9 +211,9 @@ All three extend the existing `PATCH`, which already dispatches on payload shape
 (`reassessmentLimit` / `overrideCooldown`). One more discriminator:
 
 ```jsonc
-{ "action": "RESET_PROGRESS",  "confirmBadgeName": "Titration" }
+{ "action": "RESET_PROGRESS", "confirmBadgeName": "Titration", "acknowledgeSharedBadges": false }
 { "action": "WAIVE_QEV" }
-{ "action": "OVERRIDE_GRADE",  "passed": true, "reason": "Assessed on paper 8/4" }
+{ "action": "OVERRIDE_GRADE", "passed": true, "reason": "Assessed on paper 8/4" }
 ```
 
 Each returns the refreshed badge summary so the client re-renders off the response;
@@ -214,27 +221,39 @@ the page then calls `refreshBadgeDetail()` for the full payload.
 
 Validation:
 - `action` present → require `manage` access; reject CHECKER with 403
-- `RESET_PROGRESS` → `confirmBadgeName` must match the badge name exactly
+- `RESET_PROGRESS` → `confirmBadgeName` must match the badge name, case-insensitively
+  (the confirmation exists to slow the instructor down, not to test their shift key)
 - `OVERRIDE_GRADE` → `reason` required and non-empty; reject `status === LEARNING` (409)
-- `WAIVE_QEV` → reject if already waived or already past `READY_FOR_ASSESSMENT` (409)
+- `WAIVE_QEV` → reject if already waived or already past `LEARNING` (409)
 
 ---
 
-## Build order
+## What shipped
 
-1. Migration + Prisma schema (four columns).
-2. `resolveBadgeAccess` gains `'manage'`; `PATCH` gains the three action branches.
-3. `GET` payload exposes `qevWaivedAt` + waiver author.
-4. `StudentActionsModal.tsx` — three rows, tooltips, two-stage reset confirmation.
-5. Wire the button into the action row; hide for non-instructors.
-6. Waived marker in `BadgeDetailCard` and the student-facing badge views.
-7. Tests: route tests per action (happy path, CHECKER rejection, each 409),
-   `resolveBadgeAccess` manage-gate unit test, modal render/confirm-gating test.
+| # | Piece | Where |
+|---|---|---|
+| 1 | Four nullable columns + migration | `prisma/schema.prisma`, `20260811120000_student_badge_instructor_actions` |
+| 2 | Rules and write order for all three actions | `lib/students/badgeActions.ts` |
+| 3 | `'manage'` access + `PATCH` dispatch + `qevWaivedAt` in `GET` | the badge detail route |
+| 4 | `viewerRole` on the profile payload | `app/api/courses/[courseId]/students/[studentId]/route.ts` |
+| 5 | Modal, tooltips, two-stage reset confirmation | `StudentActionsModal.tsx` + its CSS module |
+| 6 | Button in the action row, hidden for non-instructors | `app/roster/[studentId]/page.tsx` |
+| 7 | Waived marker, instructor and student side | `BadgeDetailCard.tsx`, `app/badges/page.tsx` |
+| 8 | 20 route tests, 14 modal tests, 2 page tests | `__tests__/student-badge-actions-api.test.ts`, `StudentActionsModal.test.tsx`, `page.test.tsx` |
+
+One implementation note worth keeping: the tooltip does **not** open on focus. The
+modal's focus trap moves initial focus to the first focusable element, which is the
+first tooltip trigger, so a focus-open tooltip popped every time the modal opened.
+The description is instead always in the DOM as a visually hidden node the trigger
+points at with `aria-describedby`, so assistive tech announces it either way, and the
+visible bubble opens on hover and click.
 
 ---
 
 ## Open
 
+- **The migration has not been applied to staging or production.** Until it is, the
+  four columns don't exist and any student action will fail at the database.
 - **Reset is unattributable.** No audit row means a disputed wipe can't be traced.
   Accepted for MVP; revisit if it bites.
 - **Fail-path override ignores the attempt budget** — assumption above, confirm with PM.

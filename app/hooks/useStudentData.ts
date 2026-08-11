@@ -164,6 +164,9 @@ export interface BadgeRecord {
   latestAttemptPassed: boolean | null;
   // Reassessment cooldown end; assessment is blocked while now < cooldownUntil.
   cooldownUntil: string | null;
+  // Set when an instructor waived the video-lesson requirement for this student,
+  // which is why the assessment unlocked with the lesson still unfinished.
+  qevWaivedAt?: string | null;
   youtubeUrl: string | null;
   requirements: Array<{
     summary: string | null;
