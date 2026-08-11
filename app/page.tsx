@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMyCourses } from './hooks/useMyCourses';
 import { useCanCreateContent } from './hooks/useCanCreateContent';
-import Image, { type StaticImageData } from 'next/image';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
@@ -11,20 +11,9 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type StudentData } from './hooks/useStudentData';
 import styles from './page.module.css';
 import courseStyles from './courses/page.module.css';
-import veryUnhappy from '../public/assets/survey_faces/very_unhappy.svg';
-import slightlyUnhappy from '../public/assets/survey_faces/slightly_unhappy.svg';
-import neutral from '../public/assets/survey_faces/neutral.svg';
-import slightlyHappy from '../public/assets/survey_faces/slightly_happy.svg';
-import veryHappy from '../public/assets/survey_faces/very_happy.svg';
-import veryUnhappySelected from '../public/assets/survey_faces/very_unhappy_selected.svg';
-import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unhappy_selected.svg';
-import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
-import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
-import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import CourseTileImage from '@/app/components/Courses/CourseTileImage';
-import SurveyModal from '@/app/components/SurveyModal';
 import type { CourseImageFields } from '@/lib/courseImage';
 
 interface EnrolledCourseCardData extends CourseImageFields {
@@ -78,30 +67,6 @@ type CheckerCourseEnrollment = {
 };
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
-
-const FACE_IMAGES: Record<number, StaticImageData> = {
-  1: veryUnhappy,
-  2: slightlyUnhappy,
-  3: neutral,
-  4: slightlyHappy,
-  5: veryHappy,
-};
-
-const FACE_IMAGES_SELECTED: Record<number, StaticImageData> = {
-  1: veryUnhappySelected,
-  2: slightlyUnhappySelected,
-  3: neutralSelected,
-  4: slightlyHappySelected,
-  5: veryHappySelected,
-};
-
-const FACE_ALTS: Record<number, string> = {
-  1: 'Very unhappy',
-  2: 'Slightly unhappy',
-  3: 'Neutral',
-  4: 'Slightly happy',
-  5: 'Very happy',
-};
 
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
@@ -243,7 +208,7 @@ function HomeContent() {
   const signOut = useSignOut();
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
 
-  const { data: studentData, refresh } = useStudentData(email);
+  const { data: studentData } = useStudentData(email);
 
   // One consolidated SWR-cached fetch replaces the three per-role fetches. The
   // single loading/error state applies to all sections, matching the prior
@@ -273,16 +238,6 @@ function HomeContent() {
   const checkerCoursesError = coursesError;
 
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [activeSurvey, setActiveSurvey] = useState<{
-    promptId: string;
-    badgeId: string;
-    badgeSlug: string | null;
-    badgeName: string | null;
-    question: string;
-  } | null>(null);
-  const [surveyRating, setSurveyRating] = useState(3);
-  const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false);
-  const [surveyError, setSurveyError] = useState<string | null>(null);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
@@ -369,24 +324,17 @@ function HomeContent() {
     }
   }, [isLoaded, isSignedIn, router]);
 
+  // Home doesn't host the badge survey — a ?surveyBadge deep link hands off to the
+  // badge's own feedback page, the same destination the "ready to finalize" alert
+  // uses. An unknown slug is fine: that page redirects to /badges itself.
   useEffect(() => {
     const slug = searchParams.get('surveyBadge');
     if (!slug) return;
 
-    const match = pendingSurveyBadges.find((e) => e.badgeSlug === slug) ?? pendingSurveyBadges[0] ?? null;
+    const target = pendingSurveyBadges.find((entry) => entry.badgeSlug === slug)?.badgeSlug ?? slug;
 
-    if (match) {
-      setActiveSurvey(match);
-      setSurveyRating(3);
-      setSurveyError(null);
-    }
-  }, [pendingSurveyBadges, searchParams]);
-
-  useEffect(() => {
-    if (pendingSurveyBadges.length === 0) {
-      setActiveSurvey(null);
-    }
-  }, [pendingSurveyBadges]);
+    router.replace(`/badges/${encodeURIComponent(target)}/feedback`);
+  }, [pendingSurveyBadges, router, searchParams]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -400,17 +348,6 @@ function HomeContent() {
       setIsSigningOut(false);
     }
   };
-
-  const closeSurveyModal = useCallback(() => {
-    setActiveSurvey(null);
-    setSurveyError(null);
-
-    const params = new URLSearchParams(searchParams.toString());
-    params.delete('surveyBadge');
-    const nextPath = params.size ? `${pathname}?${params.toString()}` : pathname;
-
-    router.replace(nextPath, { scroll: false });
-  }, [pathname, router, searchParams]);
 
   const closeAssessmentAccessModal = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -441,37 +378,6 @@ function HomeContent() {
     },
     [readyBadgeAlerts, router]
   );
-
-  const handleSubmitSurvey = useCallback(async () => {
-    if (!activeSurvey || !studentData?.student.email || isSubmittingSurvey) return;
-
-    setIsSubmittingSurvey(true);
-    setSurveyError(null);
-
-    try {
-      const response = await fetch(`/api/badges/${activeSurvey.badgeId}/survey`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: studentData.student.email,
-          rating: surveyRating,
-        }),
-      });
-
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => ({}))) as { error?: string };
-        throw new Error(payload.error ?? 'Failed to submit survey.');
-      }
-
-      await refresh();
-      closeSurveyModal();
-    } catch (error) {
-      console.error('Failed to submit survey', error);
-      setSurveyError(error instanceof Error ? error.message : 'Failed to submit survey. Please try again.');
-    } finally {
-      setIsSubmittingSurvey(false);
-    }
-  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal, isSubmittingSurvey]);
 
   const handleDuplicateCourse = useCallback(
     async (courseId: string) => {
@@ -725,7 +631,7 @@ function HomeContent() {
       </main>
 
       {isDuplicateOpen ? (
-        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Duplicate course">
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Duplicate course">
           <div className={styles.dupModal}>
             <h2 className={styles.dupHeader}>Duplicate a course</h2>
             <p className={styles.dupSubhead}>
@@ -768,7 +674,7 @@ function HomeContent() {
       ) : null}
 
       {isJoinModalOpen ? (
-        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
           <div className={styles.joinModal}>
             <h2 id="join-modal-title" className={styles.joinModalTitle}>
               {joinMode === 'checker' ? 'Join as a checker' : 'Join a course'}
@@ -803,7 +709,7 @@ function HomeContent() {
       ) : null}
 
       {showAssessmentAccessModal ? (
-        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Assessment access">
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Assessment access">
           <div className={styles.accessModal}>
             <h2 className={styles.accessTitle}>Assessment unavailable</h2>
             <p className={styles.accessText}>
@@ -813,40 +719,6 @@ function HomeContent() {
             <BackButton inline label="Back to home" onClick={closeAssessmentAccessModal} />
           </div>
         </div>
-      ) : null}
-
-      {activeSurvey ? (
-        <SurveyModal
-          title="Tell us about your experience."
-          question={activeSurvey.question}
-          options={[1, 2, 3, 4, 5].map((value) => ({
-            value,
-            label: FACE_ALTS[value],
-            icon: FACE_IMAGES[value],
-            selectedIcon: FACE_IMAGES_SELECTED[value],
-          }))}
-          value={surveyRating}
-          onChange={setSurveyRating}
-          onSubmit={handleSubmitSurvey}
-          onClose={closeSurveyModal}
-          isSubmitting={isSubmittingSurvey}
-          error={surveyError}
-          errorAfterOptions
-          classNames={{
-            overlay: styles.surveyOverlay,
-            modal: styles.surveyModal,
-            close: styles.surveyClose,
-            title: styles.surveyTitle,
-            question: styles.surveyQuestion,
-            error: styles.surveyError,
-            options: styles.surveyFaces,
-            option: styles.surveyFace,
-            selectedOption: styles.surveyFaceSelected,
-            optionImage: styles.surveyFaceImage,
-            selectedOptionImage: styles.surveyFaceImageSelected,
-            submit: styles.surveySubmit,
-          }}
-        />
       ) : null}
     </div>
   );

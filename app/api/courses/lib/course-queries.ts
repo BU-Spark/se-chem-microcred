@@ -293,15 +293,23 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
               },
               // Progress on the badge's requirement lessons, used to tell a
               // LEARNING row the student has actually worked on apart from one
-              // eagerly created at badge creation/import (still "not started").
+              // eagerly created at badge creation/import (still "not started"),
+              // and to split "still learning" by how far they got.
               lessonProgress: {
                 where: { lesson: { badgeRequirements: { some: { badgeId } } } },
                 select: {
+                  lessonId: true,
                   status: true,
                   startedAt: true,
                   completedAt: true,
                   percentComplete: true,
                 },
+              },
+              // Graded in-person attempts, used to separate "finished the video"
+              // from "was assessed and hasn't passed yet".
+              assessmentAttempts: {
+                where: { badgeId, courseId },
+                select: { passed: true },
               },
             },
           },

@@ -8,6 +8,8 @@ import { isInstructor } from '@/lib/roles';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
+import BadgeRatings, { type BadgeRatingsData } from './BadgeRatings';
+import BadgeRosterPanel, { type RosterCohort, type RosterStage } from './BadgeRosterPanel';
 import styles from './page.module.css';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED' | 'NOT_STARTED';
@@ -81,6 +83,26 @@ type AssessmentDetails = {
   }>;
 };
 
+type CohortBucket = {
+  count: number;
+  percent: number;
+};
+
+type CohortSummary = {
+  totalStudents: number;
+  proficient: CohortBucket;
+  stillLearning: CohortBucket & {
+    lockedCount: number;
+    stages: {
+      videoIncomplete: CohortBucket;
+      videoComplete: CohortBucket;
+      attemptFailed: CohortBucket;
+      awaitingAward: CohortBucket;
+    };
+  };
+  notStarted: CohortBucket;
+};
+
 type StudentProgressRow = {
   enrollmentId: string;
   sections: string[];
@@ -99,6 +121,9 @@ type StudentProgressRow = {
     updatedAt: string;
   } | null;
   status: BadgeStatus;
+  cohort?: RosterCohort;
+  stage?: RosterStage;
+  locked?: boolean;
 };
 
 type BadgeDetailResponse = {
@@ -106,6 +131,8 @@ type BadgeDetailResponse = {
   badge: BadgeDetail | null;
   course: CourseDetail;
   summary: ProgressSummary;
+  cohorts: CohortSummary | null;
+  ratings: BadgeRatingsData | null;
   assessment: AssessmentDetails;
   students: StudentProgressRow[];
 };
@@ -174,27 +201,37 @@ function useBadgeDetails(courseId?: string | null, badgeId?: string | null, emai
   return { data, isLoading, error };
 }
 
-/** Circular ring indicator approximated with a conic-gradient. */
-function RingIndicator({ percent, caption }: { percent: number; caption: string }) {
-  const clamped = Math.round(Math.max(0, Math.min(100, percent)));
+function studentLabel(count: number) {
+  return `${count} student${count === 1 ? '' : 's'}`;
+}
 
+/** One of the three top-level cohorts: headline count, share of the class, and what it means. */
+function CohortTile({
+  tone,
+  title,
+  hint,
+  bucket,
+  children,
+}: {
+  tone: 'proficient' | 'learning' | 'notStarted';
+  title: string;
+  hint: string;
+  bucket: CohortBucket;
+  children?: React.ReactNode;
+}) {
   return (
-    <div className={styles.ringIndicator}>
-      <div
-        className={styles.ring}
-        style={{ background: `conic-gradient(#2e6aa9 ${clamped * 3.6}deg, #d9d9d9 0deg)` }}
-        role="img"
-        aria-label={`${caption}: ${clamped}%`}
-      >
-        <div className={styles.ringInner}>
-          <span className={styles.ringValueGroup}>
-            <span className={styles.ringValue}>{clamped}</span>
-            <span className={styles.ringPercent}>%</span>
-          </span>
-        </div>
+    <article className={styles.cohortTile} data-tone={tone}>
+      <div className={styles.cohortTileHead}>
+        <span className={styles.cohortSwatch} data-tone={tone} aria-hidden="true" />
+        <h3 className={styles.cohortTitle}>{title}</h3>
       </div>
-      <p className={styles.ringCaption}>{caption}</p>
-    </div>
+      <p className={styles.cohortValue}>
+        {bucket.count}
+        <span className={styles.cohortPercent}>{bucket.percent}%</span>
+      </p>
+      <p className={styles.cohortHint}>{hint}</p>
+      {children}
+    </article>
   );
 }
 
@@ -204,6 +241,8 @@ export default function CourseBadgeProgress() {
   const { isLoaded, isSignedIn, user } = useUser();
   const signOut = useSignOut();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
+  const [isRosterOpen, setIsRosterOpen] = useState(false);
 
   const courseId = resolveParam(params?.courseId);
   const badgeId = resolveParam(params?.badgeId);
@@ -244,34 +283,43 @@ export default function CourseBadgeProgress() {
   const assessment = data?.assessment ?? null;
   const isInstructorFlag = isInstructor(data?.viewerRole);
   const displayName = course?.createdBy?.name || user?.fullName || '';
+  const cohorts = data?.cohorts ?? null;
 
-  // Progress breakdown bars driven by the real summary percentages.
-  const breakdownBars = useMemo(
+  // Sub-stages of "still learning", ordered furthest-along last so the row reads
+  // as a path through the badge.
+  const learningStages = useMemo(
     () =>
-      summary
+      cohorts
         ? [
-            { label: 'Students who have completed this badge', percent: summary.completedPercent, color: '#c9db50' },
-            { label: 'Students still in progress', percent: summary.inProgressPercent, color: '#f3b55b' },
-            { label: 'Students not yet started', percent: summary.notStartedPercent, color: '#d4d4d4' },
+            {
+              key: 'videoIncomplete',
+              label: 'Started the video, haven’t finished it',
+              bucket: cohorts.stillLearning.stages.videoIncomplete,
+            },
+            {
+              key: 'videoComplete',
+              label: 'Finished the video lesson, not yet assessed',
+              bucket: cohorts.stillLearning.stages.videoComplete,
+            },
+            {
+              key: 'attemptFailed',
+              label: 'Assessed in person, haven’t passed yet',
+              bucket: cohorts.stillLearning.stages.attemptFailed,
+            },
+            {
+              key: 'awaitingAward',
+              label: 'Passed in person, badge not awarded yet',
+              bucket: cohorts.stillLearning.stages.awaitingAward,
+            },
           ]
         : [],
-    [summary]
+    [cohorts]
   );
 
   if (!isLoaded || !isSignedIn) {
     return null;
   }
 
-  // Completion ring uses the real completed percentage.
-  const completionPercent = summary?.completedPercent ?? 0;
-  // Three-segment donut (completed / in-progress / not-started) matching the
-  // breakdown bars and the design, with a neutral grey remainder.
-  const completionRingGradient = (() => {
-    const completedDeg = (summary?.completedPercent ?? 0) * 3.6;
-    const inProgressDeg = (summary?.inProgressPercent ?? 0) * 3.6;
-    const inProgressEnd = completedDeg + inProgressDeg;
-    return `conic-gradient(#c9db50 0deg ${completedDeg}deg, #f3b55b ${completedDeg}deg ${inProgressEnd}deg, #e4e4e4 ${inProgressEnd}deg 360deg)`;
-  })();
   const checkpointCount = assessment?.checkpoints.length ?? 0;
   const videoTitle = assessment?.videoTitle || badge?.lesson?.title || 'Lesson video';
   const videoLength = assessment?.videoLength || 'Not recorded';
@@ -308,92 +356,116 @@ export default function CourseBadgeProgress() {
             <>
               <section className={styles.hero}>
                 <div className={styles.badgeCircle} aria-hidden="true" />
-                <div className={styles.heroCopy}>
+                <div>
                   <p className={styles.descriptionLabel}>Description</p>
                   <p className={styles.descriptionText}>{badge.description || 'No badge description provided.'}</p>
                 </div>
               </section>
 
-              <section className={styles.card} aria-label="Student progress">
-                <div className={styles.cardHeader}>
-                  <div>
-                    <h2 className={styles.cardTitle}>Student Progress</h2>
-                    <p className={styles.showingFor}>
-                      Showing progress for: <strong>All students</strong>
-                    </p>
-                  </div>
-                </div>
-
-                <div className={styles.progressBody}>
-                  <div className={styles.statColumn}>
-                    <div className={styles.bigStat}>
-                      <strong>N/A</strong>
-                      <span>Average time to completion</span>
+              {cohorts ? (
+                <section className={styles.card} aria-label="Student progress">
+                  <div className={styles.cardHeader}>
+                    <div>
+                      <h2 className={styles.cardTitle}>Student Progress</h2>
+                      <p className={styles.showingFor}>
+                        <span>{studentLabel(cohorts.totalStudents)} enrolled</span>
+                        {summary.averageScore != null ? (
+                          <span className={styles.showingForAside}>
+                            Average assessment score: <strong>{summary.averageScore}%</strong>
+                          </span>
+                        ) : null}
+                      </p>
                     </div>
-                    <div className={styles.bigStat}>
-                      <strong>{summary.completedPercent}%</strong>
-                      <span>Got checkd on their first try</span>
-                    </div>
-                    <div className={styles.bigStat}>
-                      <strong>{summary.inProgressPercent}%</strong>
-                      <span>Watched optional learning videos</span>
-                    </div>
-                  </div>
 
-                  <div className={styles.divider} aria-hidden="true" />
-
-                  <div className={styles.chartColumn}>
-                    <div className={styles.topCharts}>
-                      <div
-                        className={styles.completionRing}
-                        style={{ background: completionRingGradient }}
-                        role="img"
-                        aria-label={`Badge completion: ${completionPercent}%`}
+                    {isInstructorFlag ? (
+                      <button
+                        type="button"
+                        className={styles.rosterButton}
+                        onClick={() => setIsRosterOpen(true)}
+                        aria-haspopup="dialog"
                       >
-                        <div className={styles.completionRingInner}>
-                          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" aria-hidden="true">
-                            <path
-                              d="M5 13l4 4L19 7"
-                              stroke="#8aa30f"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                        </div>
-                      </div>
+                        View roster
+                      </button>
+                    ) : null}
+                  </div>
 
-                      <div className={styles.barBreakdown}>
-                        {breakdownBars.map((bar) => (
-                          <div key={bar.label} className={styles.barRow}>
-                            <p className={styles.barLabel}>{bar.label}</p>
-                            <div className={styles.barTrackRow}>
-                              <div className={styles.barTrack}>
-                                <div
-                                  className={styles.barFill}
-                                  style={{
-                                    width: `${Math.max(0, Math.min(100, bar.percent))}%`,
-                                    background: bar.color,
-                                  }}
-                                />
-                              </div>
-                              <span className={styles.barPercent}>{bar.percent}%</span>
-                            </div>
+                  {/* One grid owns the whole overview: full-width bar, three tiles,
+                      full-width breakdown. Named areas keep the markup flat. */}
+                  <div className={styles.cohortLayout}>
+                    <div
+                      className={styles.cohortBar}
+                      role="img"
+                      aria-label={`Proficient ${cohorts.proficient.percent}%, still learning ${cohorts.stillLearning.percent}%, not started ${cohorts.notStarted.percent}%`}
+                      // fr units divide the track by the real counts, so the bar fills
+                      // exactly even when the rounded percentages don't total 100.
+                      style={{
+                        gridTemplateColumns: `${cohorts.proficient.count}fr ${cohorts.stillLearning.count}fr ${cohorts.notStarted.count}fr`,
+                      }}
+                    >
+                      <span className={styles.cohortBarSegment} data-tone="proficient" />
+                      <span className={styles.cohortBarSegment} data-tone="learning" />
+                      <span className={styles.cohortBarSegment} data-tone="notStarted" />
+                    </div>
+
+                    <CohortTile
+                      tone="proficient"
+                      title="Proficient"
+                      hint="Earned this badge"
+                      bucket={cohorts.proficient}
+                    />
+
+                    <CohortTile
+                      tone="learning"
+                      title="Still Learning"
+                      hint="Started, badge not earned yet"
+                      bucket={cohorts.stillLearning}
+                    >
+                      <button
+                        type="button"
+                        className={styles.breakdownToggle}
+                        onClick={() => setIsBreakdownOpen((open) => !open)}
+                        aria-expanded={isBreakdownOpen}
+                        aria-controls="still-learning-breakdown"
+                      >
+                        {isBreakdownOpen ? 'Hide breakdown' : 'Show breakdown'}
+                      </button>
+                    </CohortTile>
+
+                    <CohortTile
+                      tone="notStarted"
+                      title="Not Started"
+                      hint="Haven’t opened the lesson"
+                      bucket={cohorts.notStarted}
+                    />
+
+                    <div id="still-learning-breakdown" hidden={!isBreakdownOpen} className={styles.breakdownPanel}>
+                      <p className={styles.breakdownIntro}>
+                        Where the {studentLabel(cohorts.stillLearning.count)} still learning this badge are —
+                        percentages are of all {cohorts.totalStudents} enrolled.
+                      </p>
+
+                      <dl className={styles.breakdownList}>
+                        {learningStages.map((stage) => (
+                          <div key={stage.key} className={styles.breakdownRow}>
+                            <dt className={styles.breakdownLabel}>{stage.label}</dt>
+                            <dd className={styles.breakdownCount}>{studentLabel(stage.bucket.count)}</dd>
+                            <dd className={styles.breakdownPercent}>{stage.bucket.percent}%</dd>
                           </div>
                         ))}
-                      </div>
-                    </div>
+                      </dl>
 
-                    {/* The design shows "Average precheck score" + "Average assessment score",
-                        but the API only tracks one score. Show the metrics we actually have:
-                        % of students ready for assessment, and the average assessment score. */}
-                    <div className={styles.ringRow}>
-                      <RingIndicator percent={summary.readyForAssessmentPercent} caption="Ready for assessment" />
-                      <RingIndicator percent={summary.averageScore ?? 0} caption="Average assessment score" />
+                      {cohorts.stillLearning.lockedCount > 0 ? (
+                        <p className={styles.breakdownNote}>
+                          {studentLabel(cohorts.stillLearning.lockedCount)} used every reassessment attempt and cannot
+                          retry without instructor action.
+                        </p>
+                      ) : null}
                     </div>
                   </div>
-                </div>
-              </section>
+                </section>
+              ) : null}
+
+              {data?.ratings ? <BadgeRatings ratings={data.ratings} /> : null}
 
               <section className={styles.card} aria-label="Assessment details">
                 <div className={styles.cardHeader}>
@@ -479,6 +551,16 @@ export default function CourseBadgeProgress() {
           ) : null}
         </div>
       </main>
+
+      {isInstructorFlag && isRosterOpen && badge && courseId && badgeId ? (
+        <BadgeRosterPanel
+          badgeName={badge.name}
+          courseId={courseId}
+          badgeId={badgeId}
+          rows={data?.students ?? []}
+          onClose={() => setIsRosterOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }

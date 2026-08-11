@@ -111,9 +111,9 @@ function PersonCard({
   );
 }
 
-function MessageIcon() {
+function MessageIcon({ size = 20 }: { size?: number }) {
   return (
-    <svg viewBox="0 0 24 24" width="40" height="40" className={styles.badgeIcon} aria-hidden="true">
+    <svg viewBox="0 0 24 24" width={size} height={size} className={styles.badgeIcon} aria-hidden="true">
       <path
         d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5Z"
         fill="none"
@@ -122,6 +122,22 @@ function MessageIcon() {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function PencilIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true">
+      <path
+        d="M4 20h4.5L19 9.5a2.12 2.12 0 0 0-3-3L5.5 17 4 20Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M14.5 6.5 17.5 9.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -306,14 +322,6 @@ export default function CreatedCourseDetailPage() {
 
   const studentCount = useMemo(
     () => course?.enrollments.filter((enrollment) => enrollment.role === 'STUDENT').length ?? 0,
-    [course]
-  );
-
-  const checkers = useMemo(
-    () =>
-      course?.enrollments
-        .filter((enrollment) => enrollment.role === 'CHECKER' && enrollment.status === 'ACTIVE')
-        .map((enrollment) => enrollment.student) ?? [],
     [course]
   );
 
@@ -505,92 +513,18 @@ export default function CreatedCourseDetailPage() {
 
           {!isLoading && !error && course ? (
             <>
-              <section className={styles.heroCard}>
-                <div className={styles.heroInfo}>
-                  <p className={styles.sectionLabel}>Course Info</p>
-                  <h2 className={styles.courseHeading}>{course.title}</h2>
-
-                  <PersonCard
-                    label={isInstructorFlag ? 'Instructor (You)' : 'Instructor'}
-                    name={course.createdBy?.name}
-                    email={course.createdBy?.email}
-                    avatarSrc={avatarFor(course.createdBy?.avatarBase)}
-                  />
-
-                  <div className={styles.statLines}>
-                    <p className={styles.statLine}>Number of Sections: {course.sectionCount}</p>
-                    <p className={styles.statLine}>Number of Students Enrolled: {studentCount}</p>
-                    {isInstructorFlag && course.code ? (
-                      <p className={styles.statLine}>
-                        Course Code: <span className={styles.courseCode}>{course.code}</span>
-                      </p>
-                    ) : null}
-                    {isInstructorFlag && course.checkerCode ? (
-                      <p className={styles.statLine}>
-                        Checker Code: <span className={styles.courseCode}>{course.checkerCode}</span>
-                      </p>
-                    ) : null}
-                    {viewerRole ? (
-                      <p className={styles.statLine}>Your Role: {isCheckerView ? 'CHECKER' : viewerRole}</p>
-                    ) : null}
-                  </div>
-
-                  {!isStudent ? (
-                    <div className={styles.actionRow}>
-                      <Link href={`/roster?courseId=${course.id}&role=STUDENT`} className={styles.primaryButton}>
-                        {canAssess ? 'View Students to Assess' : 'View Student Roster'}
-                      </Link>
-                      {canAssess ? (
-                        <button type="button" className={styles.primaryButton} onClick={openAssessmentCodeModal}>
-                          Assess Student
-                        </button>
-                      ) : null}
-                      {isInstructorFlag && email ? (
-                        <ExportCsvDataButton courseId={course.id} email={email} className={styles.primaryButton} />
-                      ) : null}
-                    </div>
+              {/* Badges lead the page — they are the work instructors and assessors come here for. */}
+              <section className={styles.badgesCard} aria-labelledby="course-badges-heading">
+                <div className={styles.sectionHead}>
+                  <h2 id="course-badges-heading" className={styles.badgesTitle}>
+                    Assigned Badges
+                  </h2>
+                  {assignedBadges.length > 0 ? (
+                    <p className={styles.sectionCount}>
+                      {assignedBadges.length} badge{assignedBadges.length === 1 ? '' : 's'}
+                    </p>
                   ) : null}
                 </div>
-
-                <div className={styles.heroDivider} aria-hidden="true" />
-
-                <aside className={styles.heroSide}>
-                  <h2 className={styles.sideTitle}>Checkers</h2>
-
-                  {checkers.length > 0 ? (
-                    <div className={styles.checkerList}>
-                      {checkers.map((checker) => (
-                        <PersonCard key={checker.id} name={checker.name} email={checker.email} />
-                      ))}
-                    </div>
-                  ) : (
-                    <p className={styles.emptyMessage}>No checkers assigned yet.</p>
-                  )}
-
-                  {isInstructorFlag ? (
-                    <div className={styles.sideActionRow}>
-                      <Link href={`/roster?courseId=${course.id}&role=CHECKER`} className={styles.primaryButton}>
-                        View Checker Roster
-                      </Link>
-                      <Link href={`/courses/new?courseId=${course.id}`} className={styles.primaryButton}>
-                        Edit Course
-                      </Link>
-                      {/* MVP test-cleanup button - remove before handoff. */}
-                      <button
-                        type="button"
-                        className={styles.dangerButton}
-                        onClick={handleDeleteCourse}
-                        disabled={isDeleting}
-                      >
-                        {isDeleting ? 'Deleting…' : 'Delete Course'}
-                      </button>
-                    </div>
-                  ) : null}
-                </aside>
-              </section>
-
-              <section className={styles.badgesCard}>
-                <h2 className={styles.badgesTitle}>Assigned Badges</h2>
 
                 {assignedBadges.length > 0 ? (
                   <div className={styles.badgeGrid}>
@@ -598,7 +532,7 @@ export default function CreatedCourseDetailPage() {
                       // Use the bar-free 16:9 thumbnail so the round center-crop has no black letterboxing.
                       const fallbackImage = badge.thumbnailUrl?.replace('/hqdefault.jpg', '/mqdefault.jpg') ?? null;
                       return (
-                        <div key={badge.id} className={styles.badgeItem}>
+                        <article key={badge.id} className={styles.badgeCard}>
                           <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
                             <BadgeToken className={styles.badgeToken}>
                               <YoutubeThumbnail
@@ -611,44 +545,146 @@ export default function CreatedCourseDetailPage() {
                             </BadgeToken>
                             <h3 className={styles.badgeName}>{badge.name}</h3>
                           </Link>
-                          {isInstructorFlag ? (
-                            <>
-                              <button
-                                type="button"
-                                className={styles.badgeReminderButton}
-                                onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
-                                aria-label={`Send a lesson reminder for ${badge.name}`}
-                              >
+
+                          <div className={styles.badgeCardActions}>
+                            {isInstructorFlag ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className={styles.badgeIconButton}
+                                  onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
+                                  aria-label={`Send a lesson reminder for ${badge.name}`}
+                                  title="Send a lesson reminder"
+                                >
+                                  <MessageIcon />
+                                </button>
+                                <button
+                                  type="button"
+                                  className={styles.badgeIconButton}
+                                  onClick={() => openBadgeSettings(badge)}
+                                  disabled={isDeleting}
+                                  aria-label="Edit badge settings"
+                                  title="Edit badge settings"
+                                >
+                                  <PencilIcon />
+                                </button>
+                              </>
+                            ) : (
+                              <span className={styles.badgeIconStatic}>
                                 <MessageIcon />
-                              </button>
-                              <button
-                                type="button"
-                                className={styles.badgeUnassignButton}
-                                onClick={() => openBadgeSettings(badge)}
-                                disabled={isDeleting}
-                              >
-                                Edit badge settings
-                              </button>
-                            </>
-                          ) : (
-                            <MessageIcon />
-                          )}
-                        </div>
+                              </span>
+                            )}
+                          </div>
+                        </article>
                       );
                     })}
                   </div>
                 ) : (
                   <p className={styles.emptyMessage}>No badges assigned yet.</p>
                 )}
-
-                {isInstructorFlag ? (
-                  <div className={styles.badgeActionRow}>
-                    <button type="button" className={styles.primaryButton} onClick={openImportPanel}>
-                      Import Existing Badge
-                    </button>
-                  </div>
-                ) : null}
               </section>
+
+              {/* Metadata and actions share the row beneath the badges, at equal width. */}
+              <div className={styles.infoGrid}>
+                <section className={styles.infoBlock} aria-labelledby="course-details-heading">
+                  <div className={styles.subSectionHead}>
+                    <h2 id="course-details-heading" className={styles.infoTitle}>
+                      Course Details
+                    </h2>
+                  </div>
+
+                  <PersonCard
+                    label={isInstructorFlag ? 'Instructor (You)' : 'Instructor'}
+                    name={course.createdBy?.name}
+                    email={course.createdBy?.email}
+                    avatarSrc={avatarFor(course.createdBy?.avatarBase)}
+                  />
+
+                  <dl className={styles.metaList}>
+                    <div className={styles.metaRow}>
+                      <dt className={styles.metaLabel}>Sections</dt>
+                      <dd className={styles.metaValue}>{course.sectionCount}</dd>
+                    </div>
+                    <div className={styles.metaRow}>
+                      <dt className={styles.metaLabel}>Students enrolled</dt>
+                      <dd className={styles.metaValue}>{studentCount}</dd>
+                    </div>
+                    {isInstructorFlag && course.code ? (
+                      <div className={styles.metaRow}>
+                        <dt className={styles.metaLabel}>Course code</dt>
+                        <dd className={styles.metaValue}>
+                          <span className={styles.courseCode}>{course.code}</span>
+                        </dd>
+                      </div>
+                    ) : null}
+                    {isInstructorFlag && course.checkerCode ? (
+                      <div className={styles.metaRow}>
+                        <dt className={styles.metaLabel}>Checker code</dt>
+                        <dd className={styles.metaValue}>
+                          <span className={styles.courseCode}>{course.checkerCode}</span>
+                        </dd>
+                      </div>
+                    ) : null}
+                    {viewerRole ? (
+                      <div className={styles.metaRow}>
+                        <dt className={styles.metaLabel}>Your role</dt>
+                        <dd className={styles.metaValue}>{isCheckerView ? 'CHECKER' : viewerRole}</dd>
+                      </div>
+                    ) : null}
+                  </dl>
+                </section>
+
+                {!isStudent ? (
+                  <section className={styles.infoBlock} aria-labelledby="course-actions-heading">
+                    <div className={styles.subSectionHead}>
+                      <h2 id="course-actions-heading" className={styles.infoTitle}>
+                        Course Actions
+                      </h2>
+                    </div>
+
+                    <div className={styles.actionRow}>
+                      <Link href={`/roster?courseId=${course.id}&role=STUDENT`} className={styles.primaryButton}>
+                        {canAssess ? 'View Students to Assess' : 'View Student Roster'}
+                      </Link>
+                      {canAssess ? (
+                        <button type="button" className={styles.primaryButton} onClick={openAssessmentCodeModal}>
+                          Assess Student
+                        </button>
+                      ) : null}
+                      {isInstructorFlag ? (
+                        <>
+                          <Link href={`/roster?courseId=${course.id}&role=CHECKER`} className={styles.primaryButton}>
+                            View Checker Roster
+                          </Link>
+                          <button type="button" className={styles.primaryButton} onClick={openImportPanel}>
+                            Import Existing Badge
+                          </button>
+                          <Link href={`/courses/new?courseId=${course.id}`} className={styles.primaryButton}>
+                            Edit Course
+                          </Link>
+                          {email ? (
+                            <ExportCsvDataButton courseId={course.id} email={email} className={styles.primaryButton} />
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
+
+                    {/* MVP test-cleanup button - remove before handoff. */}
+                    {isInstructorFlag ? (
+                      <div className={styles.dangerRow}>
+                        <button
+                          type="button"
+                          className={styles.dangerButton}
+                          onClick={handleDeleteCourse}
+                          disabled={isDeleting}
+                        >
+                          {isDeleting ? 'Deleting…' : 'Delete Course'}
+                        </button>
+                      </div>
+                    ) : null}
+                  </section>
+                ) : null}
+              </div>
             </>
           ) : null}
         </div>

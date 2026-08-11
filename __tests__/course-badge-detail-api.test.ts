@@ -25,6 +25,21 @@ jest.mock('../app/api/courses/lib/course-queries', () => ({
   fetchAccessibleBadgeDetail: (...args: unknown[]) => mockFetchAccessibleBadgeDetail(...args),
 }));
 
+// The route reaches Prisma directly for the rating aggregates (see
+// app/api/courses/lib/badge-ratings.ts) — everything else it needs comes through
+// the mocked course-queries. Without this the suite issues a live query, which
+// passes locally off .env and fails in CI where no DATABASE_URL exists.
+const mockSurveyResponseFindMany = jest.fn();
+
+jest.mock('@/lib/prisma', () => ({
+  __esModule: true,
+  default: {
+    surveyResponse: {
+      findMany: (...args: unknown[]) => mockSurveyResponseFindMany(...args),
+    },
+  },
+}));
+
 function buildRequest() {
   return new NextRequest('http://localhost/api/courses/course-1/badge-1?email=prof%40example.edu', {
     headers: { Accept: 'application/json' },
@@ -41,6 +56,7 @@ async function getBadgeDetail() {
 describe('course badge detail API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSurveyResponseFindMany.mockResolvedValue([]);
     mockFetchUserByEmail.mockResolvedValue({ id: 'instructor-1' });
     mockFetchCreatedCourseDetail.mockResolvedValue({
       id: 'course-1',
@@ -147,12 +163,14 @@ describe('course badge detail API', () => {
             ],
             lessonProgress: [
               {
+                lessonId: 'lesson-1',
                 status: 'COMPLETED',
                 startedAt: new Date('2026-01-01T00:00:00.000Z'),
                 completedAt: new Date('2026-01-03T00:00:00.000Z'),
                 percentComplete: 100,
               },
             ],
+            assessmentAttempts: [{ passed: true }],
           },
         },
         {
@@ -176,12 +194,14 @@ describe('course badge detail API', () => {
             ],
             lessonProgress: [
               {
+                lessonId: 'lesson-1',
                 status: 'COMPLETED',
                 startedAt: new Date('2026-01-01T00:00:00.000Z'),
                 completedAt: new Date('2026-01-02T00:00:00.000Z'),
                 percentComplete: 100,
               },
             ],
+            assessmentAttempts: [],
           },
         },
         {
@@ -195,6 +215,7 @@ describe('course badge detail API', () => {
             externalId: 'U3',
             badgeProgress: [],
             lessonProgress: [],
+            assessmentAttempts: [],
           },
         },
       ],
@@ -250,6 +271,102 @@ describe('course badge detail API', () => {
     expect(body.students[2]).toEqual(expect.objectContaining({ status: 'NOT_STARTED', progress: null }));
   });
 
+  // The instructor-facing rollup: three cohorts, with "still learning" split by
+  // how far each student got. See lib/badgeCohorts.ts.
+  it('returns the three-cohort rollup with a still-learning breakdown', async () => {
+    const response = await getBadgeDetail();
+    const body = await response.json();
+
+    expect(body.cohorts).toEqual({
+      totalStudents: 3,
+      proficient: { count: 1, percent: 33 },
+      notStarted: { count: 1, percent: 33 },
+      stillLearning: {
+        count: 1,
+        percent: 33,
+        lockedCount: 0,
+        stages: {
+          videoIncomplete: { count: 0, percent: 0 },
+          // Finished the lesson, cleared QEV, no in-person attempt yet.
+          videoComplete: { count: 1, percent: 33 },
+          attemptFailed: { count: 0, percent: 0 },
+          awaitingAward: { count: 0, percent: 0 },
+        },
+      },
+    });
+  });
+
+  it('separates students who were assessed in person and have not passed', async () => {
+    const badgeDetail = await mockFetchAccessibleBadgeDetail();
+    const completedLesson = {
+      lessonId: 'lesson-1',
+      status: 'COMPLETED',
+      startedAt: new Date('2026-01-01T00:00:00.000Z'),
+      completedAt: new Date('2026-01-02T00:00:00.000Z'),
+      percentComplete: 100,
+    };
+
+    mockFetchAccessibleBadgeDetail.mockResolvedValue({
+      ...badgeDetail,
+      enrollments: [
+        {
+          id: 'enrollment-failed',
+          role: 'STUDENT',
+          sections: [],
+          student: {
+            id: 'student-failed',
+            name: 'Failed Once',
+            email: 'failed@example.edu',
+            externalId: 'U1',
+            badgeProgress: [
+              {
+                id: 'progress-failed',
+                badgeId: 'badge-1',
+                status: 'READY_FOR_ASSESSMENT',
+                awardedAt: null,
+                score: null,
+                updatedAt: new Date('2026-01-05T00:00:00.000Z'),
+              },
+            ],
+            lessonProgress: [completedLesson],
+            assessmentAttempts: [{ passed: false }],
+          },
+        },
+        {
+          id: 'enrollment-locked',
+          role: 'STUDENT',
+          sections: [],
+          student: {
+            id: 'student-locked',
+            name: 'Out Of Retries',
+            email: 'locked@example.edu',
+            externalId: 'U2',
+            badgeProgress: [
+              {
+                id: 'progress-locked',
+                badgeId: 'badge-1',
+                status: 'LOCKED',
+                awardedAt: null,
+                score: null,
+                updatedAt: new Date('2026-01-06T00:00:00.000Z'),
+              },
+            ],
+            lessonProgress: [completedLesson],
+            assessmentAttempts: [{ passed: false }, { passed: false }],
+          },
+        },
+      ],
+    });
+
+    const response = await getBadgeDetail();
+    const body = await response.json();
+
+    expect(body.cohorts.stillLearning.count).toBe(2);
+    expect(body.cohorts.stillLearning.stages.attemptFailed).toEqual({ count: 2, percent: 100 });
+    expect(body.cohorts.stillLearning.stages.videoComplete).toEqual({ count: 0, percent: 0 });
+    expect(body.cohorts.stillLearning.lockedCount).toBe(1);
+  });
+
   // Regression for #97: StudentBadge rows are eagerly created with LEARNING at
   // badge creation/import, so a LEARNING row without any requirement-lesson
   // activity must still count as NOT_STARTED.
@@ -276,7 +393,10 @@ describe('course badge detail API', () => {
             email: 'untouched@example.edu',
             externalId: 'U1',
             badgeProgress: [{ ...learningProgress }],
-            lessonProgress: [{ status: 'NOT_STARTED', startedAt: null, completedAt: null, percentComplete: 0 }],
+            lessonProgress: [
+              { lessonId: 'lesson-1', status: 'NOT_STARTED', startedAt: null, completedAt: null, percentComplete: 0 },
+            ],
+            assessmentAttempts: [],
           },
         },
         {
@@ -291,12 +411,14 @@ describe('course badge detail API', () => {
             badgeProgress: [{ ...learningProgress, id: 'progress-active' }],
             lessonProgress: [
               {
+                lessonId: 'lesson-1',
                 status: 'IN_PROGRESS',
                 startedAt: new Date('2026-01-02T00:00:00.000Z'),
                 completedAt: null,
                 percentComplete: 20,
               },
             ],
+            assessmentAttempts: [],
           },
         },
       ],
@@ -317,5 +439,56 @@ describe('course badge detail API', () => {
         completedCount: 0,
       })
     );
+  });
+  // The rating aggregates are the reason this route touches Prisma at all. Feed
+  // the query through the mock so the aggregation is exercised for real — without
+  // a database — rather than just stubbed out to keep CI quiet.
+  describe('rating aggregates', () => {
+    it('rolls survey responses into badge and per-lesson QEV summaries', async () => {
+      mockSurveyResponseFindMany
+        // Badge-context responses (SurveyContext.BADGE).
+        .mockResolvedValueOnce([{ rating: 5 }, { rating: 4 }, { rating: 3 }])
+        // Lesson-context responses, each carrying its prompt's lessonId.
+        .mockResolvedValueOnce([
+          { rating: 4, prompt: { lessonId: 'lesson-1' } },
+          { rating: 2, prompt: { lessonId: 'lesson-1' } },
+        ]);
+
+      const body = await (await getBadgeDetail()).json();
+
+      expect(body.ratings.badge).toEqual({
+        count: 3,
+        average: 4,
+        distribution: { 1: 0, 2: 0, 3: 1, 4: 1, 5: 1 },
+      });
+      expect(body.ratings.qev.overall).toEqual({
+        count: 2,
+        average: 3,
+        distribution: { 1: 0, 2: 1, 3: 0, 4: 1, 5: 0 },
+      });
+      expect(body.ratings.qev.lessons).toEqual([
+        expect.objectContaining({ lessonId: 'lesson-1', title: 'Bunsen Burner Lesson', count: 2, average: 3 }),
+      ]);
+    });
+
+    it('reports empty summaries when nobody has rated', async () => {
+      const body = await (await getBadgeDetail()).json();
+
+      expect(body.ratings.badge).toEqual({ count: 0, average: null, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } });
+      expect(body.ratings.qev.overall.average).toBeNull();
+      expect(body.ratings.qev.lessons).toHaveLength(1);
+    });
+
+    // Ratings are scoped to the students enrolled in this course, so a shared
+    // source badge cannot pull another cohort's responses into these numbers.
+    it("queries responses scoped to this course's enrolled students", async () => {
+      await getBadgeDetail();
+
+      for (const [args] of mockSurveyResponseFindMany.mock.calls) {
+        expect((args as { where: { studentId: { in: string[] } } }).where.studentId).toEqual({
+          in: ['student-1', 'student-2', 'student-3'],
+        });
+      }
+    });
   });
 });

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
+import { hasVisibleQuestionText, sanitizeQuestionRichText } from '@/lib/question-rich-text';
+
 import styles from './page.module.css';
 
 export type BadgeDetailTone = 'progress' | 'completed';
@@ -20,6 +22,15 @@ export type BadgeDetailResponse = {
     cooldownDays?: number | null;
     reassessmentRequired?: boolean | null;
     allowCooldownOverride?: boolean;
+  };
+  lesson?: {
+    status: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED';
+    lessons: Array<{
+      lessonId: string;
+      title: string;
+      status: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED';
+      percentComplete: number;
+    }>;
   };
   progress: {
     percentComplete: number;
@@ -215,6 +226,21 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
       : 'Not yet assessed'
     : detail.progress.currentCheckpoint || '--';
 
+  // Overview line 1: the video lesson. Falls back to the precheck flag for a
+  // payload that predates the lesson summary.
+  const lessonStatus = detail.lesson?.status ?? (detail.progress.precheckComplete ? 'COMPLETED' : 'IN_PROGRESS');
+  const lessonStatusLabel =
+    lessonStatus === 'COMPLETED' ? 'Completed' : lessonStatus === 'IN_PROGRESS' ? 'In progress' : 'Not started';
+
+  // Overview line 2: the in-person assessment — proficient, or how many attempts
+  // they have used without passing.
+  const attemptCount = detail.assessment.attemptCount;
+  const assessmentLabel = detail.progress.assessmentComplete
+    ? 'Completed — proficient'
+    : attemptCount > 0
+      ? `${attemptCount} attempt${attemptCount === 1 ? '' : 's'}, not yet passed`
+      : 'Not yet assessed';
+
   return (
     <section className={styles.detailCard}>
       <div className={styles.detailCardHeader}>
@@ -231,16 +257,12 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
 
         <div className={styles.progressStatusColumn}>
           <p className={styles.progressStatusLine}>
-            <span className={styles.progressStatusLabel}>Precheck status:</span>{' '}
-            <span className={styles.progressStatusValue}>
-              {detail.progress.precheckComplete ? 'Complete' : 'Incomplete'}
-            </span>
+            <span className={styles.progressStatusLabel}>Video lesson:</span>{' '}
+            <span className={styles.progressStatusValue}>{lessonStatusLabel}</span>
           </p>
           <p className={styles.progressStatusLine}>
-            <span className={styles.progressStatusLabel}>Assessment status:</span>{' '}
-            <span className={styles.progressStatusValue}>
-              {detail.progress.assessmentComplete ? 'Complete' : 'Incomplete'}
-            </span>
+            <span className={styles.progressStatusLabel}>In-person assessment:</span>{' '}
+            <span className={styles.progressStatusValue}>{assessmentLabel}</span>
           </p>
           <p className={styles.progressStatusLine}>
             <span className={styles.progressStatusLabel}>Currently at:</span>{' '}
@@ -259,7 +281,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
           className={[styles.detailTab, activeTab === 'assessment' ? styles.detailTabActive : ''].join(' ')}
           onClick={() => setActiveTab('assessment')}
         >
-          Assessment history
+          In-person assessment
         </button>
         <button
           type="button"
@@ -268,7 +290,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
           className={[styles.detailTab, activeTab === 'precheck' ? styles.detailTabActive : ''].join(' ')}
           onClick={() => setActiveTab('precheck')}
         >
-          Precheck answer history
+          Video lesson results
         </button>
       </div>
 
@@ -408,7 +430,16 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
                                       ) : null}
                                       {checkpoint.questions.map((question) => (
                                         <div key={question.id} className={styles.questionBlock}>
-                                          <p className={styles.questionPrompt}>{question.prompt || question.title}</p>
+                                          <div
+                                            className={`${styles.questionPrompt} ${styles.questionRichText}`}
+                                            dangerouslySetInnerHTML={{
+                                              __html: sanitizeQuestionRichText(
+                                                hasVisibleQuestionText(question.prompt)
+                                                  ? question.prompt
+                                                  : question.title
+                                              ),
+                                            }}
+                                          />
                                           <div className={styles.answerCard}>
                                             {question.answers.map((answer, answerIndex) => (
                                               <div key={answerIndex} className={styles.answerRow}>
