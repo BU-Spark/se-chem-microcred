@@ -25,6 +25,21 @@ jest.mock('../app/api/courses/lib/course-queries', () => ({
   fetchAccessibleBadgeDetail: (...args: unknown[]) => mockFetchAccessibleBadgeDetail(...args),
 }));
 
+// The route reaches Prisma directly for the rating aggregates (see
+// app/api/courses/lib/badge-ratings.ts) — everything else it needs comes through
+// the mocked course-queries. Without this the suite issues a live query, which
+// passes locally off .env and fails in CI where no DATABASE_URL exists.
+const mockSurveyResponseFindMany = jest.fn();
+
+jest.mock('@/lib/prisma', () => ({
+  __esModule: true,
+  default: {
+    surveyResponse: {
+      findMany: (...args: unknown[]) => mockSurveyResponseFindMany(...args),
+    },
+  },
+}));
+
 function buildRequest() {
   return new NextRequest('http://localhost/api/courses/course-1/badge-1?email=prof%40example.edu', {
     headers: { Accept: 'application/json' },
@@ -41,6 +56,7 @@ async function getBadgeDetail() {
 describe('course badge detail API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockSurveyResponseFindMany.mockResolvedValue([]);
     mockFetchUserByEmail.mockResolvedValue({ id: 'instructor-1' });
     mockFetchCreatedCourseDetail.mockResolvedValue({
       id: 'course-1',
@@ -423,5 +439,56 @@ describe('course badge detail API', () => {
         completedCount: 0,
       })
     );
+  });
+  // The rating aggregates are the reason this route touches Prisma at all. Feed
+  // the query through the mock so the aggregation is exercised for real — without
+  // a database — rather than just stubbed out to keep CI quiet.
+  describe('rating aggregates', () => {
+    it('rolls survey responses into badge and per-lesson QEV summaries', async () => {
+      mockSurveyResponseFindMany
+        // Badge-context responses (SurveyContext.BADGE).
+        .mockResolvedValueOnce([{ rating: 5 }, { rating: 4 }, { rating: 3 }])
+        // Lesson-context responses, each carrying its prompt's lessonId.
+        .mockResolvedValueOnce([
+          { rating: 4, prompt: { lessonId: 'lesson-1' } },
+          { rating: 2, prompt: { lessonId: 'lesson-1' } },
+        ]);
+
+      const body = await (await getBadgeDetail()).json();
+
+      expect(body.ratings.badge).toEqual({
+        count: 3,
+        average: 4,
+        distribution: { 1: 0, 2: 0, 3: 1, 4: 1, 5: 1 },
+      });
+      expect(body.ratings.qev.overall).toEqual({
+        count: 2,
+        average: 3,
+        distribution: { 1: 0, 2: 1, 3: 0, 4: 1, 5: 0 },
+      });
+      expect(body.ratings.qev.lessons).toEqual([
+        expect.objectContaining({ lessonId: 'lesson-1', title: 'Bunsen Burner Lesson', count: 2, average: 3 }),
+      ]);
+    });
+
+    it('reports empty summaries when nobody has rated', async () => {
+      const body = await (await getBadgeDetail()).json();
+
+      expect(body.ratings.badge).toEqual({ count: 0, average: null, distribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 } });
+      expect(body.ratings.qev.overall.average).toBeNull();
+      expect(body.ratings.qev.lessons).toHaveLength(1);
+    });
+
+    // Ratings are scoped to the students enrolled in this course, so a shared
+    // source badge cannot pull another cohort's responses into these numbers.
+    it("queries responses scoped to this course's enrolled students", async () => {
+      await getBadgeDetail();
+
+      for (const [args] of mockSurveyResponseFindMany.mock.calls) {
+        expect((args as { where: { studentId: { in: string[] } } }).where.studentId).toEqual({
+          in: ['student-1', 'student-2', 'student-3'],
+        });
+      }
+    });
   });
 });
