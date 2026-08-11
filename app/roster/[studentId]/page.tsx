@@ -13,6 +13,7 @@ import StudentProfileCard from '@/app/components/StudentProfileCard';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
 import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
+import { StudentActionsModal } from './StudentActionsModal';
 import { MessageComposeModal } from './MessageComposeModal';
 import styles from './page.module.css';
 import { EnrollmentRole } from '@/lib/enrollment/types';
@@ -43,6 +44,8 @@ type StudentProfileBadge = {
 
 type InstructorMemberProfileResponse = {
   memberRole: EnrollmentRole;
+  // The viewer's own role, which gates the instructor-only student actions.
+  viewerRole?: EnrollmentRole;
   member: {
     id: string;
     name: string | null;
@@ -255,6 +258,7 @@ export default function InstructorStudentProfilePage() {
   const [isNotStartedOpen, setIsNotStartedOpen] = useState(false);
   const [isCompletedOpen, setIsCompletedOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [isOverridingCooldown, setIsOverridingCooldown] = useState(false);
   const [overrideError, setOverrideError] = useState<string | null>(null);
@@ -268,6 +272,9 @@ export default function InstructorStudentProfilePage() {
   const currentProfileLabel = profileLabel(currentRole);
   const currentProfileLabelLower = currentProfileLabel.toLowerCase();
   const showBadgesSection = currentRole === 'STUDENT';
+  // Student actions are instructor-only. The server enforces this independently,
+  // so hiding the button is convenience rather than the gate.
+  const canManageStudent = data?.viewerRole === 'INSTRUCTOR';
   const courseSectionsLabel = data?.course.sections.join(', ') ?? '';
 
   const selectedBadgeTone: BadgeDetailTone | null = useMemo(() => {
@@ -559,6 +566,15 @@ export default function InstructorStudentProfilePage() {
                           <button type="button" className={styles.assessmentLink} onClick={() => setIsConfigOpen(true)}>
                             Edit configurations
                           </button>
+                          {canManageStudent ? (
+                            <button
+                              type="button"
+                              className={styles.assessmentLink}
+                              onClick={() => setIsActionsOpen(true)}
+                            >
+                              Student actions
+                            </button>
+                          ) : null}
                           {canOverrideCooldown ? (
                             <button
                               type="button"
@@ -660,6 +676,27 @@ export default function InstructorStudentProfilePage() {
           }}
           onClose={() => setIsConfigOpen(false)}
           onSaved={() => {
+            void refreshBadgeDetail();
+          }}
+        />
+      ) : null}
+
+      {isActionsOpen && canManageStudent && selectedBadgeDetail && courseId && studentId && email ? (
+        <StudentActionsModal
+          studentName={data?.member.name ?? 'Student'}
+          courseId={courseId}
+          studentId={studentId}
+          email={email}
+          badge={{
+            id: selectedBadgeDetail.badge.id,
+            name: selectedBadgeDetail.badge.name,
+            status: selectedBadgeDetail.badge.status,
+            qevWaivedAt: selectedBadgeDetail.badge.qevWaivedAt ?? null,
+          }}
+          attemptCount={selectedBadgeDetail.assessment.attemptCount}
+          lessonTitles={selectedBadgeDetail.lesson?.lessons.map((lesson) => lesson.title) ?? []}
+          onClose={() => setIsActionsOpen(false)}
+          onCompleted={() => {
             void refreshBadgeDetail();
           }}
         />
