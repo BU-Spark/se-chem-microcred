@@ -604,6 +604,37 @@ describe('Roster member profile page', () => {
     expect(screen.queryByRole('button', { name: /Override cooldown/i })).not.toBeInTheDocument();
   });
 
+  // Student actions are instructor-only. The server enforces this too, but a
+  // checker should never be shown a button that will only refuse them.
+  it.each([
+    ['INSTRUCTOR', true],
+    ['CHECKER', false],
+  ])('shows the student actions button to an %s: %s', async (viewerRole, isVisible) => {
+    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
+
+    mockFetch.mockImplementation(async (input: unknown) => {
+      const url = String(input);
+      if (url.includes('/badges/badge-1')) {
+        return { ok: true, json: async () => createInProgressBadgeDetailPayload() } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => ({ ...createStudentProfilePayload(), viewerRole }),
+      } as Response;
+    });
+
+    render(<InstructorStudentProfilePage />);
+
+    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
+
+    const button = screen.queryByRole('button', { name: 'Student actions' });
+    if (isVisible) {
+      expect(button).toBeInTheDocument();
+    } else {
+      expect(button).not.toBeInTheDocument();
+    }
+  });
+
   it('loads and displays the selected checker profile', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1');
     mockUsePathname.mockReturnValue('/roster/checker-1');

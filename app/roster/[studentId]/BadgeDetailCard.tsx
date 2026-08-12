@@ -22,6 +22,11 @@ export type BadgeDetailResponse = {
     cooldownDays?: number | null;
     reassessmentRequired?: boolean | null;
     allowCooldownOverride?: boolean;
+    // Set when an instructor waived the QEV requirement. Lesson progress is left
+    // untouched by the waiver, so this is what explains a badge that became
+    // assessable without a finished lesson.
+    qevWaivedAt?: string | null;
+    qevWaivedByName?: string | null;
   };
   lesson?: {
     status: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED';
@@ -232,6 +237,13 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
   const lessonStatusLabel =
     lessonStatus === 'COMPLETED' ? 'Completed' : lessonStatus === 'IN_PROGRESS' ? 'In progress' : 'Not started';
 
+  // A waiver unlocks the assessment without touching lesson progress, so the
+  // lesson line would otherwise read "In progress" with no explanation.
+  const isQevWaived = Boolean(detail.badge.qevWaivedAt);
+  const waivedByLabel = detail.badge.qevWaivedByName
+    ? `QEV waived by ${detail.badge.qevWaivedByName}`
+    : 'QEV waived by instructor';
+
   // Overview line 2: the in-person assessment — proficient, or how many attempts
   // they have used without passing.
   const attemptCount = detail.assessment.attemptCount;
@@ -252,13 +264,18 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
       <div className={styles.detailSummary}>
         <div className={styles.progressSummaryColumn}>
           <ProgressRing percent={detail.progress.percentComplete} />
-          <p className={styles.progressSummaryCaption}>Complete with precheck</p>
+          <p className={styles.progressSummaryCaption}>
+            {isQevWaived ? 'Complete with precheck (waived)' : 'Complete with precheck'}
+          </p>
         </div>
 
         <div className={styles.progressStatusColumn}>
           <p className={styles.progressStatusLine}>
             <span className={styles.progressStatusLabel}>Video lesson:</span>{' '}
-            <span className={styles.progressStatusValue}>{lessonStatusLabel}</span>
+            <span className={styles.progressStatusValue}>
+              {lessonStatusLabel}
+              {isQevWaived ? ` — ${waivedByLabel} on ${formatDate(detail.badge.qevWaivedAt)}` : ''}
+            </span>
           </p>
           <p className={styles.progressStatusLine}>
             <span className={styles.progressStatusLabel}>In-person assessment:</span>{' '}

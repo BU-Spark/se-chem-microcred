@@ -231,6 +231,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     return NextResponse.json(
       {
         memberRole: enrollment.role,
+        // The viewer's own role, not the profile subject's. The instructor-only
+        // student actions are hidden for checkers off this; the server enforces
+        // the same rule independently, so this is convenience, not the gate.
+        viewerRole: effectiveViewerRole,
         member: {
           id: member.id,
           name: member.name,

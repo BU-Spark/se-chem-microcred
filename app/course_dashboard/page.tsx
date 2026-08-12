@@ -21,6 +21,11 @@ interface LessonCard {
   variant?: 'start' | 'continue' | 'completed';
   image?: string;
   href?: string;
+  // Set when an instructor waived the QEV requirement of a badge this lesson
+  // backs. The waiver deliberately leaves lesson progress alone, so without this
+  // the card sits in "Pick up where you left off" while the badge reports itself
+  // ready to assess — two true statements that read as a contradiction.
+  waivedNote?: string;
 }
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
@@ -137,7 +142,11 @@ function resolveLessonImage(record: LessonRecord) {
   return DEFAULT_LESSON_IMAGE;
 }
 
-function lessonRecordToCard(record: LessonRecord, startedBadgeSlugs?: Set<string>): LessonCard {
+function lessonRecordToCard(
+  record: LessonRecord,
+  startedBadgeSlugs?: Set<string>,
+  waivedBadgeNamesById?: Map<string, string>
+): LessonCard {
   const due = formatDueDate(record.dueDate);
   const metaParts: string[] = [];
   if (due) {
@@ -181,6 +190,12 @@ function lessonRecordToCard(record: LessonRecord, startedBadgeSlugs?: Set<string
       ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
       : `/lessons/${record.slug}/video`;
 
+  // Name the badge rather than the lesson: the student's question is "why can I be
+  // assessed when I haven't finished this?", and the badge is the thing that moved.
+  const waivedBadgeName = record.badgeRequirements
+    ?.map((requirement) => waivedBadgeNamesById?.get(requirement.badgeId))
+    .find((name): name is string => Boolean(name));
+
   return {
     id: record.id,
     title: record.title,
@@ -190,6 +205,9 @@ function lessonRecordToCard(record: LessonRecord, startedBadgeSlugs?: Set<string
     variant,
     image: resolveLessonImage(record),
     href,
+    waivedNote: waivedBadgeName
+      ? `Your instructor cleared this requirement for ${waivedBadgeName} — you can be assessed without finishing it.`
+      : undefined,
   };
 }
 
@@ -210,6 +228,13 @@ function HomePageContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
+  // The submit button stayed live for the whole request plus the refresh that
+  // follows it, so a student on a slow connection saw nothing happen and clicked
+  // again. SurveyResponse has no unique key on (promptId, studentId) and the route
+  // does find-then-write, so two overlapping submits each insert a row and the
+  // student's rating counts twice. The badge route's IN_REVIEW → COMPLETED guard
+  // already covers sequential clicks; this covers the concurrent ones.
+  const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false);
 
   const displayName = studentData?.student?.name || user?.fullName || 'Student';
   const courseTitle = studentData?.course?.title ?? '';
@@ -296,13 +321,39 @@ function HomePageContent() {
     return slugs;
   }, [studentData]);
 
-  const upNextLessons = useMemo(() => {
-    return studentData?.lessons.upNext.map((record) => lessonRecordToCard(record)) ?? [];
+  // Badges whose QEV requirement an instructor waived, so the lesson cards backing
+  // them can say why they became assessable while still unfinished.
+  const waivedBadgeNamesById = useMemo(() => {
+    const names = new Map<string, string>();
+    const badges = studentData?.badges;
+    if (badges) {
+      const all = [
+        ...(badges.completed ?? []),
+        ...(badges.inReview ?? []),
+        ...(badges.locked ?? []),
+        ...(badges.readyForAssessment ?? []),
+        ...(badges.learning ?? []),
+      ];
+      for (const badge of all) {
+        if (badge.qevWaivedAt) {
+          names.set(badge.id, badge.name);
+        }
+      }
+    }
+    return names;
   }, [studentData]);
 
+  const upNextLessons = useMemo(() => {
+    return (
+      studentData?.lessons.upNext.map((record) => lessonRecordToCard(record, undefined, waivedBadgeNamesById)) ?? []
+    );
+  }, [studentData, waivedBadgeNamesById]);
+
   const continueLessons = useMemo(() => {
-    return studentData?.lessons.inProgress.map((record) => lessonRecordToCard(record)) ?? [];
-  }, [studentData]);
+    return (
+      studentData?.lessons.inProgress.map((record) => lessonRecordToCard(record, undefined, waivedBadgeNamesById)) ?? []
+    );
+  }, [studentData, waivedBadgeNamesById]);
 
   const completedLessons = useMemo(() => {
     return studentData?.lessons.completed?.map((record) => lessonRecordToCard(record, startedBadgeSlugs)) ?? [];
@@ -361,9 +412,13 @@ function HomePageContent() {
   );
 
   const handleSubmitSurvey = useCallback(async () => {
-    if (!activeSurvey || !studentData?.student.email) {
+    // Belt and braces with the disabled button: a keyboard activation can still
+    // land before React re-renders with the disabled attribute.
+    if (!activeSurvey || !studentData?.student.email || isSubmittingSurvey) {
       return;
     }
+
+    setIsSubmittingSurvey(true);
 
     try {
       const response = await fetch(`/api/badges/${activeSurvey.badgeId}/survey`, {
@@ -383,8 +438,12 @@ function HomePageContent() {
       closeSurveyModal();
     } catch (error) {
       console.error('Failed to submit survey', error);
+    } finally {
+      // Reset on the failure path too, so a student whose submit genuinely failed
+      // is not left with a permanently dead button.
+      setIsSubmittingSurvey(false);
     }
-  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal]);
+  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal, isSubmittingSurvey]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -418,6 +477,7 @@ function HomePageContent() {
           <div className={styles.cardTitle}>{lesson.title}</div>
           <div className={styles.cardStatus}>{lesson.status}</div>
           <div className={styles.cardMeta}>{lesson.meta}</div>
+          {lesson.waivedNote ? <p className={styles.cardWaivedNote}>{lesson.waivedNote}</p> : null}
         </div>
 
         {lessonHref ? (
@@ -565,6 +625,7 @@ function HomePageContent() {
           onChange={setSurveyRating}
           onSubmit={handleSubmitSurvey}
           onClose={closeSurveyModal}
+          isSubmitting={isSubmittingSurvey}
           classNames={{
             overlay: styles.surveyOverlay,
             modal: styles.surveyModal,
