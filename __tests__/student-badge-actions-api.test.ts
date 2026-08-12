@@ -20,6 +20,7 @@ jest.mock('../app/api/courses/lib/course-queries', () => ({
 // suite never needs a DATABASE_URL.
 const mockTx = {
   assessmentAttempt: { create: jest.fn(), deleteMany: jest.fn() },
+  surveyResponse: { deleteMany: jest.fn() },
   checkpointResponse: { deleteMany: jest.fn() },
   checkpointAttempt: { deleteMany: jest.fn() },
   lessonAttempt: { deleteMany: jest.fn() },
@@ -102,6 +103,7 @@ describe('instructor student actions', () => {
     mockPrisma.course.findFirst.mockResolvedValue(courseFixture());
     mockPrisma.$transaction.mockImplementation((callback: (tx: typeof mockTx) => unknown) => callback(mockTx));
     mockTx.assessmentAttempt.deleteMany.mockResolvedValue({ count: 2 });
+    mockTx.surveyResponse.deleteMany.mockResolvedValue({ count: 1 });
     mockTx.studentBadge.update.mockImplementation(({ data }) => Promise.resolve(data));
     mockPrisma.studentBadge.update.mockImplementation(({ data }) => Promise.resolve(data));
     mockPrisma.badgeRequirement.findMany.mockResolvedValue([
@@ -256,6 +258,44 @@ describe('instructor student actions', () => {
       expect(mockTx.lessonProgress.deleteMany).not.toHaveBeenCalled();
       expect(mockTx.assessmentAttempt.deleteMany).toHaveBeenCalled();
     });
+
+    // A rating that outlives the work it describes keeps skewing the badge
+    // average until the student happens to redo the badge.
+    it("clears the student's badge and lesson ratings", async () => {
+      await PATCH(actionRequest(resetBody), actionParams());
+
+      expect(mockTx.surveyResponse.deleteMany).toHaveBeenCalledWith({
+        where: {
+          studentId: 'student-1',
+          prompt: {
+            OR: [
+              { badgeId: 'badge-1', context: 'BADGE' },
+              { lessonId: { in: ['lesson-1'] }, context: 'LESSON' },
+            ],
+          },
+        },
+      });
+    });
+
+    it('clears only the badge rating when the badge has no requirement lessons', async () => {
+      mockPrisma.badgeRequirement.findMany.mockResolvedValue([]);
+
+      await PATCH(actionRequest(resetBody), actionParams());
+
+      expect(mockTx.surveyResponse.deleteMany).toHaveBeenCalledWith({
+        where: {
+          studentId: 'student-1',
+          prompt: { OR: [{ badgeId: 'badge-1', context: 'BADGE' }] },
+        },
+      });
+    });
+
+    it('scopes the rating delete to this student, never the whole cohort', async () => {
+      await PATCH(actionRequest(resetBody), actionParams());
+
+      const where = mockTx.surveyResponse.deleteMany.mock.calls[0][0].where;
+      expect(where.studentId).toBe('student-1');
+    });
   });
 
   describe('waive QEV', () => {
@@ -399,6 +439,17 @@ describe('instructor student actions', () => {
       // reassessment budget or leave them cooling down.
       expect(update.data.awardedAt).toBeNull();
       expect(update.data.cooldownUntil).toBeNull();
+    });
+
+    // Correcting a recorded result doesn't erase that the student sat the
+    // assessment and formed a view of it — only a full reset does that.
+    it("leaves the student's rating alone", async () => {
+      await PATCH(
+        actionRequest({ action: 'OVERRIDE_GRADE', passed: true, reason: 'Assessed on paper' }),
+        actionParams()
+      );
+
+      expect(mockTx.surveyResponse.deleteMany).not.toHaveBeenCalled();
     });
 
     it('works with no prior attempt, so an off-system assessment can be recorded', async () => {

@@ -74,6 +74,14 @@ Full destructive wipe, inside one `prisma.$transaction`:
 failure mode already on file — it FK-cascades into the student's whole history and
 threw a P2003 in prod. Reset must not reintroduce it.
 
+**The student's ratings go too** — their `SurveyResponse` rows for this badge's
+BADGE prompt and for its requirement lessons' LESSON prompts. Both survey routes
+key on `(promptId, studentId)` and update rather than insert, so a surviving rating
+would not *double-count*; the problem is subtler. It would keep an opinion of an
+assessment this reset says never happened in the badge's average, until the student
+happens to redo the badge and overwrite it. Clearing them keeps the aggregate
+describing only work that still exists.
+
 **Per-student policy overrides survive** — `reassessmentLimit`, `cooldownDays`,
 `reassessmentRequired` are instructor policy, not student progress. An instructor who
 granted extra attempts shouldn't have to re-grant them after a reset.
@@ -122,11 +130,20 @@ QEV analytics the ring exists to report. Instead the waiver is visible: wherever
 precheck status renders, a waived badge reads **"QEV waived by instructor"** rather
 than pretending the lesson was completed.
 
-Surfaces to update:
+Surfaces updated:
 - `BadgeDetailCard` — the "Video lesson:" overview line, and the progress ring caption.
-- The badge detail `GET` payload — add `qevWaivedAt` / waiver author name.
-- Student-facing badge views — same marker, so the student understands why the
-  assessment unlocked without them finishing the lesson.
+- The badge detail `GET` payload — `qevWaivedAt` / waiver author name.
+- The student's badge popover (`app/badges/page.tsx`).
+- The student's course dashboard lesson card. This one is not optional: the
+  dashboard's three lesson sections read straight from `LessonProgress`, which the
+  waiver deliberately doesn't touch, while the "Ready to finalize" panel is
+  badge-driven. Without the note a student sees the same badge reported as ready to
+  finalize *and* the lesson sitting in "Pick up where you left off" — both true,
+  and together incoherent.
+
+The lesson deliberately stays where it is rather than moving to Completed. Telling a
+student a lesson is finished when they never finished it is the same lie as writing
+the `LessonProgress` row, just in the UI instead of the database.
 
 **One-way.** Undoing a waiver means a full reset. Guarded by a single confirm step
 naming the student and badge, since the undo path is expensive.
@@ -254,6 +271,14 @@ visible bubble opens on hover and click.
 
 - **The migration has not been applied to staging or production.** Until it is, the
   four columns don't exist and any student action will fail at the database.
+- **A waiver can't be granted before the student starts.** Not a server limit — the
+  row exists from enrollment and the endpoint would accept it. The instructor profile
+  renders not-started badges with `tone="pending"` and no `onSelectBadge`, so they
+  aren't clickable and the actions button is unreachable. Deliberately left as is;
+  revisit if instructors want to waive ahead of time, which is plausible.
+- **SurveyResponse has no unique key on `(promptId, studentId)`.** Pre-existing and
+  documented in both survey routes: a concurrent double-submit can create duplicate
+  ratings, which no amount of reset logic fixes. Needs a constraint migration.
 - **Reset is unattributable.** No audit row means a disputed wipe can't be traced.
   Accepted for MVP; revisit if it bites.
 - **Fail-path override ignores the attempt budget** — assumption above, confirm with PM.

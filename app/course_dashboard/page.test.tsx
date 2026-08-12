@@ -210,4 +210,58 @@ describe('Course dashboard page', () => {
     const link = await screen.findByRole('link', { name: action });
     expect(link.getAttribute('href')).toBe('/lessons/lab-safety/video?courseId=course-2');
   });
+
+  // A waived badge leaves lesson progress untouched by design, so the lesson stays
+  // in "Pick up where you left off" while the badge reports itself assessable. The
+  // note is what stops those two true statements reading as a contradiction.
+  describe('a waived QEV requirement', () => {
+    const waivedData = (qevWaivedAt: string | null) => ({
+      data: {
+        student: { name: 'Student Demo', email: 'student@example.edu' },
+        lessons: {
+          upNext: [],
+          completed: [],
+          inProgress: [{ ...completedBadgeLesson('safety'), id: 'lesson-open', status: 'IN_PROGRESS' }],
+        },
+        badges: {
+          inReview: [],
+          readyForAssessment: [{ ...makeBadge('safety', 'READY_FOR_ASSESSMENT', null), id: 'b1', qevWaivedAt }],
+        },
+        surveys: { pendingBadge: [] },
+      },
+      isLoading: false,
+      refresh: jest.fn(),
+    });
+
+    it('explains on the lesson card why the assessment unlocked', async () => {
+      mockUseStudentData.mockReturnValue(waivedData('2026-08-11T12:00:00.000Z'));
+
+      render(<CourseDashboardPage />);
+
+      expect(
+        await screen.findByText(
+          'Your instructor cleared this requirement for Safety — you can be assessed without finishing it.'
+        )
+      ).toBeInTheDocument();
+    });
+
+    it('leaves the lesson where it was rather than pretending it is finished', async () => {
+      mockUseStudentData.mockReturnValue(waivedData('2026-08-11T12:00:00.000Z'));
+
+      render(<CourseDashboardPage />);
+
+      // Still "Continue", still in progress — the waiver unblocks assessment, it
+      // does not complete the lesson.
+      expect(await screen.findByRole('link', { name: 'Continue' })).toBeInTheDocument();
+    });
+
+    it('says nothing when the requirement was not waived', async () => {
+      mockUseStudentData.mockReturnValue(waivedData(null));
+
+      render(<CourseDashboardPage />);
+
+      await screen.findByRole('link', { name: 'Continue' });
+      expect(screen.queryByText(/Your instructor cleared this requirement/)).not.toBeInTheDocument();
+    });
+  });
 });

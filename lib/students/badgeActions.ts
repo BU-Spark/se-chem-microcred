@@ -7,7 +7,7 @@
 //
 // See docs/student-actions-plan.md.
 
-import { BadgeStatus, Prisma } from '@prisma/client';
+import { BadgeStatus, Prisma, SurveyContext } from '@prisma/client';
 
 type ActionClient = Prisma.TransactionClient;
 
@@ -148,6 +148,15 @@ export async function findBadgesSharingLessons(
  * syncLessonBadgesForStudent refuses to re-promote a badge whose latest attempt
  * failed, so leaving attempts behind would strand the badge at LEARNING forever.
  *
+ * The student's own ratings go too. Re-rating overwrites rather than appends
+ * (both survey routes key on promptId + studentId), so a surviving rating would
+ * not double-count — but it would keep an opinion of an assessment this reset
+ * says never happened in the badge's average until the student happens to redo
+ * the badge. Clearing them means the aggregate only ever describes work that
+ * still exists. A grade override deliberately does NOT do this: correcting a
+ * recorded result doesn't erase that the student sat the assessment and formed a
+ * view of it.
+ *
  * Per-student policy overrides (reassessmentLimit, cooldownDays,
  * reassessmentRequired) deliberately survive — they are instructor policy, not
  * student progress, and re-granting them after every reset would be busywork.
@@ -165,6 +174,21 @@ export async function resetBadgeProgress(
   // cascade, so they are deleted children-first.
   const { count: assessmentAttemptsDeleted } = await client.assessmentAttempt.deleteMany({
     where: { studentId, badgeId },
+  });
+
+  // The post-finalization badge rating, plus the per-lesson QEV ratings for the
+  // lessons being wiped below. SurveyResponse has no dependents, so ordering
+  // against the other deletes doesn't matter.
+  const { count: ratingsDeleted } = await client.surveyResponse.deleteMany({
+    where: {
+      studentId,
+      prompt: {
+        OR: [
+          { badgeId, context: SurveyContext.BADGE },
+          ...(lessonIds.length > 0 ? [{ lessonId: { in: lessonIds }, context: SurveyContext.LESSON } as const] : []),
+        ],
+      },
+    },
   });
 
   if (lessonIds.length > 0) {
@@ -202,7 +226,7 @@ export async function resetBadgeProgress(
     select: { status: true },
   });
 
-  return { status: badgeProgress.status, assessmentAttemptsDeleted, lessonsReset: lessonIds.length };
+  return { status: badgeProgress.status, assessmentAttemptsDeleted, ratingsDeleted, lessonsReset: lessonIds.length };
 }
 
 /**
