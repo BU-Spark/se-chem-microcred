@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import type { ImgHTMLAttributes } from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import CourseDashboardPage from './page';
 
@@ -209,6 +209,61 @@ describe('Course dashboard page', () => {
 
     const link = await screen.findByRole('link', { name: action });
     expect(link.getAttribute('href')).toBe('/lessons/lab-safety/video?courseId=course-2');
+  });
+
+  // SurveyResponse has no unique key on (promptId, studentId) and the route does
+  // find-then-write, so two overlapping submits each insert a row and the student's
+  // rating counts twice. The route's IN_REVIEW -> COMPLETED guard already covers
+  // sequential clicks; the button has to cover the concurrent ones.
+  //
+  // This modal is reached only by landing on /course_dashboard?surveyBadge=<slug>.
+  // The in-app finalize flow ("Review & Finalize") routes to the badge feedback
+  // page instead, which has its own guard — so this path is defensive.
+  it('blocks a second survey submit while the first is still in flight', async () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams({ courseId: 'course-2', surveyBadge: 'safety' }));
+
+    let releaseSubmit: (value: unknown) => void = () => undefined;
+    const submitFetch = jest.fn(
+      (...args: unknown[]) =>
+        new Promise((resolve) => {
+          void args;
+          releaseSubmit = resolve;
+        })
+    );
+    global.fetch = submitFetch as unknown as typeof fetch;
+
+    mockUseStudentData.mockReturnValue({
+      data: {
+        student: { name: 'Student Demo', email: 'student@example.edu' },
+        lessons: { upNext: [], inProgress: [], completed: [] },
+        badges: { inReview: [] },
+        surveys: {
+          pendingBadge: [
+            { promptId: 'p1', badgeId: 'b1', badgeSlug: 'safety', badgeName: 'Safety', question: 'How was it?' },
+          ],
+        },
+      },
+      isLoading: false,
+      refresh: jest.fn(),
+    });
+
+    render(<CourseDashboardPage />);
+
+    const submit = await screen.findByRole('button', { name: 'Submit' });
+    fireEvent.click(submit);
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Submitting…' })).toBeDisabled());
+
+    const callsBeforeSecondClick = submitFetch.mock.calls.length;
+
+    // The impatient second click a student makes when nothing appears to happen.
+    fireEvent.click(screen.getByRole('button', { name: 'Submitting…' }));
+    expect(submitFetch.mock.calls.length).toBe(callsBeforeSecondClick);
+    expect(submitFetch.mock.calls.filter((call) => String(call[0]).includes('/survey'))).toHaveLength(1);
+
+    // Let the in-flight submit settle so its state updates land inside the test.
+    releaseSubmit({ ok: true, json: async () => ({}) });
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Submitting…' })).not.toBeInTheDocument());
   });
 
   // A waived badge leaves lesson progress untouched by design, so the lesson stays

@@ -277,8 +277,14 @@ visible bubble opens on hover and click.
   aren't clickable and the actions button is unreachable. Deliberately left as is;
   revisit if instructors want to waive ahead of time, which is plausible.
 - **SurveyResponse has no unique key on `(promptId, studentId)`.** Pre-existing and
-  documented in both survey routes: a concurrent double-submit can create duplicate
-  ratings, which no amount of reset logic fixes. Needs a constraint migration.
+  documented in both survey routes, which do find-then-write: two *overlapping*
+  submits each insert a row, so one student's rating counts twice. Sequential clicks
+  are already safe — the badge route early-returns once the badge is COMPLETED.
+
+  All three callers now guard the submit button while a request is in flight, so
+  there is no practical way to trigger it from the UI. Closing it properly still
+  needs `@@unique([promptId, studentId])` plus a switch to `upsert`, and that
+  migration must dedupe existing rows (keep newest per pair) or it won't apply.
 - **Reset is unattributable.** No audit row means a disputed wipe can't be traced.
   Accepted for MVP; revisit if it bites.
 - **Fail-path override ignores the attempt budget** — assumption above, confirm with PM.

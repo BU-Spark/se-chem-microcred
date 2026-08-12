@@ -228,6 +228,13 @@ function HomePageContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
+  // The submit button stayed live for the whole request plus the refresh that
+  // follows it, so a student on a slow connection saw nothing happen and clicked
+  // again. SurveyResponse has no unique key on (promptId, studentId) and the route
+  // does find-then-write, so two overlapping submits each insert a row and the
+  // student's rating counts twice. The badge route's IN_REVIEW → COMPLETED guard
+  // already covers sequential clicks; this covers the concurrent ones.
+  const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false);
 
   const displayName = studentData?.student?.name || user?.fullName || 'Student';
   const courseTitle = studentData?.course?.title ?? '';
@@ -405,9 +412,13 @@ function HomePageContent() {
   );
 
   const handleSubmitSurvey = useCallback(async () => {
-    if (!activeSurvey || !studentData?.student.email) {
+    // Belt and braces with the disabled button: a keyboard activation can still
+    // land before React re-renders with the disabled attribute.
+    if (!activeSurvey || !studentData?.student.email || isSubmittingSurvey) {
       return;
     }
+
+    setIsSubmittingSurvey(true);
 
     try {
       const response = await fetch(`/api/badges/${activeSurvey.badgeId}/survey`, {
@@ -427,8 +438,12 @@ function HomePageContent() {
       closeSurveyModal();
     } catch (error) {
       console.error('Failed to submit survey', error);
+    } finally {
+      // Reset on the failure path too, so a student whose submit genuinely failed
+      // is not left with a permanently dead button.
+      setIsSubmittingSurvey(false);
     }
-  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal]);
+  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal, isSubmittingSurvey]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -610,6 +625,7 @@ function HomePageContent() {
           onChange={setSurveyRating}
           onSubmit={handleSubmitSurvey}
           onClose={closeSurveyModal}
+          isSubmitting={isSubmittingSurvey}
           classNames={{
             overlay: styles.surveyOverlay,
             modal: styles.surveyModal,
