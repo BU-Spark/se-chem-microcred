@@ -483,7 +483,11 @@ export default function CourseBadgeProgress() {
                           );
 
                           if (bar.kind === 'not-started') {
-                            return <div key={bar.kind}>{barContent}</div>;
+                            return (
+                              <div key={bar.kind} className={styles.staticBarRow}>
+                                {barContent}
+                              </div>
+                            );
                           }
 
                           return (

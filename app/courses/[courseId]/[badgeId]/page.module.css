@@ -463,6 +463,9 @@
   cursor: pointer;
   list-style: none;
 }
+.staticBarRow {
+  padding: 0.8rem 2.5rem 0.8rem 1rem;
+}
 .barDetails summary::-webkit-details-marker {
   display: none;
 }

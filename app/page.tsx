@@ -59,6 +59,18 @@ type CreatedCourse = CourseImageFields & {
   }>;
 };
 
+const formatCourseCreatedDate = (createdAt: string) => {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return 'Unknown';
+
+  return date.toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  });
+};
+
 type EnrolledCourse = {
   id: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
@@ -866,10 +878,8 @@ function HomeContent() {
                                 value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.badges ?? 0,
                               },
                               {
-                                label: 'Status',
-                                value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.active
-                                  ? 'Active'
-                                  : 'Inactive',
+                                label: 'Created',
+                                value: formatCourseCreatedDate(course.createdAt),
                               },
                             ]
                       }
