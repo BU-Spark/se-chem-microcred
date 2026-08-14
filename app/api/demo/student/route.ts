@@ -13,6 +13,7 @@ import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
 import { isLessonReleased, lessonReleaseDate } from '../../../../lib/lessonVisibility';
+import { lessonDeadline } from '../../../../lib/badgeAvailability';
 import { deriveCatalogLessonStatus } from '../../../../lib/lessonStatus';
 
 function avatarPathForBase(base?: string | null): string {
@@ -169,7 +170,11 @@ function formatLesson({
     description: lesson.description,
     thumbnailUrl: lesson.thumbnailUrl,
     estimatedMinutes: lesson.estimatedMinutes,
-    dueDate: lesson.dueDate?.toISOString() ?? null,
+    dueDate:
+      lessonDeadline(
+        lesson.dueDate,
+        lesson.badgeRequirements.map((requirement) => requirement.badge)
+      )?.toISOString() ?? null,
     availableOn: lessonReleaseDate(lesson.badgeRequirements.map((req) => req.badge.availableOn))?.toISOString() ?? null,
     sortOrder: lesson.sortOrder,
     passingPercent: lesson.passingPercent,
@@ -249,7 +254,14 @@ async function fetchLessons(courseId: string) {
       badgeRequirements: {
         include: {
           badge: {
-            select: { id: true, name: true, slug: true, availableOn: true },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              availableOn: true,
+              closesOn: true,
+              neverCloses: true,
+            },
           },
         },
       },

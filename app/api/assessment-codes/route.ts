@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '@/lib/badgeProgress';
 import { isCoolingDown } from '@/lib/badgeState';
+import { isBadgeClosed } from '@/lib/badgeAvailability';
 import prisma from '@/lib/prisma';
 
 const CODE_TTL_MS = 30 * 60 * 1000;
@@ -129,11 +130,19 @@ export async function POST(req: NextRequest) {
           badgeId,
         },
       },
-      select: { status: true, cooldownUntil: true },
+      select: {
+        status: true,
+        cooldownUntil: true,
+        badge: { select: { closesOn: true, neverCloses: true } },
+      },
     });
 
     if (!studentBadge) {
       return NextResponse.json({ error: 'Badge is not assigned to this student.' }, { status: 403 });
+    }
+
+    if (studentBadge.badge && isBadgeClosed(studentBadge.badge)) {
+      return NextResponse.json({ error: 'This badge deadline has passed.' }, { status: 410 });
     }
 
     if (studentBadge.status !== BadgeStatus.READY_FOR_ASSESSMENT) {

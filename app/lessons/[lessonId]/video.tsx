@@ -1432,7 +1432,10 @@ export function LessonVideoPage({
                         if (raw !== val) {
                           e.currentTarget.value = String(val);
                         }
-                        seekTo(val, true);
+                        // Preview and review modes deliberately expose the full
+                        // timeline. Avoid applying the student watched-time clamp
+                        // a second time inside seekTo after val was already bounded.
+                        seekTo(val, true, reviewMode || previewMode);
                         if (modalState === 'none') {
                           setControlsVisible(true);
                           scheduleHide();

@@ -17,9 +17,9 @@
    Sidebar (square corners)
    ========================= */
 .sidebar {
-  width: 256px;
-  flex: 0 0 256px;
-  min-width: 256px;
+  width: 224px;
+  flex: 0 0 224px;
+  min-width: 224px;
   min-height: 100vh;
   height: 100vh;
   position: sticky;
@@ -73,8 +73,8 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
-  padding: 2rem 1.5rem;
+  gap: 1.5rem;
+  padding: 1.5rem 1rem 1.25rem;
 
   overflow-y: auto;
   overflow-x: hidden;
@@ -100,26 +100,28 @@
    as attached to the sidebar's border rather than sitting inside the panel. */
 .collapseToggle {
   position: absolute;
-  top: 31em;
-  right: -15px;
+  top: 50%;
+  right: -16px;
   z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 144px;
+  width: 32px;
+  height: 52px;
   padding: 0;
   border: none;
-  border-radius: 0 0.5rem 0.5rem 0;
+  border-radius: 0 0.65rem 0.65rem 0;
   background: #2e6aa9;
   color: #f8fbff;
   cursor: pointer;
-  box-shadow: 2px 0 5px rgba(15, 23, 42, 0.18);
-  transition: background-color 0.2s ease;
+  box-shadow: none;
+  transform: translateY(-50%);
+  transition: color 0.2s ease;
 }
 
 .collapseToggle:hover {
-  background: #3f7cbd;
+  background: #2e6aa9;
+  color: rgba(255, 255, 255, 0.72);
 }
 
 /* Chevron drawn with borders; points left when open, right when collapsed. */
@@ -140,7 +142,7 @@
 }
 
 /* When collapsed, the non-avatar content fades out and stops taking clicks. */
-.sidebarCollapsed .name,
+.sidebarCollapsed .profileCopy,
 .sidebarCollapsed .navList,
 .sidebarCollapsed .sidebarFooter {
   opacity: 0;
@@ -165,6 +167,17 @@
   cursor: pointer;
 }
 
+.sidebarCollapsed .avatarFrame {
+  width: 38px;
+  height: 38px;
+  border-width: 2px;
+  box-shadow: 0 4px 10px rgba(13, 45, 79, 0.24);
+}
+
+.sidebarCollapsed .profile {
+  border-bottom-color: transparent;
+}
+
 .sidebarCollapsed .avatar:hover {
   transform: scale(1.08);
 }
@@ -185,23 +198,36 @@
 .profile {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.7rem;
   align-items: center;
   text-align: center;
+  padding: 0.25rem 0.5rem 1.1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .avatar {
-  width: 140px;
-  height: 140px;
+  width: 82px;
+  height: 82px;
   border-radius: 50%;
-  background: #ffffff;
-  overflow: hidden;
+  background: rgba(255, 255, 255, 0.12);
   display: grid;
   place-items: center;
   font-size: 1.75rem;
   font-weight: 600;
   text-transform: uppercase;
   color: #2e6aa9;
+}
+
+.avatarFrame {
+  width: 74px;
+  height: 74px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid rgba(255, 255, 255, 0.94);
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 7px 18px rgba(13, 45, 79, 0.28);
 }
 
 .avatarImage {
@@ -213,31 +239,65 @@
 
 .name {
   font-family: 'Lato', sans-serif;
-  font-weight: 400;
-  font-style: italic;
-  font-size: 1.35rem;
+  font-weight: 700;
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+.profileCopy {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.profileLabel {
+  color: rgba(255, 255, 255, 0.68);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .navList {
   display: grid;
-  gap: 1.6rem;
+  gap: 0.45rem;
   font-family: 'Lato', sans-serif;
-  font-size: 1.35rem;
-  margin-top: 1.25rem;
+  font-size: 0.96rem;
+  margin-top: 0;
 }
 
 .navItem {
-  padding: 0.35rem 0.5rem;
-  border-radius: 0.6rem;
-  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 42px;
+  padding: 0.6rem 0.75rem;
+  border-radius: 0.7rem;
+  color: rgba(255, 255, 255, 0.86);
+  font-weight: 600;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .navItemActive {
   background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
 }
 
 .navItem:hover {
   background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  transform: translateX(2px);
+}
+
+.navIcon {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  color: #ffffff;
 }
 
 .brandFooter {
@@ -253,12 +313,19 @@
 }
 
 .signOffButton {
-  padding: 0.55rem 1.35rem;
-  border-radius: 999px;
-  border: none;
-  background: rgba(255, 255, 255, 0.18);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 42px;
+  padding: 0.6rem 0.9rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  background: rgba(19, 58, 99, 0.24);
   color: #ffffff;
   font-weight: 600;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.92rem;
   cursor: pointer;
   transition:
     filter 0.2s ease,
@@ -266,8 +333,14 @@
 }
 
 .signOffButton:hover {
-  filter: brightness(1.05);
-  background: rgba(255, 255, 255, 0.28);
+  filter: none;
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.42);
+}
+
+.signOffIcon {
+  width: 18px;
+  height: 18px;
 }
 
 .signOffButton:disabled {
@@ -291,6 +364,10 @@
   display: flex;
   flex-direction: column;
   gap: 2.75rem;
+}
+
+.main:has(.courseWorkspace) {
+  gap: 1.5rem;
 }
 
 .topRow {
@@ -398,21 +475,52 @@
 }
 
 .joinControls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 0.8rem;
-  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .joinInput {
   width: 100%;
-  min-height: 3.25rem;
-  border: 2px solid #cfd8e3;
-  border-radius: 12px;
-  padding: 0.75rem 1rem;
+  min-height: 48px;
+  border: none;
+  outline: none;
+  padding: 0.7rem 0.9rem 0.7rem 0;
   font: inherit;
   color: #111827;
+  background: transparent;
+}
+
+.joinLabel {
+  color: #344054;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.joinInputShell {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding-left: 0.9rem;
+  border: 1px solid #cfd8e3;
+  border-radius: 10px;
   background: #ffffff;
+  color: #7a8797;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.joinInputShell:focus-within {
+  border-color: #2e6aa9;
+  box-shadow: 0 0 0 3px rgba(46, 106, 169, 0.12);
+}
+
+.joinInputShell > svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
 }
 
 .joinInput:disabled {
@@ -452,42 +560,48 @@
 .joinError,
 .joinStatus {
   margin: 0;
-  font-size: 0.95rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 9px;
+  font-size: 0.86rem;
+  line-height: 1.4;
 }
 
 .joinError {
+  background: #fef3f2;
   color: #b42318;
 }
 
 .joinStatus {
+  background: #ecfdf3;
   color: #1b6b3a;
 }
 
 .joinModal {
-  width: min(520px, 92%);
+  width: min(560px, calc(100% - 2rem));
   background: #ffffff;
-  border-radius: 24px;
-  padding: 2.25rem;
-  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(208, 216, 226, 0.8);
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.25rem;
 }
 
 .joinModalTitle {
   margin: 0;
   font-family: 'Lato', sans-serif;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: #111111;
 }
 
 .joinModalHint {
-  margin: 0;
+  margin: 0.3rem 0 0;
   font-family: 'Open Sans', sans-serif;
   font-size: 0.9rem;
-  line-height: 1.4;
-  color: #4b5563;
+  line-height: 1.5;
+  color: #667085;
 }
 
 .joinCancel {
@@ -664,6 +778,8 @@
   align-items: flex-start;
   /* leave clearance for the absolutely-positioned global checkd logo (top:32 right:48) */
   padding-right: 180px;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dfe4ea;
 }
 
 .welcomeTitle {
@@ -676,10 +792,367 @@
 }
 
 .welcomeSubtitle {
-  margin: 0.4rem 0 0;
+  margin: 0.55rem 0 0;
   font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
-  color: #000000;
+  color: #647184;
+  line-height: 1.55;
+}
+
+/* =========================
+   Permission-based course workspace
+   ========================= */
+.courseWorkspace {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.courseTabs {
+  display: flex;
+  align-items: stretch;
+  width: min(100%, 850px);
+  overflow-x: auto;
+  border: 1px solid #d9e0e8;
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  background: #ffffff;
+}
+
+.courseTab {
+  position: relative;
+  display: inline-flex;
+  flex: 1 0 180px;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  min-height: 54px;
+  padding: 0.65rem 1rem;
+  border: none;
+  border-right: 1px solid #e1e6ec;
+  background: #ffffff;
+  color: #4f5d70;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.courseTab:last-child {
+  border-right: none;
+}
+
+.courseTab::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: transparent;
+}
+
+.courseTab:hover {
+  background: #f7faff;
+  color: #244f82;
+}
+
+.courseTabActive {
+  background: #f3f7fd;
+  color: #1f5fab;
+}
+
+.courseTabActive::after {
+  background: #2e6aa9;
+}
+
+.courseTab:focus-visible,
+.primaryCourseAction:focus-visible,
+.secondaryCourseAction:focus-visible {
+  outline: 3px solid rgba(46, 106, 169, 0.3);
+  outline-offset: 2px;
+}
+
+.courseTabIcon {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+}
+
+.courseTabCount {
+  display: inline-grid;
+  min-width: 26px;
+  min-height: 24px;
+  place-items: center;
+  padding: 0 0.4rem;
+  border: 1px solid #d5dce5;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #4f5d70;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.coursePanel {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  min-height: 320px;
+  padding-top: 1.4rem;
+  border-top: 1px solid #d9e0e8;
+}
+
+.coursePanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.5rem;
+}
+
+.coursePanelTitle {
+  margin: 0;
+  color: #182230;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.coursePanelDescription {
+  margin: 0.4rem 0 0;
+  color: #667385;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.analyticsBox {
+  overflow: hidden;
+  border: 1px solid #dfe5ed;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgb(27 48 73 / 5%);
+}
+
+.analyticsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid #e7ebf0;
+  background: #fbfcfe;
+}
+
+.analyticsEyebrow {
+  margin: 0 0 0.2rem;
+  color: #2e6aa9;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.analyticsTitle {
+  margin: 0;
+  color: #1d2b3c;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.analyticsHeaderIcon {
+  width: 24px;
+  height: 24px;
+  color: #2e6aa9;
+}
+
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.analyticsMetric {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 0.8rem;
+  min-width: 0;
+  padding: 1.2rem 1.25rem;
+  border-right: 1px solid #e7ebf0;
+}
+
+.analyticsMetric:last-child {
+  border-right: 0;
+}
+
+.analyticsMetricIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 11px;
+  background: #eaf2fb;
+  color: #2e6aa9;
+}
+
+.analyticsMetricIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.greenMetric .analyticsMetricIcon {
+  background: #e9f7f0;
+  color: #168153;
+}
+
+.amberMetric .analyticsMetricIcon {
+  background: #fff4df;
+  color: #b66c00;
+}
+
+.slateMetric .analyticsMetricIcon {
+  background: #eef1f5;
+  color: #566579;
+}
+
+.analyticsMetricLabel,
+.analyticsMetricDetail {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.analyticsError {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #f1d4d1;
+  border-radius: 10px;
+  background: #fff8f7;
+  color: #9b3f36;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.86rem;
+}
+
+.analyticsMetricLabel {
+  color: #52657a;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.analyticsMetricValue {
+  display: block;
+  margin-top: 0.25rem;
+  color: #16263b;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.analyticsMetricDetail {
+  margin-top: 0.35rem;
+  color: #718094;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.courseActions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+}
+
+.primaryCourseAction,
+.secondaryCourseAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 42px;
+  padding: 0.65rem 1rem;
+  border-radius: 9px;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.primaryCourseAction svg,
+.secondaryCourseAction svg {
+  width: 18px;
+  height: 18px;
+}
+
+.primaryCourseAction {
+  border: 1px solid #2e6aa9;
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
+.primaryCourseAction:hover {
+  background: #285f99;
+  transform: translateY(-1px);
+}
+
+.secondaryCourseAction {
+  border: 1px solid #ccd5df;
+  background: #ffffff;
+  color: #334155;
+}
+
+.secondaryCourseAction:hover {
+  border-color: #9cabbc;
+  background: #f8fafc;
+}
+
+.courseEmptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+  min-height: 230px;
+  padding: 2.5rem;
+  border: 1px dashed #bdc8d6;
+  border-radius: 12px;
+  color: #687689;
+  text-align: center;
+}
+
+.courseEmptyState > svg {
+  width: 34px;
+  height: 34px;
+  margin-bottom: 0.25rem;
+  color: #2e6aa9;
+}
+
+.courseEmptyState h3,
+.courseEmptyState p {
+  margin: 0;
+}
+
+.courseEmptyState h3 {
+  color: #263548;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.05rem;
+}
+
+.courseEmptyState p {
+  max-width: 420px;
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 /* =========================
@@ -688,11 +1161,72 @@
 /* Home course grid — wider cards to match the Figma 391px tile */
 .myCoursesGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 360px));
-  gap: 1.75rem;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 430px));
+  gap: 1.5rem;
   align-items: start;
   justify-content: start;
   max-width: none;
+}
+
+.courseCardMetrics {
+  display: flex;
+  min-width: 90px;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #dfe5ed;
+  border-left: 0;
+  border-radius: 0 16px 16px 0;
+  background: #ffffff;
+}
+
+.courseCardWithMetrics.courseCardWithMetrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px;
+  align-items: stretch;
+  gap: 0;
+}
+
+.courseCardWithMetrics.courseCardWithMetrics > :first-child {
+  height: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 16px 0 0 16px;
+}
+
+.courseCardMetric {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 1;
+  justify-content: center;
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid #e7ebf0;
+  text-align: center;
+}
+
+.courseCardMetric:last-child {
+  border-bottom: 0;
+}
+
+.courseCardMetric strong {
+  overflow: hidden;
+  color: #1d2b3c;
+  font:
+    800 0.95rem/1.1 'Lato',
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.courseCardMetric span {
+  color: #687789;
+  font:
+    600 0.66rem/1.25 'Open Sans',
+    sans-serif;
 }
 
 .addTile {
@@ -902,13 +1436,14 @@
    ========================= */
 .dupModal {
   position: relative;
-  width: min(520px, 92%);
+  width: min(600px, calc(100% - 2rem));
   max-height: 80vh;
   overflow-y: auto;
   background: #ffffff;
-  border-radius: 24px;
-  padding: 2.25rem 2.25rem 2rem;
-  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(208, 216, 226, 0.8);
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.24);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -917,15 +1452,16 @@
 .dupHeader {
   margin: 0;
   font-family: 'Lato', sans-serif;
-  font-size: 1.5rem;
+  font-size: 1.3rem;
   font-weight: 700;
   color: #111111;
 }
 
 .dupSubhead {
-  margin: -0.75rem 0 0;
-  font-size: 0.95rem;
-  color: #5f6671;
+  margin: 0.3rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #667085;
 }
 
 .dupList {
@@ -939,31 +1475,75 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.85rem 1rem;
-  border: 1px solid #e3e6ea;
-  border-radius: 12px;
+  padding: 0.75rem;
+  border: 1px solid #e1e6ec;
+  border-radius: 11px;
+  background: #ffffff;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.dupItem:hover {
+  border-color: #c3ceda;
+  background: #f9fbfd;
+}
+
+.dupItemIdentity {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.dupItemIcon {
+  display: inline-grid;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  place-items: center;
+  border-radius: 9px;
+  background: #edf4fc;
+  color: #2e6aa9;
+}
+
+.dupItemIcon svg {
+  width: 18px;
+  height: 18px;
 }
 
 .dupItemTitle {
   font-size: 1rem;
   font-weight: 500;
   color: #1a1a1a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .dupItemButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
   flex-shrink: 0;
   padding: 0.5rem 1.1rem;
-  border-radius: 10px;
-  border: none;
-  background: #3a6ea5;
-  color: #ffffff;
-  font-weight: 500;
+  border-radius: 9px;
+  border: 1px solid #ccd5df;
+  background: #ffffff;
+  color: #344054;
+  font-weight: 700;
   cursor: pointer;
   transition: filter 0.15s ease;
 }
 
 .dupItemButton:hover {
-  filter: brightness(1.05);
+  border-color: #9eadbd;
+  background: #f3f6f9;
+}
+
+.dupItemButton svg {
+  width: 16px;
+  height: 16px;
 }
 
 .dupItemButton:disabled {
@@ -973,8 +1553,137 @@
 
 .dupError {
   margin: 0;
-  font-size: 0.9rem;
+  padding: 0.7rem 0.85rem;
+  border-radius: 9px;
+  background: #fef3f2;
+  font-size: 0.86rem;
   color: #b42318;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 1.15rem;
+  border-bottom: 1px solid #e5eaf0;
+}
+
+.modalHeadingGroup {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.modalIcon {
+  display: inline-grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  place-items: center;
+  border-radius: 11px;
+  background: #edf4fc;
+  color: #2e6aa9;
+}
+
+.modalIcon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.modalCloseButton {
+  display: inline-grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 34px;
+  place-items: center;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #667085;
+  cursor: pointer;
+}
+
+.modalCloseButton:hover {
+  background: #f1f4f7;
+  color: #24354a;
+}
+
+.modalCloseButton svg {
+  width: 19px;
+  height: 19px;
+}
+
+.modalCloseButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.modalFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5eaf0;
+}
+
+.modalPrimaryButton,
+.modalSecondaryButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  padding: 0.65rem 1rem;
+  border-radius: 9px;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modalPrimaryButton {
+  border: 1px solid #2e6aa9;
+  background: #2e6aa9;
+  color: #ffffff;
+}
+
+.modalPrimaryButton:hover {
+  background: #285f99;
+}
+
+.modalSecondaryButton {
+  border: 1px solid #ccd5df;
+  background: #ffffff;
+  color: #344054;
+}
+
+.modalSecondaryButton:hover {
+  background: #f5f7fa;
+}
+
+.modalPrimaryButton:disabled,
+.modalSecondaryButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.modalPrimaryButton svg {
+  width: 17px;
+  height: 17px;
+}
+
+.modalPrimaryButton:disabled svg,
+.dupItemButton:disabled svg {
+  animation: modalSpin 0.9s linear infinite;
+}
+
+@keyframes modalSpin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .dupClose {
@@ -1029,7 +1738,9 @@
 .surveyOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(15, 23, 42, 0.48);
+  backdrop-filter: blur(4px);
+  padding: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1186,7 +1897,7 @@
     align-items: center;
   }
 
-  .sidebarCollapsed .name,
+  .sidebarCollapsed .profileCopy,
   .sidebarCollapsed .navList,
   .sidebarCollapsed .sidebarFooter {
     opacity: 1;
@@ -1198,6 +1909,12 @@
     height: 84px;
   }
 
+  .sidebarCollapsed .avatarFrame {
+    width: 74px;
+    height: 74px;
+    border-width: 3px;
+  }
+
   .navList {
     display: flex;
     gap: 0.65rem;
@@ -1205,6 +1922,34 @@
 
   .navItem {
     padding: 0.45rem 0.7rem;
+  }
+
+  .welcomeHeader {
+    padding-right: 0;
+  }
+
+  .courseTabs {
+    width: 100%;
+  }
+
+  .coursePanelHeader {
+    flex-direction: column;
+  }
+
+  .courseActions {
+    justify-content: flex-start;
+  }
+
+  .analyticsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analyticsMetric:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .analyticsMetric:nth-child(n + 3) {
+    border-top: 1px solid #e7ebf0;
   }
 }
 
@@ -1220,5 +1965,89 @@
 
   .joinControls {
     grid-template-columns: 1fr;
+  }
+
+  .courseTab {
+    flex-basis: 145px;
+    min-height: 50px;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.9rem;
+  }
+
+  .courseTabIcon {
+    display: none;
+  }
+
+  .courseActions,
+  .primaryCourseAction,
+  .secondaryCourseAction {
+    width: 100%;
+  }
+
+  .myCoursesGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .courseCardWithMetrics {
+    grid-template-columns: minmax(0, 1fr) 86px;
+  }
+
+  .courseCardMetrics {
+    min-width: 86px;
+  }
+
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .analyticsMetric,
+  .analyticsMetric:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .analyticsMetric + .analyticsMetric {
+    border-top: 1px solid #e7ebf0;
+  }
+
+  .dupModal,
+  .joinModal {
+    padding: 1.1rem;
+    border-radius: 15px;
+  }
+
+  .modalHeadingGroup {
+    gap: 0.7rem;
+  }
+
+  .modalIcon {
+    width: 38px;
+    height: 38px;
+    flex-basis: 38px;
+  }
+
+  .modalFooter {
+    flex-direction: column-reverse;
+  }
+
+  .modalPrimaryButton,
+  .modalSecondaryButton {
+    width: 100%;
+  }
+
+  .dupItem {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .dupItemButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .modalPrimaryButton:disabled svg,
+  .dupItemButton:disabled svg {
+    animation: none;
   }
 }

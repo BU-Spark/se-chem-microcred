@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import InstructorStudentProfilePage from './page';
+import { richTextToPlainText } from './BadgeDetailCard';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
@@ -177,7 +178,7 @@ function createInProgressBadgeDetailPayload() {
               {
                 id: 'question-1',
                 title: 'Question 1',
-                prompt: 'Which container should be used?',
+                prompt: '<p>Which container should be used?</p>',
                 answers: [
                   { answeredText: 'Flask', isCorrect: false },
                   { answeredText: 'Beaker', isCorrect: true },
@@ -330,10 +331,10 @@ describe('Roster member profile page', () => {
     expect(screen.getByText('College graduate')).toBeInTheDocument();
     expect(screen.getByText('Yes')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Not yet started/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Not Started/i }));
     expect(screen.getByText('Bunsen Burners')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /Completed/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Proficient/i }));
     expect(screen.getByText('Vent Hood Safety')).toBeInTheDocument();
   });
 
@@ -382,10 +383,11 @@ describe('Roster member profile page', () => {
     });
 
     expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
-    // In-progress badges default to the Precheck answer history tab (run-grouped).
+    // Still-learning badges default to the video lesson results tab (run-grouped).
     // The ring renders the number and "%" as separate spans inside .progressRingCenter.
     expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('70%');
     expect(screen.getByText('Checkpoint 3')).toBeInTheDocument();
+    expect(richTextToPlainText('<p>Which container should be used?</p>')).toBe('Which container should be used?');
   });
 
   it('renders the completed badge detail layout when a completed badge is selected', async () => {
@@ -408,9 +410,9 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    // Completed badges default to the Assessment history tab.
+    // Proficient badges default to the in-person assessment tab.
     expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Assessment history' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'In-person assessment' })).toBeInTheDocument();
     expect(screen.getByText((_, node) => node?.className === 'progressRingCenter')).toHaveTextContent('100%');
 
     fireEvent.click(screen.getByRole('button', { name: 'Attempt 1' }));
@@ -456,9 +458,9 @@ describe('Roster member profile page', () => {
     render(<InstructorStudentProfilePage />);
 
     expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
-    // Assessment history tab is default; the Precheck tab is available but not active.
+    // In-person assessment is default; video lesson results is available but not active.
     expect(screen.getByRole('button', { name: 'Attempt 1' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Precheck answer history' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Video lesson results' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Open Assessment View' })).not.toBeInTheDocument();
   });
 
@@ -479,7 +481,7 @@ describe('Roster member profile page', () => {
 
     render(<InstructorStudentProfilePage />);
 
-    expect(await screen.findByRole('heading', { name: 'In review' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Still Learning' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Waste Handling' })).toBeInTheDocument();
   });
 
@@ -695,6 +697,6 @@ describe('Roster member profile page', () => {
     expect(screen.getByText('College graduate')).toBeInTheDocument();
     expect(screen.getByText('No')).toBeInTheDocument();
 
-    expect(screen.queryByRole('button', { name: /Not yet started/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Not Started/i })).not.toBeInTheDocument();
   });
 });

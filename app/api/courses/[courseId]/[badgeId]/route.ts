@@ -8,6 +8,8 @@ import { normalizeEmail } from '@/lib/text/email';
 import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED';
+type AnalyticsStatus = 'PROFICIENT' | 'STILL_LEARNING' | 'NOT_STARTED';
+type StillLearningReason = 'VIDEO_IN_PROGRESS' | 'VIDEO_COMPLETED_ONLY' | 'IN_PERSON_FAILED';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -130,9 +132,26 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           lessonProgress.status === 'COMPLETED' ||
           lessonProgress.percentComplete > 0
       );
+      const lessonCompleted = enrollment.student.lessonProgress.some(
+        (lessonProgress) => lessonProgress.status === 'COMPLETED' || Boolean(lessonProgress.completedAt)
+      );
       const status = (
         !progress || (progress.status === 'LEARNING' && !lessonStarted) ? 'NOT_STARTED' : progress.status
       ) as BadgeStatus | 'NOT_STARTED';
+      const assessmentAttempts = enrollment.student.assessmentAttempts ?? [];
+      const surveyResponses = enrollment.student.surveyResponses ?? [];
+      const hasFailedAssessment = assessmentAttempts.some((attempt) => attempt.passed === false);
+      const analyticsStatus: AnalyticsStatus =
+        status === 'COMPLETED' ? 'PROFICIENT' : status === 'NOT_STARTED' ? 'NOT_STARTED' : 'STILL_LEARNING';
+      const stillLearningReason: StillLearningReason | null =
+        analyticsStatus !== 'STILL_LEARNING'
+          ? null
+          : hasFailedAssessment || status === 'LOCKED'
+            ? 'IN_PERSON_FAILED'
+            : lessonCompleted || status === 'READY_FOR_ASSESSMENT' || status === 'IN_REVIEW'
+              ? 'VIDEO_COMPLETED_ONLY'
+              : 'VIDEO_IN_PROGRESS';
+      const latestFeedback = surveyResponses[0] ?? null;
 
       return {
         enrollmentId: enrollment.id,
@@ -157,14 +176,23 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
             }
           : null,
         status,
+        analyticsStatus,
+        stillLearningReason,
+        videoStatus: lessonCompleted ? 'COMPLETED' : lessonStarted ? 'IN_PROGRESS' : 'NOT_STARTED',
+        assessmentAttemptCount: assessmentAttempts.length,
+        feedback: latestFeedback
+          ? {
+              rating: latestFeedback.rating,
+              comment: latestFeedback.comment,
+              submittedAt: latestFeedback.submittedAt.toISOString(),
+              question: latestFeedback.prompt.question,
+            }
+          : null,
       };
     });
     const totalStudents = students.length;
     const completedCount = students.filter((student) => student.status === 'COMPLETED').length;
-    const inProgressCount = students.filter(
-      (student) =>
-        student.status === 'LEARNING' || student.status === 'READY_FOR_ASSESSMENT' || student.status === 'IN_REVIEW'
-    ).length;
+    const inProgressCount = students.filter((student) => student.analyticsStatus === 'STILL_LEARNING').length;
     const notStartedCount = students.filter((student) => student.status === 'NOT_STARTED').length;
     const readyForAssessmentCount = students.filter((student) => student.status === 'READY_FOR_ASSESSMENT').length;
     const inReviewCount = students.filter((student) => student.status === 'IN_REVIEW').length;
@@ -175,6 +203,18 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         ? Math.round(
             scoredStudents.reduce((sum, student) => sum + (student.progress?.score ?? 0), 0) / scoredStudents.length
           )
+        : null;
+    const videoInProgressCount = students.filter(
+      (student) => student.stillLearningReason === 'VIDEO_IN_PROGRESS'
+    ).length;
+    const videoCompletedOnlyCount = students.filter(
+      (student) => student.stillLearningReason === 'VIDEO_COMPLETED_ONLY'
+    ).length;
+    const inPersonFailedCount = students.filter((student) => student.stillLearningReason === 'IN_PERSON_FAILED').length;
+    const feedbackRows = students.flatMap((student) => (student.feedback ? [student.feedback] : []));
+    const averageRating =
+      feedbackRows.length > 0
+        ? Math.round((feedbackRows.reduce((sum, response) => sum + response.rating, 0) / feedbackRows.length) * 10) / 10
         : null;
 
     // Mirror the course-detail route: course owner is the instructor, otherwise
@@ -221,6 +261,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           inReviewPercent: calculatePercent(inReviewCount, totalStudents),
           lockedPercent: calculatePercent(lockedCount, totalStudents),
           averageScore,
+          videoInProgressCount,
+          videoCompletedOnlyCount,
+          inPersonFailedCount,
+          videoInProgressPercent: calculatePercent(videoInProgressCount, totalStudents),
+          videoCompletedOnlyPercent: calculatePercent(videoCompletedOnlyCount, totalStudents),
+          inPersonFailedPercent: calculatePercent(inPersonFailedCount, totalStudents),
+          feedbackResponseCount: feedbackRows.length,
+          averageRating,
         },
         assessment,
         students,

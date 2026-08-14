@@ -3,6 +3,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
 import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
+import { isLessonClosed } from '../../../../../lib/badgeAvailability';
 
 type RouteContext = {
   params: Promise<{
@@ -29,10 +30,26 @@ export async function POST(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Student not found.' }, { status: 404 });
   }
 
-  const lesson = await prisma.lesson.findUnique({ where: { id: lessonId }, select: { id: true } });
+  const lesson = await prisma.lesson.findUnique({
+    where: { id: lessonId },
+    select: {
+      id: true,
+      dueDate: true,
+      badgeRequirements: { select: { badge: { select: { closesOn: true, neverCloses: true } } } },
+    },
+  });
 
   if (!lesson) {
     return NextResponse.json({ error: 'Lesson not found.' }, { status: 404 });
+  }
+
+  if (
+    isLessonClosed(
+      lesson.dueDate,
+      (lesson.badgeRequirements ?? []).map((requirement) => requirement.badge)
+    )
+  ) {
+    return NextResponse.json({ error: 'This badge deadline has passed.' }, { status: 410 });
   }
 
   await prisma.$transaction(async (tx) => {

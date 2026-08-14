@@ -5,6 +5,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import { normalizeCheckpointQuestion, type NormalizedCheckpointQuestion } from '@/lib/checkpointQuestions';
 import { resolveEffectiveBadgePolicy } from '@/lib/badgePolicy';
+import { isBadgeClosed } from '@/lib/badgeAvailability';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
 
@@ -803,6 +804,15 @@ export async function POST(
       select: {
         createdById: true,
         settings: true,
+        lessons: {
+          where: { badgeRequirements: { some: { badgeId } } },
+          select: {
+            badgeRequirements: {
+              where: { badgeId },
+              select: { badge: { select: { closesOn: true, neverCloses: true } } },
+            },
+          },
+        },
         enrollments: {
           where: {
             studentId: { in: Array.from(new Set([user.id, studentId])) },
@@ -859,6 +869,11 @@ export async function POST(
 
     if (badgeProgress.status !== BadgeStatus.READY_FOR_ASSESSMENT) {
       return NextResponse.json({ error: 'This badge has already been assessed.' }, { status: 409 });
+    }
+
+    const badgeWindow = course.lessons?.[0]?.badgeRequirements?.[0]?.badge;
+    if (badgeWindow && isBadgeClosed(badgeWindow)) {
+      return NextResponse.json({ error: 'This badge deadline has passed.' }, { status: 410 });
     }
 
     // The server owns scoring: the payload is matched against the badge's

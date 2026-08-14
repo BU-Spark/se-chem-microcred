@@ -697,6 +697,7 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
           where: { id: { in: lessonIds } },
           data: {
             title: badgeName,
+            dueDate: neverCloses === true ? null : closesOn,
             passingPercent: passingPercentage ?? undefined,
             estimatedMinutes: videoSeconds ? Math.max(1, Math.round(videoSeconds / 60)) : undefined,
           },

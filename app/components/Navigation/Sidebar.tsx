@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Icon } from '@iconify/react';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
 import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import sapphire from '@/public/edit_avatar/sapphire.svg';
@@ -37,8 +38,17 @@ interface SidebarProps {
 // in this client component.
 const CUR_ENV = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
+const NAV_ICONS: Record<string, string> = {
+  '/': 'lucide:layout-dashboard',
+  '/my_badges': 'lucide:badge-check',
+  '/badges': 'lucide:wallet-cards',
+  '/messages': 'lucide:message-circle',
+  '/analytics': 'lucide:chart-no-axes-combined',
+  '/profile': 'lucide:user-round',
+};
+
 export const SIDEBAR_NAV: NavItem[] = [
-  { label: 'Courses', href: '/' },
+  { label: 'Dashboard', href: '/' },
   { label: 'Created Badges', href: '/my_badges' },
   { label: 'Badge Passport', href: '/badges' },
   ...(CUR_ENV ? [{ label: 'My Messages', href: '/messages' }] : []),
@@ -128,9 +138,14 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
             aria-hidden={!collapsed}
             tabIndex={collapsed ? 0 : -1}
           >
-            <Image src={avatarSrc} alt="" className={styles.avatarImage} width={140} height={140} priority />
+            <span className={styles.avatarFrame}>
+              <Image src={avatarSrc} alt="" className={styles.avatarImage} width={88} height={88} priority />
+            </span>
           </button>
-          <div className={styles.name}>{resolvedDisplayName}</div>
+          <div className={styles.profileCopy}>
+            <span className={styles.profileLabel}>Signed in as</span>
+            <div className={styles.name}>{resolvedDisplayName || 'Student'}</div>
+          </div>
         </div>
 
         {/* Nav Links */}
@@ -148,7 +163,8 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
             const navItemClass = `${styles.navItem} ${isActive ? styles.navItemActive : ''}`.trim();
             return (
               <Link key={item.href} href={item.href} className={navItemClass}>
-                {item.label}
+                <Icon icon={NAV_ICONS[item.href] ?? 'lucide:circle'} className={styles.navIcon} aria-hidden="true" />
+                <span>{item.label}</span>
               </Link>
             );
           })}
@@ -157,6 +173,7 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
         {/* Footer */}
         <div className={styles.sidebarFooter}>
           <button type="button" onClick={onSignOut} className={styles.signOffButton} disabled={isSigningOut}>
+            <Icon icon="lucide:log-out" className={styles.signOffIcon} aria-hidden="true" />
             {isSigningOut ? 'Signing off…' : 'Sign off'}
           </button>
         </div>

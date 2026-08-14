@@ -182,6 +182,10 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ cours
       return NextResponse.json({ error: 'Invalid close date.' }, { status: 400 });
     }
 
+    if (availableOnDate && closesOnDate && closesOnDate <= availableOnDate) {
+      return NextResponse.json({ error: 'Badge due date must be after its availability date.' }, { status: 400 });
+    }
+
     // Update the imported badge and keep the lesson due date in sync with the close
     // date, exactly as import does (import/route.ts sets lesson.dueDate = closesOnDate).
     await prisma.$transaction([

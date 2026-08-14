@@ -122,4 +122,21 @@ describe('POST /api/lessons/[lessonId]/grade', () => {
       data: { status: BadgeStatus.LEARNING, qevPassedAt: null, cooldownUntil: null },
     });
   });
+
+  it('does not grade lesson work after the badge deadline', async () => {
+    mockPrisma.lesson.findUnique.mockResolvedValue({
+      id: 'lesson-1',
+      dueDate: null,
+      passingPercent: 70,
+      checkpoints: [{ id: 'checkpoint-1' }],
+      badgeRequirements: [{ badge: { closesOn: new Date(Date.now() - 60_000), neverCloses: false } }],
+    });
+    mockComputeLessonGrade.mockResolvedValue({ totalQuestions: 10, correctAnswers: 10, percent: 100 });
+
+    const response = await gradeLesson();
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toEqual({ error: 'This badge deadline has passed.' });
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+  });
 });
