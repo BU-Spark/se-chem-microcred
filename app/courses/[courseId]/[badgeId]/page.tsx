@@ -266,9 +266,24 @@ export default function CourseBadgeProgress() {
     () =>
       summary
         ? [
-            { label: 'Students who have completed this badge', percent: summary.completedPercent, color: '#c9db50' },
-            { label: 'Students still in progress', percent: summary.inProgressPercent, color: '#f3b55b' },
-            { label: 'Students not yet started', percent: summary.notStartedPercent, color: '#d4d4d4' },
+            {
+              kind: 'completed' as const,
+              label: 'Students who have completed this badge',
+              percent: summary.completedPercent,
+              color: '#c9db50',
+            },
+            {
+              kind: 'learning' as const,
+              label: 'Students still in progress',
+              percent: summary.inProgressPercent,
+              color: '#f3b55b',
+            },
+            {
+              kind: 'not-started' as const,
+              label: 'Students not yet started',
+              percent: summary.notStartedPercent,
+              color: '#d4d4d4',
+            },
           ]
         : [],
     [summary]
@@ -448,50 +463,66 @@ export default function CourseBadgeProgress() {
                       </div>
 
                       <div className={styles.barBreakdown}>
-                        {breakdownBars.map((bar) => (
-                          <div key={bar.label} className={styles.barRow}>
-                            <p className={styles.barLabel}>{bar.label}</p>
-                            <div className={styles.barTrackRow}>
-                              <div className={styles.barTrack}>
-                                <div
-                                  className={styles.barFill}
-                                  style={{
-                                    width: `${Math.max(0, Math.min(100, bar.percent))}%`,
-                                    background: bar.color,
-                                  }}
-                                />
+                        {breakdownBars.map((bar) => {
+                          const barContent = (
+                            <div className={styles.barRow}>
+                              <p className={styles.barLabel}>{bar.label}</p>
+                              <div className={styles.barTrackRow}>
+                                <div className={styles.barTrack}>
+                                  <div
+                                    className={styles.barFill}
+                                    style={{
+                                      width: `${Math.max(0, Math.min(100, bar.percent))}%`,
+                                      background: bar.color,
+                                    }}
+                                  />
+                                </div>
+                                <span className={styles.barPercent}>{bar.percent}%</span>
                               </div>
-                              <span className={styles.barPercent}>{bar.percent}%</span>
                             </div>
-                          </div>
-                        ))}
+                          );
+
+                          if (bar.kind === 'not-started') {
+                            return <div key={bar.kind}>{barContent}</div>;
+                          }
+
+                          return (
+                            <details key={bar.kind} className={styles.barDetails}>
+                              <summary>{barContent}</summary>
+                              {bar.kind === 'completed' ? (
+                                <p className={styles.barDetailLine}>
+                                  Average assessment score (completed students only):{' '}
+                                  <strong>
+                                    {summary.averageScore != null
+                                      ? `${summary.averageScore}%`
+                                      : 'No completed scores yet'}
+                                  </strong>
+                                </p>
+                              ) : (
+                                <ul className={styles.barDetailList}>
+                                  <li>
+                                    Video started, not finished: {summary.videoInProgressCount} (
+                                    {summary.videoInProgressPercent}%)
+                                  </li>
+                                  <li>
+                                    Video lesson completed only: {summary.videoCompletedOnlyCount} (
+                                    {summary.videoCompletedOnlyPercent}%)
+                                  </li>
+                                  <li>
+                                    In-person attempts, not yet proficient: {summary.inPersonFailedCount} (
+                                    {summary.inPersonFailedPercent}%)
+                                  </li>
+                                </ul>
+                              )}
+                            </details>
+                          );
+                        })}
                       </div>
                     </div>
 
-                    {/* The design shows "Average precheck score" + "Average assessment score",
-                        but the API only tracks one score. Show the metrics we actually have:
-                        % of students ready for assessment, and the average assessment score. */}
                     <div className={styles.ringRow}>
                       <RingIndicator percent={summary.readyForAssessmentPercent} caption="Ready for assessment" />
-                      <RingIndicator percent={summary.averageScore ?? 0} caption="Average assessment score" />
                     </div>
-                    <details className={styles.learningDetails}>
-                      <summary>Still Learning details</summary>
-                      <ul>
-                        <li>
-                          Video started, not finished: {summary.videoInProgressCount} ({summary.videoInProgressPercent}
-                          %)
-                        </li>
-                        <li>
-                          Video lesson completed only: {summary.videoCompletedOnlyCount} (
-                          {summary.videoCompletedOnlyPercent}%)
-                        </li>
-                        <li>
-                          In-person attempts, not yet proficient: {summary.inPersonFailedCount} (
-                          {summary.inPersonFailedPercent}%)
-                        </li>
-                      </ul>
-                    </details>
                   </div>
                 </div>
               </section>

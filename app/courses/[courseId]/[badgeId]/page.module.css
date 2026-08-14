@@ -451,24 +451,46 @@
   text-align: center;
 }
 
-.learningDetails {
+.barDetails {
   border: 1px solid #dfe5ed;
   border-radius: 10px;
-  padding: 0.9rem 1rem;
   background: #fff;
   font:
     16px 'Open Sans',
     sans-serif;
 }
-.learningDetails summary {
-  color: #2e6aa9;
-  font-weight: 700;
+.barDetails summary {
+  position: relative;
+  padding: 0.8rem 2.5rem 0.8rem 1rem;
   cursor: pointer;
+  list-style: none;
 }
-.learningDetails ul {
-  margin: 0.75rem 0 0;
+.barDetails summary::-webkit-details-marker {
+  display: none;
+}
+.barDetails summary::after {
+  position: absolute;
+  top: 50%;
+  right: 1rem;
+  content: '⌄';
+  color: #2e6aa9;
+  font-size: 1.25rem;
+  transform: translateY(-50%);
+}
+.barDetails[open] summary::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+.barDetailLine,
+.barDetailList {
+  margin: 0;
+  border-top: 1px solid #e6eaf0;
+  padding: 0.8rem 1rem;
+  color: #3b4754;
+  line-height: 1.65;
+}
+.barDetailList {
   padding-left: 1.25rem;
-  line-height: 1.8;
+  list-style-position: inside;
 }
 
 .feedbackList {

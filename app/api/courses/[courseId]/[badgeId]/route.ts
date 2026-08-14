@@ -197,7 +197,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     const readyForAssessmentCount = students.filter((student) => student.status === 'READY_FOR_ASSESSMENT').length;
     const inReviewCount = students.filter((student) => student.status === 'IN_REVIEW').length;
     const lockedCount = students.filter((student) => student.status === 'LOCKED').length;
-    const scoredStudents = students.filter((student) => typeof student.progress?.score === 'number');
+    // Assessment averages describe demonstrated proficiency, so exclude scores
+    // from students who have not completed the badge/assessment yet.
+    const scoredStudents = students.filter(
+      (student) => student.analyticsStatus === 'PROFICIENT' && typeof student.progress?.score === 'number'
+    );
     const averageScore =
       scoredStudents.length > 0
         ? Math.round(

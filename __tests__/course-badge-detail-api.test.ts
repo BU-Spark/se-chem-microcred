@@ -180,7 +180,7 @@ describe('course badge detail API', () => {
                 badgeId: 'badge-1',
                 status: 'READY_FOR_ASSESSMENT',
                 awardedAt: null,
-                score: null,
+                score: 40,
                 updatedAt: new Date('2026-01-03T00:00:00.000Z'),
               },
             ],
