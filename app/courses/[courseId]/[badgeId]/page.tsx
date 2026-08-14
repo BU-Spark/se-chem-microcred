@@ -244,7 +244,6 @@ export default function CourseBadgeProgress() {
   const course = data?.course ?? null;
   const summary = data?.summary ?? null;
   const assessment = data?.assessment ?? null;
-  const students = data?.students ?? [];
   const isInstructorFlag = isInstructor(data?.viewerRole);
   const displayName = course?.createdBy?.name || user?.fullName || '';
 
@@ -491,39 +490,6 @@ export default function CourseBadgeProgress() {
                   </div>
                 </div>
               </section>
-
-              {isInstructorFlag ? (
-                <section className={styles.card} aria-label="Student feedback and ratings">
-                  <div className={styles.cardHeader}>
-                    <div>
-                      <h2 className={styles.cardTitle}>Student Feedback</h2>
-                      <p className={styles.showingFor}>
-                        {summary.feedbackResponseCount} response{summary.feedbackResponseCount === 1 ? '' : 's'} ·
-                        Average rating:{' '}
-                        <strong>
-                          {summary.averageRating != null ? `${summary.averageRating}/5` : 'No ratings yet'}
-                        </strong>
-                      </p>
-                    </div>
-                  </div>
-                  <div className={styles.feedbackList}>
-                    {students
-                      .filter((row) => row.feedback)
-                      .map((row) => (
-                        <article key={row.enrollmentId} className={styles.feedbackItem}>
-                          <div>
-                            <strong>{row.student.name || row.student.email || 'Student'}</strong>
-                            <span>{row.feedback?.rating}/5</span>
-                          </div>
-                          <p>{row.feedback?.comment || 'No written comment.'}</p>
-                        </article>
-                      ))}
-                    {summary.feedbackResponseCount === 0 ? (
-                      <p className={styles.statusMessage}>No feedback submitted yet.</p>
-                    ) : null}
-                  </div>
-                </section>
-              ) : null}
 
               {data?.ratings ? <BadgeRatings ratings={data.ratings} /> : null}
 

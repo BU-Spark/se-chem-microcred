@@ -110,6 +110,13 @@ describe('Course badge progress page', () => {
             },
           ],
         },
+        ratings: {
+          qev: {
+            overall: { count: 0, average: null, distribution: {} },
+            lessons: [],
+          },
+          badge: { count: 0, average: null, distribution: {} },
+        },
         students: [
           {
             enrollmentId: 'enrollment-1',
@@ -183,7 +190,9 @@ describe('Course badge progress page', () => {
     expect(screen.getByText('Not Started')).toBeInTheDocument();
     expect(screen.getAllByText('0 students').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'View badge roster' })).toBeInTheDocument();
-    expect(screen.getAllByText('5/5')).toHaveLength(2);
+    expect(screen.queryByRole('heading', { name: 'Student Feedback' })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'QEV rating' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Badge rating' })).toBeInTheDocument();
     expect(screen.getByText('Students who have completed this badge')).toBeInTheDocument();
     expect(screen.getByText('3 questions')).toBeInTheDocument();
     expect(screen.getByText('Checkpoint')).toBeInTheDocument();
