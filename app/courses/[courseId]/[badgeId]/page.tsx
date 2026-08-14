@@ -188,30 +188,6 @@ function useBadgeDetails(courseId?: string | null, badgeId?: string | null, emai
   return { data, isLoading, error };
 }
 
-/** Circular ring indicator approximated with a conic-gradient. */
-function RingIndicator({ percent, caption }: { percent: number; caption: string }) {
-  const clamped = Math.round(Math.max(0, Math.min(100, percent)));
-
-  return (
-    <div className={styles.ringIndicator}>
-      <div
-        className={styles.ring}
-        style={{ background: `conic-gradient(#2e6aa9 ${clamped * 3.6}deg, #d9d9d9 0deg)` }}
-        role="img"
-        aria-label={`${caption}: ${clamped}%`}
-      >
-        <div className={styles.ringInner}>
-          <span className={styles.ringValueGroup}>
-            <span className={styles.ringValue}>{clamped}</span>
-            <span className={styles.ringPercent}>%</span>
-          </span>
-        </div>
-      </div>
-      <p className={styles.ringCaption}>{caption}</p>
-    </div>
-  );
-}
-
 export default function CourseBadgeProgress() {
   const params = useParams<{ courseId: string; badgeId: string }>();
   const router = useRouter();
@@ -270,19 +246,19 @@ export default function CourseBadgeProgress() {
               kind: 'completed' as const,
               label: 'Students who have completed this badge',
               percent: summary.completedPercent,
-              color: '#c9db50',
+              color: '#22a06b',
             },
             {
               kind: 'learning' as const,
               label: 'Students still in progress',
               percent: summary.inProgressPercent,
-              color: '#f3b55b',
+              color: '#f0a33b',
             },
             {
               kind: 'not-started' as const,
               label: 'Students not yet started',
               percent: summary.notStartedPercent,
-              color: '#d4d4d4',
+              color: '#a8b3c2',
             },
           ]
         : [],
@@ -333,7 +309,7 @@ export default function CourseBadgeProgress() {
     const completedDeg = (summary?.completedPercent ?? 0) * 3.6;
     const inProgressDeg = (summary?.inProgressPercent ?? 0) * 3.6;
     const inProgressEnd = completedDeg + inProgressDeg;
-    return `conic-gradient(#c9db50 0deg ${completedDeg}deg, #f3b55b ${completedDeg}deg ${inProgressEnd}deg, #e4e4e4 ${inProgressEnd}deg 360deg)`;
+    return `conic-gradient(#22a06b 0deg ${completedDeg}deg, #f0a33b ${completedDeg}deg ${inProgressEnd}deg, #dfe5ec ${inProgressEnd}deg 360deg)`;
   })();
   const checkpointCount = assessment?.checkpoints.length ?? 0;
   const videoTitle = assessment?.videoTitle || badge?.lesson?.title || 'Lesson video';
@@ -450,15 +426,8 @@ export default function CourseBadgeProgress() {
                         aria-label={`Badge completion: ${completionPercent}%`}
                       >
                         <div className={styles.completionRingInner}>
-                          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" aria-hidden="true">
-                            <path
-                              d="M5 13l4 4L19 7"
-                              stroke="#8aa30f"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
+                          <strong>{completionPercent}%</strong>
+                          <span>proficient</span>
                         </div>
                       </div>
 
@@ -494,38 +463,51 @@ export default function CourseBadgeProgress() {
                             <details key={bar.kind} className={styles.barDetails}>
                               <summary>{barContent}</summary>
                               {bar.kind === 'completed' ? (
-                                <p className={styles.barDetailLine}>
-                                  Average assessment score:{' '}
+                                <div className={styles.analyticsRow}>
+                                  <span>Average assessment score</span>
                                   <strong>
-                                    {summary.averageScore != null
-                                      ? `${summary.averageScore}%`
-                                      : 'No completed scores yet'}
+                                    {summary.completedCount} student{summary.completedCount === 1 ? '' : 's'}
                                   </strong>
-                                </p>
+                                  <strong>{summary.averageScore != null ? `${summary.averageScore}%` : '—'}</strong>
+                                </div>
                               ) : (
                                 <div className={styles.barDetailList}>
-                                  <p>
-                                    Video started, not finished: {summary.videoInProgressCount}{' '}
-                                    <strong>{summary.videoInProgressPercent}%</strong>
-                                  </p>
-                                  <p>
-                                    Video lesson completed only: {summary.videoCompletedOnlyCount}{' '}
-                                    <strong>{summary.videoCompletedOnlyPercent}%</strong>
-                                  </p>
-                                  <p>
-                                    In-person attempts, not yet proficient: {summary.inPersonFailedCount}{' '}
-                                    <strong>{summary.inPersonFailedPercent}%</strong>
-                                  </p>
+                                  {[
+                                    {
+                                      label: 'Started the video, haven’t finished',
+                                      count: summary.videoInProgressCount,
+                                      percent: summary.videoInProgressPercent,
+                                    },
+                                    {
+                                      label: 'Finished the video lesson, not yet assessed',
+                                      count: summary.videoCompletedOnlyCount,
+                                      percent: summary.videoCompletedOnlyPercent,
+                                    },
+                                    {
+                                      label: 'Assessed in person, haven’t passed yet',
+                                      count: summary.inPersonFailedCount,
+                                      percent: summary.inPersonFailedPercent,
+                                    },
+                                    {
+                                      label: 'Passed in person, badge not awarded yet',
+                                      count: summary.inReviewCount,
+                                      percent: summary.inReviewPercent,
+                                    },
+                                  ].map((item) => (
+                                    <div key={item.label} className={styles.analyticsRow}>
+                                      <span>{item.label}</span>
+                                      <strong>
+                                        {item.count} student{item.count === 1 ? '' : 's'}
+                                      </strong>
+                                      <strong>{item.percent}%</strong>
+                                    </div>
+                                  ))}
                                 </div>
                               )}
                             </details>
                           );
                         })}
                       </div>
-                    </div>
-
-                    <div className={styles.ringRow}>
-                      <RingIndicator percent={summary.readyForAssessmentPercent} caption="Ready for assessment" />
                     </div>
                   </div>
                 </div>

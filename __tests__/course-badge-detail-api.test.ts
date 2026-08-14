@@ -267,6 +267,12 @@ describe('course badge detail API', () => {
       }),
     ]);
     expect(body.students).toHaveLength(3);
+    expect(
+      body.summary.videoInProgressPercent +
+        body.summary.videoCompletedOnlyPercent +
+        body.summary.inPersonFailedPercent +
+        body.summary.inReviewPercent
+    ).toBe(100);
     expect(body.students[0]).toEqual(
       expect.objectContaining({ analyticsStatus: 'PROFICIENT', feedback: expect.objectContaining({ rating: 5 }) })
     );
@@ -349,6 +355,53 @@ describe('course badge detail API', () => {
         inProgressCount: 1,
         completedCount: 0,
       })
+    );
+  });
+
+  it('reconciles a passing reviewed badge with submitted feedback as completed', async () => {
+    const badgeDetail = await mockFetchAccessibleBadgeDetail();
+    const completedStudent = badgeDetail.enrollments[0].student;
+    mockFetchAccessibleBadgeDetail.mockResolvedValue({
+      ...badgeDetail,
+      enrollments: [
+        {
+          ...badgeDetail.enrollments[0],
+          student: {
+            ...completedStudent,
+            badgeProgress: [
+              {
+                ...completedStudent.badgeProgress[0],
+                status: 'IN_REVIEW',
+                awardedAt: null,
+              },
+            ],
+            assessmentAttempts: [
+              {
+                id: 'attempt-failed',
+                passed: false,
+                completedAt: new Date('2026-01-03T00:00:00.000Z'),
+                createdAt: new Date('2026-01-03T00:00:00.000Z'),
+              },
+              {
+                id: 'attempt-passed',
+                passed: true,
+                completedAt: new Date('2026-01-04T00:00:00.000Z'),
+                createdAt: new Date('2026-01-04T00:00:00.000Z'),
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const response = await getBadgeDetail();
+    const body = await response.json();
+
+    expect(body.students[0]).toEqual(
+      expect.objectContaining({ status: 'COMPLETED', analyticsStatus: 'PROFICIENT', stillLearningReason: null })
+    );
+    expect(body.summary).toEqual(
+      expect.objectContaining({ completedCount: 1, inProgressCount: 0, inReviewCount: 0 })
     );
   });
 });
