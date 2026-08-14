@@ -29,6 +29,9 @@ export type CourseBadge = {
   slug: string;
   name: string;
   description: string | null;
+  imageUrl: string | null;
+  imagePositionX: number;
+  imagePositionY: number;
   availableOn: string | null;
   closesOn: string | null;
   neverCloses: boolean | null;

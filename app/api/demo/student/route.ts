@@ -72,6 +72,9 @@ function formatBadge(
       slug: string;
       name: string;
       description: string | null;
+      imageUrl: string | null;
+      imagePositionX: number;
+      imagePositionY: number;
       requirements: Array<{
         lessonId: string | null;
         summary: string | null;
@@ -96,6 +99,9 @@ function formatBadge(
     slug: studentBadge.badge.slug,
     name: studentBadge.badge.name,
     description: studentBadge.badge.description,
+    imageUrl: studentBadge.badge.imageUrl,
+    imagePositionX: studentBadge.badge.imagePositionX,
+    imagePositionY: studentBadge.badge.imagePositionY,
     status: studentBadge.status,
     awardedAt: studentBadge.awardedAt?.toISOString() ?? null,
     score: studentBadge.score ?? null,
@@ -354,7 +360,15 @@ export async function GET(req: Request) {
     enrollment
       ? prisma.badge.findMany({
           where: { requirements: { some: { lesson: { courseId: enrollment.courseId } } } },
-          select: { id: true, slug: true, name: true, description: true },
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            description: true,
+            imageUrl: true,
+            imagePositionX: true,
+            imagePositionY: true,
+          },
         })
       : Promise.resolve([]),
     fetchLessonProgress(student.id),

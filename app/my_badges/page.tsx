@@ -8,7 +8,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import { useBadgesCatalog, type BadgeCatalogItem } from '@/app/hooks/useBadgesCatalog';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
+import BadgeImage from '@/app/components/BadgeImage';
 import BadgeToken from '@/app/components/BadgeToken';
 import styles from './page.module.css';
 
@@ -127,7 +127,10 @@ export default function MyBadgesPage() {
                 <div key={badge.id} className={styles.badgeCardItem}>
                   <Link href={resolveBadgeHref(badge)} className={styles.badgeCard}>
                     <BadgeToken as="span" className={styles.badgeToken}>
-                      <YoutubeThumbnail
+                      <BadgeImage
+                        imageUrl={badge.imageUrl}
+                        imagePositionX={badge.imagePositionX}
+                        imagePositionY={badge.imagePositionY}
                         videoUrl={videoUrl}
                         alt={`${badge.name} thumbnail`}
                         className={styles.badgeTokenImage}

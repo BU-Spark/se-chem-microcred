@@ -34,6 +34,9 @@ type StudentProfileBadge = {
   slug: string;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
+  imagePositionX?: number | null;
+  imagePositionY?: number | null;
 
   status?: string;
   awardedAt?: string | null;

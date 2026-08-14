@@ -7,7 +7,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
+import BadgeImage from '@/app/components/BadgeImage';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 
 type BadgeStatus = 'completed' | 'assessment' | 'inReview' | 'learning' | 'locked';
@@ -283,8 +283,15 @@ export default function BadgeWalletPage() {
           aria-pressed={isActive}
         >
           <span className={styles.srOnly}>{badge.name}</span>
-          {badge.youtubeUrl ? (
-            <YoutubeThumbnail videoUrl={badge.youtubeUrl} alt="" className={styles.badgeTokenImage} />
+          {badge.imageUrl || badge.youtubeUrl ? (
+            <BadgeImage
+              imageUrl={badge.imageUrl}
+              imagePositionX={badge.imagePositionX}
+              imagePositionY={badge.imagePositionY}
+              videoUrl={badge.youtubeUrl}
+              alt=""
+              className={styles.badgeTokenImage}
+            />
           ) : (
             <div
               className={styles.badgeTokenImage}

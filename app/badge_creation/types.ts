@@ -54,6 +54,9 @@ export type RubricGoalDraft = {
 export type BadgeDraft = {
   badgeName: string;
   badgeDescription: string;
+  imageUrl: string;
+  imagePositionX: number;
+  imagePositionY: number;
   // LinkedIn-style skill tags (max 5). Persisted in BadgeRequirement.summary JSON.
   skills: string[];
   availableOn: string;
@@ -76,6 +79,9 @@ export type BadgeCatalogItem = {
   id: string;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
+  imagePositionX?: number | null;
+  imagePositionY?: number | null;
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
@@ -145,6 +151,9 @@ export const STEP_DEFINITIONS: StepDefinition[] = [
 export const DEFAULT_DRAFT: BadgeDraft = {
   badgeName: '',
   badgeDescription: '',
+  imageUrl: '',
+  imagePositionX: 50,
+  imagePositionY: 50,
   skills: [],
   availableOn: '',
   closesOn: '',
