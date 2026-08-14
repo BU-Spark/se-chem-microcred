@@ -22,7 +22,7 @@ import BackButton from '@/app/components/BackButton/BackButton';
 import ExportCsvDataButton from '@/app/components/Export/ExportToCsv';
 import BadgeToken from '@/app/components/BadgeToken';
 import { useCreatedCourseDetail, type CourseBadge } from './hooks/useCreatedCourseDetail';
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
+import BadgeImage from '@/app/components/BadgeImage';
 import styles from './page.module.css';
 
 type AssignedBadge = CourseBadge & {
@@ -601,7 +601,10 @@ export default function CreatedCourseDetailPage() {
                         <div key={badge.id} className={styles.badgeItem}>
                           <Link href={`/courses/${course.id}/${badge.id}`} className={styles.badgeItemLink}>
                             <BadgeToken className={styles.badgeToken}>
-                              <YoutubeThumbnail
+                              <BadgeImage
+                                imageUrl={badge.imageUrl}
+                                imagePositionX={badge.imagePositionX}
+                                imagePositionY={badge.imagePositionY}
                                 videoUrl={badge.videoUrl}
                                 fallbackThumbnailUrl={fallbackImage}
                                 quality="mqdefault"

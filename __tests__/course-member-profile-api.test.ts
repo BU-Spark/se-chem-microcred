@@ -44,6 +44,9 @@ function badge(id: string, name: string) {
     slug: id,
     name,
     description: null,
+    imageUrl: null,
+    imagePositionX: 50,
+    imagePositionY: 50,
   };
 }
 

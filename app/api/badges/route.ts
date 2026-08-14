@@ -8,6 +8,11 @@ import { parseTimeToSeconds, parseDate } from '@/lib/utils';
 import { normalizeString, normalizeSkills } from '@/lib/checkpoints/normalizeWrite';
 import { CreateBadgePayload, UpdateBadgePayload } from '@/lib/badges/types';
 import {
+  BadgeImageValidationError,
+  normalizeBadgeImagePosition,
+  normalizeBadgeImageUrl,
+} from '@/lib/badges/badge-image';
+import {
   executeBadgeCreationTx,
   executeBadgePatchTx,
   executeFetchBadges,
@@ -57,6 +62,9 @@ export async function GET(req: NextRequest) {
           slug: badge.slug,
           name: badge.name,
           description: badge.description,
+          imageUrl: badge.imageUrl,
+          imagePositionX: badge.imagePositionX,
+          imagePositionY: badge.imagePositionY,
           availableOn: badge.availableOn?.toISOString() ?? null,
           closesOn: badge.closesOn?.toISOString() ?? null,
           neverCloses: badge.neverCloses ?? null,
@@ -138,6 +146,9 @@ export async function PATCH(req: NextRequest) {
     const badgeId = normalizeString(body.id);
     const badgeName = normalizeString(body.badgeName);
     const badgeDescription = normalizeString(body.badgeDescription);
+    const imageUrl = normalizeBadgeImageUrl(body.imageUrl);
+    const imagePositionX = normalizeBadgeImagePosition(body.imagePositionX);
+    const imagePositionY = normalizeBadgeImagePosition(body.imagePositionY);
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
     const checkpoints = body.checkpoints ?? [];
@@ -164,6 +175,9 @@ export async function PATCH(req: NextRequest) {
       badgeId,
       badgeName,
       badgeDescription,
+      imageUrl,
+      imagePositionX,
+      imagePositionY,
       skills,
       rubricGoal,
       checkpoints,
@@ -190,6 +204,10 @@ export async function PATCH(req: NextRequest) {
     );
   } catch (error) {
     console.error('PATCH /api/badges failed:', error);
+
+    if (error instanceof BadgeImageValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
       return NextResponse.json({ error: 'Badge not found.' }, { status: 404 });
@@ -228,6 +246,9 @@ export async function POST(req: NextRequest) {
     const courseId = normalizeString(body.courseId);
     const badgeName = normalizeString(body.badgeName);
     const badgeDescription = normalizeString(body.badgeDescription);
+    const imageUrl = normalizeBadgeImageUrl(body.imageUrl);
+    const imagePositionX = normalizeBadgeImagePosition(body.imagePositionX);
+    const imagePositionY = normalizeBadgeImagePosition(body.imagePositionY);
     const videoTitle = normalizeString(body.videoTitle);
     const youtubeUrl = normalizeString(body.youtubeUrl);
     const checkpoints = body.checkpoints ?? [];
@@ -253,6 +274,9 @@ export async function POST(req: NextRequest) {
       courseId,
       badgeName,
       badgeDescription,
+      imageUrl,
+      imagePositionX,
+      imagePositionY,
       skills,
       rubricGoal,
       checkpoints,
@@ -280,6 +304,10 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error('POST /api/badges failed:', error);
+
+    if (error instanceof BadgeImageValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return NextResponse.json({ error: 'A badge or lesson with this slug already exists.' }, { status: 409 });

@@ -401,6 +401,98 @@
   max-width: 920px;
 }
 
+.badgeImageUploadRow {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.badgeImagePreview {
+  width: 112px;
+  height: 112px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #e7eef9;
+}
+.badgeImagePreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.badgeImagePositionActions {
+  margin-top: 10px;
+}
+.imagePositionDialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 28, 48, 0.62);
+}
+.imagePositionDialog {
+  width: min(92vw, 460px);
+  padding: 28px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(10, 28, 54, 0.3);
+}
+.imagePositionDialog h2 {
+  margin: 0 0 8px;
+  color: #16345f;
+}
+.imagePositionDialog p {
+  margin: 0 0 20px;
+  color: #53647d;
+}
+.imagePositionCanvas {
+  width: min(280px, 70vw);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 4px solid #d9e4f3;
+  border-radius: 50%;
+  background: #e7eef9;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.imagePositionCanvas:active {
+  cursor: grabbing;
+}
+.imagePositionCanvas img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.imagePositionDialogActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+}
+.imagePositionDoneButton {
+  min-width: 100px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: #1f67ad;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+.imageRemoveButton {
+  display: block;
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: #8b1e2d;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 .badgeInfoField,
 .fieldBlock,
 .fieldStack,
