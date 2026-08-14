@@ -156,6 +156,20 @@ describe('Assessment access codes', () => {
     expect(mockPrisma.assessmentAccessCode.create).not.toHaveBeenCalled();
   });
 
+  it('rejects assessment codes after the badge deadline', async () => {
+    mockPrisma.studentBadge.findUnique.mockResolvedValue({
+      status: 'READY_FOR_ASSESSMENT',
+      cooldownUntil: null,
+      badge: { closesOn: new Date(Date.now() - 60_000), neverCloses: false },
+    });
+
+    const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1' }));
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toEqual({ error: 'This badge deadline has passed.' });
+    expect(mockPrisma.assessmentAccessCode.create).not.toHaveBeenCalled();
+  });
+
   it('syncs lesson badge progress before deciding readiness', async () => {
     mockPrisma.course.findFirst.mockResolvedValue({
       id: 'course-1',

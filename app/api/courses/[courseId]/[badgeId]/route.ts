@@ -10,6 +10,8 @@ import { classifyStudentBadgeCohort, summarizeBadgeCohorts } from '@/lib/badgeCo
 import { fetchBadgeRatings } from '@/app/api/courses/lib/badge-ratings';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED';
+type AnalyticsStatus = 'PROFICIENT' | 'STILL_LEARNING' | 'NOT_STARTED';
+type StillLearningReason = 'VIDEO_IN_PROGRESS' | 'VIDEO_COMPLETED_ONLY' | 'IN_PERSON_FAILED';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -55,6 +57,28 @@ function normalizeLessonCheckpoints(
 
 function calculatePercent(count: number, total: number) {
   return total > 0 ? Math.round((count / total) * 100) : 0;
+}
+
+/**
+ * Converts mutually exclusive counts into whole percentages that always total
+ * exactly 100. Largest-remainder allocation avoids the 99/101% totals produced
+ * by rounding each row independently.
+ */
+function calculatePartitionPercents(counts: number[], total: number) {
+  if (total <= 0) return counts.map(() => 0);
+
+  const exact = counts.map((count) => (count / total) * 100);
+  const percentages = exact.map(Math.floor);
+  const remaining = 100 - percentages.reduce((sum, percent) => sum + percent, 0);
+  const remainderOrder = exact
+    .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
+    .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
+
+  for (let index = 0; index < remaining; index += 1) {
+    percentages[remainderOrder[index % remainderOrder.length].index] += 1;
+  }
+
+  return percentages;
 }
 
 export async function GET(req: NextRequest, context: { params: Promise<{ courseId: string; badgeId: string }> }) {
@@ -133,9 +157,36 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           lessonProgress.status === 'COMPLETED' ||
           lessonProgress.percentComplete > 0
       );
-      const status = (
+      const lessonCompleted = enrollment.student.lessonProgress.some(
+        (lessonProgress) => lessonProgress.status === 'COMPLETED' || Boolean(lessonProgress.completedAt)
+      );
+      const storedStatus = (
         !progress || (progress.status === 'LEARNING' && !lessonStarted) ? 'NOT_STARTED' : progress.status
       ) as BadgeStatus | 'NOT_STARTED';
+      const assessmentAttempts = enrollment.student.assessmentAttempts ?? [];
+      const surveyResponses = enrollment.student.surveyResponses ?? [];
+      const latestAssessment = assessmentAttempts.at(-1) ?? null;
+      const latestAssessmentPassed = latestAssessment?.passed ?? null;
+      // The finalization endpoint records feedback and flips the badge to COMPLETED
+      // atomically. Reconcile legacy/stale IN_REVIEW rows here so instructor
+      // analytics agrees with the student projection and recorded feedback.
+      const status =
+        storedStatus === 'IN_REVIEW' && latestAssessmentPassed === true && surveyResponses.length > 0
+          ? 'COMPLETED'
+          : storedStatus;
+      const analyticsStatus: AnalyticsStatus =
+        status === 'COMPLETED' ? 'PROFICIENT' : status === 'NOT_STARTED' ? 'NOT_STARTED' : 'STILL_LEARNING';
+      const stillLearningReason: StillLearningReason | null =
+        analyticsStatus !== 'STILL_LEARNING'
+          ? null
+          : latestAssessmentPassed === false || status === 'LOCKED'
+            ? 'IN_PERSON_FAILED'
+            : status === 'IN_REVIEW'
+              ? null
+              : lessonCompleted || status === 'READY_FOR_ASSESSMENT'
+                ? 'VIDEO_COMPLETED_ONLY'
+                : 'VIDEO_IN_PROGRESS';
+      const latestFeedback = surveyResponses[0] ?? null;
       const cohort = classifyStudentBadgeCohort({
         badgeStatus: progress?.status ?? null,
         awardedAt: progress?.awardedAt ?? null,
@@ -167,6 +218,19 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
             }
           : null,
         status,
+        latestAssessmentPassed,
+        analyticsStatus,
+        stillLearningReason,
+        videoStatus: lessonCompleted ? 'COMPLETED' : lessonStarted ? 'IN_PROGRESS' : 'NOT_STARTED',
+        assessmentAttemptCount: assessmentAttempts.length,
+        feedback: latestFeedback
+          ? {
+              rating: latestFeedback.rating,
+              comment: latestFeedback.comment,
+              submittedAt: latestFeedback.submittedAt.toISOString(),
+              question: latestFeedback.prompt.question,
+            }
+          : null,
         cohort: cohort.cohort,
         stage: cohort.stage,
         locked: cohort.locked,
@@ -182,20 +246,40 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     });
     const totalStudents = students.length;
     const completedCount = students.filter((student) => student.status === 'COMPLETED').length;
-    const inProgressCount = students.filter(
-      (student) =>
-        student.status === 'LEARNING' || student.status === 'READY_FOR_ASSESSMENT' || student.status === 'IN_REVIEW'
-    ).length;
+    const inProgressCount = students.filter((student) => student.analyticsStatus === 'STILL_LEARNING').length;
     const notStartedCount = students.filter((student) => student.status === 'NOT_STARTED').length;
     const readyForAssessmentCount = students.filter((student) => student.status === 'READY_FOR_ASSESSMENT').length;
-    const inReviewCount = students.filter((student) => student.status === 'IN_REVIEW').length;
+    const inReviewCount = students.filter(
+      (student) => student.status === 'IN_REVIEW' && student.latestAssessmentPassed === true
+    ).length;
     const lockedCount = students.filter((student) => student.status === 'LOCKED').length;
-    const scoredStudents = students.filter((student) => typeof student.progress?.score === 'number');
+    // Assessment averages describe demonstrated proficiency, so exclude scores
+    // from students who have not completed the badge/assessment yet.
+    const scoredStudents = students.filter(
+      (student) => student.analyticsStatus === 'PROFICIENT' && typeof student.progress?.score === 'number'
+    );
     const averageScore =
       scoredStudents.length > 0
         ? Math.round(
             scoredStudents.reduce((sum, student) => sum + (student.progress?.score ?? 0), 0) / scoredStudents.length
           )
+        : null;
+    const videoInProgressCount = students.filter(
+      (student) => student.stillLearningReason === 'VIDEO_IN_PROGRESS'
+    ).length;
+    const videoCompletedOnlyCount = students.filter(
+      (student) => student.stillLearningReason === 'VIDEO_COMPLETED_ONLY'
+    ).length;
+    const inPersonFailedCount = students.filter((student) => student.stillLearningReason === 'IN_PERSON_FAILED').length;
+    const [videoInProgressPercent, videoCompletedOnlyPercent, inPersonFailedPercent, inReviewPercent] =
+      calculatePartitionPercents(
+        [videoInProgressCount, videoCompletedOnlyCount, inPersonFailedCount, inReviewCount],
+        inProgressCount
+      );
+    const feedbackRows = students.flatMap((student) => (student.feedback ? [student.feedback] : []));
+    const averageRating =
+      feedbackRows.length > 0
+        ? Math.round((feedbackRows.reduce((sum, response) => sum + response.rating, 0) / feedbackRows.length) * 10) / 10
         : null;
 
     // Mirror the course-detail route: course owner is the instructor, otherwise
@@ -239,9 +323,19 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           inProgressPercent: calculatePercent(inProgressCount, totalStudents),
           notStartedPercent: calculatePercent(notStartedCount, totalStudents),
           readyForAssessmentPercent: calculatePercent(readyForAssessmentCount, totalStudents),
-          inReviewPercent: calculatePercent(inReviewCount, totalStudents),
+          inReviewPercent,
           lockedPercent: calculatePercent(lockedCount, totalStudents),
           averageScore,
+          videoInProgressCount,
+          videoCompletedOnlyCount,
+          inPersonFailedCount,
+          // These four mutually exclusive rows break down Still Learning, so
+          // they share that cohort as their denominator and total exactly 100%.
+          videoInProgressPercent,
+          videoCompletedOnlyPercent,
+          inPersonFailedPercent,
+          feedbackResponseCount: feedbackRows.length,
+          averageRating,
         },
         cohorts,
         ratings,

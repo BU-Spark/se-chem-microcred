@@ -11,7 +11,7 @@ import BadgeToken from '@/app/components/BadgeToken';
 import styles from './page.module.css';
 import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
+import BadgeImage from '@/app/components/BadgeImage';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
 import { splitName } from '@/lib/text/name';
@@ -420,7 +420,10 @@ export default function ProfilePage() {
                 learningBadges.map((badge) => (
                   <BadgeToken key={badge.id} className={styles.badgeToken}>
                     <div className={styles.badgeCircle}>
-                      <YoutubeThumbnail
+                      <BadgeImage
+                        imageUrl={badge.imageUrl}
+                        imagePositionX={badge.imagePositionX}
+                        imagePositionY={badge.imagePositionY}
                         videoUrl={badge.youtubeUrl}
                         alt={`${badge.name} thumbnail`}
                         className={styles.badgeCircleImage}
@@ -453,7 +456,10 @@ export default function ProfilePage() {
                     notStartedBadges.map((badge) => (
                       <BadgeToken key={badge.id} className={styles.badgeToken}>
                         <div className={styles.badgeCircle}>
-                          <YoutubeThumbnail
+                          <BadgeImage
+                            imageUrl={badge.imageUrl}
+                            imagePositionX={badge.imagePositionX}
+                            imagePositionY={badge.imagePositionY}
                             videoUrl={badge.youtubeUrl}
                             alt={`${badge.name} thumbnail`}
                             className={styles.badgeCircleImage}
@@ -488,7 +494,10 @@ export default function ProfilePage() {
                     completedBadges.map((badge) => (
                       <BadgeToken key={badge.id} className={styles.badgeToken}>
                         <div className={styles.badgeCircle}>
-                          <YoutubeThumbnail
+                          <BadgeImage
+                            imageUrl={badge.imageUrl}
+                            imagePositionX={badge.imagePositionX}
+                            imagePositionY={badge.imagePositionY}
                             videoUrl={badge.youtubeUrl}
                             alt={`${badge.name} thumbnail`}
                             className={styles.badgeCircleImage}

@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import type { ImgHTMLAttributes } from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import CreatedCourseDetailPage from './page';
 
@@ -234,47 +234,34 @@ describe('Created course detail page', () => {
       });
     });
 
-    // The course title appears exactly once, as the page heading.
-    expect(await screen.findAllByText('Chemistry 101')).toHaveLength(1);
+    expect(await screen.findAllByText('Chemistry 101')).toHaveLength(2);
     expect(screen.getByRole('heading', { level: 1, name: 'Chemistry 101' })).toBeInTheDocument();
-
-    // Metadata lives in its own compact "Course Details" section.
-    const detailsSection = screen.getByRole('region', { name: 'Course Details' });
-    expect(detailsSection).toBeInTheDocument();
-    expect(within(detailsSection).getByText('Sections').nextElementSibling).toHaveTextContent('5');
-    expect(within(detailsSection).getByText('Students enrolled').nextElementSibling).toHaveTextContent('2');
-    expect(within(detailsSection).getByText('CHEM101')).toBeInTheDocument();
-
-    // Course-level actions are grouped together, away from the metadata.
-    const actionsSection = screen.getByRole('region', { name: 'Course Actions' });
-    expect(within(actionsSection).getByRole('link', { name: 'View Student Roster' })).toBeInTheDocument();
-    expect(within(actionsSection).getByRole('link', { name: 'View Checker Roster' })).toBeInTheDocument();
-    expect(within(actionsSection).getByRole('link', { name: 'Edit Course' })).toBeInTheDocument();
-    expect(within(actionsSection).getByRole('button', { name: 'Import Existing Badge' })).toBeInTheDocument();
-    expect(within(actionsSection).getByRole('button', { name: 'Delete Course' })).toBeInTheDocument();
-    // Checkers are reached through the checker roster, not listed on this page.
-    expect(screen.queryByRole('region', { name: 'Checkers' })).not.toBeInTheDocument();
-    expect(screen.queryByText('One, Checker')).not.toBeInTheDocument();
-    expect(screen.queryByText('Two, Checker')).not.toBeInTheDocument();
-    expect(screen.getByText('Assigned Badges')).toBeInTheDocument();
+    expect(screen.getByText('Course overview')).toBeInTheDocument();
+    expect(screen.getByText('Sections')).toBeInTheDocument();
+    expect(screen.getByText('Students')).toBeInTheDocument();
+    expect(screen.getByText('CHEM101')).toBeInTheDocument();
+    expect(screen.getByText('One, Checker')).toBeInTheDocument();
+    expect(screen.getByText('Two, Checker')).toBeInTheDocument();
+    expect(screen.queryByText('Xiao, David')).not.toBeInTheDocument();
+    expect(screen.getByText('Course badges')).toBeInTheDocument();
     expect(screen.getByText('Waste Handling Badge')).toBeInTheDocument();
     expect(screen.getByText('Bunsen Burners Badge')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Waste Handling/i })).toHaveAttribute('href', '/courses/course-1/badge-1');
-    expect(screen.getByRole('link', { name: 'View Student Roster' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View roster' })).toHaveAttribute(
       'href',
       '/roster?courseId=course-1&role=STUDENT'
     );
-    expect(screen.getByRole('link', { name: 'View Checker Roster' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Manage checkers' })).toHaveAttribute(
       'href',
       '/roster?courseId=course-1&role=CHECKER'
     );
-    expect(screen.getByRole('link', { name: 'Edit Course' })).toHaveAttribute('href', '/courses/new?courseId=course-1');
+    expect(screen.getByRole('link', { name: 'Edit course' })).toHaveAttribute('href', '/courses/new?courseId=course-1');
     expect(screen.queryByRole('button', { name: 'Delete badge' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
 
     // Open the combined edit-settings popup; its header shows the badge name and
     // the read-only insertion date.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edit badge settings' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Settings' })[0]);
     const settingsDialog = screen.getByRole('dialog', { name: 'Edit settings for Waste Handling Badge' });
     expect(settingsDialog).toBeInTheDocument();
     expect(screen.getByText(/· Added/i)).toBeInTheDocument();
@@ -290,7 +277,7 @@ describe('Created course detail page', () => {
     });
 
     // Unassign lives behind an inline confirm step inside the popup.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edit badge settings' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Settings' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Unassign badge' }));
     expect(screen.getByText(/The badge itself will not be deleted/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unassign Badge' }));
@@ -348,14 +335,11 @@ describe('Created course detail page', () => {
 
     render(<CreatedCourseDetailPage />);
 
-    expect(await screen.findByText('Your role')).toBeInTheDocument();
-    expect(screen.getByText('Your role').nextElementSibling).toHaveTextContent('STUDENT');
-    expect(screen.queryByRole('region', { name: 'Course Actions' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Checkers' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'View Student Roster' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Edit Course' })).not.toBeInTheDocument();
+    expect(await screen.findByText('student')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View roster' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Edit course' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Import Existing Badge' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Import badge' })).not.toBeInTheDocument();
   });
 
   it('renders checker mode for an instructor entering through the checker card', async () => {
@@ -410,12 +394,10 @@ describe('Created course detail page', () => {
 
     render(<CreatedCourseDetailPage />);
 
-    expect(await screen.findByText('Your role')).toBeInTheDocument();
-    expect(screen.getByText('Your role').nextElementSibling).toHaveTextContent('CHECKER');
-    expect(screen.queryByRole('region', { name: 'Checkers' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View Students to Assess' })).toHaveAttribute(
+    expect(await screen.findByText('Checker')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Students to assess' })).toHaveAttribute(
       'href',
-      '/roster?courseId=course-1&role=STUDENT'
+      '/roster?courseId=course-1&role=STUDENT&view=checker'
     );
     fireEvent.click(screen.getByRole('button', { name: 'Assess Student' }));
     expect(screen.getByRole('dialog', { name: 'Assess student by code' })).toBeInTheDocument();
@@ -426,10 +408,10 @@ describe('Created course detail page', () => {
     fireEvent.change(screen.getByLabelText('Assessment code'), { target: { value: 'abcd-2345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(mockPush).toHaveBeenCalledWith('/qr/assessment-code?code=ABCD2345');
-    expect(screen.queryByRole('link', { name: 'View Checker Roster' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Edit Course' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Manage checkers' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Edit course' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Import Existing Badge' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Import badge' })).not.toBeInTheDocument();
   });
 
   it('imports an existing badge into the course', async () => {
@@ -555,7 +537,7 @@ describe('Created course detail page', () => {
 
     render(<CreatedCourseDetailPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Import Existing Badge' }));
+    fireEvent.click(await screen.findByRole('button', { name: '+ Import badge' }));
 
     expect(await screen.findByRole('heading', { name: 'Import Existing Badge' })).toBeInTheDocument();
     await waitFor(() => {

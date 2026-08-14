@@ -102,6 +102,7 @@ export default function StudentRosterPage() {
 
   const courseId = searchParams.get('courseId');
   const rosterRole = resolveRosterRole(searchParams.get('role'));
+  const returnToCheckerView = searchParams.get('view') === 'checker';
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
   const { data, isLoading, error, refresh } = useCourseRoster(courseId, email);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
@@ -470,7 +471,7 @@ export default function StudentRosterPage() {
 
       <main className={styles.main}>
         <div className={styles.content}>
-          {courseId ? <BackButton href={`/courses/${courseId}`} /> : null}
+          {courseId ? <BackButton href={`/courses/${courseId}${returnToCheckerView ? '?view=checker' : ''}`} /> : null}
 
           <header className={styles.header}>
             <h1 className={styles.pageTitle}>{rosterLabel} Roster</h1>
@@ -677,7 +678,9 @@ export default function StudentRosterPage() {
 
               {pendingCheckers.length > 0 ? (
                 <section className={styles.pendingCard}>
-                  <h2 className={styles.pendingTitle}>Pending Checker Requests</h2>
+                  <h2 className={styles.pendingTitle}>
+                    Pending join requests <span className={styles.pendingCount}>{pendingCheckers.length}</span>
+                  </h2>
                   <ul className={styles.pendingList}>
                     {pendingCheckers.map((request) => (
                       <li key={request.enrollmentId} className={styles.pendingItem}>

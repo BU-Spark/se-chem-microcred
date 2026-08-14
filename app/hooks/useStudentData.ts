@@ -160,6 +160,9 @@ export interface BadgeRecord {
   slug: string;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
+  imagePositionX?: number | null;
+  imagePositionY?: number | null;
   status: BadgeStatus;
   awardedAt: string | null;
   score: number | null;

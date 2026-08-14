@@ -378,9 +378,9 @@ describe('Home page', () => {
   it('renders merged course sections', async () => {
     render(<HomePage />);
 
-    expect(await screen.findByText(/Instructor Courses/i)).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: /Instructor/i })).toBeInTheDocument();
     expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
-    expect(screen.getByText(/My Enrolled Courses/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /Enrolled/i }));
     expect(await screen.findByText('Chem 101')).toBeInTheDocument();
   });
 

@@ -171,6 +171,15 @@ describe('course badge detail API', () => {
               },
             ],
             assessmentAttempts: [{ passed: true }],
+            surveyResponses: [
+              {
+                id: 'survey-1',
+                rating: 5,
+                comment: 'Very useful',
+                submittedAt: new Date('2026-01-05T00:00:00.000Z'),
+                prompt: { id: 'prompt-1', question: 'How was this badge?', context: 'BADGE' },
+              },
+            ],
           },
         },
         {
@@ -188,7 +197,7 @@ describe('course badge detail API', () => {
                 badgeId: 'badge-1',
                 status: 'READY_FOR_ASSESSMENT',
                 awardedAt: null,
-                score: null,
+                score: 40,
                 updatedAt: new Date('2026-01-03T00:00:00.000Z'),
               },
             ],
@@ -202,6 +211,7 @@ describe('course badge detail API', () => {
               },
             ],
             assessmentAttempts: [],
+            surveyResponses: [],
           },
         },
         {
@@ -216,6 +226,7 @@ describe('course badge detail API', () => {
             badgeProgress: [],
             lessonProgress: [],
             assessmentAttempts: [],
+            surveyResponses: [],
           },
         },
       ],
@@ -246,6 +257,12 @@ describe('course badge detail API', () => {
         inProgressPercent: 33,
         notStartedPercent: 33,
         averageScore: 92,
+        videoCompletedOnlyCount: 1,
+        videoInProgressPercent: 0,
+        videoCompletedOnlyPercent: 100,
+        inPersonFailedPercent: 0,
+        feedbackResponseCount: 1,
+        averageRating: 5,
       })
     );
     expect(body.assessment.displayText).toBe('Use the burner safely.');
@@ -268,7 +285,21 @@ describe('course badge detail API', () => {
       }),
     ]);
     expect(body.students).toHaveLength(3);
-    expect(body.students[2]).toEqual(expect.objectContaining({ status: 'NOT_STARTED', progress: null }));
+    expect(
+      body.summary.videoInProgressPercent +
+        body.summary.videoCompletedOnlyPercent +
+        body.summary.inPersonFailedPercent +
+        body.summary.inReviewPercent
+    ).toBe(100);
+    expect(body.students[0]).toEqual(
+      expect.objectContaining({ analyticsStatus: 'PROFICIENT', feedback: expect.objectContaining({ rating: 5 }) })
+    );
+    expect(body.students[1]).toEqual(
+      expect.objectContaining({ analyticsStatus: 'STILL_LEARNING', stillLearningReason: 'VIDEO_COMPLETED_ONLY' })
+    );
+    expect(body.students[2]).toEqual(
+      expect.objectContaining({ status: 'NOT_STARTED', analyticsStatus: 'NOT_STARTED', progress: null })
+    );
   });
 
   // The instructor-facing rollup: three cohorts, with "still learning" split by
@@ -397,6 +428,7 @@ describe('course badge detail API', () => {
               { lessonId: 'lesson-1', status: 'NOT_STARTED', startedAt: null, completedAt: null, percentComplete: 0 },
             ],
             assessmentAttempts: [],
+            surveyResponses: [],
           },
         },
         {
@@ -419,6 +451,7 @@ describe('course badge detail API', () => {
               },
             ],
             assessmentAttempts: [],
+            surveyResponses: [],
           },
         },
       ],
@@ -431,6 +464,7 @@ describe('course badge detail API', () => {
 
     expect(body.students[0]).toEqual(expect.objectContaining({ status: 'NOT_STARTED' }));
     expect(body.students[1]).toEqual(expect.objectContaining({ status: 'LEARNING' }));
+    expect(body.students[1]).toEqual(expect.objectContaining({ stillLearningReason: 'VIDEO_IN_PROGRESS' }));
     expect(body.summary).toEqual(
       expect.objectContaining({
         totalStudents: 2,
@@ -440,6 +474,53 @@ describe('course badge detail API', () => {
       })
     );
   });
+  it('reconciles a passing reviewed badge with submitted feedback as completed', async () => {
+    const badgeDetail = await mockFetchAccessibleBadgeDetail();
+    const completedStudent = badgeDetail.enrollments[0].student;
+    mockFetchAccessibleBadgeDetail.mockResolvedValue({
+      ...badgeDetail,
+      enrollments: [
+        {
+          ...badgeDetail.enrollments[0],
+          student: {
+            ...completedStudent,
+            badgeProgress: [
+              {
+                ...completedStudent.badgeProgress[0],
+                status: 'IN_REVIEW',
+                awardedAt: null,
+              },
+            ],
+            assessmentAttempts: [
+              {
+                id: 'attempt-failed',
+                passed: false,
+                completedAt: new Date('2026-01-03T00:00:00.000Z'),
+                createdAt: new Date('2026-01-03T00:00:00.000Z'),
+              },
+              {
+                id: 'attempt-passed',
+                passed: true,
+                completedAt: new Date('2026-01-04T00:00:00.000Z'),
+                createdAt: new Date('2026-01-04T00:00:00.000Z'),
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const response = await getBadgeDetail();
+    const body = await response.json();
+
+    expect(body.students[0]).toEqual(
+      expect.objectContaining({ status: 'COMPLETED', analyticsStatus: 'PROFICIENT', stillLearningReason: null })
+    );
+    expect(body.summary).toEqual(
+      expect.objectContaining({ completedCount: 1, inProgressCount: 0, inReviewCount: 0 })
+    );
+  });
+
   // The rating aggregates are the reason this route touches Prisma at all. Feed
   // the query through the mock so the aggregation is exercised for real — without
   // a database — rather than just stubbed out to keep CI quiet.

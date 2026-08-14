@@ -1,9 +1,16 @@
 'use client';
 
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
+import BadgeImage from '@/app/components/BadgeImage';
 import styles from './BadgeGrid.module.css';
 
-export type BadgeGridItem = { id: string; name: string; youtubeUrl?: string | null };
+export type BadgeGridItem = {
+  id: string;
+  name: string;
+  imageUrl?: string | null;
+  imagePositionX?: number | null;
+  imagePositionY?: number | null;
+  youtubeUrl?: string | null;
+};
 
 export default function BadgeGrid({
   badges,
@@ -29,7 +36,10 @@ export default function BadgeGrid({
         const content = (
           <>
             <div className={bubbleClass}>
-              <YoutubeThumbnail
+              <BadgeImage
+                imageUrl={badge.imageUrl}
+                imagePositionX={badge.imagePositionX}
+                imagePositionY={badge.imagePositionY}
                 videoUrl={badge.youtubeUrl}
                 alt={`${badge.name} thumbnail`}
                 className={styles.badgeBubbleImage}

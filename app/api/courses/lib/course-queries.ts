@@ -132,6 +132,9 @@ export async function fetchCreatedCourseDetail(userId: string, courseId: string)
                   slug: true,
                   name: true,
                   description: true,
+                  imageUrl: true,
+                  imagePositionX: true,
+                  imagePositionY: true,
                 },
               },
             },
@@ -232,6 +235,9 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                 select: {
                   id: true,
                   description: true,
+                  imageUrl: true,
+                  imagePositionX: true,
+                  imagePositionY: true,
                   slug: true,
 
                   name: true,
@@ -291,6 +297,29 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                   updatedAt: true,
                 },
               },
+              assessmentAttempts: {
+                where: { courseId, badgeId },
+                orderBy: [{ completedAt: 'asc' }, { createdAt: 'asc' }],
+                select: {
+                  id: true,
+                  passed: true,
+                  completedAt: true,
+                  createdAt: true,
+                },
+              },
+              surveyResponses: {
+                where: {
+                  prompt: { badgeId, context: 'BADGE' },
+                },
+                orderBy: { submittedAt: 'desc' },
+                select: {
+                  id: true,
+                  rating: true,
+                  comment: true,
+                  submittedAt: true,
+                  prompt: { select: { id: true, question: true, context: true } },
+                },
+              },
               // Progress on the badge's requirement lessons, used to tell a
               // LEARNING row the student has actually worked on apart from one
               // eagerly created at badge creation/import (still "not started"),
@@ -304,12 +333,6 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                   completedAt: true,
                   percentComplete: true,
                 },
-              },
-              // Graded in-person attempts, used to separate "finished the video"
-              // from "was assessed and hasn't passed yet".
-              assessmentAttempts: {
-                where: { badgeId, courseId },
-                select: { passed: true },
               },
             },
           },
@@ -389,6 +412,9 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
                   slug: true,
                   name: true,
                   description: true,
+                  imageUrl: true,
+                  imagePositionX: true,
+                  imagePositionY: true,
                   availableOn: true,
                   closesOn: true,
                   neverCloses: true,
@@ -465,6 +491,9 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
                   slug: true,
                   name: true,
                   description: true,
+                  imageUrl: true,
+                  imagePositionX: true,
+                  imagePositionY: true,
                 },
               },
             },
@@ -588,6 +617,9 @@ export async function fetchCreatedCourseMemberDetail(userId: string, courseId: s
                   slug: true,
                   name: true,
                   description: true,
+                  imageUrl: true,
+                  imagePositionX: true,
+                  imagePositionY: true,
                 },
               },
             },

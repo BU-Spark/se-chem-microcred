@@ -3,21 +3,35 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMyCourses } from './hooks/useMyCourses';
 import { useCanCreateContent } from './hooks/useCanCreateContent';
-import Image from 'next/image';
+import { useDashboardAnalytics } from './hooks/useDashboardAnalytics';
+import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
+import { Icon } from '@iconify/react';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type StudentData } from './hooks/useStudentData';
 import styles from './page.module.css';
 import courseStyles from './courses/page.module.css';
+import veryUnhappy from '../public/assets/survey_faces/very_unhappy.svg';
+import slightlyUnhappy from '../public/assets/survey_faces/slightly_unhappy.svg';
+import neutral from '../public/assets/survey_faces/neutral.svg';
+import slightlyHappy from '../public/assets/survey_faces/slightly_happy.svg';
+import veryHappy from '../public/assets/survey_faces/very_happy.svg';
+import veryUnhappySelected from '../public/assets/survey_faces/very_unhappy_selected.svg';
+import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unhappy_selected.svg';
+import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
+import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
+import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import CourseTileImage from '@/app/components/Courses/CourseTileImage';
+import SurveyModal from '@/app/components/SurveyModal';
 import type { CourseImageFields } from '@/lib/courseImage';
 
 interface EnrolledCourseCardData extends CourseImageFields {
   id: string;
+  courseId: string;
   title: string;
   image?: string;
   href?: string;
@@ -45,6 +59,18 @@ type CreatedCourse = CourseImageFields & {
   }>;
 };
 
+const formatCourseCreatedDate = (createdAt: string) => {
+  const date = new Date(createdAt);
+  if (Number.isNaN(date.getTime())) return 'Unknown';
+
+  return date.toLocaleDateString('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: '2-digit',
+    timeZone: 'UTC',
+  });
+};
+
 type EnrolledCourse = {
   id: string;
   role: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER';
@@ -66,7 +92,43 @@ type CheckerCourseEnrollment = {
   course: CreatedCourse;
 };
 
+type CourseCardMetric = {
+  label: string;
+  value: number | string;
+  compact?: boolean;
+};
+
+type AnalyticsMetric = CourseCardMetric & {
+  detail: string;
+  icon: string;
+  tone?: 'blue' | 'green' | 'amber' | 'slate';
+};
+
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
+
+const FACE_IMAGES: Record<number, StaticImageData> = {
+  1: veryUnhappy,
+  2: slightlyUnhappy,
+  3: neutral,
+  4: slightlyHappy,
+  5: veryHappy,
+};
+
+const FACE_IMAGES_SELECTED: Record<number, StaticImageData> = {
+  1: veryUnhappySelected,
+  2: slightlyUnhappySelected,
+  3: neutralSelected,
+  4: slightlyHappySelected,
+  5: veryHappySelected,
+};
+
+const FACE_ALTS: Record<number, string> = {
+  1: 'Very unhappy',
+  2: 'Slightly unhappy',
+  3: 'Neutral',
+  4: 'Slightly happy',
+  5: 'Very happy',
+};
 
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
@@ -136,13 +198,21 @@ function resolveThumbnailUrl(course: CreatedCourse) {
   return candidate ? candidate : null;
 }
 
-function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: string }) {
+function CreatedCourseCard({
+  course,
+  href,
+  metrics,
+}: {
+  course: CreatedCourse;
+  href?: string;
+  metrics?: CourseCardMetric[];
+}) {
   const thumbnailUrl = resolveThumbnailUrl(course);
 
   return (
     <Link
       href={href ?? `/courses/${course.id}`}
-      className={courseStyles.courseCard}
+      className={`${courseStyles.courseCard} ${metrics?.length ? styles.courseCardWithMetrics : ''}`}
       data-testid="course-card"
       aria-label={`Open ${course.title}`}
     >
@@ -152,6 +222,7 @@ function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: str
           iconBgColor={course.iconBgColor}
           iconFgColor={course.iconFgColor}
           title={course.title}
+          iconScale={0.38}
           fallback={
             thumbnailUrl ? (
               <Image
@@ -166,22 +237,24 @@ function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: str
             )
           }
         />
+        <div className={courseStyles.courseCardOverlay}>
+          <h3 className={courseStyles.courseCardTitle}>{course.title}</h3>
+          <Icon icon="lucide:arrow-up-right" className={courseStyles.courseCardArrow} aria-hidden="true" />
+        </div>
       </div>
-
-      <div className={courseStyles.courseText}>
-        <h3 className={courseStyles.courseTitle}>{course.title}</h3>
-      </div>
-    </Link>
-  );
-}
-
-function AddCourseCard() {
-  return (
-    <Link href="/courses/new" className={styles.addTile} data-testid="add-course-card" aria-label="Create a course">
-      <div className={styles.addTileMedia}>
-        <span className={styles.addTilePlus}>+</span>
-      </div>
-      <p className={styles.addTileLabel}>Create a Course</p>
+      {metrics?.length ? (
+        <div className={styles.courseCardMetrics} aria-label={`${course.title} analytics`}>
+          {metrics.map((metric) => (
+            <span
+              key={metric.label}
+              className={`${styles.courseCardMetric} ${metric.compact ? styles.courseCardMetricCompact : ''}`}
+            >
+              <strong>{metric.value}</strong>
+              <span>{metric.label}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
     </Link>
   );
 }
@@ -191,6 +264,7 @@ function enrollmentToCard(enrollment: EnrolledCourse): EnrolledCourseCardData {
 
   return {
     id: enrollment.id,
+    courseId: course.id,
     title: course.title,
     image: resolvePreviewImage(course.lessons[0]),
     href: `/course_dashboard?courseId=${course.id}`,
@@ -208,7 +282,7 @@ function HomeContent() {
   const signOut = useSignOut();
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
 
-  const { data: studentData } = useStudentData(email);
+  const { data: studentData, refresh } = useStudentData(email);
 
   // One consolidated SWR-cached fetch replaces the three per-role fetches. The
   // single loading/error state applies to all sections, matching the prior
@@ -224,6 +298,11 @@ function HomeContent() {
     mutate: refreshCourses,
   } = useMyCourses(isLoaded && isSignedIn);
   const { canCreateContent } = useCanCreateContent(isLoaded && isSignedIn);
+  const {
+    data: dashboardAnalytics,
+    isLoading: isLoadingDashboardAnalytics,
+    error: dashboardAnalyticsError,
+  } = useDashboardAnalytics(isLoaded && isSignedIn);
   const coursesError = fetchError
     ? fetchError instanceof Error
       ? fetchError.message
@@ -238,6 +317,17 @@ function HomeContent() {
   const checkerCoursesError = coursesError;
 
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [activeCourseTab, setActiveCourseTab] = useState<'instructor' | 'enrolled' | 'checker'>('instructor');
+  const [activeSurvey, setActiveSurvey] = useState<{
+    promptId: string;
+    badgeId: string;
+    badgeSlug: string | null;
+    badgeName: string | null;
+    question: string;
+  } | null>(null);
+  const [surveyRating, setSurveyRating] = useState(3);
+  const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false);
+  const [surveyError, setSurveyError] = useState<string | null>(null);
   const [isDuplicateOpen, setIsDuplicateOpen] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
@@ -310,31 +400,124 @@ function HomeContent() {
     [enrolled]
   );
 
-  // Role gating: the three course endpoints already segment by role, so data presence
-  // is a reliable signal for which sections to surface.
-  const hasCreated = createdCourses.length > 0;
-  const hasChecker = checkerEnrollments.length > 0;
-  const hasEnrolled = enrolledCourseCards.length > 0;
+  const instructorAnalytics = useMemo<AnalyticsMetric[]>(
+    () => [
+      {
+        label: 'Need assessment',
+        value: dashboardAnalytics?.instructor.readyForAssessment ?? 0,
+        detail: 'students ready for an in-person assessment',
+        icon: 'lucide:clipboard-check',
+        tone: 'amber',
+      },
+      {
+        label: 'Awaiting student review',
+        value: dashboardAnalytics?.instructor.awaitingStudentReview ?? 0,
+        detail: 'assessments submitted with feedback to review',
+        icon: 'lucide:message-square-text',
+        tone: 'blue',
+      },
+      {
+        label: 'Checker requests',
+        value: dashboardAnalytics?.instructor.pendingCheckerRequests ?? 0,
+        detail: 'pending checker access requests',
+        icon: 'lucide:user-round-check',
+        tone: 'green',
+      },
+      {
+        label: 'Upcoming deadlines',
+        value: dashboardAnalytics?.instructor.upcomingDeadlines ?? 0,
+        detail: `lesson deadlines in the next ${dashboardAnalytics?.windowDays ?? 14} days`,
+        icon: 'lucide:calendar-clock',
+        tone: 'slate',
+      },
+    ],
+    [dashboardAnalytics]
+  );
+
+  const enrolledAnalytics = useMemo<AnalyticsMetric[]>(
+    () => [
+      {
+        label: 'Lessons to start',
+        value: dashboardAnalytics?.student.lessonsNotStarted ?? 0,
+        detail: 'assigned lessons not yet started',
+        icon: 'lucide:play-circle',
+        tone: 'amber',
+      },
+      {
+        label: 'Continue learning',
+        value: dashboardAnalytics?.student.lessonsInProgress ?? 0,
+        detail: 'lessons currently in progress',
+        icon: 'lucide:book-open-check',
+        tone: 'blue',
+      },
+      {
+        label: 'Ready for assessment',
+        value: dashboardAnalytics?.student.readyForAssessment ?? 0,
+        detail: 'badges ready for in-person assessment',
+        icon: 'lucide:circle-check-big',
+        tone: 'green',
+      },
+      {
+        label: 'Due soon',
+        value: dashboardAnalytics?.student.upcomingDeadlines ?? 0,
+        detail: `${dashboardAnalytics?.student.overdueLessons ?? 0} overdue · next ${dashboardAnalytics?.windowDays ?? 14} days`,
+        icon: 'lucide:calendar-clock',
+        tone: dashboardAnalytics?.student.overdueLessons ? 'amber' : 'slate',
+      },
+    ],
+    [dashboardAnalytics]
+  );
+
+  const checkerAnalytics = useMemo<AnalyticsMetric[]>(
+    () => [
+      {
+        label: 'Need assessment',
+        value: dashboardAnalytics?.checker.readyForAssessment ?? 0,
+        detail: 'students ready within your assigned sections',
+        icon: 'lucide:clipboard-check',
+        tone: 'amber',
+      },
+      {
+        label: 'Awaiting student review',
+        value: dashboardAnalytics?.checker.awaitingStudentReview ?? 0,
+        detail: 'submitted assessments awaiting acknowledgement',
+        icon: 'lucide:message-square-text',
+        tone: 'blue',
+      },
+      {
+        label: 'Upcoming deadlines',
+        value: dashboardAnalytics?.checker.upcomingDeadlines ?? 0,
+        detail: `assigned-course deadlines in the next ${dashboardAnalytics?.windowDays ?? 14} days`,
+        icon: 'lucide:calendar-clock',
+        tone: 'slate',
+      },
+    ],
+    [dashboardAnalytics]
+  );
+  void instructorAnalytics;
+  void enrolledAnalytics;
+  void checkerAnalytics;
+
   const isLoadingRoles = isLoadingCreated || isLoadingCheckerCourses || isLoadingEnrolled;
-  // Instructors (and brand-new users with no role context) see "My Courses".
-  const showMyCourses = hasCreated || (!hasChecker && !hasEnrolled);
   useEffect(() => {
     if (isLoaded && !isSignedIn) {
       router.replace('/splash');
     }
   }, [isLoaded, isSignedIn, router]);
 
-  // Home doesn't host the badge survey — a ?surveyBadge deep link hands off to the
-  // badge's own feedback page, the same destination the "ready to finalize" alert
-  // uses. An unknown slug is fine: that page redirects to /badges itself.
   useEffect(() => {
     const slug = searchParams.get('surveyBadge');
     if (!slug) return;
 
     const target = pendingSurveyBadges.find((entry) => entry.badgeSlug === slug)?.badgeSlug ?? slug;
-
     router.replace(`/badges/${encodeURIComponent(target)}/feedback`);
   }, [pendingSurveyBadges, router, searchParams]);
+
+  useEffect(() => {
+    if (pendingSurveyBadges.length === 0) {
+      setActiveSurvey(null);
+    }
+  }, [pendingSurveyBadges]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -348,6 +531,17 @@ function HomeContent() {
       setIsSigningOut(false);
     }
   };
+
+  const closeSurveyModal = useCallback(() => {
+    setActiveSurvey(null);
+    setSurveyError(null);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('surveyBadge');
+    const nextPath = params.size ? `${pathname}?${params.toString()}` : pathname;
+
+    router.replace(nextPath, { scroll: false });
+  }, [pathname, router, searchParams]);
 
   const closeAssessmentAccessModal = useCallback(() => {
     const params = new URLSearchParams(searchParams.toString());
@@ -378,6 +572,37 @@ function HomeContent() {
     },
     [readyBadgeAlerts, router]
   );
+
+  const handleSubmitSurvey = useCallback(async () => {
+    if (!activeSurvey || !studentData?.student.email || isSubmittingSurvey) return;
+
+    setIsSubmittingSurvey(true);
+    setSurveyError(null);
+
+    try {
+      const response = await fetch(`/api/badges/${activeSurvey.badgeId}/survey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: studentData.student.email,
+          rating: surveyRating,
+        }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error ?? 'Failed to submit survey.');
+      }
+
+      await refresh();
+      closeSurveyModal();
+    } catch (error) {
+      console.error('Failed to submit survey', error);
+      setSurveyError(error instanceof Error ? error.message : 'Failed to submit survey. Please try again.');
+    } finally {
+      setIsSubmittingSurvey(false);
+    }
+  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal, isSubmittingSurvey]);
 
   const handleDuplicateCourse = useCallback(
     async (courseId: string) => {
@@ -449,12 +674,13 @@ function HomeContent() {
     const imageSrc = course.image ?? DEFAULT_LESSON_IMAGE;
     const isYouTubeThumb =
       imageSrc.includes('ytimg.com') || imageSrc.includes('youtube.com') || imageSrc.includes('img.youtube.com');
+    const analytics = dashboardAnalytics?.byCourse?.student?.[course.courseId] ?? {};
 
     return (
       <Link
         key={course.id}
         href={course.href ?? '#'}
-        className={courseStyles.courseCard}
+        className={`${courseStyles.courseCard} ${styles.courseCardWithMetrics}`}
         data-testid="enrolled-course-card"
         aria-label={`Open ${course.title}`}
       >
@@ -464,6 +690,7 @@ function HomeContent() {
             iconBgColor={course.iconBgColor}
             iconFgColor={course.iconFgColor}
             title={course.title}
+            iconScale={0.38}
             fallback={
               isYouTubeThumb ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -479,11 +706,31 @@ function HomeContent() {
               )
             }
           />
+          <div className={courseStyles.courseCardOverlay}>
+            <h3 className={courseStyles.courseCardTitle}>{course.title}</h3>
+            <Icon icon="lucide:arrow-up-right" className={courseStyles.courseCardArrow} aria-hidden="true" />
+          </div>
         </div>
-
-        <div className={courseStyles.courseText}>
-          <h3 className={courseStyles.courseTitle}>{course.title}</h3>
-        </div>
+        {!isLoadingDashboardAnalytics ? (
+          <div className={styles.courseCardMetrics} aria-label={`${course.title} analytics`}>
+            <span className={styles.courseCardMetric}>
+              <strong>{analytics.lessonsNotStarted ?? 0}</strong>
+              <span>To start</span>
+            </span>
+            <span className={styles.courseCardMetric}>
+              <strong>{analytics.lessonsInProgress ?? 0}</strong>
+              <span>In progress</span>
+            </span>
+            <span className={styles.courseCardMetric}>
+              <strong>{analytics.upcomingDeadlines ?? 0}</strong>
+              <span>Due soon</span>
+            </span>
+            <span className={styles.courseCardMetric}>
+              <strong>{analytics.overdueLessons ?? 0}</strong>
+              <span>Overdue</span>
+            </span>
+          </div>
+        ) : null}
       </Link>
     );
   };
@@ -494,18 +741,8 @@ function HomeContent() {
 
       <main className={`main ${styles.main}`}>
         <header className={styles.welcomeHeader}>
-          <h1 className={styles.welcomeTitle}>Welcome, {displayName || 'Professor'}</h1>
-          <p className={styles.welcomeSubtitle}>
-            {isLoadingRoles
-              ? 'Loading your courses…'
-              : showMyCourses
-                ? hasCreated
-                  ? `You have ${createdCourses.length} course${createdCourses.length === 1 ? '' : 's'}.`
-                  : 'You have no existing courses.'
-                : hasEnrolled
-                  ? `You are enrolled in ${enrolledCourseCards.length} course${enrolledCourseCards.length === 1 ? '' : 's'}.`
-                  : `You are assessing ${checkerEnrollments.length} course${checkerEnrollments.length === 1 ? '' : 's'}.`}
-          </p>
+          <h1 className={styles.welcomeTitle}>Your courses</h1>
+          <p className={styles.welcomeSubtitle}>Manage the courses you teach, take, and review.</p>
         </header>
 
         {readyBadgeAlerts.length > 0 ? (
@@ -529,115 +766,232 @@ function HomeContent() {
           </div>
         ) : null}
 
-        {/* All three role sections are shown together on Home — the client validated this
-            combined professor/checker/student view, so we intentionally do not role-gate them. */}
-        <section className={courseStyles.section}>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={courseStyles.sectionTitle}>Instructor Courses</h2>
-            <button
-              type="button"
-              className={styles.duplicateButton}
-              aria-label="Duplicate course"
-              onClick={() => {
-                setDuplicateError(null);
-                setIsDuplicateOpen(true);
-              }}
-            >
-              <svg className={styles.duplicateIcon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                <rect x="8" y="8" width="12" height="12" rx="2.5" stroke="currentColor" strokeWidth="1.8" />
-                <path d="M4 15.5V5a2 2 0 0 1 2-2h9.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-              </svg>
-              Duplicate Course
-            </button>
-          </div>
-
-          <div className={styles.myCoursesGrid} data-testid="created-courses-grid">
-            {canCreateContent ? <AddCourseCard /> : null}
-            {createdCourses.map((course) => (
-              <CreatedCourseCard key={course.id} course={course} />
+        <section className={styles.courseWorkspace} aria-label="Courses by permission">
+          <div className={styles.courseTabs} role="tablist" aria-label="Course permissions">
+            {(
+              [
+                { id: 'instructor', label: 'Instructor', icon: 'lucide:graduation-cap', count: createdCourses.length },
+                { id: 'enrolled', label: 'Enrolled', icon: 'lucide:user-round', count: enrolledCourseCards.length },
+                { id: 'checker', label: 'Checker', icon: 'lucide:shield-check', count: checkerEnrollments.length },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                id={`course-tab-${tab.id}`}
+                aria-selected={activeCourseTab === tab.id}
+                aria-controls={`course-panel-${tab.id}`}
+                className={`${styles.courseTab} ${activeCourseTab === tab.id ? styles.courseTabActive : ''}`}
+                onClick={() => setActiveCourseTab(tab.id)}
+              >
+                <Icon icon={tab.icon} className={styles.courseTabIcon} aria-hidden="true" />
+                <span>{tab.label}</span>
+                <span className={styles.courseTabCount}>{isLoadingRoles ? '—' : tab.count}</span>
+              </button>
             ))}
           </div>
 
-          {isLoadingCreated ? <p className={courseStyles.statusMessage}>Loading created courses…</p> : null}
+          <div
+            className={styles.coursePanel}
+            role="tabpanel"
+            id={`course-panel-${activeCourseTab}`}
+            aria-labelledby={`course-tab-${activeCourseTab}`}
+          >
+            <div className={styles.coursePanelHeader}>
+              <div>
+                <h2 className={styles.coursePanelTitle}>
+                  {activeCourseTab === 'instructor'
+                    ? 'Courses you teach'
+                    : activeCourseTab === 'enrolled'
+                      ? 'Courses you take'
+                      : 'Courses you review'}
+                </h2>
+                <p className={styles.coursePanelDescription}>
+                  {activeCourseTab === 'instructor'
+                    ? 'Create, organize, and manage your course content.'
+                    : activeCourseTab === 'enrolled'
+                      ? 'Continue learning in courses where you are enrolled.'
+                      : 'Open courses where you support assessment and feedback.'}
+                </p>
+              </div>
 
-          {!isLoadingCreated && createdError ? <p className={courseStyles.statusMessage}>{createdError}</p> : null}
-        </section>
+              <div className={styles.courseActions}>
+                {activeCourseTab === 'instructor' ? (
+                  <>
+                    {canCreateContent ? (
+                      <Link href="/courses/new" className={styles.primaryCourseAction} data-testid="add-course-card">
+                        <Icon icon="lucide:plus" aria-hidden="true" />
+                        Create course
+                      </Link>
+                    ) : null}
+                    <button
+                      type="button"
+                      className={styles.secondaryCourseAction}
+                      onClick={() => {
+                        setDuplicateError(null);
+                        setIsDuplicateOpen(true);
+                      }}
+                    >
+                      <Icon icon="lucide:copy" aria-hidden="true" />
+                      Duplicate
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.primaryCourseAction}
+                    data-testid={activeCourseTab === 'enrolled' ? 'join-course-card' : undefined}
+                    onClick={() => openJoinModal(activeCourseTab === 'checker' ? 'checker' : 'student')}
+                  >
+                    <Icon icon="lucide:log-in" aria-hidden="true" />
+                    Join course
+                  </button>
+                )}
+              </div>
+            </div>
 
-        <section className={styles.section}>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={courseStyles.sectionTitle}>My Enrolled Courses</h2>
-            <button
-              type="button"
-              className={styles.joinButton}
-              data-testid="join-course-card"
-              aria-label="Join a course as a student"
-              onClick={() => openJoinModal('student')}
-            >
-              <span className={styles.joinPlus} aria-hidden="true">
-                +
-              </span>
-              Join
-            </button>
+            {!isLoadingDashboardAnalytics && dashboardAnalyticsError ? (
+              <p className={styles.analyticsError}>
+                Action items could not be loaded. Your course list is still available.
+              </p>
+            ) : null}
+
+            {activeCourseTab === 'instructor' ? (
+              <>
+                <div className={styles.myCoursesGrid} data-testid="created-courses-grid">
+                  {createdCourses.map((course) => (
+                    <CreatedCourseCard
+                      key={course.id}
+                      course={course}
+                      metrics={
+                        isLoadingDashboardAnalytics
+                          ? undefined
+                          : [
+                              {
+                                label: 'Students',
+                                value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.students ?? 0,
+                              },
+                              {
+                                label: 'Badges',
+                                value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.badges ?? 0,
+                              },
+                              {
+                                label: 'Created',
+                                value: formatCourseCreatedDate(course.createdAt),
+                                compact: true,
+                              },
+                            ]
+                      }
+                    />
+                  ))}
+                </div>
+                {isLoadingCreated ? <p className={courseStyles.statusMessage}>Loading instructor courses…</p> : null}
+                {!isLoadingCreated && createdError ? (
+                  <p className={courseStyles.statusMessage}>{createdError}</p>
+                ) : null}
+                {!isLoadingCreated && !createdError && createdCourses.length === 0 ? (
+                  <div className={styles.courseEmptyState}>
+                    <Icon icon="lucide:book-open" aria-hidden="true" />
+                    <h3>No instructor courses yet</h3>
+                    <p>Create your first course to start building lessons and badges.</p>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+
+            {activeCourseTab === 'enrolled' ? (
+              isLoadingEnrolled ? (
+                <div className={styles.courseEmptyState}>Loading enrolled courses…</div>
+              ) : enrolledError ? (
+                <div className={styles.courseEmptyState}>{enrolledError}</div>
+              ) : enrolledCourseCards.length > 0 ? (
+                <>
+                  <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
+                  {joinStatus && !isJoinModalOpen ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
+                </>
+              ) : (
+                <div className={styles.courseEmptyState}>
+                  <Icon icon="lucide:book-open" aria-hidden="true" />
+                  <h3>No enrolled courses yet</h3>
+                  <p>Use a course code from your instructor to join a course.</p>
+                </div>
+              )
+            ) : null}
+
+            {activeCourseTab === 'checker' ? (
+              <>
+                {checkerEnrollments.length > 0 ? (
+                  <div className={styles.myCoursesGrid} data-testid="checker-courses-grid">
+                    {checkerEnrollments.map((enrollment) => (
+                      <CreatedCourseCard
+                        key={enrollment.id}
+                        course={enrollment.course}
+                        href={`/courses/${enrollment.course.id}?view=checker`}
+                        metrics={
+                          isLoadingDashboardAnalytics
+                            ? undefined
+                            : [
+                                {
+                                  label: 'Sections',
+                                  value: dashboardAnalytics?.byCourse?.checker?.[enrollment.course.id]?.sections ?? 0,
+                                },
+                                {
+                                  label: 'Students to assess',
+                                  value:
+                                    dashboardAnalytics?.byCourse?.checker?.[enrollment.course.id]?.readyForAssessment ??
+                                    0,
+                                },
+                              ]
+                        }
+                      />
+                    ))}
+                  </div>
+                ) : null}
+                {isLoadingCheckerCourses ? (
+                  <p className={courseStyles.statusMessage}>Loading checker courses…</p>
+                ) : null}
+                {!isLoadingCheckerCourses && checkerCoursesError ? (
+                  <p className={courseStyles.statusMessage}>{checkerCoursesError}</p>
+                ) : null}
+                {!isLoadingCheckerCourses && !checkerCoursesError && checkerEnrollments.length === 0 ? (
+                  <div className={styles.courseEmptyState}>
+                    <Icon icon="lucide:shield-check" aria-hidden="true" />
+                    <h3>No checker courses yet</h3>
+                    <p>Join with a checker code to request access to a course.</p>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
           </div>
-
-          {isLoadingEnrolled ? (
-            <div className={styles.emptyState}>Loading enrolled courses…</div>
-          ) : enrolledError ? (
-            <div className={styles.emptyState}>{enrolledError}</div>
-          ) : (
-            <>
-              <div className={styles.myCoursesGrid}>{enrolledCourseCards.map(renderEnrolledCourseCard)}</div>
-              {joinStatus && !isJoinModalOpen ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
-            </>
-          )}
-        </section>
-
-        <section className={courseStyles.section}>
-          <div className={styles.sectionHeaderRow}>
-            <h2 className={courseStyles.sectionTitle}>Checker Courses</h2>
-            <button
-              type="button"
-              className={styles.joinButton}
-              aria-label="Join a course as a checker"
-              onClick={() => openJoinModal('checker')}
-            >
-              <span className={styles.joinPlus} aria-hidden="true">
-                +
-              </span>
-              Join
-            </button>
-          </div>
-
-          <div className={styles.myCoursesGrid} data-testid="checker-courses-grid">
-            {checkerEnrollments.map((enrollment) => (
-              <CreatedCourseCard
-                key={enrollment.id}
-                course={enrollment.course}
-                href={`/courses/${enrollment.course.id}?view=checker`}
-              />
-            ))}
-          </div>
-
-          {isLoadingCheckerCourses ? <p className={courseStyles.statusMessage}>Loading checker courses...</p> : null}
-
-          {!isLoadingCheckerCourses && checkerCoursesError ? (
-            <p className={courseStyles.statusMessage}>{checkerCoursesError}</p>
-          ) : null}
-
-          {!isLoadingCheckerCourses && !checkerCoursesError && checkerEnrollments.length === 0 ? (
-            <p className={courseStyles.statusMessage}>No checker courses assigned yet.</p>
-          ) : null}
         </section>
       </main>
 
       {isDuplicateOpen ? (
-        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Duplicate course">
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Duplicate course">
           <div className={styles.dupModal}>
-            <h2 className={styles.dupHeader}>Duplicate a course</h2>
-            <p className={styles.dupSubhead}>
-              Pick a course to copy. A new course is created with the same lessons and badges — students and progress
-              are not copied.
-            </p>
+            <div className={styles.modalHeader}>
+              <div className={styles.modalHeadingGroup}>
+                <span className={styles.modalIcon} aria-hidden="true">
+                  <Icon icon="lucide:copy" />
+                </span>
+                <div>
+                  <h2 className={styles.dupHeader}>Duplicate a course</h2>
+                  <p className={styles.dupSubhead}>
+                    Copy lessons and badges into a new course. Students and progress stay with the original.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.modalCloseButton}
+                aria-label="Close duplicate course modal"
+                onClick={() => setIsDuplicateOpen(false)}
+                disabled={duplicatingId !== null}
+              >
+                <Icon icon="lucide:x" aria-hidden="true" />
+              </button>
+            </div>
 
             {duplicateError ? <p className={styles.dupError}>{duplicateError}</p> : null}
 
@@ -647,13 +1001,22 @@ function HomeContent() {
               ) : (
                 createdCourses.map((course) => (
                   <div key={course.id} className={styles.dupItem}>
-                    <span className={styles.dupItemTitle}>{course.title}</span>
+                    <span className={styles.dupItemIdentity}>
+                      <span className={styles.dupItemIcon} aria-hidden="true">
+                        <Icon icon="lucide:book-open" />
+                      </span>
+                      <span className={styles.dupItemTitle}>{course.title}</span>
+                    </span>
                     <button
                       type="button"
                       className={styles.dupItemButton}
                       disabled={duplicatingId !== null}
                       onClick={() => handleDuplicateCourse(course.id)}
                     >
+                      <Icon
+                        icon={duplicatingId === course.id ? 'lucide:loader-circle' : 'lucide:copy'}
+                        aria-hidden="true"
+                      />
                       {duplicatingId === course.id ? 'Duplicating…' : 'Duplicate'}
                     </button>
                   </div>
@@ -661,55 +1024,97 @@ function HomeContent() {
               )}
             </div>
 
-            <button
-              type="button"
-              className={styles.dupClose}
-              onClick={() => setIsDuplicateOpen(false)}
-              disabled={duplicatingId !== null}
-            >
-              Cancel
-            </button>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.modalSecondaryButton}
+                onClick={() => setIsDuplicateOpen(false)}
+                disabled={duplicatingId !== null}
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
 
       {isJoinModalOpen ? (
-        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-labelledby="join-modal-title">
           <div className={styles.joinModal}>
-            <h2 id="join-modal-title" className={styles.joinModalTitle}>
-              {joinMode === 'checker' ? 'Join as a checker' : 'Join a course'}
-            </h2>
-            <p className={styles.joinModalHint}>
-              {joinMode === 'checker'
-                ? 'Enter the checker code your instructor shared. Your request is sent to the instructor for approval.'
-                : 'Enter the course code your instructor shared to enroll as a student.'}
-            </p>
-            <div className={styles.joinControls}>
-              <input
-                type="text"
-                className={styles.joinInput}
-                value={joinCode}
-                onChange={(event) => setJoinCode(event.target.value)}
-                placeholder={joinMode === 'checker' ? 'Enter checker code' : 'Enter course code'}
-                aria-label={joinMode === 'checker' ? 'Checker code' : 'Course code'}
+            <div className={styles.modalHeader}>
+              <div className={styles.modalHeadingGroup}>
+                <span className={styles.modalIcon} aria-hidden="true">
+                  <Icon icon={joinMode === 'checker' ? 'lucide:shield-check' : 'lucide:log-in'} />
+                </span>
+                <div>
+                  <h2 id="join-modal-title" className={styles.joinModalTitle}>
+                    {joinMode === 'checker' ? 'Join as a checker' : 'Join a course'}
+                  </h2>
+                  <p className={styles.joinModalHint}>
+                    {joinMode === 'checker'
+                      ? 'Enter the checker code your instructor shared. Your request will be sent for approval.'
+                      : 'Enter the course code your instructor shared to enroll as a student.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className={styles.modalCloseButton}
+                aria-label="Close join course modal"
                 disabled={isJoiningCourse}
-                autoFocus
-              />
-              <button type="button" className={styles.joinButton} onClick={handleJoinCourse} disabled={isJoiningCourse}>
-                {isJoiningCourse ? 'Joining...' : 'Join'}
+                onClick={closeJoinModal}
+              >
+                <Icon icon="lucide:x" aria-hidden="true" />
               </button>
+            </div>
+            <div className={styles.joinControls}>
+              <label className={styles.joinLabel} htmlFor="join-course-code">
+                {joinMode === 'checker' ? 'Checker code' : 'Course code'}
+              </label>
+              <div className={styles.joinInputShell}>
+                <Icon icon="lucide:key-round" aria-hidden="true" />
+                <input
+                  id="join-course-code"
+                  type="text"
+                  className={styles.joinInput}
+                  value={joinCode}
+                  onChange={(event) => setJoinCode(event.target.value)}
+                  placeholder={joinMode === 'checker' ? 'Enter checker code' : 'Enter course code'}
+                  aria-label={joinMode === 'checker' ? 'Checker code' : 'Course code'}
+                  disabled={isJoiningCourse}
+                  autoFocus
+                />
+              </div>
             </div>
             {joinError ? <p className={styles.joinError}>{joinError}</p> : null}
             {joinStatus ? <p className={styles.joinStatus}>{joinStatus}</p> : null}
-            <button type="button" className={styles.joinCancel} disabled={isJoiningCourse} onClick={closeJoinModal}>
-              {joinStatus ? 'Done' : 'Cancel'}
-            </button>
+            <div className={styles.modalFooter}>
+              <button
+                type="button"
+                className={styles.modalSecondaryButton}
+                disabled={isJoiningCourse}
+                onClick={closeJoinModal}
+              >
+                {joinStatus ? 'Done' : 'Cancel'}
+              </button>
+              {!joinStatus ? (
+                <button
+                  type="button"
+                  className={styles.modalPrimaryButton}
+                  onClick={handleJoinCourse}
+                  disabled={isJoiningCourse}
+                >
+                  <Icon icon={isJoiningCourse ? 'lucide:loader-circle' : 'lucide:log-in'} aria-hidden="true" />
+                  {isJoiningCourse ? 'Joining…' : 'Join course'}
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
       ) : null}
 
       {showAssessmentAccessModal ? (
-        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Assessment access">
+        <div className={styles.surveyOverlay} role="dialog" aria-modal="true" aria-label="Assessment access">
           <div className={styles.accessModal}>
             <h2 className={styles.accessTitle}>Assessment unavailable</h2>
             <p className={styles.accessText}>
@@ -719,6 +1124,40 @@ function HomeContent() {
             <BackButton inline label="Back to home" onClick={closeAssessmentAccessModal} />
           </div>
         </div>
+      ) : null}
+
+      {activeSurvey ? (
+        <SurveyModal
+          title="Tell us about your experience."
+          question={activeSurvey.question}
+          options={[1, 2, 3, 4, 5].map((value) => ({
+            value,
+            label: FACE_ALTS[value],
+            icon: FACE_IMAGES[value],
+            selectedIcon: FACE_IMAGES_SELECTED[value],
+          }))}
+          value={surveyRating}
+          onChange={setSurveyRating}
+          onSubmit={handleSubmitSurvey}
+          onClose={closeSurveyModal}
+          isSubmitting={isSubmittingSurvey}
+          error={surveyError}
+          errorAfterOptions
+          classNames={{
+            overlay: styles.surveyOverlay,
+            modal: styles.surveyModal,
+            close: styles.surveyClose,
+            title: styles.surveyTitle,
+            question: styles.surveyQuestion,
+            error: styles.surveyError,
+            options: styles.surveyFaces,
+            option: styles.surveyFace,
+            selectedOption: styles.surveyFaceSelected,
+            optionImage: styles.surveyFaceImage,
+            selectedOptionImage: styles.surveyFaceImageSelected,
+            submit: styles.surveySubmit,
+          }}
+        />
       ) : null}
     </div>
   );

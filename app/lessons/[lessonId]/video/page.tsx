@@ -101,6 +101,18 @@ function LessonVideoRouteContent() {
     );
   }
 
+  const deadlinePassed = Boolean(lessonRecord.dueDate && new Date(lessonRecord.dueDate) <= new Date());
+  if (deadlinePassed && lessonRecord.status !== LessonStatus.COMPLETED) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <p>This badge deadline has passed. Contact your instructor if you need an extension.</p>
+        <button type="button" onClick={handleBack}>
+          Back to lessons
+        </button>
+      </div>
+    );
+  }
+
   if (!lessonForVideo) {
     return (
       <div style={{ padding: '2rem' }}>

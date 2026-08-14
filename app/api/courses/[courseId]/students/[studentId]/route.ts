@@ -18,6 +18,9 @@ function formatBadge(
     slug: string;
     name: string;
     description: string | null;
+    imageUrl: string | null;
+    imagePositionX: number;
+    imagePositionY: number;
   },
   summary?: string | null
 ) {
@@ -26,6 +29,9 @@ function formatBadge(
     slug: badge.slug,
     name: badge.name,
     description: badge.description,
+    imageUrl: badge.imageUrl,
+    imagePositionX: badge.imagePositionX,
+    imagePositionY: badge.imagePositionY,
     youtubeUrl: youtubeUrlFromSummary(summary),
   };
 }

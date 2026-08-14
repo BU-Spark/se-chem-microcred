@@ -276,6 +276,9 @@ export async function executeFetchBadges(args: FetchBadgesArgs) {
       slug: true,
       name: true,
       description: true,
+      imageUrl: true,
+      imagePositionX: true,
+      imagePositionY: true,
       availableOn: true,
       closesOn: true,
       neverCloses: true,
@@ -354,6 +357,9 @@ export interface CreateBadgeArgs {
   courseId: string | null;
   badgeName: string;
   badgeDescription: string | null;
+  imageUrl: string | null;
+  imagePositionX: number;
+  imagePositionY: number;
   videoTitle: string | null;
   youtubeVideoUrl: string | null;
   checkpoints: CheckpointPayload[];
@@ -377,6 +383,9 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
     courseId,
     badgeName,
     badgeDescription,
+    imageUrl,
+    imagePositionX,
+    imagePositionY,
     videoTitle,
     youtubeVideoUrl,
     checkpoints,
@@ -429,6 +438,9 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
           slug: sourceBadgeSlug,
           name: badgeName,
           description: badgeDescription,
+          imageUrl,
+          imagePositionX,
+          imagePositionY,
           availableOn,
           closesOn,
           neverCloses,
@@ -458,6 +470,9 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
             slug: courseBadgeSlug,
             name: badgeName,
             description: badgeDescription,
+            imageUrl,
+            imagePositionX,
+            imagePositionY,
             availableOn,
             closesOn,
             neverCloses,
@@ -589,6 +604,9 @@ interface PatchBadgeArgs {
   badgeId: string;
   badgeName: string;
   badgeDescription: string | null;
+  imageUrl: string | null;
+  imagePositionX: number;
+  imagePositionY: number;
   editorId: string;
   skills: string[];
   rubricGoal: NormalizedRubricGoal;
@@ -613,6 +631,9 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
     badgeId,
     badgeName,
     badgeDescription,
+    imageUrl,
+    imagePositionX,
+    imagePositionY,
     skills,
     rubricGoal,
     checkpoints,
@@ -633,14 +654,34 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
   return await prisma.$transaction(async (tx) => {
     const badge = await tx.badge.update({
       where: { id: badgeId, createdById: editorId },
-      data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses, ...badgePolicy },
+      data: {
+        name: badgeName,
+        description: badgeDescription,
+        imageUrl,
+        imagePositionX,
+        imagePositionY,
+        availableOn,
+        closesOn,
+        neverCloses,
+        ...badgePolicy,
+      },
       select: { id: true, slug: true, name: true, description: true, sourceBadgeId: true },
     });
 
     const familyRootId = badge.sourceBadgeId ?? badge.id;
     await tx.badge.updateMany({
       where: { OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }], NOT: { id: badge.id } },
-      data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses, ...badgePolicy },
+      data: {
+        name: badgeName,
+        description: badgeDescription,
+        imageUrl,
+        imagePositionX,
+        imagePositionY,
+        availableOn,
+        closesOn,
+        neverCloses,
+        ...badgePolicy,
+      },
     });
 
     const firstRequirement = await tx.badgeRequirement.findFirst({
@@ -697,6 +738,7 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
           where: { id: { in: lessonIds } },
           data: {
             title: badgeName,
+            dueDate: neverCloses === true ? null : closesOn,
             passingPercent: passingPercentage ?? undefined,
             estimatedMinutes: videoSeconds ? Math.max(1, Math.round(videoSeconds / 60)) : undefined,
           },

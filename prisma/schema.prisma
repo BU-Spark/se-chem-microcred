@@ -415,6 +415,9 @@ model Badge {
   slug                 String              @unique
   name                 String
   description          String?
+  imageUrl             String?
+  imagePositionX       Int                 @default(50)
+  imagePositionY       Int                 @default(50)
   createdById          String?
   sourceBadgeId        String?
   availableOn          DateTime?

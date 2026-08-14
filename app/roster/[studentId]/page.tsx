@@ -35,6 +35,9 @@ type StudentProfileBadge = {
   slug: string;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
+  imagePositionX?: number | null;
+  imagePositionY?: number | null;
 
   status?: string;
   awardedAt?: string | null;
@@ -44,7 +47,6 @@ type StudentProfileBadge = {
 
 type InstructorMemberProfileResponse = {
   memberRole: EnrollmentRole;
-  // The viewer's own role, which gates the instructor-only student actions.
   viewerRole?: EnrollmentRole;
   member: {
     id: string;
@@ -75,9 +77,10 @@ type InstructorMemberProfileResponse = {
   };
   contacts: Contact[];
   badges: {
-    proficient: StudentProfileBadge[];
-    stillLearning: StudentProfileBadge[];
+    inProgress: StudentProfileBadge[];
     notStarted: StudentProfileBadge[];
+    inReview: StudentProfileBadge[];
+    completed: StudentProfileBadge[];
   };
 };
 
@@ -272,17 +275,15 @@ export default function InstructorStudentProfilePage() {
   const currentProfileLabel = profileLabel(currentRole);
   const currentProfileLabelLower = currentProfileLabel.toLowerCase();
   const showBadgesSection = currentRole === 'STUDENT';
-  // Student actions are instructor-only. The server enforces this independently,
-  // so hiding the button is convenience rather than the gate.
   const canManageStudent = data?.viewerRole === 'INSTRUCTOR';
   const courseSectionsLabel = data?.course.sections.join(', ') ?? '';
 
   const selectedBadgeTone: BadgeDetailTone | null = useMemo(() => {
     if (!selectedBadgeId || !data) return null;
-    const { proficient, stillLearning } = data.badges;
+    const { inProgress, completed, inReview } = data.badges;
     const matches = (list: { id: string }[]) => list.some((badge) => badge.id === selectedBadgeId);
-    if (matches(proficient)) return 'completed';
-    if (matches(stillLearning)) return 'progress';
+    if (matches(completed) || matches(inReview)) return 'completed';
+    if (matches(inProgress)) return 'progress';
     return null;
   }, [data, selectedBadgeId]);
 
@@ -413,27 +414,6 @@ export default function InstructorStudentProfilePage() {
   const memberAvatarSrc = avatarAsset(data?.member.avatar?.base);
   const displayName = data?.course.createdBy?.name || '';
 
-  // The per-student cohort counts render on every route into this page, including
-  // the badge-scoped ones (badge roster panel, assessment view) that open straight
-  // into a badge's detail. Without this, arriving with ?badgeId showed the detail
-  // card alone, with no counts and no way back to the student's other badges.
-  const cohortOverview = data ? (
-    <div className={styles.cohortStrip}>
-      <div className={styles.cohortStat} data-tone="proficient">
-        <span className={styles.cohortStatValue}>{data.badges.proficient.length}</span>
-        <span className={styles.cohortStatLabel}>Proficient</span>
-      </div>
-      <div className={styles.cohortStat} data-tone="learning">
-        <span className={styles.cohortStatValue}>{data.badges.stillLearning.length}</span>
-        <span className={styles.cohortStatLabel}>Still Learning</span>
-      </div>
-      <div className={styles.cohortStat} data-tone="notStarted">
-        <span className={styles.cohortStatValue}>{data.badges.notStarted.length}</span>
-        <span className={styles.cohortStatLabel}>Not Started</span>
-      </div>
-    </div>
-  ) : null;
-
   if (!isLoaded || !isSignedIn) {
     return null;
   }
@@ -445,6 +425,12 @@ export default function InstructorStudentProfilePage() {
       <main className={styles.main}>
         <div className={styles.content}>
           <header className={styles.header}>
+            {courseId ? (
+              <Link href={`/courses/${courseId}`} className={styles.backLink}>
+                <span aria-hidden="true">←</span> Back to course
+              </Link>
+            ) : null}
+            <p className={styles.eyebrow}>{data?.course.title ?? 'Course roster'}</p>
             <h1 className={styles.pageTitle}>{currentProfileLabel} Profile</h1>
           </header>
 
@@ -523,30 +509,6 @@ export default function InstructorStudentProfilePage() {
               {showBadgesSection ? (
                 selectedBadgeId && selectedBadgeTone ? (
                   <>
-                    <section className={styles.badgesCard}>
-                      <div className={styles.badgesHeader}>
-                        <div>
-                          <h2 className={styles.badgesTitle}>{currentProfileLabel} Badges</h2>
-                        </div>
-                        <div className={styles.badgesHeaderMeta}>
-                          <Link href={buildProfileHref(null)} className={styles.assessmentLink}>
-                            ← All badges
-                          </Link>
-                          {MESSAGING_ENABLED ? (
-                            <button
-                              type="button"
-                              className={styles.assessmentLink}
-                              onClick={() => setIsMessageOpen(true)}
-                            >
-                              Message student
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      {cohortOverview}
-                    </section>
-
                     {isBadgeDetailLoading ? (
                       <section className={styles.detailCard}>
                         <p className={styles.statusMessage}>Loading badge details...</p>
@@ -619,26 +581,39 @@ export default function InstructorStudentProfilePage() {
                       </div>
                     </div>
 
-                    {cohortOverview}
+                    <div className={styles.badgeSummary} aria-label="Badge progress overview">
+                      <article className={`${styles.summaryCard} ${styles.proficientSummary}`}>
+                        <span className={styles.summaryDot} aria-hidden="true" />
+                        <div>
+                          <p>Proficient</p>
+                          <strong>{data.badges.completed.length}</strong>
+                          <span>badges earned</span>
+                        </div>
+                      </article>
+                      <article className={`${styles.summaryCard} ${styles.learningSummary}`}>
+                        <span className={styles.summaryDot} aria-hidden="true" />
+                        <div>
+                          <p>Still Learning</p>
+                          <strong>{data.badges.inProgress.length + data.badges.inReview.length}</strong>
+                          <span>badges underway</span>
+                        </div>
+                      </article>
+                      <article className={`${styles.summaryCard} ${styles.pendingSummary}`}>
+                        <span className={styles.summaryDot} aria-hidden="true" />
+                        <div>
+                          <p>Not Started</p>
+                          <strong>{data.badges.notStarted.length}</strong>
+                          <span>badges remaining</span>
+                        </div>
+                      </article>
+                    </div>
 
                     <section className={styles.badgeSection}>
                       <h3 className={styles.badgeSectionTitle}>Still Learning</h3>
-                      <BadgeGrid badges={data.badges.stillLearning} onSelectBadge={handleBadgeSelect} />
-                    </section>
-
-                    <section className={styles.badgeSection}>
-                      <CollapsibleSection
-                        title="Proficient"
-                        isOpen={isCompletedOpen}
-                        onToggle={() => setIsCompletedOpen((current) => !current)}
-                        panelId="proficient-badges"
-                        buttonClassName={styles.accordionRow}
-                        panelClassName={styles.accordionPanel}
-                        chevronClassName={styles.chevron}
-                        chevronOpenClassName={styles.chevronOpen}
-                      >
-                        <BadgeGrid badges={data.badges.proficient} tone="completed" onSelectBadge={handleBadgeSelect} />
-                      </CollapsibleSection>
+                      <BadgeGrid
+                        badges={[...data.badges.inProgress, ...data.badges.inReview]}
+                        onSelectBadge={handleBadgeSelect}
+                      />
                     </section>
 
                     <section className={styles.badgeSection}>
@@ -653,6 +628,21 @@ export default function InstructorStudentProfilePage() {
                         chevronOpenClassName={styles.chevronOpen}
                       >
                         <BadgeGrid badges={data.badges.notStarted} tone="pending" />
+                      </CollapsibleSection>
+                    </section>
+
+                    <section className={styles.badgeSection}>
+                      <CollapsibleSection
+                        title="Proficient"
+                        isOpen={isCompletedOpen}
+                        onToggle={() => setIsCompletedOpen((current) => !current)}
+                        panelId="completed-badges"
+                        buttonClassName={styles.accordionRow}
+                        panelClassName={styles.accordionPanel}
+                        chevronClassName={styles.chevron}
+                        chevronOpenClassName={styles.chevronOpen}
+                      >
+                        <BadgeGrid badges={data.badges.completed} tone="completed" onSelectBadge={handleBadgeSelect} />
                       </CollapsibleSection>
                     </section>
                   </section>
@@ -688,15 +678,14 @@ export default function InstructorStudentProfilePage() {
           studentId={studentId}
           email={email}
           badge={{
-            id: selectedBadgeDetail.badge.id,
-            name: selectedBadgeDetail.badge.name,
-            status: selectedBadgeDetail.badge.status,
+            ...selectedBadgeDetail.badge,
             qevWaivedAt: selectedBadgeDetail.badge.qevWaivedAt ?? null,
           }}
           attemptCount={selectedBadgeDetail.assessment.attemptCount}
-          lessonTitles={selectedBadgeDetail.lesson?.lessons.map((lesson) => lesson.title) ?? []}
+          lessonTitles={selectedBadgeDetail.qevAttempts.map((attempt) => attempt.lessonTitle)}
           onClose={() => setIsActionsOpen(false)}
           onCompleted={() => {
+            setIsActionsOpen(false);
             void refreshBadgeDetail();
           }}
         />

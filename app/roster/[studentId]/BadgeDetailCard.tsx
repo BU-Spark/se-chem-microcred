@@ -2,8 +2,6 @@
 
 import { useEffect, useState } from 'react';
 
-import { hasVisibleQuestionText, sanitizeQuestionRichText } from '@/lib/question-rich-text';
-
 import styles from './page.module.css';
 
 export type BadgeDetailTone = 'progress' | 'completed';
@@ -22,20 +20,8 @@ export type BadgeDetailResponse = {
     cooldownDays?: number | null;
     reassessmentRequired?: boolean | null;
     allowCooldownOverride?: boolean;
-    // Set when an instructor waived the QEV requirement. Lesson progress is left
-    // untouched by the waiver, so this is what explains a badge that became
-    // assessable without a finished lesson.
     qevWaivedAt?: string | null;
     qevWaivedByName?: string | null;
-  };
-  lesson?: {
-    status: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED';
-    lessons: Array<{
-      lessonId: string;
-      title: string;
-      status: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED';
-      percentComplete: number;
-    }>;
   };
   progress: {
     percentComplete: number;
@@ -138,6 +124,22 @@ function formatDateTime(value?: string | null) {
   return `${time} · ${parsed.toLocaleDateString()}`;
 }
 
+export function richTextToPlainText(value?: string | null) {
+  if (!value) return '';
+  return value
+    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<\/p\s*>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0?39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function Chevron({ isOpen }: { isOpen: boolean }) {
   return (
     <svg
@@ -230,28 +232,10 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
       ? `${ordinal(detail.assessment.attemptCount)} attempt: ${latestAssessment?.passed ? 'proficient' : 'still learning'}`
       : 'Not yet assessed'
     : detail.progress.currentCheckpoint || '--';
-
-  // Overview line 1: the video lesson. Falls back to the precheck flag for a
-  // payload that predates the lesson summary.
-  const lessonStatus = detail.lesson?.status ?? (detail.progress.precheckComplete ? 'COMPLETED' : 'IN_PROGRESS');
-  const lessonStatusLabel =
-    lessonStatus === 'COMPLETED' ? 'Completed' : lessonStatus === 'IN_PROGRESS' ? 'In progress' : 'Not started';
-
-  // A waiver unlocks the assessment without touching lesson progress, so the
-  // lesson line would otherwise read "In progress" with no explanation.
   const isQevWaived = Boolean(detail.badge.qevWaivedAt);
   const waivedByLabel = detail.badge.qevWaivedByName
     ? `QEV waived by ${detail.badge.qevWaivedByName}`
     : 'QEV waived by instructor';
-
-  // Overview line 2: the in-person assessment — proficient, or how many attempts
-  // they have used without passing.
-  const attemptCount = detail.assessment.attemptCount;
-  const assessmentLabel = detail.progress.assessmentComplete
-    ? 'Completed — proficient'
-    : attemptCount > 0
-      ? `${attemptCount} attempt${attemptCount === 1 ? '' : 's'}, not yet passed`
-      : 'Not yet assessed';
 
   return (
     <section className={styles.detailCard}>
@@ -265,21 +249,31 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
         <div className={styles.progressSummaryColumn}>
           <ProgressRing percent={detail.progress.percentComplete} />
           <p className={styles.progressSummaryCaption}>
-            {isQevWaived ? 'Complete with precheck (waived)' : 'Complete with precheck'}
+            {isQevWaived ? 'Video lesson progress (QEV waived)' : 'Video lesson progress'}
           </p>
         </div>
 
         <div className={styles.progressStatusColumn}>
           <p className={styles.progressStatusLine}>
-            <span className={styles.progressStatusLabel}>Video lesson:</span>{' '}
+            <span className={styles.progressStatusLabel}>Video lesson status:</span>{' '}
             <span className={styles.progressStatusValue}>
-              {lessonStatusLabel}
+              {detail.progress.precheckComplete
+                ? 'Completed'
+                : detail.progress.percentComplete > 0
+                  ? 'In Progress'
+                  : 'Not Started'}
               {isQevWaived ? ` — ${waivedByLabel} on ${formatDate(detail.badge.qevWaivedAt)}` : ''}
             </span>
           </p>
           <p className={styles.progressStatusLine}>
-            <span className={styles.progressStatusLabel}>In-person assessment:</span>{' '}
-            <span className={styles.progressStatusValue}>{assessmentLabel}</span>
+            <span className={styles.progressStatusLabel}>Assessment status:</span>{' '}
+            <span className={styles.progressStatusValue}>
+              {detail.progress.assessmentComplete
+                ? 'Proficient'
+                : detail.assessment.attemptCount > 0
+                  ? `${detail.assessment.attemptCount} Attempt${detail.assessment.attemptCount === 1 ? '' : 's'}`
+                  : 'Not Attempted'}
+            </span>
           </p>
           <p className={styles.progressStatusLine}>
             <span className={styles.progressStatusLabel}>Currently at:</span>{' '}
@@ -381,7 +375,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
         </section>
       ) : (
         <section className={styles.detailSection}>
-          <h3 className={styles.detailSectionTitle}>Precheck answer history</h3>
+          <h3 className={styles.detailSectionTitle}>Video lesson results</h3>
 
           {detail.qevAttempts.length === 0 ? (
             <p className={styles.emptyState}>No precheck attempts recorded yet.</p>
@@ -447,16 +441,9 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
                                       ) : null}
                                       {checkpoint.questions.map((question) => (
                                         <div key={question.id} className={styles.questionBlock}>
-                                          <div
-                                            className={`${styles.questionPrompt} ${styles.questionRichText}`}
-                                            dangerouslySetInnerHTML={{
-                                              __html: sanitizeQuestionRichText(
-                                                hasVisibleQuestionText(question.prompt)
-                                                  ? question.prompt
-                                                  : question.title
-                                              ),
-                                            }}
-                                          />
+                                          <p className={styles.questionPrompt}>
+                                            {richTextToPlainText(question.prompt) || question.title}
+                                          </p>
                                           <div className={styles.answerCard}>
                                             {question.answers.map((answer, answerIndex) => (
                                               <div key={answerIndex} className={styles.answerRow}>
