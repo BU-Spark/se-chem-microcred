@@ -64,9 +64,9 @@ const formatCourseCreatedDate = (createdAt: string) => {
   if (Number.isNaN(date.getTime())) return 'Unknown';
 
   return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    year: '2-digit',
     timeZone: 'UTC',
   });
 };
@@ -95,6 +95,7 @@ type CheckerCourseEnrollment = {
 type CourseCardMetric = {
   label: string;
   value: number | string;
+  compact?: boolean;
 };
 
 type AnalyticsMetric = CourseCardMetric & {
@@ -244,7 +245,10 @@ function CreatedCourseCard({
       {metrics?.length ? (
         <div className={styles.courseCardMetrics} aria-label={`${course.title} analytics`}>
           {metrics.map((metric) => (
-            <span key={metric.label} className={styles.courseCardMetric}>
+            <span
+              key={metric.label}
+              className={`${styles.courseCardMetric} ${metric.compact ? styles.courseCardMetricCompact : ''}`}
+            >
               <strong>{metric.value}</strong>
               <span>{metric.label}</span>
             </span>
@@ -880,6 +884,7 @@ function HomeContent() {
                               {
                                 label: 'Created',
                                 value: formatCourseCreatedDate(course.createdAt),
+                                compact: true,
                               },
                             ]
                       }

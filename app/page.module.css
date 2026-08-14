@@ -1222,6 +1222,11 @@
   white-space: nowrap;
 }
 
+.courseCardMetricCompact strong {
+  font-size: 0.78rem;
+  letter-spacing: -0.01em;
+}
+
 .courseCardMetric span {
   color: #687789;
   font:

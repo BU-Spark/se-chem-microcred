@@ -320,9 +320,7 @@ describe('Courses Page', () => {
       '/courses/created-course-2'
     );
     expect(screen.queryByText('Checker Course 1')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Created Course 1 analytics')).toHaveTextContent(
-      '18Students4BadgesMar 30, 2026Created'
-    );
+    expect(screen.getByLabelText('Created Course 1 analytics')).toHaveTextContent('18Students4Badges03/30/26Created');
 
     fireEvent.click(screen.getByRole('tab', { name: /Checker/ }));
     expect(screen.getByLabelText('Checker Course 1 analytics')).toHaveTextContent('1Sections4Students to assess');
