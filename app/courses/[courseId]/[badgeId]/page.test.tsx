@@ -172,12 +172,12 @@ describe('Course badge progress page', () => {
     expect(await screen.findByRole('heading', { name: 'Bunsen Burner Badge' })).toBeInTheDocument();
     expect(screen.getByText('Burner safety and setup.')).toBeInTheDocument();
     expect(screen.getAllByText('33%').length).toBeGreaterThan(0);
-    expect(screen.getByText(/Average assessment score \(completed students only\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Average assessment score/)).toBeInTheDocument();
     expect(screen.getByText('Ready for assessment')).toBeInTheDocument();
     expect(screen.getByText('Proficient')).toBeInTheDocument();
     expect(screen.getByText('Still Learning')).toBeInTheDocument();
     expect(screen.getByText('Not Started')).toBeInTheDocument();
-    expect(screen.getByText('Video started, not finished: 0 (0%)')).toBeInTheDocument();
+    expect(screen.getByText(/Video started, not finished: 0/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'View badge roster' })).toBeInTheDocument();
     expect(screen.getAllByText('5/5')).toHaveLength(2);
     expect(screen.getByText('Students who have completed this badge')).toBeInTheDocument();

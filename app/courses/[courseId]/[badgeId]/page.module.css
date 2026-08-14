@@ -452,7 +452,7 @@
 }
 
 .barDetails {
-  background: #fff;
+  background: transparent;
   font:
     16px 'Open Sans',
     sans-serif;
@@ -489,8 +489,11 @@
   line-height: 1.65;
 }
 .barDetailList {
-  padding-left: 1.25rem;
-  list-style-position: inside;
+  display: grid;
+  gap: 0.35rem;
+}
+.barDetailList p {
+  margin: 0;
 }
 
 .feedbackList {

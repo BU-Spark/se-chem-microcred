@@ -491,7 +491,7 @@ export default function CourseBadgeProgress() {
                               <summary>{barContent}</summary>
                               {bar.kind === 'completed' ? (
                                 <p className={styles.barDetailLine}>
-                                  Average assessment score (completed students only):{' '}
+                                  Average assessment score:{' '}
                                   <strong>
                                     {summary.averageScore != null
                                       ? `${summary.averageScore}%`
@@ -499,20 +499,20 @@ export default function CourseBadgeProgress() {
                                   </strong>
                                 </p>
                               ) : (
-                                <ul className={styles.barDetailList}>
-                                  <li>
-                                    Video started, not finished: {summary.videoInProgressCount} (
-                                    {summary.videoInProgressPercent}%)
-                                  </li>
-                                  <li>
-                                    Video lesson completed only: {summary.videoCompletedOnlyCount} (
-                                    {summary.videoCompletedOnlyPercent}%)
-                                  </li>
-                                  <li>
-                                    In-person attempts, not yet proficient: {summary.inPersonFailedCount} (
-                                    {summary.inPersonFailedPercent}%)
-                                  </li>
-                                </ul>
+                                <div className={styles.barDetailList}>
+                                  <p>
+                                    Video started, not finished: {summary.videoInProgressCount}{' '}
+                                    <strong>{summary.videoInProgressPercent}%</strong>
+                                  </p>
+                                  <p>
+                                    Video lesson completed only: {summary.videoCompletedOnlyCount}{' '}
+                                    <strong>{summary.videoCompletedOnlyPercent}%</strong>
+                                  </p>
+                                  <p>
+                                    In-person attempts, not yet proficient: {summary.inPersonFailedCount}{' '}
+                                    <strong>{summary.inPersonFailedPercent}%</strong>
+                                  </p>
+                                </div>
                               )}
                             </details>
                           );
