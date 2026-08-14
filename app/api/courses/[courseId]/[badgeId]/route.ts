@@ -268,9 +268,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           videoInProgressCount,
           videoCompletedOnlyCount,
           inPersonFailedCount,
-          videoInProgressPercent: calculatePercent(videoInProgressCount, totalStudents),
-          videoCompletedOnlyPercent: calculatePercent(videoCompletedOnlyCount, totalStudents),
-          inPersonFailedPercent: calculatePercent(inPersonFailedCount, totalStudents),
+          // These reasons partition Still Learning, so their percentages are
+          // relative to that cohort rather than the entire course roster.
+          videoInProgressPercent: calculatePercent(videoInProgressCount, inProgressCount),
+          videoCompletedOnlyPercent: calculatePercent(videoCompletedOnlyCount, inProgressCount),
+          inPersonFailedPercent: calculatePercent(inPersonFailedCount, inProgressCount),
           feedbackResponseCount: feedbackRows.length,
           averageRating,
         },

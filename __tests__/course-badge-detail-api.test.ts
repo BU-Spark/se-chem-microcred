@@ -240,6 +240,9 @@ describe('course badge detail API', () => {
         notStartedPercent: 33,
         averageScore: 92,
         videoCompletedOnlyCount: 1,
+        videoInProgressPercent: 0,
+        videoCompletedOnlyPercent: 100,
+        inPersonFailedPercent: 0,
         feedbackResponseCount: 1,
         averageRating: 5,
       })

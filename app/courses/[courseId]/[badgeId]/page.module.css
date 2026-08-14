@@ -452,8 +452,6 @@
 }
 
 .barDetails {
-  border: 1px solid #dfe5ed;
-  border-radius: 10px;
   background: #fff;
   font:
     16px 'Open Sans',
@@ -472,9 +470,11 @@
   position: absolute;
   top: 50%;
   right: 1rem;
-  content: '⌄';
-  color: #2e6aa9;
-  font-size: 1.25rem;
+  width: 18px;
+  height: 8px;
+  content: '';
+  background: #2e6aa9;
+  clip-path: polygon(0 0, 50% 68%, 100% 0, 100% 30%, 50% 100%, 0 30%);
   transform: translateY(-50%);
 }
 .barDetails[open] summary::after {
