@@ -358,6 +358,7 @@ function createStudentData(): StudentData {
         {
           promptId: 'p1',
           badgeId: 'b3',
+          courseId: null,
           badgeSlug: 'final-badge',
           badgeName: 'Finalize Badge',
           question: 'Finish your survey?',
