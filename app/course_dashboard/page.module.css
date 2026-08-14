@@ -556,6 +556,20 @@
   color: #4b5563;
 }
 
+/* Explains a lesson that is still unfinished but no longer blocks assessment,
+   because an instructor waived its badge's QEV requirement. */
+.cardWaivedNote {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.6rem;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #1e40af;
+}
+
 .cardButton {
   padding: 0.55rem 1.4rem;
   background: #2e6aa9;

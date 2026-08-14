@@ -41,6 +41,9 @@ jest.mock('../app/hooks/useStudentData', () => ({
 }));
 
 beforeEach(() => {
+  // Home is asserted here in its stacked layout; pin the flag off so the suite
+  // doesn't depend on the ambient env.
+  delete process.env.NEXT_PUBLIC_HOME_TABS;
   jest.clearAllMocks();
   mockParams = {};
   mockSearchParams = new URLSearchParams();
@@ -355,6 +358,7 @@ function createStudentData(): StudentData {
         {
           promptId: 'p1',
           badgeId: 'b3',
+          courseId: null,
           badgeSlug: 'final-badge',
           badgeName: 'Finalize Badge',
           question: 'Finish your survey?',
@@ -371,17 +375,25 @@ describe('Home page', () => {
     expect(mockReplace).toHaveBeenCalledWith('/splash');
   });
 
-  it('renders tabbed course permissions and surfaces survey modal when deep-linked', async () => {
-    mockSearchParams = new URLSearchParams({ surveyBadge: 'final-badge' });
+  it('renders merged course sections', async () => {
     render(<HomePage />);
 
     expect(await screen.findByRole('tab', { name: /Instructor/i })).toBeInTheDocument();
     expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('tab', { name: /Enrolled/i }));
     expect(await screen.findByText('Chem 101')).toBeInTheDocument();
+  });
 
-    expect(screen.getByText(/Finish your survey/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Submit/i })).toBeInTheDocument();
+  // Home no longer hosts the badge survey: a ?surveyBadge deep link hands off to
+  // the badge's own feedback page.
+  it('redirects a survey deep link to the badge feedback page', async () => {
+    mockSearchParams = new URLSearchParams({ surveyBadge: 'final-badge' });
+    render(<HomePage />);
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith('/badges/final-badge/feedback');
+    });
+    expect(screen.queryByText(/Finish your survey/i)).not.toBeInTheDocument();
   });
 
   it('shows an assessment access modal from QR redirects and clears the query on close', async () => {

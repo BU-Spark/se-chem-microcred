@@ -51,172 +51,175 @@
   text-decoration: none;
 }
 
-.heroCard,
-.badgesCard {
-  border: 4px solid #d9d9d9;
-  border-radius: 40px;
-  background: #ffffff;
-}
-
-.heroCard {
+/* Sections are separated by their heading rules and whitespace rather than
+   outer card borders. Badges own the full top row; details and actions split
+   the row beneath it evenly. */
+.infoGrid {
   display: grid;
-  grid-template-columns: minmax(0, 1.75fr) 1px minmax(280px, 0.95fr);
-  gap: 0;
-  overflow: hidden;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2.4rem;
+  margin-top: 2.4rem;
+  align-items: start;
 }
 
-.heroInfo {
-  padding: 2.3rem 2.5rem 2rem;
+.infoBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
 }
 
-.sectionLabel {
+.subSectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid #e3e6ea;
+}
+
+.infoTitle {
   margin: 0;
   font-family: 'Lato', system-ui, sans-serif;
-  font-size: 1.5rem;
-  font-weight: 400;
-  color: #000000;
-}
-
-.courseHeading {
-  margin: 0.9rem 0 2.4rem;
-  font-family: 'Lato', system-ui, sans-serif;
-  font-size: 3rem;
+  font-size: 1.25rem;
   font-weight: 700;
-  line-height: 1;
   color: #000000;
 }
 
 .personCard {
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  gap: 0.35rem;
 }
 
 .personRow {
   display: flex;
   align-items: center;
-  gap: 1.2rem;
+  gap: 0.75rem;
 }
 
 .personAvatarShell {
-  width: 6.2rem;
-  height: 6.2rem;
+  width: 3rem;
+  height: 3rem;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 6.2rem;
-  border: 3px solid #dadada;
+  flex: 0 0 3rem;
+  border: 2px solid #dadada;
   border-radius: 999px;
   background: #ffffff;
 }
 
 .personAvatarImage {
-  width: 4.8rem;
-  height: 4.8rem;
+  width: 2.2rem;
+  height: 2.2rem;
 }
 
 .personAvatarFallback {
-  width: 4.8rem;
-  height: 4.8rem;
+  width: 2.2rem;
+  height: 2.2rem;
   display: grid;
   place-items: center;
   border-radius: 999px;
   background: #2e6aa9;
   color: #ffffff;
-  font-size: 1.4rem;
+  font-size: 0.8rem;
   font-weight: 700;
 }
 
 .personInfo {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.1rem;
   min-width: 0;
 }
 
 .personLabel {
   margin: 0;
-  font-family: 'Lato', system-ui, sans-serif;
-  font-size: 1.5rem;
-  font-weight: 400;
-  color: #000000;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #6b7684;
 }
 
 .personName {
   margin: 0;
   font-family: 'Open Sans', system-ui, sans-serif;
-  font-size: 1rem;
-  font-weight: 400;
-  line-height: 1.25;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.3;
   color: #000000;
 }
 
 .personEmail {
-  margin: 0.85rem 0 0;
-  font-family: 'Open Sans', system-ui, sans-serif;
-  font-size: 1rem;
-  color: #000000;
-}
-
-.statLines {
-  margin-top: 2rem;
-}
-
-.statLine {
   margin: 0;
-  font-family: 'Lato', system-ui, sans-serif;
-  font-size: 1.5rem;
-  font-weight: 400;
-  line-height: 1.35;
-  color: #000000;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.85rem;
+  color: #5f6b7a;
+  overflow-wrap: anywhere;
+}
+
+.metaList {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.metaRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid #eceff3;
+}
+
+.metaRow:first-child {
+  border-top: 0;
+}
+
+.metaLabel {
+  margin: 0;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.9rem;
+  color: #5f6b7a;
+}
+
+.metaValue {
+  margin: 0;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #111111;
+  text-align: right;
 }
 
 .courseCode {
   display: inline-flex;
   align-items: center;
-  min-height: 2rem;
-  padding: 0.1rem 0.55rem;
+  padding: 0.1rem 0.5rem;
   border-radius: 8px;
   background: #eef4fb;
   color: #174f8e;
   font-family: 'Open Sans', system-ui, sans-serif;
-  font-size: 1.1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 
 .actionRow {
-  margin-top: 5rem;
   display: flex;
-  gap: 0.9rem;
   flex-wrap: wrap;
+  gap: 0.7rem;
 }
 
-.heroDivider {
-  width: 1px;
-  background: #d8d8d8;
-  align-self: stretch;
-  margin: 3.3rem 0;
-}
-
-.heroSide {
-  display: flex;
-  flex-direction: column;
-  padding: 3.2rem 2rem 2rem;
-}
-
-.sideTitle {
-  margin: 0 0 1.8rem;
-  font-family: 'Lato', system-ui, sans-serif;
-  font-size: 1.5rem;
-  font-weight: 400;
-  color: #000000;
-}
-
-.checkerList {
-  display: flex;
-  flex-direction: column;
-  gap: 1.7rem;
+/* Keep the destructive action off the main run of buttons. */
+.dangerRow {
+  margin-top: 0.4rem;
+  padding-top: 1rem;
+  border-top: 1px solid #eceff3;
 }
 
 .emptyMessage {
@@ -229,11 +232,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 3.4rem;
-  padding: 0.8rem 1.6rem;
-  border-radius: 19px;
+  min-height: 2.9rem;
+  padding: 0.65rem 1.3rem;
+  border-radius: 16px;
   font-family: 'Lato', system-ui, sans-serif;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 400;
   text-decoration: none;
   transition: filter 0.16s ease;
@@ -268,60 +271,80 @@
   padding: 0.65rem 1rem;
 }
 
-.sideActionRow {
-  margin-top: auto;
-  display: flex;
-  gap: 0.9rem;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.sideActionRow > * + * {
-  margin-left: 0.9rem;
-}
-
+/* The badges section is the page's focal point: full width, largest heading,
+   and the first thing under the title. */
 .badgesCard {
-  margin-top: 1.2rem;
-  padding: 2rem 2rem 1.8rem;
+  margin-top: 1.6rem;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 0.7rem;
+  border-bottom: 2px solid #e3e6ea;
 }
 
 .badgesTitle {
   margin: 0;
   font-family: 'Lato', system-ui, sans-serif;
-  font-size: 3rem;
+  font-size: 2.5rem;
   font-weight: 700;
+  line-height: 1.05;
   color: #000000;
 }
 
-.badgeGrid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-start;
-  gap: 1.75rem;
-  margin-top: 2.3rem;
+.sectionCount {
+  margin: 0;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #5f6b7a;
 }
 
-.badgeItem {
+/* Capped column width keeps the tiles small no matter how wide the viewport is. */
+.badgeGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 11rem));
+  justify-content: start;
+  gap: 1.1rem;
+  margin-top: 1.6rem;
+}
+
+/* Small badge card: circular token + name, with the reminder and edit controls
+   inline in a footer row rather than stacked underneath. */
+.badgeCard {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.95rem;
-  width: 9.8rem;
+  gap: 0.75rem;
+  padding: 1.1rem 0.85rem 0.7rem;
+  border: 0;
+  border-radius: 20px;
+  background: #f5f7fa;
   text-align: center;
-  color: inherit;
-  text-decoration: none;
+  transition:
+    background 0.16s ease,
+    box-shadow 0.16s ease;
 }
 
-.badgeItem:hover .badgeToken,
-.badgeItem:focus-visible .badgeToken {
+.badgeCard:hover,
+.badgeCard:focus-within {
+  background: #eef4fb;
+  box-shadow: 0 6px 18px rgba(46, 106, 169, 0.12);
+}
+
+.badgeCard:hover .badgeToken {
   filter: brightness(1.08);
 }
 
 .badgeToken {
   position: relative;
   overflow: hidden;
-  width: 9.8rem;
-  height: 9.8rem;
+  width: 6.4rem;
+  height: 6.4rem;
   flex: none;
   border-radius: 999px;
   background-color: #2e6aa9;
@@ -337,27 +360,66 @@
 .badgeName {
   margin: 0;
   font-family: 'Open Sans', system-ui, sans-serif;
-  font-size: 1rem;
-  font-weight: 400;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.3;
   color: #000000;
+  overflow-wrap: anywhere;
 }
 
 .badgeItemLink {
   display: flex;
+  flex: 1;
   flex-direction: column;
   align-items: center;
-  gap: 0.95rem;
+  gap: 0.7rem;
   text-align: center;
   color: inherit;
   text-decoration: none;
 }
 
-.badgeReminderButton {
+.badgeCardActions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: 100%;
+  min-height: 2.25rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid #e3e8ee;
+}
+
+.badgeIconButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
   border: none;
+  border-radius: 999px;
   background: transparent;
-  padding: 0;
+  color: #475467;
   cursor: pointer;
-  line-height: 0;
+  padding: 0;
+  transition: background 0.16s ease;
+}
+
+.badgeIconButton:hover {
+  background: #eef4fb;
+  color: #2e6aa9;
+}
+
+.badgeIconButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.badgeIconStatic {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
 }
 
 /* MVP test-cleanup affordances — remove before handoff. Styled as a danger pill
@@ -366,16 +428,16 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 3.4rem;
+  min-height: 2.9rem;
   border: 1.5px solid #c98a86;
-  border-radius: 19px;
+  border-radius: 16px;
   background: #ffffff;
   color: #b42318;
   cursor: pointer;
   font-family: 'Lato', system-ui, sans-serif;
-  font-size: 1.15rem;
+  font-size: 1.05rem;
   font-weight: 400;
-  padding: 0.8rem 1.6rem;
+  padding: 0.65rem 1.3rem;
   transition:
     filter 0.16s ease,
     background 0.16s ease;
@@ -390,33 +452,8 @@
   cursor: not-allowed;
 }
 
-.badgeUnassignButton {
-  border: none;
-  background: transparent;
-  padding: 0;
-  cursor: pointer;
-  color: #475467;
-  font-family: 'Open Sans', system-ui, sans-serif;
-  font-size: 0.8rem;
-  font-weight: 600;
-  text-decoration: underline;
-}
-
-.badgeUnassignButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .badgeIcon {
-  color: #c9db50;
-}
-
-.badgeActionRow {
-  display: flex;
-  gap: 0.9rem;
-  justify-content: flex-end;
-  margin-top: 2rem;
-  flex-wrap: wrap;
+  color: inherit;
 }
 
 .importTitle {
@@ -738,28 +775,6 @@
 }
 
 @media (max-width: 1100px) {
-  .heroCard {
-    grid-template-columns: 1fr;
-  }
-
-  .heroDivider {
-    width: auto;
-    height: 1px;
-  }
-
-  .heroSide {
-    border-top: 0;
-  }
-
-  .actionRow {
-    margin-top: 2rem;
-  }
-
-  .sideActionRow {
-    margin-top: 2rem;
-    justify-content: flex-start;
-  }
-
   .importControls {
     grid-template-columns: 1fr;
   }
@@ -780,28 +795,24 @@
     align-items: flex-start;
   }
 
-  .heroInfo,
-  .heroSide,
-  .badgesCard {
-    padding: 1.35rem;
+  .pageTitle {
+    font-size: 2.2rem;
+  }
+
+  .badgesTitle {
+    font-size: 2rem;
+  }
+
+  .infoGrid {
+    grid-template-columns: 1fr;
+    gap: 1.8rem;
+    margin-top: 1.8rem;
   }
 }
 
 @media (max-width: 520px) {
-  .personCard {
-    align-items: flex-start;
-  }
-
-  .personAvatarShell {
-    width: 5.4rem;
-    height: 5.4rem;
-    flex-basis: 5.4rem;
-  }
-
-  .personAvatarImage,
-  .personAvatarFallback {
-    width: 4.2rem;
-    height: 4.2rem;
+  .badgeGrid {
+    grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
   }
 }
 

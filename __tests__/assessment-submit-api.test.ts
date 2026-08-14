@@ -35,6 +35,9 @@ jest.mock('../lib/prisma', () => ({
     lessonAttempt: {
       findMany: jest.fn(),
     },
+    lessonProgress: {
+      findMany: jest.fn(),
+    },
     studentBadge: {
       update: jest.fn(),
     },
@@ -49,6 +52,7 @@ const mockPrisma = prisma as unknown as {
   rubricGoal: { findUnique: jest.Mock };
   assessmentAttempt: { findMany: jest.Mock };
   lessonAttempt: { findMany: jest.Mock };
+  lessonProgress: { findMany: jest.Mock };
   studentBadge: { update: jest.Mock };
   $transaction: jest.Mock;
 };
@@ -512,6 +516,7 @@ describe('GET /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', ()
     mockPrisma.rubricGoal.findUnique.mockResolvedValue(rubricGoalFixture);
     mockPrisma.assessmentAttempt.findMany.mockResolvedValue([]);
     mockPrisma.lessonAttempt.findMany.mockResolvedValue([]);
+    mockPrisma.lessonProgress.findMany.mockResolvedValue([]);
   });
 
   it('renders answered text from option labels and persisted numeric answers', async () => {

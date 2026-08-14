@@ -1,4 +1,6 @@
-import { BadgeStatus, LessonStatus, Prisma } from '@prisma/client';
+import { BadgeStatus, Prisma } from '@prisma/client';
+
+import { evaluateBadgeReadiness, uniqueLessonIds } from './badgeReadiness';
 
 type BadgeProgressClient = Prisma.TransactionClient;
 
@@ -11,12 +13,11 @@ type BadgeWithRequirements = {
   requirements: Array<{ lessonId: string | null }>;
 };
 
-function uniqueStrings(values: Array<string | null | undefined>) {
-  return [...new Set(values.filter((value): value is string => Boolean(value)))];
-}
-
+// Loads the progress rows the readiness rule needs, then defers the decision to the
+// pure predicate in lib/badgeReadiness.ts so the same rule can run outside a
+// transaction (checker surfaces, home pending-work aggregate).
 async function isBadgeReadyForAssessment(tx: BadgeProgressClient, studentId: string, badge: BadgeWithRequirements) {
-  const requirementLessonIds = uniqueStrings(badge.requirements.map((requirement) => requirement.lessonId));
+  const requirementLessonIds = uniqueLessonIds(badge.requirements.map((requirement) => requirement.lessonId));
 
   if (requirementLessonIds.length === 0) {
     return false;
@@ -27,16 +28,7 @@ async function isBadgeReadyForAssessment(tx: BadgeProgressClient, studentId: str
     select: { lessonId: true, status: true, percentComplete: true, lastGradePassed: true },
   });
 
-  const progressByLessonId = new Map(lessonProgresses.map((progress) => [progress.lessonId, progress]));
-
-  // QEV is cleared when every required lesson is COMPLETED with a passing grade.
-  // There is no longer a lesson-survey gate — finishing the checkpoints + passing
-  // the grade is the whole bar.
-  return requirementLessonIds.every((lessonId) => {
-    const progress = progressByLessonId.get(lessonId);
-    const lessonComplete = progress?.status === LessonStatus.COMPLETED || (progress?.percentComplete ?? 0) >= 100;
-    return lessonComplete && progress?.lastGradePassed === true;
-  });
+  return evaluateBadgeReadiness(requirementLessonIds, lessonProgresses).ready;
 }
 
 async function latestAssessmentFailed(tx: BadgeProgressClient, studentId: string, badgeId: string) {

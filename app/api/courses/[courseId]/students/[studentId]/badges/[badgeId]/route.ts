@@ -6,6 +6,15 @@ import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import { normalizeCheckpointQuestion, type NormalizedCheckpointQuestion } from '@/lib/checkpointQuestions';
 import { resolveEffectiveBadgePolicy } from '@/lib/badgePolicy';
 import { isBadgeClosed } from '@/lib/badgeAvailability';
+import {
+  fetchBadgeRequirementLessons,
+  findBadgesSharingLessons,
+  overrideAssessmentGrade,
+  parseStudentBadgeAction,
+  resetBadgeProgress,
+  waiveQevRequirement,
+  type StudentBadgeActionPayload,
+} from '@/lib/students/badgeActions';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
 
@@ -167,12 +176,13 @@ async function authorizeBadgeRequest(
   return { email, courseId, studentId, badgeId };
 }
 
-type BadgeAccessAction = 'view' | 'assess' | 'edit';
+type BadgeAccessAction = 'view' | 'assess' | 'edit' | 'manage';
 
 const BADGE_ACCESS_DENIED: Record<BadgeAccessAction, string> = {
   view: 'Badge not found in this course or you do not have permission to view it.',
   assess: 'Badge not found in this course or you do not have permission to assess it.',
   edit: 'Badge not found in this course or you do not have permission to edit it.',
+  manage: 'Badge not found in this course or you do not have permission to manage it.',
 };
 
 type AccessCourse<P> = {
@@ -190,6 +200,11 @@ type AccessCourse<P> = {
 // viewer must be the course creator or an enrolled instructor/checker (never a
 // student), and a checker is confined to their own sections unless the course
 // allows cross-section viewing. The 404 message varies only by action verb.
+//
+// 'manage' (the instructor student actions — reset, waive QEV, override a grade)
+// narrows further to instructors only. It answers 403 rather than the usual 404,
+// because a checker can legitimately see this badge; hiding it would just be
+// confusing, and the refusal leaks nothing they don't already know.
 function resolveBadgeAccess<P>(
   course: AccessCourse<P>,
   userId: string,
@@ -208,6 +223,12 @@ function resolveBadgeAccess<P>(
 
   if (!targetEnrollment || !effectiveViewerRole || effectiveViewerRole === 'STUDENT') {
     return denied;
+  }
+
+  if (action === 'manage' && effectiveViewerRole !== 'INSTRUCTOR') {
+    return {
+      error: NextResponse.json({ error: 'Only instructors can perform student actions on a badge.' }, { status: 403 }),
+    };
   }
 
   if (effectiveViewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
@@ -378,6 +399,8 @@ export async function GET(
                     qevPassedAt: true,
                     cooldownUntil: true,
                     feedbackReviewedAt: true,
+                    qevWaivedAt: true,
+                    qevWaivedBy: { select: { name: true, email: true } },
                     badge: {
                       select: {
                         id: true,
@@ -482,6 +505,43 @@ export async function GET(
           ? 100
           : 0
         : Math.min(100, Math.max(0, Math.round((completedCheckpoints / totalCheckpoints) * 100)));
+
+    // Video-lesson status for the profile overview. Read from LessonProgress
+    // rather than re-derived from checkpoint counts, so it matches what the
+    // student's own lesson list shows. A badge with several requirement lessons
+    // is complete only when every one of them is.
+    const lessonProgressRows = await prisma.lessonProgress.findMany({
+      where: { studentId, lessonId: { in: course.lessons.map((lesson) => lesson.id) } },
+      select: { lessonId: true, status: true, startedAt: true, completedAt: true, percentComplete: true },
+    });
+    const lessonProgressByLessonId = new Map(lessonProgressRows.map((row) => [row.lessonId, row]));
+
+    const lessonStatuses = course.lessons.map((lesson) => {
+      const row = lessonProgressByLessonId.get(lesson.id) ?? null;
+      const started =
+        Boolean(row?.startedAt || row?.completedAt) ||
+        row?.status === 'IN_PROGRESS' ||
+        row?.status === 'COMPLETED' ||
+        (row?.percentComplete ?? 0) > 0;
+      const complete = row?.status === 'COMPLETED' || Boolean(row?.completedAt);
+
+      return {
+        lessonId: lesson.id,
+        title: lesson.title,
+        status: complete ? 'COMPLETED' : started ? 'IN_PROGRESS' : 'NOT_STARTED',
+        percentComplete: row?.percentComplete ?? 0,
+      };
+    });
+
+    const lessonSummary = {
+      status:
+        lessonStatuses.every((entry) => entry.status === 'COMPLETED') && lessonStatuses.length > 0
+          ? 'COMPLETED'
+          : lessonStatuses.some((entry) => entry.status !== 'NOT_STARTED')
+            ? 'IN_PROGRESS'
+            : 'NOT_STARTED',
+      lessons: lessonStatuses,
+    };
 
     const latestActivity = flattenedCheckpoints
       .flatMap((checkpoint) =>
@@ -651,11 +711,16 @@ export async function GET(
       latestAssessment?.responses && latestAssessment.responses.length > 0
         ? latestAssessment.responses.map((response) => ({
             id: response.id,
-            title: response.isOverride ? 'Checker override' : `${response.subgoalText} › ${response.taskText}`,
+            // Override rows carry their own label in the snapshot columns
+            // ('Checker override' or 'Instructor override'), so reading taskText
+            // keeps both kinds honest without a schema change.
+            title: response.isOverride ? response.taskText : `${response.subgoalText} › ${response.taskText}`,
             outcome:
               response.feedback ||
               (response.isOverride
-                ? 'Overridden to still learning'
+                ? response.passed
+                  ? 'Overridden to proficient'
+                  : 'Overridden to still learning'
                 : response.passed
                   ? `Passed (+${response.points} ${response.points === 1 ? 'pt' : 'pts'})`
                   : 'Not passed'),
@@ -683,6 +748,11 @@ export async function GET(
           qevPassedAt: badgeProgress.qevPassedAt?.toISOString() ?? null,
           cooldownUntil: badgeProgress.cooldownUntil?.toISOString() ?? null,
           feedbackReviewedAt: badgeProgress.feedbackReviewedAt?.toISOString() ?? null,
+          // A waived QEV is shown rather than hidden: lesson progress is left
+          // untouched by the waiver, so this is what explains an assessment that
+          // unlocked without a finished lesson.
+          qevWaivedAt: badgeProgress.qevWaivedAt?.toISOString() ?? null,
+          qevWaivedByName: badgeProgress.qevWaivedBy?.name ?? badgeProgress.qevWaivedBy?.email ?? null,
           // Raw per-student overrides (null = inherit) for the config editor …
           reassessmentLimit: badgeProgress.reassessmentLimit ?? null,
           cooldownDays: badgeProgress.cooldownDays ?? null,
@@ -699,6 +769,7 @@ export async function GET(
           totalCheckpoints,
           completedCheckpoints,
         },
+        lesson: lessonSummary,
         checkpoints,
         // Precheck answer history grouped by watch-through (run) for the viewer.
         qevAttempts,
@@ -728,7 +799,7 @@ export async function GET(
             // Per-attempt rubric breakdown for the "Assessment history" dropdown.
             responses: attempt.responses.map((response) => ({
               id: response.id,
-              title: response.isOverride ? 'Checker override' : `${response.subgoalText} › ${response.taskText}`,
+              title: response.isOverride ? response.taskText : `${response.subgoalText} › ${response.taskText}`,
               subgoalText: response.subgoalText,
               taskText: response.taskText,
               points: response.points,
@@ -1047,8 +1118,130 @@ type StudentBadgeConfigPayload = {
   overrideCooldown?: unknown;
 };
 
+type ManagedBadgeProgress = {
+  id: string;
+  status: BadgeStatus;
+  qevWaivedAt: Date | null;
+  badge: { name: string };
+};
+
+// Execute one instructor student action. Each returns the fields the badge detail
+// view re-reads, so the client can render the outcome before its own refresh lands.
+async function runStudentBadgeAction({
+  action,
+  badgeProgress,
+  courseId,
+  studentId,
+  badgeId,
+  instructorId,
+}: {
+  action: StudentBadgeActionPayload;
+  badgeProgress: ManagedBadgeProgress;
+  courseId: string;
+  studentId: string;
+  badgeId: string;
+  instructorId: string;
+}) {
+  switch (action.action) {
+    case 'RESET_PROGRESS': {
+      // Case-insensitive: the confirmation exists to slow the instructor down and
+      // prove they know which badge they're on, not to test their shift key.
+      if (action.confirmBadgeName.toLowerCase() !== badgeProgress.badge.name.trim().toLowerCase()) {
+        return NextResponse.json({ error: 'The badge name you typed does not match.' }, { status: 400 });
+      }
+
+      const lessons = await fetchBadgeRequirementLessons(prisma, badgeId);
+      const lessonIds = lessons.map((lesson) => lesson.id);
+
+      if (!action.acknowledgeSharedBadges) {
+        const sharedBadges = await findBadgesSharingLessons(prisma, { badgeId, lessonIds });
+
+        if (sharedBadges.length > 0) {
+          return NextResponse.json(
+            {
+              error: 'These lessons are also required by other badges, whose progress would be reset too.',
+              sharedBadges,
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      const result = await prisma.$transaction((tx) =>
+        resetBadgeProgress(tx, { studentBadgeId: badgeProgress.id, studentId, badgeId, lessonIds })
+      );
+
+      return NextResponse.json({ badge: { status: result.status }, reset: result }, { status: 200 });
+    }
+
+    case 'WAIVE_QEV': {
+      if (badgeProgress.qevWaivedAt) {
+        return NextResponse.json({ error: 'This badge’s QEV requirement is already waived.' }, { status: 409 });
+      }
+
+      if (badgeProgress.status !== BadgeStatus.LEARNING) {
+        return NextResponse.json(
+          { error: 'This student has already cleared the QEV requirement for this badge.' },
+          { status: 409 }
+        );
+      }
+
+      const updated = await waiveQevRequirement(prisma, {
+        studentBadgeId: badgeProgress.id,
+        instructorId,
+      });
+
+      return NextResponse.json(
+        { badge: { status: updated.status, qevWaivedAt: updated.qevWaivedAt?.toISOString() ?? null } },
+        { status: 200 }
+      );
+    }
+
+    case 'OVERRIDE_GRADE': {
+      // No grade exists before QEV is cleared. Point at the waiver rather than
+      // silently promoting the student two steps at once.
+      if (badgeProgress.status === BadgeStatus.LEARNING) {
+        return NextResponse.json(
+          {
+            error:
+              'This student has not cleared the QEV requirement yet. Complete or waive it before recording a grade.',
+          },
+          { status: 409 }
+        );
+      }
+
+      const result = await prisma.$transaction((tx) =>
+        overrideAssessmentGrade(tx, {
+          studentBadgeId: badgeProgress.id,
+          courseId,
+          studentId,
+          badgeId,
+          instructorId,
+          passed: action.passed,
+          reason: action.reason,
+        })
+      );
+
+      return NextResponse.json(
+        {
+          badge: { status: result.status },
+          attempt: {
+            id: result.attempt.id,
+            passed: result.attempt.passed,
+            score: result.attempt.score,
+            completedAt: result.attempt.completedAt?.toISOString() ?? null,
+          },
+        },
+        { status: 201 }
+      );
+    }
+  }
+}
+
 // Update per-student badge configuration (reassessment count, whether reassessment
-// is mandatory) and/or override an active cooldown. Instructor/checker only.
+// is mandatory) and/or override an active cooldown — instructor/checker. Also the
+// entry point for the instructor-only student actions, which arrive on the same
+// endpoint carrying an `action` discriminator.
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ courseId: string; studentId: string; badgeId: string }> }
@@ -1060,18 +1253,33 @@ export async function PATCH(
     }
     const { email, courseId, studentId, badgeId } = access;
 
-    const body = ((await req.json().catch(() => null)) ?? {}) as StudentBadgeConfigPayload;
+    const rawBody = (await req.json().catch(() => null)) ?? {};
+
+    // The instructor student actions share this endpoint with the config editor.
+    // A payload carrying `action` is one of them; anything else is a config edit.
+    const parsedAction = parseStudentBadgeAction(rawBody);
+
+    if (parsedAction && 'error' in parsedAction) {
+      return NextResponse.json({ error: parsedAction.error }, { status: 400 });
+    }
+
+    const action = parsedAction?.payload ?? null;
+    const body = rawBody as StudentBadgeConfigPayload;
 
     const data: { reassessmentLimit?: number; reassessmentRequired?: boolean; cooldownUntil?: null } = {};
-    if (typeof body.reassessmentLimit === 'number' && Number.isFinite(body.reassessmentLimit)) {
-      data.reassessmentLimit = Math.max(0, Math.round(body.reassessmentLimit));
-    }
-    if (typeof body.reassessmentRequired === 'boolean') {
-      data.reassessmentRequired = body.reassessmentRequired;
-    }
-    const wantsCooldownOverride = body.overrideCooldown === true;
 
-    if (Object.keys(data).length === 0 && !wantsCooldownOverride) {
+    if (!action) {
+      if (typeof body.reassessmentLimit === 'number' && Number.isFinite(body.reassessmentLimit)) {
+        data.reassessmentLimit = Math.max(0, Math.round(body.reassessmentLimit));
+      }
+      if (typeof body.reassessmentRequired === 'boolean') {
+        data.reassessmentRequired = body.reassessmentRequired;
+      }
+    }
+
+    const wantsCooldownOverride = !action && body.overrideCooldown === true;
+
+    if (!action && Object.keys(data).length === 0 && !wantsCooldownOverride) {
       return NextResponse.json({ error: 'No configuration fields provided.' }, { status: 400 });
     }
 
@@ -1122,7 +1330,12 @@ export async function PATCH(
                 badgeProgress: {
                   where: { badgeId },
                   take: 1,
-                  select: { id: true },
+                  select: {
+                    id: true,
+                    status: true,
+                    qevWaivedAt: true,
+                    badge: { select: { name: true } },
+                  },
                 },
               },
             },
@@ -1138,9 +1351,26 @@ export async function PATCH(
       );
     }
 
-    const gate = resolveBadgeAccess(course, user.id, studentId, 'edit');
+    const gate = resolveBadgeAccess(course, user.id, studentId, action ? 'manage' : 'edit');
     if ('error' in gate) {
       return gate.error;
+    }
+
+    if (action) {
+      const badgeProgress = gate.badgeProgress;
+
+      if (!badgeProgress) {
+        return NextResponse.json({ error: 'Badge progress was not found for this student.' }, { status: 404 });
+      }
+
+      return runStudentBadgeAction({
+        action,
+        badgeProgress,
+        courseId,
+        studentId,
+        badgeId,
+        instructorId: user.id,
+      });
     }
 
     // Overriding the cooldown requires the course to opt in. When allowed, clearing

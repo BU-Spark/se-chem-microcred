@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { isInstructor } from '@/lib/roles';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
+import BadgeRatings, { type BadgeRatingsData } from './BadgeRatings';
+import BadgeRosterPanel, { type RosterCohort, type RosterStage } from './BadgeRosterPanel';
 import styles from './page.module.css';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED' | 'NOT_STARTED';
@@ -113,6 +114,9 @@ type StudentProgressRow = {
   videoStatus: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED';
   assessmentAttemptCount: number;
   feedback: { rating: number; comment: string | null; submittedAt: string; question: string } | null;
+  cohort?: RosterCohort;
+  stage?: RosterStage;
+  locked?: boolean;
 };
 
 type BadgeDetailResponse = {
@@ -120,6 +124,13 @@ type BadgeDetailResponse = {
   badge: BadgeDetail | null;
   course: CourseDetail;
   summary: ProgressSummary;
+  cohorts: {
+    totalStudents: number;
+    proficient: { count: number; percent: number };
+    stillLearning: { count: number; percent: number; lockedCount: number };
+    notStarted: { count: number; percent: number };
+  } | null;
+  ratings: BadgeRatingsData | null;
   assessment: AssessmentDetails;
   students: StudentProgressRow[];
 };
@@ -264,38 +275,6 @@ export default function CourseBadgeProgress() {
         : [],
     [summary]
   );
-
-  const exportRoster = useCallback(() => {
-    if (!data || !badge) return;
-    const escapeCell = (value: string | number | null) => `"${String(value ?? '').replace(/"/g, '""')}"`;
-    const rows = [
-      ['Student', 'Email', 'Student ID', 'Section', 'Badge progress', 'Video status', 'Assessment attempts'],
-      ...data.students.map((row) => [
-        row.student.name ?? '',
-        row.student.email ?? '',
-        row.student.externalId ?? '',
-        row.sections.join('; '),
-        row.analyticsStatus === 'PROFICIENT'
-          ? 'Proficient'
-          : row.analyticsStatus === 'NOT_STARTED'
-            ? 'Not Started'
-            : 'Still Learning',
-        row.videoStatus === 'COMPLETED'
-          ? 'Completed'
-          : row.videoStatus === 'IN_PROGRESS'
-            ? 'In Progress'
-            : 'Not Started',
-        row.assessmentAttemptCount,
-      ]),
-    ];
-    const csv = rows.map((row) => row.map(escapeCell).join(',')).join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${badge.slug}-roster.csv`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  }, [badge, data]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -546,6 +525,8 @@ export default function CourseBadgeProgress() {
                 </section>
               ) : null}
 
+              {data?.ratings ? <BadgeRatings ratings={data.ratings} /> : null}
+
               <section className={styles.card} aria-label="Assessment details">
                 <div className={styles.cardHeader}>
                   <h2 className={styles.cardTitle}>Assessment Details</h2>
@@ -631,7 +612,17 @@ export default function CourseBadgeProgress() {
         </div>
       </main>
 
-      {isRosterOpen && data && badge ? (
+      {isInstructorFlag && isRosterOpen && badge && courseId && badgeId ? (
+        <BadgeRosterPanel
+          badgeName={badge.name}
+          courseId={courseId}
+          badgeId={badgeId}
+          rows={data?.students ?? []}
+          onClose={() => setIsRosterOpen(false)}
+        />
+      ) : null}
+
+      {/* Legacy inline roster replaced by BadgeRosterPanel.
         <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setIsRosterOpen(false)}>
           <section
             className={styles.rosterModal}
@@ -707,7 +698,7 @@ export default function CourseBadgeProgress() {
             </div>
           </section>
         </div>
-      ) : null}
+      */}
     </div>
   );
 }

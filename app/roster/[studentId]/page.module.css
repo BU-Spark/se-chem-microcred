@@ -711,6 +711,21 @@
   color: #373737;
 }
 
+/* Question prompts are stored as rich text (see lib/question-rich-text.ts), so
+   they arrive wrapped in <p>. Collapse the outer margins rather than printing
+   the markup. */
+.questionRichText {
+  line-height: 1.5;
+}
+
+.questionRichText > :first-child {
+  margin-top: 0;
+}
+
+.questionRichText > :last-child {
+  margin-bottom: 0;
+}
+
 .assessmentAttemptFeedback {
   max-width: 48rem;
   border-left: 3px solid #2e6aa9;
@@ -925,5 +940,52 @@
   .gradingOutcome,
   .answerAttemptValue {
     grid-column: 2;
+  }
+}
+
+/* Per-student cohort overview above the badge lists — the same three buckets the
+   course badge page reports (lib/badgeCohorts.ts). */
+.cohortStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1.5rem;
+}
+
+.cohortStat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.9rem 1.1rem;
+  border-left: 4px solid #c4c9d0;
+  border-radius: 12px;
+  background: #f5f7fa;
+}
+
+.cohortStat[data-tone='proficient'] {
+  border-left-color: #4f9d69;
+}
+
+.cohortStat[data-tone='learning'] {
+  border-left-color: #e0a53f;
+}
+
+.cohortStatValue {
+  font-family: 'Lato', sans-serif;
+  font-size: 1.9rem;
+  font-weight: 700;
+  line-height: 1;
+  color: #1d1d1d;
+}
+
+.cohortStatLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #5f6b7a;
+}
+
+@media (max-width: 700px) {
+  .cohortStrip {
+    grid-template-columns: 1fr;
   }
 }

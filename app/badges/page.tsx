@@ -432,6 +432,14 @@ export default function BadgeWalletPage() {
                           Show your checker this QR code during the in-person skill check.
                         </p>
                       )}
+                      {/* The waiver leaves lesson progress untouched, so without
+                          this the assessment looks like it unlocked on its own. */}
+                      {activeBadge.qevWaivedAt && (
+                        <p className={styles.popoverHelperText}>
+                          Your instructor cleared the video lesson requirement for this badge, so you can be assessed
+                          without finishing it.
+                        </p>
+                      )}
                       {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed === true && (
                         <p className={styles.popoverHelperText}>
                           You passed! Review your assessment, then finalize this badge to add it to your completed list.

@@ -9,37 +9,9 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal';
+import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import styles from './page.module.css';
 import { toTitleCase } from '@/lib/utils';
-
-import veryUnhappy from '../../../../public/assets/survey_faces/very_unhappy.svg';
-import slightlyUnhappy from '../../../../public/assets/survey_faces/slightly_unhappy.svg';
-import neutral from '../../../../public/assets/survey_faces/neutral.svg';
-import slightlyHappy from '../../../../public/assets/survey_faces/slightly_happy.svg';
-import veryHappy from '../../../../public/assets/survey_faces/very_happy.svg';
-import veryUnhappySelected from '../../../../public/assets/survey_faces/very_unhappy_selected.svg';
-import slightlyUnhappySelected from '../../../../public/assets/survey_faces/slightly_unhappy_selected.svg';
-import neutralSelected from '../../../../public/assets/survey_faces/neutral_selected.svg';
-import slightlyHappySelected from '../../../../public/assets/survey_faces/slightly_happy_selected.svg';
-import veryHappySelected from '../../../../public/assets/survey_faces/very_happy_selected.svg';
-
-const SURVEY_FACES = {
-  icons: { 1: veryUnhappy, 2: slightlyUnhappy, 3: neutral, 4: slightlyHappy, 5: veryHappy } as Record<number, unknown>,
-  selectedIcons: {
-    1: veryUnhappySelected,
-    2: slightlyUnhappySelected,
-    3: neutralSelected,
-    4: slightlyHappySelected,
-    5: veryHappySelected,
-  } as Record<number, unknown>,
-  alts: {
-    1: 'Very unhappy',
-    2: 'Slightly unhappy',
-    3: 'Neutral',
-    4: 'Slightly happy',
-    5: 'Very happy',
-  } as Record<number, string>,
-};
 
 const BADGE_STATUS_LABEL: Record<string, string> = {
   LEARNING: 'Still learning',
@@ -566,12 +538,7 @@ export default function BadgeFeedbackPage() {
         <SurveyModal
           title="Tell us about your experience."
           question={`Rate your experience earning the ${content.title} badge.`}
-          options={[1, 2, 3, 4, 5].map((value) => ({
-            value,
-            label: SURVEY_FACES.alts[value],
-            icon: SURVEY_FACES.icons[value] as never,
-            selectedIcon: SURVEY_FACES.selectedIcons[value] as never,
-          }))}
+          options={surveyFaceOptions()}
           value={surveyRating}
           onChange={setSurveyRating}
           onSubmit={handleSubmitFinalize}

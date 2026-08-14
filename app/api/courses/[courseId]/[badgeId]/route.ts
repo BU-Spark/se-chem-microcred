@@ -6,6 +6,8 @@ import {
 } from '@/app/api/courses/lib/course-queries';
 import { normalizeEmail } from '@/lib/text/email';
 import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
+import { classifyStudentBadgeCohort, summarizeBadgeCohorts } from '@/lib/badgeCohorts';
+import { fetchBadgeRatings } from '@/app/api/courses/lib/badge-ratings';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED';
 type AnalyticsStatus = 'PROFICIENT' | 'STILL_LEARNING' | 'NOT_STARTED';
@@ -67,7 +69,7 @@ function calculatePartitionPercents(counts: number[], total: number) {
 
   const exact = counts.map((count) => (count / total) * 100);
   const percentages = exact.map(Math.floor);
-  let remaining = 100 - percentages.reduce((sum, percent) => sum + percent, 0);
+  const remaining = 100 - percentages.reduce((sum, percent) => sum + percent, 0);
   const remainderOrder = exact
     .map((value, index) => ({ index, remainder: value - Math.floor(value) }))
     .sort((a, b) => b.remainder - a.remainder || a.index - b.index);
@@ -141,6 +143,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       videoLength: formatDuration(primarySegment?.duration) ?? parsedAssessment.videoLength,
       checkpoints: lessonCheckpoints.length > 0 ? lessonCheckpoints : parsedAssessment.checkpoints,
     };
+    const requirementLessonIds = badge.lessons.map((lesson) => lesson.id);
     const students = badge.enrollments.map((enrollment) => {
       const progress = enrollment.student.badgeProgress[0] ?? null;
       // StudentBadge rows are eagerly created with LEARNING status when a badge
@@ -181,9 +184,16 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
             : status === 'IN_REVIEW'
               ? null
               : lessonCompleted || status === 'READY_FOR_ASSESSMENT'
-              ? 'VIDEO_COMPLETED_ONLY'
-              : 'VIDEO_IN_PROGRESS';
+                ? 'VIDEO_COMPLETED_ONLY'
+                : 'VIDEO_IN_PROGRESS';
       const latestFeedback = surveyResponses[0] ?? null;
+      const cohort = classifyStudentBadgeCohort({
+        badgeStatus: progress?.status ?? null,
+        awardedAt: progress?.awardedAt ?? null,
+        requirementLessonIds,
+        lessonProgress: enrollment.student.lessonProgress,
+        attempts: enrollment.student.assessmentAttempts,
+      });
 
       return {
         enrollmentId: enrollment.id,
@@ -221,7 +231,18 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
               question: latestFeedback.prompt.question,
             }
           : null,
+        cohort: cohort.cohort,
+        stage: cohort.stage,
+        locked: cohort.locked,
       };
+    });
+    const cohorts = summarizeBadgeCohorts(
+      students.map((student) => ({ cohort: student.cohort, stage: student.stage, locked: student.locked }))
+    );
+    const ratings = await fetchBadgeRatings({
+      badgeId,
+      lessons: badge.lessons.map((lesson) => ({ id: lesson.id, title: lesson.title })),
+      studentIds: students.map((student) => student.student.id),
     });
     const totalStudents = students.length;
     const completedCount = students.filter((student) => student.status === 'COMPLETED').length;
@@ -316,6 +337,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           feedbackResponseCount: feedbackRows.length,
           averageRating,
         },
+        cohorts,
+        ratings,
         assessment,
         students,
       },

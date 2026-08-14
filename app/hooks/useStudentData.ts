@@ -82,6 +82,9 @@ export interface StudentData {
     pendingBadge: Array<{
       promptId: string;
       badgeId: string;
+      // The badge's course, so course-scoped surfaces can filter these the same
+      // way they filter badges.inReview. Null when no requirement is lesson-backed.
+      courseId: string | null;
       badgeSlug: string | null;
       badgeName: string | null;
       question: string;
@@ -167,6 +170,9 @@ export interface BadgeRecord {
   latestAttemptPassed: boolean | null;
   // Reassessment cooldown end; assessment is blocked while now < cooldownUntil.
   cooldownUntil: string | null;
+  // Set when an instructor waived the video-lesson requirement for this student,
+  // which is why the assessment unlocked with the lesson still unfinished.
+  qevWaivedAt?: string | null;
   youtubeUrl: string | null;
   requirements: Array<{
     summary: string | null;

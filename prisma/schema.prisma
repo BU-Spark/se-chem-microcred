@@ -33,6 +33,8 @@ model User {
   assessmentsGiven    AssessmentAttempt[]  @relation("AssessmentChecker")
   receivedMessages    Message[]            @relation("MessageRecipient")
   sentMessages        Message[]            @relation("MessageSender")
+  qevWaiversGranted   StudentBadge[]       @relation("BadgeQevWaiver")
+  gradeOverridesGiven StudentBadge[]       @relation("BadgeGradeOverride")
 
   @@map("Student")
 }
@@ -115,6 +117,8 @@ model Course {
   settings    CourseSettings?
   assessments AssessmentAttempt[]
   messages    Message[]
+
+  @@index([createdById])
 }
 
 model CourseSettings {
@@ -511,13 +515,27 @@ model StudentBadge {
   reassessmentLimit    Int?
   cooldownDays         Int?
   reassessmentRequired Boolean?
+  // Instructor action: QEV waived rather than earned. Load-bearing, not just
+  // attribution — the waiver is surfaced to instructors and students so a badge
+  // that unlocked without a completed lesson reads honestly. See
+  // docs/student-actions-plan.md.
+  qevWaivedAt          DateTime?
+  qevWaivedById        String?
+  // Instructor action: grade recorded outside a normal assessment. Attribution
+  // only — the override attempt itself carries the checker and the reason.
+  gradeOverriddenAt    DateTime?
+  gradeOverriddenById  String?
 
-  student User  @relation(fields: [studentId], references: [id])
-  badge   Badge @relation(fields: [badgeId], references: [id])
+  student           User  @relation(fields: [studentId], references: [id])
+  badge             Badge @relation(fields: [badgeId], references: [id])
+  qevWaivedBy       User? @relation("BadgeQevWaiver", fields: [qevWaivedById], references: [id], onDelete: SetNull)
+  gradeOverriddenBy User? @relation("BadgeGradeOverride", fields: [gradeOverriddenById], references: [id], onDelete: SetNull)
 
   @@unique([studentId, badgeId])
   @@index([badgeId])
   @@index([status, badgeId])
+  @@index([qevWaivedById])
+  @@index([gradeOverriddenById])
 }
 
 model StudentAnalytics {

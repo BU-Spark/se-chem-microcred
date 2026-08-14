@@ -20,6 +20,8 @@ export type BadgeDetailResponse = {
     cooldownDays?: number | null;
     reassessmentRequired?: boolean | null;
     allowCooldownOverride?: boolean;
+    qevWaivedAt?: string | null;
+    qevWaivedByName?: string | null;
   };
   progress: {
     percentComplete: number;
@@ -230,6 +232,10 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
       ? `${ordinal(detail.assessment.attemptCount)} attempt: ${latestAssessment?.passed ? 'proficient' : 'still learning'}`
       : 'Not yet assessed'
     : detail.progress.currentCheckpoint || '--';
+  const isQevWaived = Boolean(detail.badge.qevWaivedAt);
+  const waivedByLabel = detail.badge.qevWaivedByName
+    ? `QEV waived by ${detail.badge.qevWaivedByName}`
+    : 'QEV waived by instructor';
 
   return (
     <section className={styles.detailCard}>
@@ -242,7 +248,9 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
       <div className={styles.detailSummary}>
         <div className={styles.progressSummaryColumn}>
           <ProgressRing percent={detail.progress.percentComplete} />
-          <p className={styles.progressSummaryCaption}>Video lesson progress</p>
+          <p className={styles.progressSummaryCaption}>
+            {isQevWaived ? 'Video lesson progress (QEV waived)' : 'Video lesson progress'}
+          </p>
         </div>
 
         <div className={styles.progressStatusColumn}>
@@ -254,6 +262,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
                 : detail.progress.percentComplete > 0
                   ? 'In Progress'
                   : 'Not Started'}
+              {isQevWaived ? ` — ${waivedByLabel} on ${formatDate(detail.badge.qevWaivedAt)}` : ''}
             </span>
           </p>
           <p className={styles.progressStatusLine}>

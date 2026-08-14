@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import { sanitizeQuestionRichText } from '@/lib/question-rich-text';
 import { evaluateCheckpointAttempt } from '@/lib/checkpointGrading';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
+import SurveyModal from '@/app/components/SurveyModal';
+import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import type { LessonRecord } from '../../hooks/useStudentData';
 import styles from './video.module.css';
 import playIcon from '../../../public/assets/lesson/qev/Play.svg';
@@ -15,7 +17,7 @@ import pauseIcon from '../../../public/assets/lesson/qev/Pause.svg';
 // when the dev environment flag is set. Same flag the sidebar uses (CUR_ENV).
 const ENABLE_QEV_SKIP = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
-type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonComplete' | 'lessonFailed';
+type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonRating' | 'lessonComplete' | 'lessonFailed';
 type RangeStyleVars = CSSProperties & {
   '--progress': string;
   '--unlocked': string;
@@ -257,6 +259,9 @@ export function LessonVideoPage({
   } | null>(null);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
   const [assessingLesson, setAssessingLesson] = useState(false);
+  const [qevRating, setQevRating] = useState<number | null>(null);
+  const [isSubmittingQevRating, setIsSubmittingQevRating] = useState(false);
+  const [qevRatingError, setQevRatingError] = useState<string | null>(null);
   const lastCheckpointResumeRef = useRef<number | null>(null);
   // Preview-only stand-in for the persisted CheckpointAttempt rows: the latest
   // graded result per checkpoint, used to compute the end-of-lesson grade the
@@ -938,11 +943,40 @@ export function LessonVideoPage({
       return;
     }
     if (result.passed) {
-      setModalState('lessonComplete');
+      // The QEV rating is required, so passing students rate before they see the
+      // completion card. Instructor previews and review re-watches skip it: the
+      // former has no student to attribute a rating to, the latter would
+      // double-count a lesson the student already rated.
+      setModalState(previewMode || reviewMode ? 'lessonComplete' : 'lessonRating');
       return;
     }
     resetClientProgressAfterFailure(result);
-  }, [finalizeLessonAssessment, resetClientProgressAfterFailure]);
+  }, [finalizeLessonAssessment, previewMode, resetClientProgressAfterFailure, reviewMode]);
+
+  // QEV rating. Required after passing, so it starts unset (no default 3 that a
+  // student could submit without reading) and blocks the completion card.
+  const submitQevRating = useCallback(async () => {
+    if (qevRating == null || isSubmittingQevRating) return;
+
+    setIsSubmittingQevRating(true);
+    setQevRatingError(null);
+    try {
+      const response = await fetch(`/api/lessons/${lesson.id}/survey`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: studentEmail, rating: qevRating }),
+      });
+      const body = (await response.json().catch(() => ({}))) as { error?: string };
+      if (!response.ok) {
+        throw new Error(body.error || 'Unable to save your rating.');
+      }
+      setModalState('lessonComplete');
+    } catch (error) {
+      setQevRatingError(error instanceof Error ? error.message : 'Unable to save your rating.');
+    } finally {
+      setIsSubmittingQevRating(false);
+    }
+  }, [isSubmittingQevRating, lesson.id, qevRating, studentEmail]);
 
   const resetAfterCheckpoint = useCallback(
     (resumeBaseTime?: number, resumeOffset = 0.5) => {
@@ -1185,6 +1219,7 @@ export function LessonVideoPage({
     if (
       modalState === 'question' ||
       modalState === 'result' ||
+      modalState === 'lessonRating' ||
       modalState === 'lessonComplete' ||
       modalState === 'lessonFailed'
     ) {
@@ -1553,6 +1588,35 @@ export function LessonVideoPage({
                   ) : null}
                 </div>
               </div>
+
+              {modalState === 'lessonRating' ? (
+                <SurveyModal
+                  title="How was this lesson?"
+                  question={`Rate your experience with "${lesson.title}" before you finish.`}
+                  options={surveyFaceOptions()}
+                  value={qevRating ?? 0}
+                  onChange={setQevRating}
+                  onSubmit={submitQevRating}
+                  submitLabel={qevRating == null ? 'Pick a rating' : 'Submit rating'}
+                  submitDisabled={qevRating == null}
+                  isSubmitting={isSubmittingQevRating}
+                  error={qevRatingError}
+                  errorAfterOptions
+                  classNames={{
+                    overlay: styles.lessonSurveyOverlay,
+                    modal: styles.lessonSurveyModal,
+                    title: styles.lessonSurveyTitle,
+                    question: styles.lessonSurveyQuestion,
+                    error: styles.lessonSurveyError,
+                    options: styles.lessonSurveyFaces,
+                    option: styles.lessonSurveyFace,
+                    selectedOption: styles.lessonSurveyFaceSelected,
+                    optionImage: styles.lessonSurveyFaceImage,
+                    selectedOptionImage: styles.lessonSurveyFaceImageSelected,
+                    submit: styles.lessonSurveySubmit,
+                  }}
+                />
+              ) : null}
 
               {modalState === 'success' || modalState === 'lessonComplete' || modalState === 'lessonFailed' ? (
                 <div className={styles.overlay}>

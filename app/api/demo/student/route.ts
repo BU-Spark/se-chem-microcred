@@ -5,10 +5,12 @@ import {
   CourseRole,
   EnrollmentStatus,
   LessonStatus,
+  type Prisma,
   SegmentStatus,
   SurveyContext,
 } from '@prisma/client';
 import prisma from '../../../../lib/prisma';
+import { resolveBadgeCourseId, studentBadgeScope } from '../../../../lib/students/badgeScope';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
@@ -44,6 +46,22 @@ function formatLastFirst(fullName?: string | null) {
   return `${last}, ${first}`;
 }
 
+// Shared by both studentBadge reads below — the initial load and the refetch that
+// follows a badge sync. They must stay identical or formatBadge sees two shapes.
+const STUDENT_BADGE_INCLUDE = {
+  badge: {
+    include: {
+      requirements: {
+        include: {
+          lesson: {
+            select: { courseId: true, slug: true, title: true },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.StudentBadgeInclude;
+
 function groupBadgesByStatus(badges: Array<ReturnType<typeof formatBadge>>) {
   return badges.reduce(
     (acc, badge) => {
@@ -67,6 +85,7 @@ function formatBadge(
     score: number | null;
     awardedAt: Date | null;
     cooldownUntil?: Date | null;
+    qevWaivedAt?: Date | null;
     badge: {
       id: string;
       slug: string;
@@ -86,8 +105,7 @@ function formatBadge(
   // status into its two sub-states (pass → rate to finalize, fail → review feedback).
   latestAttemptPassed: boolean | null = null
 ) {
-  const courseId = studentBadge.badge.requirements.find((requirement) => requirement.lesson?.courseId)?.lesson
-    ?.courseId;
+  const courseId = resolveBadgeCourseId(studentBadge.badge.requirements);
 
   const youtubeUrl = studentBadge.badge.requirements
     .map((requirement) => parseRequirementYoutubeUrl(requirement.summary))
@@ -107,6 +125,10 @@ function formatBadge(
     score: studentBadge.score ?? null,
     latestAttemptPassed,
     cooldownUntil: studentBadge.cooldownUntil?.toISOString() ?? null,
+    // An instructor cleared the lesson requirement for this student. Their lesson
+    // progress is untouched, so without this the assessment would appear to have
+    // unlocked itself.
+    qevWaivedAt: studentBadge.qevWaivedAt?.toISOString() ?? null,
     youtubeUrl: youtubeUrl ?? null,
     requirements: studentBadge.badge.requirements.map((requirement) => ({
       summary: requirement.summary,
@@ -326,6 +348,16 @@ export async function GET(req: Request) {
   const studentSections = new Set((enrollment?.sections ?? []).map((s) => s.section));
   const primarySection = enrollment?.sections[0]?.section ?? enrollment?.course.section ?? null;
 
+  // Badges are only course-scoped when the caller asked for a course. /badges (the
+  // Badge Passport) and Home read this same endpoint with no courseId and are
+  // cross-course by design; the course dashboard passes one and must not see badges
+  // the student earned elsewhere.
+  const badgeScope = studentBadgeScope({
+    studentId: student.id,
+    courseId: enrollment?.courseId ?? null,
+    courseRequested: Boolean(requestedCourseId),
+  });
+
   // Build the instructor + checker contact list from enrollments (the section-aware source
   // of truth) rather than CourseContact (which has no section). The query is folded into the
   // Promise.all below so it runs in parallel with the other reads instead of adding a serial
@@ -374,20 +406,8 @@ export async function GET(req: Request) {
     fetchLessonProgress(student.id),
     enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
     prisma.studentBadge.findMany({
-      where: { studentId: student.id },
-      include: {
-        badge: {
-          include: {
-            requirements: {
-              include: {
-                lesson: {
-                  select: { courseId: true, slug: true, title: true },
-                },
-              },
-            },
-          },
-        },
-      },
+      where: badgeScope,
+      include: STUDENT_BADGE_INCLUDE,
     }),
     prisma.checkpointAttempt.findMany({
       // archivedAt: null excludes sealed failed-run answers so the student's
@@ -457,20 +477,8 @@ export async function GET(req: Request) {
     });
 
     studentBadges = await prisma.studentBadge.findMany({
-      where: { studentId: student.id },
-      include: {
-        badge: {
-          include: {
-            requirements: {
-              include: {
-                lesson: {
-                  select: { courseId: true, slug: true, title: true },
-                },
-              },
-            },
-          },
-        },
-      },
+      where: badgeScope,
+      include: STUDENT_BADGE_INCLUDE,
     });
   }
 
@@ -719,6 +727,7 @@ export async function GET(req: Request) {
       score: null,
       latestAttemptPassed: null,
       cooldownUntil: null,
+      qevWaivedAt: null,
       requirements: [] as Array<{ summary: string | null; lessonSlug: string | null; lessonTitle: string | null }>,
     }));
   const notStartedBadges = [...neverAttemptedBadges, ...unstartedLearningBadges];
@@ -747,6 +756,13 @@ export async function GET(req: Request) {
       .map((badge) => badge.badgeId)
   );
 
+  // Entries carry their badge's course so the client can filter them the same way it
+  // filters badges.inReview. Without it a client could only course-check half of the
+  // two "ready to finalize" sources.
+  const badgeCourseIdByBadgeId = new Map(
+    studentBadges.map((entry) => [entry.badgeId, resolveBadgeCourseId(entry.badge.requirements)] as const)
+  );
+
   const pendingBadgeSurveys = badgeSurveyPrompts
     .filter(
       (prompt) =>
@@ -755,6 +771,7 @@ export async function GET(req: Request) {
     .map((prompt) => ({
       promptId: prompt.id,
       badgeId: prompt.badgeId as string,
+      courseId: badgeCourseIdByBadgeId.get(prompt.badgeId as string) ?? null,
       badgeSlug: prompt.badgeSlug,
       badgeName: prompt.badgeName,
       question: prompt.question,

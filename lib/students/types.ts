@@ -76,6 +76,8 @@ export interface BadgeRecord {
   status: BadgeStatus;
   awardedAt: string | null;
   score: number | null;
+  // Set when an instructor waived the video-lesson requirement for this student.
+  qevWaivedAt?: string | null;
   youtubeUrl: string | null;
   requirements: Array<{
     summary: string | null;

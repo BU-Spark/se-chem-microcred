@@ -509,14 +509,9 @@ function HomeContent() {
     const slug = searchParams.get('surveyBadge');
     if (!slug) return;
 
-    const match = pendingSurveyBadges.find((e) => e.badgeSlug === slug) ?? pendingSurveyBadges[0] ?? null;
-
-    if (match) {
-      setActiveSurvey(match);
-      setSurveyRating(3);
-      setSurveyError(null);
-    }
-  }, [pendingSurveyBadges, searchParams]);
+    const target = pendingSurveyBadges.find((entry) => entry.badgeSlug === slug)?.badgeSlug ?? slug;
+    router.replace(`/badges/${encodeURIComponent(target)}/feedback`);
+  }, [pendingSurveyBadges, router, searchParams]);
 
   useEffect(() => {
     if (pendingSurveyBadges.length === 0) {

@@ -37,6 +37,8 @@ type SurveyModalProps = {
   submitLabel?: string;
   submittingLabel?: string;
   isSubmitting?: boolean;
+  /** Blocks submit until the caller's precondition is met (e.g. a required rating is picked). */
+  submitDisabled?: boolean;
   error?: string | null;
   errorAfterOptions?: boolean;
   onClose?: () => void;
@@ -54,6 +56,7 @@ export default function SurveyModal({
   submitLabel = 'Submit',
   submittingLabel = 'Submitting…',
   isSubmitting = false,
+  submitDisabled = false,
   error,
   errorAfterOptions = false,
   onClose,
@@ -120,7 +123,7 @@ export default function SurveyModal({
         </p>
       ) : null}
 
-      <button type="button" className={classNames.submit} onClick={onSubmit} disabled={isSubmitting}>
+      <button type="button" className={classNames.submit} onClick={onSubmit} disabled={isSubmitting || submitDisabled}>
         {isSubmitting ? submittingLabel : submitLabel}
       </button>
     </Modal>
