@@ -242,13 +242,28 @@ function HomePageContent() {
   const courseSection = studentData?.course?.section ?? null;
   const courseDescription = studentData?.course?.description ?? '';
   const courseContacts = studentData?.course?.contacts ?? [];
-  const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
+  // Defence in depth behind the API's course scoping: this dashboard is one course,
+  // so a badge earned in another one must never reach the finalize list. A badge with
+  // no derivable course (no lesson-backed requirement) is kept — it belongs to no
+  // other course either, and dropping it would strand the student.
+  const belongsToThisCourse = useCallback(
+    (badgeCourseId: string | null | undefined) => !courseId || !badgeCourseId || badgeCourseId === courseId,
+    [courseId]
+  );
+
+  const pendingSurveyBadges = useMemo(
+    () => (studentData?.surveys?.pendingBadge ?? []).filter((entry) => belongsToThisCourse(entry.courseId)),
+    [studentData, belongsToThisCourse]
+  );
   // Finalization is the pass-path of IN_REVIEW: a passing attempt awaiting the
   // student's acknowledge + rating. Fail-path IN_REVIEW badges are handled on the
   // feedback page, not here.
   const readyForFinalization = useMemo(
-    () => (studentData?.badges?.inReview ?? []).filter((badge) => badge.latestAttemptPassed === true),
-    [studentData]
+    () =>
+      (studentData?.badges?.inReview ?? []).filter(
+        (badge) => badge.latestAttemptPassed === true && belongsToThisCourse(badge.courseId)
+      ),
+    [studentData, belongsToThisCourse]
   );
 
   // Merge both "ready" sources so neither hides the other, deduping by badgeId.
@@ -265,6 +280,7 @@ function HomePageContent() {
       merged.push({
         promptId: `auto-${badge.id}`,
         badgeId: badge.id,
+        courseId: badge.courseId,
         badgeSlug: badge.slug,
         badgeName: badge.name,
         question: `Complete the final survey for ${badge.name}`,

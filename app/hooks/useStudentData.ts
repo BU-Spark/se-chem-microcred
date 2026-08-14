@@ -82,6 +82,9 @@ export interface StudentData {
     pendingBadge: Array<{
       promptId: string;
       badgeId: string;
+      // The badge's course, so course-scoped surfaces can filter these the same
+      // way they filter badges.inReview. Null when no requirement is lesson-backed.
+      courseId: string | null;
       badgeSlug: string | null;
       badgeName: string | null;
       question: string;

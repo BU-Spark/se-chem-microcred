@@ -319,4 +319,77 @@ describe('Course dashboard page', () => {
       expect(screen.queryByText(/Your instructor cleared this requirement/)).not.toBeInTheDocument();
     });
   });
+
+  // "Ready to finalize" is a per-course list. The API scopes it too, but a badge
+  // finalizable in course A used to render on every other course's dashboard, so
+  // both sources are filtered here as well.
+  describe('a badge ready to finalize in a different course', () => {
+    const readyBadge = (courseId: string | null) => ({
+      ...makeBadge('safety', 'IN_REVIEW', true),
+      courseId,
+    });
+
+    const dataWith = (overrides: Record<string, unknown>) => ({
+      data: {
+        student: { name: 'Student Demo', email: 'student@example.edu' },
+        lessons: { upNext: [], inProgress: [], completed: [] },
+        badges: { inReview: [] },
+        surveys: { pendingBadge: [] },
+        ...overrides,
+      },
+      isLoading: false,
+      refresh: jest.fn(),
+    });
+
+    it('stays out of this course panel and its count', async () => {
+      mockUseStudentData.mockReturnValue(dataWith({ badges: { inReview: [readyBadge('course-99')] } }));
+
+      render(<CourseDashboardPage />);
+
+      expect(await screen.findByText('No badges ready to finalize right now.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Review & Finalize' })).not.toBeInTheDocument();
+    });
+
+    it('stays out when it arrives as a pending survey instead', async () => {
+      // pendingBadge is the second, independent source feeding the same panel.
+      mockUseStudentData.mockReturnValue(
+        dataWith({
+          surveys: {
+            pendingBadge: [
+              {
+                promptId: 'p1',
+                badgeId: 'b1',
+                courseId: 'course-99',
+                badgeSlug: 'safety',
+                badgeName: 'Safety',
+                question: 'How was it?',
+              },
+            ],
+          },
+        })
+      );
+
+      render(<CourseDashboardPage />);
+
+      expect(await screen.findByText('No badges ready to finalize right now.')).toBeInTheDocument();
+    });
+
+    it('still shows a badge that belongs to this course', async () => {
+      mockUseStudentData.mockReturnValue(dataWith({ badges: { inReview: [readyBadge('course-2')] } }));
+
+      render(<CourseDashboardPage />);
+
+      expect(await screen.findByRole('button', { name: 'Review & Finalize' })).toBeInTheDocument();
+    });
+
+    it('still shows a badge with no derivable course, which belongs to no course', async () => {
+      // No lesson-backed requirement means no courseId. Hiding it would strand the
+      // student: nothing else surfaces it.
+      mockUseStudentData.mockReturnValue(dataWith({ badges: { inReview: [readyBadge(null)] } }));
+
+      render(<CourseDashboardPage />);
+
+      expect(await screen.findByRole('button', { name: 'Review & Finalize' })).toBeInTheDocument();
+    });
+  });
 });
