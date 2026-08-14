@@ -159,6 +159,10 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Badge name is required.' }, { status: 400 });
     }
 
+    if (availableOn && closesOn && closesOn <= availableOn) {
+      return NextResponse.json({ error: 'Badge due date must be after its availability date.' }, { status: 400 });
+    }
+
     const updated = await executeBadgePatchTx({
       editorId: editor.id,
       badgeId,
@@ -246,6 +250,10 @@ export async function POST(req: NextRequest) {
 
     if (!badgeName) {
       return NextResponse.json({ error: 'Badge name is required.' }, { status: 400 });
+    }
+
+    if (availableOn && closesOn && closesOn <= availableOn) {
+      return NextResponse.json({ error: 'Badge due date must be after its availability date.' }, { status: 400 });
     }
 
     const created = await executeBadgeCreationTx({

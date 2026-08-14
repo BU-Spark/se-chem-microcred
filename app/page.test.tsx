@@ -105,6 +105,15 @@ describe('Courses Page', () => {
           learning: [],
           locked: [],
         },
+        analytics: {
+          hoursLearning: 12,
+          badgesCompleted: 4,
+          badgesReadyForAssessment: 2,
+          badgesNotAttempted: 1,
+          questionsAnswered: 30,
+          averageAssessmentScore: 88,
+          highestAssessmentScore: 96,
+        },
         surveys: {
           lesson: [],
           badge: [],
@@ -119,6 +128,47 @@ describe('Courses Page', () => {
     mockFetch.mockReset();
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
+
+      if (url === '/api/dashboard/analytics') {
+        return {
+          ok: true,
+          json: async () => ({
+            instructor: {
+              readyForAssessment: 7,
+              awaitingStudentReview: 3,
+              pendingCheckerRequests: 1,
+              upcomingDeadlines: 2,
+            },
+            student: {
+              lessonsNotStarted: 5,
+              lessonsInProgress: 2,
+              readyForAssessment: 1,
+              upcomingDeadlines: 3,
+              overdueLessons: 1,
+            },
+            checker: { readyForAssessment: 4, awaitingStudentReview: 2, upcomingDeadlines: 1 },
+            byCourse: {
+              instructor: {
+                'created-course-1': { students: 18, badges: 4, active: 1 },
+                'created-course-2': { students: 0, badges: 1, active: 0 },
+              },
+              student: {
+                'course-1': { lessonsNotStarted: 2, lessonsInProgress: 1, upcomingDeadlines: 1, overdueLessons: 0 },
+                'course-2': { lessonsNotStarted: 3, lessonsInProgress: 1, upcomingDeadlines: 2, overdueLessons: 1 },
+              },
+              checker: {
+                'checker-course-1': {
+                  sections: 1,
+                  readyForAssessment: 4,
+                  awaitingStudentReview: 2,
+                  upcomingDeadlines: 1,
+                },
+              },
+            },
+            windowDays: 14,
+          }),
+        };
+      }
 
       if (url === '/api/courses/mine') {
         return {
@@ -256,7 +306,7 @@ describe('Courses Page', () => {
     });
 
     // The three per-role fetches are consolidated into a single request.
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
 
     expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
     expect(screen.getByText('Created Course 2')).toBeInTheDocument();
@@ -270,8 +320,10 @@ describe('Courses Page', () => {
       '/courses/created-course-2'
     );
     expect(screen.queryByText('Checker Course 1')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Created Course 1 analytics')).toHaveTextContent('18Students4BadgesActiveStatus');
 
     fireEvent.click(screen.getByRole('tab', { name: /Checker/ }));
+    expect(screen.getByLabelText('Checker Course 1 analytics')).toHaveTextContent('1Sections4Students to assess');
     expect(screen.getByText('Checker Course 1')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Checker Course 1' })).toHaveAttribute(
       'href',
@@ -279,6 +331,9 @@ describe('Courses Page', () => {
     );
 
     fireEvent.click(screen.getByRole('tab', { name: /Enrolled/ }));
+    expect(screen.getByLabelText('General Chemistry analytics')).toHaveTextContent(
+      '2To start1In progress1Due soon0Overdue'
+    );
     expect(screen.getByText('General Chemistry')).toBeInTheDocument();
     expect(screen.getByText('Organic Chemistry')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open General Chemistry' })).toHaveAttribute(
@@ -302,6 +357,29 @@ describe('Courses Page', () => {
   it('does not show a create-course modal when the user has no courses', async () => {
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
+
+      if (url === '/api/dashboard/analytics') {
+        return {
+          ok: true,
+          json: async () => ({
+            instructor: {
+              readyForAssessment: 0,
+              awaitingStudentReview: 0,
+              pendingCheckerRequests: 0,
+              upcomingDeadlines: 0,
+            },
+            student: {
+              lessonsNotStarted: 0,
+              lessonsInProgress: 0,
+              readyForAssessment: 0,
+              upcomingDeadlines: 0,
+              overdueLessons: 0,
+            },
+            checker: { readyForAssessment: 0, awaitingStudentReview: 0, upcomingDeadlines: 0 },
+            windowDays: 14,
+          }),
+        };
+      }
 
       if (url === '/api/courses/mine') {
         return {

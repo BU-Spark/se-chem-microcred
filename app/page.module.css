@@ -930,6 +930,136 @@
   line-height: 1.5;
 }
 
+.analyticsBox {
+  overflow: hidden;
+  border: 1px solid #dfe5ed;
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgb(27 48 73 / 5%);
+}
+
+.analyticsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-bottom: 1px solid #e7ebf0;
+  background: #fbfcfe;
+}
+
+.analyticsEyebrow {
+  margin: 0 0 0.2rem;
+  color: #2e6aa9;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.analyticsTitle {
+  margin: 0;
+  color: #1d2b3c;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.analyticsHeaderIcon {
+  width: 24px;
+  height: 24px;
+  color: #2e6aa9;
+}
+
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+}
+
+.analyticsMetric {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  gap: 0.8rem;
+  min-width: 0;
+  padding: 1.2rem 1.25rem;
+  border-right: 1px solid #e7ebf0;
+}
+
+.analyticsMetric:last-child {
+  border-right: 0;
+}
+
+.analyticsMetricIcon {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 11px;
+  background: #eaf2fb;
+  color: #2e6aa9;
+}
+
+.analyticsMetricIcon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.greenMetric .analyticsMetricIcon {
+  background: #e9f7f0;
+  color: #168153;
+}
+
+.amberMetric .analyticsMetricIcon {
+  background: #fff4df;
+  color: #b66c00;
+}
+
+.slateMetric .analyticsMetricIcon {
+  background: #eef1f5;
+  color: #566579;
+}
+
+.analyticsMetricLabel,
+.analyticsMetricDetail {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.analyticsError {
+  margin: 0;
+  padding: 0.85rem 1rem;
+  border: 1px solid #f1d4d1;
+  border-radius: 10px;
+  background: #fff8f7;
+  color: #9b3f36;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.86rem;
+}
+
+.analyticsMetricLabel {
+  color: #52657a;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.analyticsMetricValue {
+  display: block;
+  margin-top: 0.25rem;
+  color: #16263b;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.analyticsMetricDetail {
+  margin-top: 0.35rem;
+  color: #718094;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
 .courseActions {
   display: flex;
   align-items: center;
@@ -1031,11 +1161,72 @@
 /* Home course grid — wider cards to match the Figma 391px tile */
 .myCoursesGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 280px));
+  grid-template-columns: repeat(auto-fill, minmax(330px, 430px));
   gap: 1.5rem;
   align-items: start;
   justify-content: start;
   max-width: none;
+}
+
+.courseCardMetrics {
+  display: flex;
+  min-width: 90px;
+  flex-direction: column;
+  align-self: stretch;
+  gap: 0;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #dfe5ed;
+  border-left: 0;
+  border-radius: 0 16px 16px 0;
+  background: #ffffff;
+}
+
+.courseCardWithMetrics.courseCardWithMetrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px;
+  align-items: stretch;
+  gap: 0;
+}
+
+.courseCardWithMetrics.courseCardWithMetrics > :first-child {
+  height: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 16px 0 0 16px;
+}
+
+.courseCardMetric {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  flex: 1;
+  justify-content: center;
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid #e7ebf0;
+  text-align: center;
+}
+
+.courseCardMetric:last-child {
+  border-bottom: 0;
+}
+
+.courseCardMetric strong {
+  overflow: hidden;
+  color: #1d2b3c;
+  font:
+    800 0.95rem/1.1 'Lato',
+    sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.courseCardMetric span {
+  color: #687789;
+  font:
+    600 0.66rem/1.25 'Open Sans',
+    sans-serif;
 }
 
 .addTile {
@@ -1748,6 +1939,18 @@
   .courseActions {
     justify-content: flex-start;
   }
+
+  .analyticsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analyticsMetric:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .analyticsMetric:nth-child(n + 3) {
+    border-top: 1px solid #e7ebf0;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1783,6 +1986,27 @@
 
   .myCoursesGrid {
     grid-template-columns: 1fr;
+  }
+
+  .courseCardWithMetrics {
+    grid-template-columns: minmax(0, 1fr) 86px;
+  }
+
+  .courseCardMetrics {
+    min-width: 86px;
+  }
+
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .analyticsMetric,
+  .analyticsMetric:nth-child(2n) {
+    border-right: 0;
+  }
+
+  .analyticsMetric + .analyticsMetric {
+    border-top: 1px solid #e7ebf0;
   }
 
   .dupModal,

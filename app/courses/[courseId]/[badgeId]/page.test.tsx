@@ -45,6 +45,7 @@ describe('Course badge progress page', () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
+        viewerRole: 'INSTRUCTOR',
         course: {
           id: 'course-1',
           title: 'Chemistry 101',
@@ -81,6 +82,14 @@ describe('Course badge progress page', () => {
           inReviewPercent: 0,
           lockedPercent: 0,
           averageScore: 92,
+          videoInProgressCount: 0,
+          videoCompletedOnlyCount: 1,
+          inPersonFailedCount: 0,
+          videoInProgressPercent: 0,
+          videoCompletedOnlyPercent: 33,
+          inPersonFailedPercent: 0,
+          feedbackResponseCount: 1,
+          averageRating: 5,
         },
         assessment: {
           displayText: 'Use the burner safely.',
@@ -120,6 +129,16 @@ describe('Course badge progress page', () => {
               updatedAt: '2026-01-04T00:00:00.000Z',
             },
             status: 'COMPLETED',
+            analyticsStatus: 'PROFICIENT',
+            stillLearningReason: null,
+            videoStatus: 'COMPLETED',
+            assessmentAttemptCount: 1,
+            feedback: {
+              rating: 5,
+              comment: 'Helpful',
+              submittedAt: '2026-01-05T00:00:00.000Z',
+              question: 'How was it?',
+            },
           },
           {
             enrollmentId: 'enrollment-2',
@@ -132,6 +151,11 @@ describe('Course badge progress page', () => {
             },
             progress: null,
             status: 'NOT_STARTED',
+            analyticsStatus: 'NOT_STARTED',
+            stillLearningReason: null,
+            videoStatus: 'NOT_STARTED',
+            assessmentAttemptCount: 0,
+            feedback: null,
           },
         ],
       }),
@@ -150,7 +174,12 @@ describe('Course badge progress page', () => {
     expect(screen.getAllByText('33%').length).toBeGreaterThan(0);
     expect(screen.getByText('Average assessment score')).toBeInTheDocument();
     expect(screen.getByText('Ready for assessment')).toBeInTheDocument();
-    expect(screen.getByText('Got checkd on their first try')).toBeInTheDocument();
+    expect(screen.getByText('Proficient')).toBeInTheDocument();
+    expect(screen.getByText('Still Learning')).toBeInTheDocument();
+    expect(screen.getByText('Not Started')).toBeInTheDocument();
+    expect(screen.getByText('Still Learning details')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'View badge roster' })).toBeInTheDocument();
+    expect(screen.getAllByText('5/5')).toHaveLength(2);
     expect(screen.getByText('Students who have completed this badge')).toBeInTheDocument();
     expect(screen.getByText('3 questions')).toBeInTheDocument();
     expect(screen.getByText('Checkpoint')).toBeInTheDocument();

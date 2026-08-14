@@ -418,6 +418,12 @@ export default function InstructorStudentProfilePage() {
       <main className={styles.main}>
         <div className={styles.content}>
           <header className={styles.header}>
+            {courseId ? (
+              <Link href={`/courses/${courseId}`} className={styles.backLink}>
+                <span aria-hidden="true">←</span> Back to course
+              </Link>
+            ) : null}
+            <p className={styles.eyebrow}>{data?.course.title ?? 'Course roster'}</p>
             <h1 className={styles.pageTitle}>{currentProfileLabel} Profile</h1>
           </header>
 
@@ -559,19 +565,44 @@ export default function InstructorStudentProfilePage() {
                       </div>
                     </div>
 
-                    <section className={styles.badgeSection}>
-                      <h3 className={styles.badgeSectionTitle}>In-progress</h3>
-                      <BadgeGrid badges={data.badges.inProgress} onSelectBadge={handleBadgeSelect} />
-                    </section>
+                    <div className={styles.badgeSummary} aria-label="Badge progress overview">
+                      <article className={`${styles.summaryCard} ${styles.proficientSummary}`}>
+                        <span className={styles.summaryDot} aria-hidden="true" />
+                        <div>
+                          <p>Proficient</p>
+                          <strong>{data.badges.completed.length}</strong>
+                          <span>badges earned</span>
+                        </div>
+                      </article>
+                      <article className={`${styles.summaryCard} ${styles.learningSummary}`}>
+                        <span className={styles.summaryDot} aria-hidden="true" />
+                        <div>
+                          <p>Still Learning</p>
+                          <strong>{data.badges.inProgress.length + data.badges.inReview.length}</strong>
+                          <span>badges underway</span>
+                        </div>
+                      </article>
+                      <article className={`${styles.summaryCard} ${styles.pendingSummary}`}>
+                        <span className={styles.summaryDot} aria-hidden="true" />
+                        <div>
+                          <p>Not Started</p>
+                          <strong>{data.badges.notStarted.length}</strong>
+                          <span>badges remaining</span>
+                        </div>
+                      </article>
+                    </div>
 
                     <section className={styles.badgeSection}>
-                      <h3 className={styles.badgeSectionTitle}>In review</h3>
-                      <BadgeGrid badges={data.badges.inReview} tone="completed" onSelectBadge={handleBadgeSelect} />
+                      <h3 className={styles.badgeSectionTitle}>Still Learning</h3>
+                      <BadgeGrid
+                        badges={[...data.badges.inProgress, ...data.badges.inReview]}
+                        onSelectBadge={handleBadgeSelect}
+                      />
                     </section>
 
                     <section className={styles.badgeSection}>
                       <CollapsibleSection
-                        title="Not yet started"
+                        title="Not Started"
                         isOpen={isNotStartedOpen}
                         onToggle={() => setIsNotStartedOpen((current) => !current)}
                         panelId="not-started-badges"
@@ -586,7 +617,7 @@ export default function InstructorStudentProfilePage() {
 
                     <section className={styles.badgeSection}>
                       <CollapsibleSection
-                        title="Completed"
+                        title="Proficient"
                         isOpen={isCompletedOpen}
                         onToggle={() => setIsCompletedOpen((current) => !current)}
                         panelId="completed-badges"

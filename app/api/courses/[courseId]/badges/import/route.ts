@@ -47,6 +47,17 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
       return NextResponse.json({ error: 'Badge id is required.' }, { status: 400 });
     }
 
+    if (
+      (availableOnDate && Number.isNaN(availableOnDate.getTime())) ||
+      (closesOnDate && Number.isNaN(closesOnDate.getTime()))
+    ) {
+      return NextResponse.json({ error: 'Invalid badge availability date.' }, { status: 400 });
+    }
+
+    if (availableOnDate && closesOnDate && closesOnDate <= availableOnDate) {
+      return NextResponse.json({ error: 'Badge due date must be after its availability date.' }, { status: 400 });
+    }
+
     const imported = await executeBadgeImportTx({
       creatorId: creator.id,
       courseId,

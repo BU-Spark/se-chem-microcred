@@ -1,29 +1,56 @@
 .page {
   display: flex;
   min-height: calc(100vh - 80px);
-  background: #ffffff;
+  background: #f6f8fb;
   font-family: 'Open Sans', sans-serif;
 }
 
 .main {
   flex: 1;
   min-height: 100vh;
-  padding: 1.5rem 1.65rem 1.85rem;
-  background: #ffffff;
+  padding: 2rem clamp(1.5rem, 4vw, 4rem) 4rem;
+  background: #f6f8fb;
 }
 
 .content {
   width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
 }
 
 .header {
-  margin-bottom: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  width: fit-content;
+  color: #2e6aa9;
+  font:
+    700 0.9rem 'Open Sans',
+    sans-serif;
+  text-decoration: none;
+}
+
+.eyebrow {
+  margin: 0.25rem 0 -0.15rem;
+  color: #2e6aa9;
+  font:
+    700 0.75rem/1.2 'Open Sans',
+    sans-serif;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
 }
 
 .pageTitle {
   margin: 0;
   font-family: Lato, sans-serif;
-  font-size: 48px;
+  font-size: clamp(2rem, 4vw, 2.75rem);
   line-height: 1.05;
   font-weight: 700;
   color: #111111;
@@ -45,9 +72,10 @@
 .profileCard,
 .badgesCard,
 .detailCard {
-  border: 3px solid #d9d9d9;
-  border-radius: 1.85rem;
+  border: 1px solid #dfe5ed;
+  border-radius: 16px;
   background: #ffffff;
+  box-shadow: 0 8px 24px rgb(27 48 73 / 5%);
 }
 
 .profileCard {
@@ -294,7 +322,7 @@
 }
 
 .badgesCard {
-  padding: 1.25rem 1.8rem 1.1rem;
+  padding: clamp(1.25rem, 2.5vw, 2rem);
 }
 
 .badgesHeader {
@@ -302,14 +330,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 0.35rem;
+  margin-bottom: 1.2rem;
 }
 
 .badgesTitle {
   margin: 0;
   font-family: 'Lato', sans-serif;
-  font-size: clamp(2.1rem, 3vw, 2.45rem);
-  line-height: 0.98;
+  font-size: 1.5rem;
+  line-height: 1.2;
   font-weight: 700;
   color: #111111;
 }
@@ -324,12 +352,73 @@
 .badgesHint {
   font-family: 'Open Sans', sans-serif;
   font-size: 0.88rem;
-  font-style: italic;
-  color: #787878;
+  color: #687789;
+}
+
+.badgeSummary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+}
+
+.summaryCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid #e1e6ec;
+  border-radius: 12px;
+  background: #fafbfd;
+}
+
+.summaryDot {
+  width: 10px;
+  height: 10px;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+  background: #687789;
+}
+
+.proficientSummary .summaryDot {
+  background: #15945c;
+}
+.learningSummary .summaryDot {
+  background: #d78300;
+}
+.pendingSummary .summaryDot {
+  background: #687789;
+}
+.summaryCard p {
+  margin: 0;
+  color: #52657a;
+  font:
+    700 0.86rem 'Open Sans',
+    sans-serif;
+}
+.summaryCard strong {
+  display: block;
+  margin-top: 0.3rem;
+  color: #16263b;
+  font:
+    800 2rem/1 Lato,
+    sans-serif;
+}
+.summaryCard div > span {
+  display: block;
+  margin-top: 0.35rem;
+  color: #718094;
+  font:
+    0.78rem 'Open Sans',
+    sans-serif;
 }
 
 .badgeSection {
-  margin-top: 0.55rem;
+  margin-top: 0.85rem;
+  padding: 1rem;
+  border: 1px solid #e5e9ef;
+  border-radius: 12px;
+  background: #fbfcfe;
 }
 
 .badgeSectionTitle {
@@ -427,7 +516,7 @@
 }
 
 .detailCard {
-  padding: 1rem 1.45rem 1.25rem;
+  padding: clamp(1.25rem, 2.5vw, 2rem);
 }
 
 .detailCardHeader {
@@ -456,7 +545,9 @@
   grid-template-columns: minmax(220px, 270px) minmax(0, 1fr);
   gap: 2rem;
   align-items: center;
-  padding: 1rem 0 0.75rem;
+  padding: 1.25rem;
+  border-radius: 12px;
+  background: #f8fafc;
 }
 
 .progressSummaryColumn {
@@ -566,13 +657,13 @@
   padding: 4px;
   margin-bottom: 1rem;
   background: #eef2f6;
-  border-radius: 999px;
+  border-radius: 10px;
 }
 
 .detailTab {
   border: none;
   background: transparent;
-  border-radius: 999px;
+  border-radius: 8px;
   padding: 8px 14px;
   font-family: Lato, sans-serif;
   font-size: 0.9rem;
@@ -628,8 +719,8 @@
 }
 
 .gradingBox {
-  border: 1px solid #dedede;
-  border-radius: 1rem;
+  border: 1px solid #e1e6ec;
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -686,8 +777,8 @@
 }
 
 .answerCard {
-  border: 1px solid #dedede;
-  border-radius: 1rem;
+  border: 1px solid #e1e6ec;
+  border-radius: 12px;
   overflow: hidden;
 }
 
@@ -744,15 +835,18 @@
 .assessmentActionRow {
   display: flex;
   justify-content: flex-end;
-  margin-top: 0.9rem;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
 }
 
 .assessmentLink {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.9rem;
-  padding: 0.85rem 1.15rem;
+  border: 0;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
   background: #2e6aa9;
   color: #ffffff;
   font-family: 'Lato', sans-serif;
@@ -817,6 +911,10 @@
 
   .detailCard {
     padding: 1rem;
+  }
+
+  .badgeSummary {
+    grid-template-columns: 1fr;
   }
 
   .gradingRow,

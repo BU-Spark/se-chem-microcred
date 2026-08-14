@@ -291,12 +291,36 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                   updatedAt: true,
                 },
               },
+              assessmentAttempts: {
+                where: { courseId, badgeId },
+                orderBy: [{ completedAt: 'asc' }, { createdAt: 'asc' }],
+                select: {
+                  id: true,
+                  passed: true,
+                  completedAt: true,
+                  createdAt: true,
+                },
+              },
+              surveyResponses: {
+                where: {
+                  prompt: { badgeId, context: 'BADGE' },
+                },
+                orderBy: { submittedAt: 'desc' },
+                select: {
+                  id: true,
+                  rating: true,
+                  comment: true,
+                  submittedAt: true,
+                  prompt: { select: { id: true, question: true, context: true } },
+                },
+              },
               // Progress on the badge's requirement lessons, used to tell a
               // LEARNING row the student has actually worked on apart from one
               // eagerly created at badge creation/import (still "not started").
               lessonProgress: {
                 where: { lesson: { badgeRequirements: { some: { badgeId } } } },
                 select: {
+                  lessonId: true,
                   status: true,
                   startedAt: true,
                   completedAt: true,

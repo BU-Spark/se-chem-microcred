@@ -5,6 +5,7 @@ import prisma from '../../../../../lib/prisma';
 import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
 import { normalizeCheckpointQuestion } from '../../../../../lib/checkpointQuestions';
 import { evaluateCheckpointAttempt } from '../../../../../lib/checkpointGrading';
+import { isLessonClosed } from '../../../../../lib/badgeAvailability';
 
 interface AttemptRequestBody {
   email?: string;
@@ -58,7 +59,11 @@ export async function POST(request: Request, context: RouteContext) {
         questions: {
           orderBy: { sortOrder: 'asc' },
         },
-        lesson: true,
+        lesson: {
+          include: {
+            badgeRequirements: { select: { badge: { select: { closesOn: true, neverCloses: true } } } },
+          },
+        },
       },
     }),
   ]);
@@ -84,6 +89,15 @@ export async function POST(request: Request, context: RouteContext) {
       questions: evaluation,
       practice: true,
     });
+  }
+
+  if (
+    isLessonClosed(
+      checkpoint.lesson.dueDate,
+      (checkpoint.lesson.badgeRequirements ?? []).map((requirement) => requirement.badge)
+    )
+  ) {
+    return NextResponse.json({ error: 'This badge deadline has passed.' }, { status: 410 });
   }
 
   const attempt = await prisma.$transaction(async (tx) => {

@@ -3,6 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMyCourses } from './hooks/useMyCourses';
 import { useCanCreateContent } from './hooks/useCanCreateContent';
+import { useDashboardAnalytics } from './hooks/useDashboardAnalytics';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -30,6 +31,7 @@ import type { CourseImageFields } from '@/lib/courseImage';
 
 interface EnrolledCourseCardData extends CourseImageFields {
   id: string;
+  courseId: string;
   title: string;
   image?: string;
   href?: string;
@@ -76,6 +78,17 @@ type CheckerCourseEnrollment = {
   role: 'INSTRUCTOR' | 'CHECKER';
   sections: string[];
   course: CreatedCourse;
+};
+
+type CourseCardMetric = {
+  label: string;
+  value: number | string;
+};
+
+type AnalyticsMetric = CourseCardMetric & {
+  detail: string;
+  icon: string;
+  tone?: 'blue' | 'green' | 'amber' | 'slate';
 };
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
@@ -172,13 +185,21 @@ function resolveThumbnailUrl(course: CreatedCourse) {
   return candidate ? candidate : null;
 }
 
-function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: string }) {
+function CreatedCourseCard({
+  course,
+  href,
+  metrics,
+}: {
+  course: CreatedCourse;
+  href?: string;
+  metrics?: CourseCardMetric[];
+}) {
   const thumbnailUrl = resolveThumbnailUrl(course);
 
   return (
     <Link
       href={href ?? `/courses/${course.id}`}
-      className={courseStyles.courseCard}
+      className={`${courseStyles.courseCard} ${metrics?.length ? styles.courseCardWithMetrics : ''}`}
       data-testid="course-card"
       aria-label={`Open ${course.title}`}
     >
@@ -208,6 +229,16 @@ function CreatedCourseCard({ course, href }: { course: CreatedCourse; href?: str
           <Icon icon="lucide:arrow-up-right" className={courseStyles.courseCardArrow} aria-hidden="true" />
         </div>
       </div>
+      {metrics?.length ? (
+        <div className={styles.courseCardMetrics} aria-label={`${course.title} analytics`}>
+          {metrics.map((metric) => (
+            <span key={metric.label} className={styles.courseCardMetric}>
+              <strong>{metric.value}</strong>
+              <span>{metric.label}</span>
+            </span>
+          ))}
+        </div>
+      ) : null}
     </Link>
   );
 }
@@ -217,6 +248,7 @@ function enrollmentToCard(enrollment: EnrolledCourse): EnrolledCourseCardData {
 
   return {
     id: enrollment.id,
+    courseId: course.id,
     title: course.title,
     image: resolvePreviewImage(course.lessons[0]),
     href: `/course_dashboard?courseId=${course.id}`,
@@ -250,6 +282,11 @@ function HomeContent() {
     mutate: refreshCourses,
   } = useMyCourses(isLoaded && isSignedIn);
   const { canCreateContent } = useCanCreateContent(isLoaded && isSignedIn);
+  const {
+    data: dashboardAnalytics,
+    isLoading: isLoadingDashboardAnalytics,
+    error: dashboardAnalyticsError,
+  } = useDashboardAnalytics(isLoaded && isSignedIn);
   const coursesError = fetchError
     ? fetchError instanceof Error
       ? fetchError.message
@@ -346,6 +383,104 @@ function HomeContent() {
     () => (enrolled?.enrollments ?? []).map((e: EnrolledCourse) => enrollmentToCard(e)),
     [enrolled]
   );
+
+  const instructorAnalytics = useMemo<AnalyticsMetric[]>(
+    () => [
+      {
+        label: 'Need assessment',
+        value: dashboardAnalytics?.instructor.readyForAssessment ?? 0,
+        detail: 'students ready for an in-person assessment',
+        icon: 'lucide:clipboard-check',
+        tone: 'amber',
+      },
+      {
+        label: 'Awaiting student review',
+        value: dashboardAnalytics?.instructor.awaitingStudentReview ?? 0,
+        detail: 'assessments submitted with feedback to review',
+        icon: 'lucide:message-square-text',
+        tone: 'blue',
+      },
+      {
+        label: 'Checker requests',
+        value: dashboardAnalytics?.instructor.pendingCheckerRequests ?? 0,
+        detail: 'pending checker access requests',
+        icon: 'lucide:user-round-check',
+        tone: 'green',
+      },
+      {
+        label: 'Upcoming deadlines',
+        value: dashboardAnalytics?.instructor.upcomingDeadlines ?? 0,
+        detail: `lesson deadlines in the next ${dashboardAnalytics?.windowDays ?? 14} days`,
+        icon: 'lucide:calendar-clock',
+        tone: 'slate',
+      },
+    ],
+    [dashboardAnalytics]
+  );
+
+  const enrolledAnalytics = useMemo<AnalyticsMetric[]>(
+    () => [
+      {
+        label: 'Lessons to start',
+        value: dashboardAnalytics?.student.lessonsNotStarted ?? 0,
+        detail: 'assigned lessons not yet started',
+        icon: 'lucide:play-circle',
+        tone: 'amber',
+      },
+      {
+        label: 'Continue learning',
+        value: dashboardAnalytics?.student.lessonsInProgress ?? 0,
+        detail: 'lessons currently in progress',
+        icon: 'lucide:book-open-check',
+        tone: 'blue',
+      },
+      {
+        label: 'Ready for assessment',
+        value: dashboardAnalytics?.student.readyForAssessment ?? 0,
+        detail: 'badges ready for in-person assessment',
+        icon: 'lucide:circle-check-big',
+        tone: 'green',
+      },
+      {
+        label: 'Due soon',
+        value: dashboardAnalytics?.student.upcomingDeadlines ?? 0,
+        detail: `${dashboardAnalytics?.student.overdueLessons ?? 0} overdue · next ${dashboardAnalytics?.windowDays ?? 14} days`,
+        icon: 'lucide:calendar-clock',
+        tone: dashboardAnalytics?.student.overdueLessons ? 'amber' : 'slate',
+      },
+    ],
+    [dashboardAnalytics]
+  );
+
+  const checkerAnalytics = useMemo<AnalyticsMetric[]>(
+    () => [
+      {
+        label: 'Need assessment',
+        value: dashboardAnalytics?.checker.readyForAssessment ?? 0,
+        detail: 'students ready within your assigned sections',
+        icon: 'lucide:clipboard-check',
+        tone: 'amber',
+      },
+      {
+        label: 'Awaiting student review',
+        value: dashboardAnalytics?.checker.awaitingStudentReview ?? 0,
+        detail: 'submitted assessments awaiting acknowledgement',
+        icon: 'lucide:message-square-text',
+        tone: 'blue',
+      },
+      {
+        label: 'Upcoming deadlines',
+        value: dashboardAnalytics?.checker.upcomingDeadlines ?? 0,
+        detail: `assigned-course deadlines in the next ${dashboardAnalytics?.windowDays ?? 14} days`,
+        icon: 'lucide:calendar-clock',
+        tone: 'slate',
+      },
+    ],
+    [dashboardAnalytics]
+  );
+  void instructorAnalytics;
+  void enrolledAnalytics;
+  void checkerAnalytics;
 
   const isLoadingRoles = isLoadingCreated || isLoadingCheckerCourses || isLoadingEnrolled;
   useEffect(() => {
@@ -528,12 +663,13 @@ function HomeContent() {
     const imageSrc = course.image ?? DEFAULT_LESSON_IMAGE;
     const isYouTubeThumb =
       imageSrc.includes('ytimg.com') || imageSrc.includes('youtube.com') || imageSrc.includes('img.youtube.com');
+    const analytics = dashboardAnalytics?.byCourse?.student?.[course.courseId] ?? {};
 
     return (
       <Link
         key={course.id}
         href={course.href ?? '#'}
-        className={courseStyles.courseCard}
+        className={`${courseStyles.courseCard} ${styles.courseCardWithMetrics}`}
         data-testid="enrolled-course-card"
         aria-label={`Open ${course.title}`}
       >
@@ -564,6 +700,26 @@ function HomeContent() {
             <Icon icon="lucide:arrow-up-right" className={courseStyles.courseCardArrow} aria-hidden="true" />
           </div>
         </div>
+        {!isLoadingDashboardAnalytics ? (
+          <div className={styles.courseCardMetrics} aria-label={`${course.title} analytics`}>
+            <span className={styles.courseCardMetric}>
+              <strong>{analytics.lessonsNotStarted ?? 0}</strong>
+              <span>To start</span>
+            </span>
+            <span className={styles.courseCardMetric}>
+              <strong>{analytics.lessonsInProgress ?? 0}</strong>
+              <span>In progress</span>
+            </span>
+            <span className={styles.courseCardMetric}>
+              <strong>{analytics.upcomingDeadlines ?? 0}</strong>
+              <span>Due soon</span>
+            </span>
+            <span className={styles.courseCardMetric}>
+              <strong>{analytics.overdueLessons ?? 0}</strong>
+              <span>Overdue</span>
+            </span>
+          </div>
+        ) : null}
       </Link>
     );
   };
@@ -684,11 +840,40 @@ function HomeContent() {
               </div>
             </div>
 
+            {!isLoadingDashboardAnalytics && dashboardAnalyticsError ? (
+              <p className={styles.analyticsError}>
+                Action items could not be loaded. Your course list is still available.
+              </p>
+            ) : null}
+
             {activeCourseTab === 'instructor' ? (
               <>
                 <div className={styles.myCoursesGrid} data-testid="created-courses-grid">
                   {createdCourses.map((course) => (
-                    <CreatedCourseCard key={course.id} course={course} />
+                    <CreatedCourseCard
+                      key={course.id}
+                      course={course}
+                      metrics={
+                        isLoadingDashboardAnalytics
+                          ? undefined
+                          : [
+                              {
+                                label: 'Students',
+                                value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.students ?? 0,
+                              },
+                              {
+                                label: 'Badges',
+                                value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.badges ?? 0,
+                              },
+                              {
+                                label: 'Status',
+                                value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.active
+                                  ? 'Active'
+                                  : 'Inactive',
+                              },
+                            ]
+                      }
+                    />
                   ))}
                 </div>
                 {isLoadingCreated ? <p className={courseStyles.statusMessage}>Loading instructor courses…</p> : null}
@@ -733,6 +918,22 @@ function HomeContent() {
                         key={enrollment.id}
                         course={enrollment.course}
                         href={`/courses/${enrollment.course.id}?view=checker`}
+                        metrics={
+                          isLoadingDashboardAnalytics
+                            ? undefined
+                            : [
+                                {
+                                  label: 'Sections',
+                                  value: dashboardAnalytics?.byCourse?.checker?.[enrollment.course.id]?.sections ?? 0,
+                                },
+                                {
+                                  label: 'Students to assess',
+                                  value:
+                                    dashboardAnalytics?.byCourse?.checker?.[enrollment.course.id]?.readyForAssessment ??
+                                    0,
+                                },
+                              ]
+                        }
                       />
                     ))}
                   </div>

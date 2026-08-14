@@ -153,6 +153,16 @@ describe('course badge detail API', () => {
                 percentComplete: 100,
               },
             ],
+            assessmentAttempts: [],
+            surveyResponses: [
+              {
+                id: 'survey-1',
+                rating: 5,
+                comment: 'Very useful',
+                submittedAt: new Date('2026-01-05T00:00:00.000Z'),
+                prompt: { id: 'prompt-1', question: 'How was this badge?', context: 'BADGE' },
+              },
+            ],
           },
         },
         {
@@ -182,6 +192,8 @@ describe('course badge detail API', () => {
                 percentComplete: 100,
               },
             ],
+            assessmentAttempts: [],
+            surveyResponses: [],
           },
         },
         {
@@ -195,6 +207,8 @@ describe('course badge detail API', () => {
             externalId: 'U3',
             badgeProgress: [],
             lessonProgress: [],
+            assessmentAttempts: [],
+            surveyResponses: [],
           },
         },
       ],
@@ -225,6 +239,9 @@ describe('course badge detail API', () => {
         inProgressPercent: 33,
         notStartedPercent: 33,
         averageScore: 92,
+        videoCompletedOnlyCount: 1,
+        feedbackResponseCount: 1,
+        averageRating: 5,
       })
     );
     expect(body.assessment.displayText).toBe('Use the burner safely.');
@@ -247,7 +264,15 @@ describe('course badge detail API', () => {
       }),
     ]);
     expect(body.students).toHaveLength(3);
-    expect(body.students[2]).toEqual(expect.objectContaining({ status: 'NOT_STARTED', progress: null }));
+    expect(body.students[0]).toEqual(
+      expect.objectContaining({ analyticsStatus: 'PROFICIENT', feedback: expect.objectContaining({ rating: 5 }) })
+    );
+    expect(body.students[1]).toEqual(
+      expect.objectContaining({ analyticsStatus: 'STILL_LEARNING', stillLearningReason: 'VIDEO_COMPLETED_ONLY' })
+    );
+    expect(body.students[2]).toEqual(
+      expect.objectContaining({ status: 'NOT_STARTED', analyticsStatus: 'NOT_STARTED', progress: null })
+    );
   });
 
   // Regression for #97: StudentBadge rows are eagerly created with LEARNING at
@@ -277,6 +302,8 @@ describe('course badge detail API', () => {
             externalId: 'U1',
             badgeProgress: [{ ...learningProgress }],
             lessonProgress: [{ status: 'NOT_STARTED', startedAt: null, completedAt: null, percentComplete: 0 }],
+            assessmentAttempts: [],
+            surveyResponses: [],
           },
         },
         {
@@ -297,6 +324,8 @@ describe('course badge detail API', () => {
                 percentComplete: 20,
               },
             ],
+            assessmentAttempts: [],
+            surveyResponses: [],
           },
         },
       ],
@@ -309,6 +338,7 @@ describe('course badge detail API', () => {
 
     expect(body.students[0]).toEqual(expect.objectContaining({ status: 'NOT_STARTED' }));
     expect(body.students[1]).toEqual(expect.objectContaining({ status: 'LEARNING' }));
+    expect(body.students[1]).toEqual(expect.objectContaining({ stillLearningReason: 'VIDEO_IN_PROGRESS' }));
     expect(body.summary).toEqual(
       expect.objectContaining({
         totalStudents: 2,
