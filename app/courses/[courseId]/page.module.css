@@ -873,6 +873,7 @@
 }
 
 .heroCard {
+  display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(310px, 370px);
   margin-top: 1.75rem;
 }
