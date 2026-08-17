@@ -13,9 +13,15 @@ import styles from './video.module.css';
 import playIcon from '../../../public/assets/lesson/qev/Play.svg';
 import pauseIcon from '../../../public/assets/lesson/qev/Pause.svg';
 
-// Dev-only testing controls (skip checkpoint / unlock progress bar): shown only
-// when the dev environment flag is set. Same flag the sidebar uses (CUR_ENV).
-const ENABLE_QEV_SKIP = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
+// Dev-only testing controls (skip checkpoint / unlock progress bar). These let a
+// student bypass the video requirement, so the flag is purpose-named and must stay
+// unset outside local dev. It used to share NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV with
+// the Messages nav item, which meant enabling Messages anywhere also shipped this
+// bypass; Messages is now ungated regular code and this is the flag's only consumer.
+// The old name is still honoured as a fallback so existing .env files keep working.
+const ENABLE_QEV_SKIP =
+  (process.env.NEXT_PUBLIC_DEV_QEV_SKIP ?? process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() ===
+  'true';
 
 type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonRating' | 'lessonComplete' | 'lessonFailed';
 type RangeStyleVars = CSSProperties & {

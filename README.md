@@ -79,8 +79,10 @@ NEXT_PUBLIC_APP_URL="https://your-production-host"
 # Instructor account for the CHEM101 seed (optional; see below)
 SEEDED_DEMO_EMAIL="your-instructor-clerk-email@example.com"
 
-# Feature flag: show the WIP Messages tab (dev only). Omit/false in prod.
-NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV="true"
+# Dev-only: show the QEV skip/unlock controls on the lesson video page. These let a
+# student bypass the video requirement, so omit this outside local dev.
+# (Replaces NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV, still read as a fallback.)
+NEXT_PUBLIC_DEV_QEV_SKIP="true"
 
 # Feature flag for MVP -- to be removed after initial testing phase with clients. Flip to false to allow all users to create
 ALPHA_MODE="true"
@@ -144,7 +146,7 @@ npx prisma studio     # inspect the database
 
 ## Application Map
 
-Signed-out visitors see the marketing **splash** (`/splash`). Authenticated users get a shared sidebar (Home, Badges, Badge Wallet, Messages*, My Analytics, Profile — *Messages only when `NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV=true`) and a global header that hides on lesson-video routes.
+Signed-out visitors see the marketing **splash** (`/splash`). Authenticated users get a shared sidebar (Home, Badges, Badge Wallet, Messages, My Analytics, Profile) and a global header that hides on lesson-video routes.
 
 ### Onboarding & shared
 
@@ -211,12 +213,12 @@ Configured for **Railway** (`railway.toml`, NIXPACKS builder):
 - **Start:** `npm run railway:start` → `prisma migrate deploy && next start` (migrations run on deploy).
 - **Health check:** `/api/health` (used by Railway; also a public route).
 
-Provide the same env vars as local (`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_APP_URL`), and set `NEXT_PUBLIC_APP_URL` to the public origin so assessment QR codes and short-code links resolve to the deployed host rather than an internal address. Leave `NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV` unset in production to keep the WIP Messages tab hidden. Any managed Next.js host (Railway/Vercel/Render) works with equivalent config.
+Provide the same env vars as local (`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_APP_URL`), and set `NEXT_PUBLIC_APP_URL` to the public origin so assessment QR codes and short-code links resolve to the deployed host rather than an internal address. Leave `NEXT_PUBLIC_DEV_QEV_SKIP` (and the legacy `NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV`) unset in production — either one exposes controls that let a student skip the video requirement. Any managed Next.js host (Railway/Vercel/Render) works with equivalent config.
 
 ## Known Issues
 
 - **Stubbed integrations:** `uploads/video` (Mux upload), `webhooks/mux`, and `webhooks/clerk` return `202 "not yet implemented"`. New users are created via the onboarding endpoint rather than a Clerk webhook.
-- **Messages** is a work-in-progress; the nav entry is gated behind `NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV`.
+- **Messages** is instructor/checker → student only; students have no reply path, there is no unread indicator, and the "message the whole class" case is supported by the API but not yet exposed in the UI.
 - **Checkpoint snapshots** rely on YouTube thumbnails rather than true timestamp stills (accurate stills would require processing the source video).
 - **Completion metrics** can be inaccurate in edge cases; percentage math needs reinforcement.
 - Some UI surfaces are not fully aligned with the intended Figma design (badge/skill-tracking screens), and the standalone `/instructor/qev-demo` prototype overlaps with the integrated in-lesson QEV player.
