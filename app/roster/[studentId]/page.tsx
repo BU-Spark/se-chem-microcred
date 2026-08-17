@@ -18,10 +18,6 @@ import { MessageComposeModal } from './MessageComposeModal';
 import styles from './page.module.css';
 import { EnrollmentRole } from '@/lib/enrollment/types';
 
-// Messaging is a work-in-progress feature gated behind the same dev flag as the
-// Messages inbox nav item (see Sidebar). Only show the compose action when on.
-const MESSAGING_ENABLED = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
-
 type Contact = {
   id: string;
   type: 'INSTRUCTOR' | 'CHECKER';
@@ -532,15 +528,13 @@ export default function InstructorStudentProfilePage() {
                           <Link href={buildProfileHref(null)} className={styles.assessmentLink}>
                             ← All badges
                           </Link>
-                          {MESSAGING_ENABLED ? (
-                            <button
-                              type="button"
-                              className={styles.assessmentLink}
-                              onClick={() => setIsMessageOpen(true)}
-                            >
-                              Message student
-                            </button>
-                          ) : null}
+                          <button
+                            type="button"
+                            className={styles.assessmentLink}
+                            onClick={() => setIsMessageOpen(true)}
+                          >
+                            Message student
+                          </button>
                         </div>
                       </div>
 
@@ -607,15 +601,9 @@ export default function InstructorStudentProfilePage() {
 
                       <div className={styles.badgesHeaderMeta}>
                         <span className={styles.badgesHint}>Select a badge to view details</span>
-                        {MESSAGING_ENABLED ? (
-                          <button
-                            type="button"
-                            className={styles.assessmentLink}
-                            onClick={() => setIsMessageOpen(true)}
-                          >
-                            Message student
-                          </button>
-                        ) : null}
+                        <button type="button" className={styles.assessmentLink} onClick={() => setIsMessageOpen(true)}>
+                          Message student
+                        </button>
                       </div>
                     </div>
 
@@ -702,7 +690,7 @@ export default function InstructorStudentProfilePage() {
         />
       ) : null}
 
-      {MESSAGING_ENABLED && isMessageOpen && courseId && studentId ? (
+      {isMessageOpen && courseId && studentId ? (
         <MessageComposeModal
           studentName={data?.member.name ?? 'Student'}
           courseId={courseId}

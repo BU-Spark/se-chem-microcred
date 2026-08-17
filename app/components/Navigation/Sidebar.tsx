@@ -31,17 +31,11 @@ interface SidebarProps {
   isSigningOut: boolean;
 }
 
-// Messages is a work-in-progress feature: show it only when explicitly enabled
-// via env (set NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV=true in .env.local for dev).
-// Unset in prod, so it stays hidden there. Must be NEXT_PUBLIC_* to be readable
-// in this client component.
-const CUR_ENV = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
-
 export const SIDEBAR_NAV: NavItem[] = [
   { label: 'Courses', href: '/' },
   { label: 'Created Badges', href: '/my_badges' },
   { label: 'Badge Passport', href: '/badges' },
-  ...(CUR_ENV ? [{ label: 'My Messages', href: '/messages' }] : []),
+  { label: 'My Messages', href: '/messages' },
   { label: 'My Analytics', href: '/analytics' },
   { label: 'My Profile', href: '/profile' }, // In this combine the setting and profile features.
 ];
@@ -64,12 +58,7 @@ const COLLAPSED_STORAGE_KEY = 'sidebarCollapsed';
 export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut }: SidebarProps) {
   const pathname = usePathname();
   const { isAdmin } = useCanCreateContent();
-  // Default to closed so the sidebar renders collapsed on every page load
-  // (server render matches, avoiding a hydration mismatch). Only open if a
-  // prior preference explicitly said so.
   const [collapsed, setCollapsed] = useState(true);
-  // Transitions stay disabled until after the first paint so applying the saved
-  // state on mount/navigation doesn't animate — it just appears in place.
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const stored = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
@@ -92,8 +81,6 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
     contextDisplayName !== undefined ? (contextDisplayName?.trim() ?? '') : displayName.trim();
   const avatarSrc = (avatarBase && AVATAR_SRC[avatarBase]) || sapphire;
 
-  // A single DOM tree that animates between widths (rather than swapping trees)
-  // so the collapse/expand is a smooth transition.
   const sidebarClass = `sidebar ${styles.sidebar} ${ready ? styles.ready : ''} ${
     collapsed ? styles.sidebarCollapsed : ''
   }`
@@ -102,7 +89,6 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
 
   return (
     <aside className={sidebarClass}>
-      {/* Collapse toggle: a chevron tab on the sidebar's edge. */}
       <button
         type="button"
         onClick={toggleCollapsed}
