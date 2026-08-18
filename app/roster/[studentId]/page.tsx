@@ -72,11 +72,14 @@ type InstructorMemberProfileResponse = {
     } | null;
   };
   contacts: Contact[];
+  // The three cohorts the API actually returns (classifyStudentBadgeCohort), which
+  // are also the three the course badge page reports. This used to declare
+  // inProgress/inReview/completed — keys the route stopped sending — so every
+  // read here was undefined at runtime.
   badges: {
-    inProgress: StudentProfileBadge[];
+    proficient: StudentProfileBadge[];
+    stillLearning: StudentProfileBadge[];
     notStarted: StudentProfileBadge[];
-    inReview: StudentProfileBadge[];
-    completed: StudentProfileBadge[];
   };
 };
 
@@ -276,10 +279,13 @@ export default function InstructorStudentProfilePage() {
 
   const selectedBadgeTone: BadgeDetailTone | null = useMemo(() => {
     if (!selectedBadgeId || !data) return null;
-    const { inProgress, completed, inReview } = data.badges;
-    const matches = (list: { id: string }[]) => list.some((badge) => badge.id === selectedBadgeId);
-    if (matches(completed) || matches(inReview)) return 'completed';
-    if (matches(inProgress)) return 'progress';
+    const { proficient, stillLearning } = data.badges;
+    // Tolerate a payload missing a cohort rather than white-screening the profile.
+    const matches = (list?: { id: string }[]) => (list ?? []).some((badge) => badge.id === selectedBadgeId);
+    if (matches(proficient)) return 'completed';
+    // Still-learning covers in-review too. A passed-but-unrated badge gets promoted
+    // back to the completed tone by selectedBadgeDisplayTone once its detail loads.
+    if (matches(stillLearning)) return 'progress';
     return null;
   }, [data, selectedBadgeId]);
 
@@ -576,7 +582,7 @@ export default function InstructorStudentProfilePage() {
                         <span className={styles.summaryDot} aria-hidden="true" />
                         <div>
                           <p>Proficient</p>
-                          <strong>{data.badges.completed.length}</strong>
+                          <strong>{data.badges.proficient.length}</strong>
                           <span>badges earned</span>
                         </div>
                       </article>
@@ -584,7 +590,7 @@ export default function InstructorStudentProfilePage() {
                         <span className={styles.summaryDot} aria-hidden="true" />
                         <div>
                           <p>Still Learning</p>
-                          <strong>{data.badges.inProgress.length + data.badges.inReview.length}</strong>
+                          <strong>{data.badges.stillLearning.length}</strong>
                           <span>badges underway</span>
                         </div>
                       </article>
@@ -600,10 +606,7 @@ export default function InstructorStudentProfilePage() {
 
                     <section className={styles.badgeSection}>
                       <h3 className={styles.badgeSectionTitle}>Still Learning</h3>
-                      <BadgeGrid
-                        badges={[...data.badges.inProgress, ...data.badges.inReview]}
-                        onSelectBadge={handleBadgeSelect}
-                      />
+                      <BadgeGrid badges={data.badges.stillLearning} onSelectBadge={handleBadgeSelect} />
                     </section>
 
                     <section className={styles.badgeSection}>
@@ -632,7 +635,7 @@ export default function InstructorStudentProfilePage() {
                         chevronClassName={styles.chevron}
                         chevronOpenClassName={styles.chevronOpen}
                       >
-                        <BadgeGrid badges={data.badges.completed} tone="completed" onSelectBadge={handleBadgeSelect} />
+                        <BadgeGrid badges={data.badges.proficient} tone="completed" onSelectBadge={handleBadgeSelect} />
                       </CollapsibleSection>
                     </section>
                   </section>

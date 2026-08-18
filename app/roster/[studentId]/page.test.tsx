@@ -64,8 +64,12 @@ function createStudentProfilePayload() {
         avatarUrl: '/edit_avatar/amethyst.svg',
       },
     ],
+    // Mirrors the three cohorts GET /api/courses/[courseId]/students/[studentId]
+    // actually returns. The old fixture used inProgress/inReview/completed, which
+    // the route had stopped sending — the page crashed in the browser while this
+    // suite stayed green.
     badges: {
-      inProgress: [
+      stillLearning: [
         {
           id: 'badge-1',
           slug: 'waste-handling',
@@ -84,17 +88,7 @@ function createStudentProfilePayload() {
           description: null,
         },
       ],
-      inReview: [] as Array<{
-        id: string;
-        slug: string;
-        name: string;
-        description: string | null;
-
-        status: string;
-        awardedAt: string | null;
-        score: number | null;
-      }>,
-      completed: [
+      proficient: [
         {
           id: 'badge-3',
           slug: 'vent-hood',
@@ -426,13 +420,9 @@ describe('Roster member profile page', () => {
   it('shows assessment history for a badge ready for finalization', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
     const profilePayload = createStudentProfilePayload();
-    profilePayload.badges.inReview = [
-      {
-        ...profilePayload.badges.inProgress[0],
-        status: 'IN_REVIEW',
-      },
-    ];
-    profilePayload.badges.inProgress = [];
+    // The route keeps an in-review badge in the still-learning cohort until it is
+    // finalized, so only the status changes here.
+    profilePayload.badges.stillLearning[0].status = 'IN_REVIEW';
     const detailPayload = createCompletedBadgeDetailPayload();
     detailPayload.badge.id = 'badge-1';
     detailPayload.badge.slug = 'waste-handling';
@@ -466,13 +456,7 @@ describe('Roster member profile page', () => {
 
   it('lists assessment-passed badges in the ready for finalization section', async () => {
     const profilePayload = createStudentProfilePayload();
-    profilePayload.badges.inReview = [
-      {
-        ...profilePayload.badges.inProgress[0],
-        status: 'IN_REVIEW',
-      },
-    ];
-    profilePayload.badges.inProgress = [];
+    profilePayload.badges.stillLearning[0].status = 'IN_REVIEW';
 
     mockFetch.mockResolvedValue({
       ok: true,
@@ -643,7 +627,7 @@ describe('Roster member profile page', () => {
           },
         ],
         badges: {
-          inProgress: [
+          stillLearning: [
             {
               id: 'badge-1',
               slug: 'waste-handling',
@@ -663,8 +647,7 @@ describe('Roster member profile page', () => {
               description: null,
             },
           ],
-          inReview: [],
-          completed: [],
+          proficient: [],
         },
       }),
     });
