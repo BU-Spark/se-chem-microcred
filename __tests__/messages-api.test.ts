@@ -6,6 +6,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { GET, POST } from '../app/api/messages/route';
 import { PATCH } from '../app/api/messages/[id]/route';
 import { POST as reminderPOST } from '../app/api/courses/[courseId]/badges/[badgeId]/reminders/route';
+import { GET as unreadGET } from '../app/api/messages/unread/route';
 import prisma from '../lib/prisma';
 
 jest.mock('@clerk/nextjs/server', () => ({
@@ -24,6 +25,7 @@ jest.mock('../lib/prisma', () => ({
       findUnique: jest.fn(),
       update: jest.fn(),
       groupBy: jest.fn(),
+      count: jest.fn(),
     },
     studentBadge: { findMany: jest.fn() },
   },
@@ -35,7 +37,13 @@ const mockPrisma = prisma as unknown as {
   course: { findFirst: jest.Mock };
   enrollment: { findMany: jest.Mock };
   message: { create: jest.Mock; findMany: jest.Mock };
-  messageReceipt: { findMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock; groupBy: jest.Mock };
+  messageReceipt: {
+    findMany: jest.Mock;
+    findUnique: jest.Mock;
+    update: jest.Mock;
+    groupBy: jest.Mock;
+    count: jest.Mock;
+  };
   studentBadge: { findMany: jest.Mock };
 };
 
@@ -227,6 +235,26 @@ describe('GET /api/messages?box=sent', () => {
 
     expect(body.count).toBe(0);
     expect(mockPrisma.messageReceipt.groupBy).not.toHaveBeenCalled();
+  });
+});
+
+describe('GET /api/messages/unread', () => {
+  it('counts only the caller unopened mail', async () => {
+    mockPrisma.messageReceipt.count.mockResolvedValue(4);
+
+    const response = await unreadGET();
+    const body = await response.json();
+
+    expect(body.count).toBe(4);
+    expect(mockPrisma.messageReceipt.count).toHaveBeenCalledWith({
+      where: { userId: 'sender-1', readAt: null },
+    });
+  });
+
+  it('rejects unauthenticated callers', async () => {
+    signedInAs(null);
+    const response = await unreadGET();
+    expect(response.status).toBe(401);
   });
 });
 

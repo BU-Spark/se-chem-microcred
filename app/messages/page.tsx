@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import { notifyMessagesRead } from '@/app/hooks/useUnreadMessages';
 import shellStyles from '../page.module.css';
 import styles from './page.module.css';
 
@@ -125,10 +126,13 @@ export default function MessagesPage() {
   const markRead = useCallback(async (id: string) => {
     // Optimistically flip to read; the PATCH is idempotent server-side.
     setMessages((current) => current.map((message) => (message.id === id ? { ...message, read: true } : message)));
+    notifyMessagesRead(-1);
     try {
       await fetch(`/api/messages/${encodeURIComponent(id)}`, { method: 'PATCH' });
     } catch (err) {
       console.error('Failed to mark message read', err);
+      // Put the badge back: the message is still unread on the server.
+      notifyMessagesRead(1);
     }
   }, []);
 

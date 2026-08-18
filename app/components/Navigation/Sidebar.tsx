@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
+import { useUnreadMessages } from '@/app/hooks/useUnreadMessages';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
 import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import sapphire from '@/public/edit_avatar/sapphire.svg';
@@ -87,6 +88,7 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
   // non-admins. Hidden by default while access loads.
   const visibleNavItems = isAdmin ? navItems : navItems.filter((item) => item.href !== '/my_badges');
   const { displayName: contextDisplayName, avatarBase } = useDatabaseDisplayNameContext();
+  const unreadCount = useUnreadMessages();
   const resolvedDisplayName =
     contextDisplayName !== undefined ? (contextDisplayName?.trim() ?? '') : displayName.trim();
   const avatarSrc = (avatarBase && AVATAR_SRC[avatarBase]) || sapphire;
@@ -151,6 +153,11 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
               <Link key={item.href} href={item.href} className={navItemClass}>
                 <Icon icon={NAV_ICONS[item.href] ?? 'lucide:circle'} className={styles.navIcon} aria-hidden="true" />
                 <span>{item.label}</span>
+                {item.href === '/messages' && unreadCount > 0 ? (
+                  <span className={styles.navBadge} aria-label={`${unreadCount} unread`}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                ) : null}
               </Link>
             );
           })}

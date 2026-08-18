@@ -12,6 +12,21 @@ const mockUseAuth = jest.fn();
 const mockUseStudentData = jest.fn();
 const mockFetch = jest.fn();
 
+// The app shell (sidebar) fetches ambient per-user data on every page. Answer
+// those here so they never consume this suite's queued page responses.
+function withShellFetch(pageFetch: jest.Mock) {
+  return ((url: RequestInfo | URL, init?: RequestInit) => {
+    const href = String(url);
+    if (href.includes('/api/messages/unread') || href.includes('/api/me/access')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ count: 0, canCreateContent: false, isAdmin: false }),
+      });
+    }
+    return pageFetch(url, init);
+  }) as unknown as typeof fetch;
+}
+
 let mockSearchParams = new URLSearchParams('courseId=course-1');
 
 jest.mock('next/navigation', () => ({
@@ -79,7 +94,7 @@ describe('Course new page edit mode', () => {
       error: null,
       refresh: jest.fn(),
     });
-    global.fetch = mockFetch as unknown as typeof fetch;
+    global.fetch = withShellFetch(mockFetch);
   });
 
   it('preloads existing course data and submits the course id on save', async () => {
@@ -588,7 +603,7 @@ describe('Course new page roster row removal', () => {
       error: null,
       refresh: jest.fn(),
     });
-    global.fetch = mockFetch as unknown as typeof fetch;
+    global.fetch = withShellFetch(mockFetch);
   });
 
   it('flags a person listed in both rosters so they can be found and removed', async () => {
