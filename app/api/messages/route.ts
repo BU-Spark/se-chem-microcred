@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { CourseRole, MessageAudience } from '@prisma/client';
+import { BadgeStatus, CourseRole, MessageAudience } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
-import { canSendCourseMessages, scopeRecipientsToSender } from '@/lib/messaging/audience';
+import { canSendCourseMessages, isInstructorEquivalent, scopeRecipientsToSender } from '@/lib/messaging/audience';
 import { buildBlastReceipts, buildDirectReceipts } from '@/lib/messaging/receipts.service';
 
 function normalize(value?: string | null) {
@@ -13,9 +13,11 @@ function normalize(value?: string | null) {
 
 type SendMessagePayload = {
   courseId?: string | null;
-  // Send to a single student, or to every student in the course.
+  // Exactly one of these picks the audience: a single student, every student
+  // in the course, or every student who has not finished a given badge.
   recipientId?: string | null;
   allStudents?: boolean | null;
+  badgeId?: string | null;
   subject?: string | null;
   body?: string | null;
 };
@@ -158,10 +160,10 @@ export async function GET(req: Request) {
   }
 }
 
-// POST: send a message from a course instructor/checker to one student or to
-// every student in the course. Only the course creator or an enrolled
-// INSTRUCTOR/CHECKER may send; CHECKERs additionally require the course's
-// allowCheckerMessages setting to be enabled.
+// POST: send a message from a course instructor/checker to one student, to every
+// student in the course, or to everyone still short of a badge. Only the course
+// creator or an enrolled INSTRUCTOR/CHECKER may send; CHECKERs additionally
+// require the course's allowCheckerMessages setting to be enabled.
 export async function POST(req: Request) {
   try {
     const clerkUser = await currentUser();
@@ -180,6 +182,7 @@ export async function POST(req: Request) {
     const body = normalize(payload.body);
     const subject = normalize(payload.subject) ?? 'Message from your instructor';
     const recipientId = normalize(payload.recipientId);
+    const badgeId = normalize(payload.badgeId);
     const allStudents = payload.allStudents === true;
 
     if (!courseId) {
@@ -188,8 +191,8 @@ export async function POST(req: Request) {
     if (!body) {
       return NextResponse.json({ error: 'Message body is required.' }, { status: 400 });
     }
-    if (!recipientId && !allStudents) {
-      return NextResponse.json({ error: 'Specify a recipientId or set allStudents.' }, { status: 400 });
+    if (!recipientId && !badgeId && !allStudents) {
+      return NextResponse.json({ error: 'Specify a recipientId, a badgeId, or set allStudents.' }, { status: 400 });
     }
 
     const course = await prisma.course.findFirst({
@@ -224,8 +227,22 @@ export async function POST(req: Request) {
     };
     const senderSections = senderEnrollment?.sections.map((assignment) => assignment.section) ?? [];
 
+    // A CHECKER who is not the course creator may only message while the course
+    // allows checker messages.
     if (!canSendCourseMessages(standing, course.settings?.allowCheckerMessages ?? false)) {
       return NextResponse.json({ error: 'Checker messaging is disabled for this course.' }, { status: 403 });
+    }
+
+    const audience = recipientId
+      ? MessageAudience.DIRECT
+      : badgeId
+        ? MessageAudience.BADGE_INCOMPLETE
+        : MessageAudience.ALL_STUDENTS;
+
+    // Messaging the entire course is an instructor's call alone. Unlike the 1:1
+    // and badge audiences, no course setting opens this one to checkers.
+    if (audience === MessageAudience.ALL_STUDENTS && !isInstructorEquivalent(standing)) {
+      return NextResponse.json({ error: 'Only an instructor can message the whole course.' }, { status: 403 });
     }
 
     // Resolve recipients: a single enrolled student, or all enrolled students,
@@ -238,7 +255,7 @@ export async function POST(req: Request) {
       },
       select: { studentId: true, sections: { select: { section: true } } },
     });
-    const recipientIds = scopeRecipientsToSender(
+    let recipientIds = scopeRecipientsToSender(
       studentEnrollments.map((enrollment) => ({
         studentId: enrollment.studentId,
         sections: enrollment.sections.map((assignment) => assignment.section),
@@ -251,6 +268,19 @@ export async function POST(req: Request) {
     if (recipientId && recipientIds.length === 0) {
       return NextResponse.json({ error: 'Recipient is not a student in this course.' }, { status: 404 });
     }
+
+    // A badge-scoped blast drops everyone who already finished it. Deliberately
+    // blunt: students who never started, or whose badge is locked or awaiting
+    // review, all still count as "not completed".
+    if (audience === MessageAudience.BADGE_INCOMPLETE && badgeId && recipientIds.length > 0) {
+      const completed = await prisma.studentBadge.findMany({
+        where: { badgeId, studentId: { in: recipientIds }, status: BadgeStatus.COMPLETED },
+        select: { studentId: true },
+      });
+      const completedIds = new Set(completed.map((row) => row.studentId));
+      recipientIds = recipientIds.filter((id) => !completedIds.has(id));
+    }
+
     if (recipientIds.length === 0) {
       return NextResponse.json({ sent: 0 }, { status: 200 });
     }
@@ -267,7 +297,8 @@ export async function POST(req: Request) {
       data: {
         senderId: sender.id,
         courseId,
-        audience: recipientId ? MessageAudience.DIRECT : MessageAudience.ALL_STUDENTS,
+        badgeId,
+        audience,
         subject,
         body,
         receipts: { create: receipts },

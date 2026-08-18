@@ -9,7 +9,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { generateInitials, getNameForProfile } from '@/lib/text/name';
 import { isInstructor } from '@/lib/roles';
 
-import { LessonReminderModal } from './LessonReminderModal';
+import { CourseBlastModal } from './CourseBlastModal';
 import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
 import { youtubeUrlFromSummary } from '@/lib/video';
 import { useFocusTrap } from '@/app/hooks/useFocusTrap';
@@ -152,7 +152,9 @@ export default function CreatedCourseDetailPage() {
   const signOut = useSignOut();
 
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [reminderBadge, setReminderBadge] = useState<{ id: string; name: string } | null>(null);
+  // null = closed. { badge: null } = whole-course blast; { badge } = the
+  // students who have not finished that badge.
+  const [blast, setBlast] = useState<{ badge: { id: string; name: string } | null } | null>(null);
   // The badge whose settings popup is open (edit availability + unassign). Null when closed.
   const [badgePendingEdit, setBadgePendingEdit] = useState<AssignedBadge | null>(null);
   const [editAvailableOn, setEditAvailableOn] = useState('');
@@ -320,8 +322,12 @@ export default function CreatedCourseDetailPage() {
   const canAssess = isCheckerView && viewerRole !== 'STUDENT';
   const isStudent = viewerRole === 'STUDENT';
 
+  // The role this page is presenting as: an instructor previewing with
+  // ?view=checker sees the checker's surface, messaging included.
   const effectiveRole = isCheckerView && viewerRole !== 'STUDENT' ? 'CHECKER' : viewerRole;
-  const canSendReminders =
+  // Checkers may message only while the course allows it; the send route
+  // enforces the same rule independently.
+  const canSendMessages =
     effectiveRole === 'INSTRUCTOR' || (effectiveRole === 'CHECKER' && course?.settings?.allowCheckerMessages === true);
   const displayName = isInstructorFlag ? course?.createdBy?.name || '' : user?.fullName || '';
 
@@ -590,6 +596,15 @@ export default function CreatedCourseDetailPage() {
                             Assess Student
                           </button>
                         ) : null}
+                        {isInstructorFlag ? (
+                          <button
+                            type="button"
+                            className={styles.primaryButton}
+                            onClick={() => setBlast({ badge: null })}
+                          >
+                            Message students
+                          </button>
+                        ) : null}
                         {isInstructorFlag && email ? (
                           <ExportCsvDataButton courseId={course.id} email={email} className={styles.primaryButton} />
                         ) : null}
@@ -691,11 +706,11 @@ export default function CreatedCourseDetailPage() {
                             <strong data-tone={availability.tone}>{availability.label}</strong>
                             <span>{availability.detail}</span>
                           </div>
-                          {canSendReminders ? (
+                          {canSendMessages ? (
                             <button
                               type="button"
                               className={styles.badgeReminderButton}
-                              onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
+                              onClick={() => setBlast({ badge: { id: badge.id, name: badge.name } })}
                               aria-label={`Send a lesson reminder for ${badge.name}`}
                             >
                               Remind
@@ -729,13 +744,12 @@ export default function CreatedCourseDetailPage() {
         </div>
       </main>
 
-      {reminderBadge && courseId ? (
-        <LessonReminderModal
+      {blast && courseId ? (
+        <CourseBlastModal
           courseId={courseId}
-          badgeId={reminderBadge.id}
-          badgeName={reminderBadge.name}
-          courseName={course?.title ?? 'Course'}
-          onClose={() => setReminderBadge(null)}
+          courseName={course?.title ?? 'Your course'}
+          badge={blast.badge}
+          onClose={() => setBlast(null)}
         />
       ) : null}
 

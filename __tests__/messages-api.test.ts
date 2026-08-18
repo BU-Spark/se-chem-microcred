@@ -1,11 +1,9 @@
 /** @jest-environment node */
 
-import { NextRequest } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 
 import { GET, POST } from '../app/api/messages/route';
 import { PATCH } from '../app/api/messages/[id]/route';
-import { POST as reminderPOST } from '../app/api/courses/[courseId]/badges/[badgeId]/reminders/route';
 import { GET as unreadGET } from '../app/api/messages/unread/route';
 import prisma from '../lib/prisma';
 
@@ -99,18 +97,6 @@ function receiptRow(overrides: { readAt?: Date | null; message?: Record<string, 
       ...overrides.message,
     },
   };
-}
-
-function reminderRequest(body: unknown) {
-  return new NextRequest('http://localhost/api/courses/course-1/badges/badge-1/reminders', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-}
-
-function reminderContext() {
-  return { params: Promise.resolve({ courseId: 'course-1', badgeId: 'badge-1' }) };
 }
 
 function asChecker(options: {
@@ -280,7 +266,7 @@ describe('POST /api/messages', () => {
     expect(response.status).toBe(400);
   });
 
-  it('requires a recipient or allStudents', async () => {
+  it('requires a recipient, a badge, or allStudents', async () => {
     const response = await POST(postRequest({ courseId: 'course-1', body: 'Hi' }));
     expect(response.status).toBe(400);
   });
@@ -359,37 +345,13 @@ describe('POST /api/messages', () => {
     expect(mockPrisma.message.create).not.toHaveBeenCalled();
   });
 
-  it('limits a checker blast to their own sections', async () => {
-    asChecker({ allowCrossSectionView: false, sections: ['A'] });
-    mockEnrollments({
-      students: [
-        { studentId: 's1', sections: [{ section: 'A' }] },
-        { studentId: 's2', sections: [{ section: 'B' }] },
-      ],
-    });
+  it('refuses a checker the whole-course audience even with messaging enabled', async () => {
+    asChecker({ allowCheckerMessages: true, allowCrossSectionView: true, sections: [] });
 
-    const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Section note.' }));
-    const body = await response.json();
+    const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Everyone.' }));
 
-    expect(body.sent).toBe(1);
-    expect(mockPrisma.message.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ receipts: { create: [{ userId: 's1', isObserver: false }] } }),
-      })
-    );
-  });
-
-  it('lets a checker reach every section when cross-section view is on', async () => {
-    asChecker({ allowCrossSectionView: true, sections: ['A'] });
-    mockEnrollments({
-      students: [
-        { studentId: 's1', sections: [{ section: 'A' }] },
-        { studentId: 's2', sections: [{ section: 'B' }] },
-      ],
-    });
-
-    const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Course note.' }));
-    expect((await response.json()).sent).toBe(2);
+    expect(response.status).toBe(403);
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
   });
 
   it('does not section-limit an instructor', async () => {
@@ -462,17 +424,14 @@ describe('POST /api/messages', () => {
   });
 });
 
-// Reminders live on their own route but answer to the same permission rules, so
-// they are covered here rather than in a separate suite.
-describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
+describe('POST /api/messages (badge audience)', () => {
   beforeEach(() => {
+    mockEnrollments({ students: [{ studentId: 's1' }, { studentId: 's2' }] });
     mockPrisma.course.findFirst.mockResolvedValue({
-      id: 'course-1',
       createdById: 'sender-1',
       settings: { allowCheckerMessages: false, allowCrossSectionView: false },
       enrollments: [],
     });
-    mockEnrollments({ students: [{ studentId: 's1' }, { studentId: 's2' }] });
     mockPrisma.studentBadge.findMany.mockResolvedValue([]);
     mockPrisma.message.create.mockResolvedValue({ id: 'm1' });
   });
@@ -480,7 +439,7 @@ describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
   it('skips students who already completed the badge', async () => {
     mockPrisma.studentBadge.findMany.mockResolvedValue([{ studentId: 's2' }]);
 
-    const response = await reminderPOST(reminderRequest({ body: 'Please finish.' }), reminderContext());
+    const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1', body: 'Please finish.' }));
     const body = await response.json();
 
     expect(response.status).toBe(201);
@@ -496,30 +455,26 @@ describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
     );
   });
 
-  it('blocks a checker when checker messaging is disabled', async () => {
-    asChecker({
-      allowCheckerMessages: false,
-      allowCrossSectionView: false,
-      sections: [],
-      extra: { id: 'course-1' },
-    });
+  it('sends nothing when everyone has finished the badge', async () => {
+    mockPrisma.studentBadge.findMany.mockResolvedValue([{ studentId: 's1' }, { studentId: 's2' }]);
 
-    const response = await reminderPOST(reminderRequest({ body: 'Please finish.' }), reminderContext());
+    const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1', body: 'Please finish.' }));
+
+    expect((await response.json()).sent).toBe(0);
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
+  });
+
+  it('blocks a checker when checker messaging is disabled', async () => {
+    asChecker({ allowCheckerMessages: false, allowCrossSectionView: false, sections: [] });
+
+    const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1', body: 'Please finish.' }));
 
     expect(response.status).toBe(403);
     expect(mockPrisma.message.create).not.toHaveBeenCalled();
   });
 
-  it('allows a checker when checker messaging is enabled', async () => {
-    asChecker({ allowCheckerMessages: true, allowCrossSectionView: false, sections: [], extra: { id: 'course-1' } });
-
-    const response = await reminderPOST(reminderRequest({ body: 'Please finish.' }), reminderContext());
-
-    expect(response.status).toBe(201);
-  });
-
-  it('limits a checker reminder to their own sections', async () => {
-    asChecker({ allowCheckerMessages: true, allowCrossSectionView: false, sections: ['A'], extra: { id: 'course-1' } });
+  it('lets a checker badge blast reach every section when cross-section view is on', async () => {
+    asChecker({ allowCheckerMessages: true, allowCrossSectionView: true, sections: ['A'] });
     mockEnrollments({
       students: [
         { studentId: 's1', sections: [{ section: 'A' }] },
@@ -527,15 +482,23 @@ describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
       ],
     });
 
-    const response = await reminderPOST(reminderRequest({ body: 'Please finish.' }), reminderContext());
-    const body = await response.json();
+    const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1', body: 'Please finish.' }));
 
-    expect(body.sent).toBe(1);
-    expect(mockPrisma.message.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ receipts: { create: [{ userId: 's1', isObserver: false }] } }),
-      })
-    );
+    expect((await response.json()).sent).toBe(2);
+  });
+
+  it('limits a checker badge blast to their own sections', async () => {
+    asChecker({ allowCheckerMessages: true, allowCrossSectionView: false, sections: ['A'] });
+    mockEnrollments({
+      students: [
+        { studentId: 's1', sections: [{ section: 'A' }] },
+        { studentId: 's2', sections: [{ section: 'B' }] },
+      ],
+    });
+
+    const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1', body: 'Please finish.' }));
+
+    expect((await response.json()).sent).toBe(1);
   });
 });
 
