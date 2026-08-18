@@ -4,6 +4,7 @@ import { CourseRole, MessageAudience } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
 import { canSendCourseMessages, scopeRecipientsToSender } from '@/lib/messaging/audience';
+import { buildBlastReceipts, buildDirectReceipts } from '@/lib/messaging/receipts.service';
 
 function normalize(value?: string | null) {
   const trimmed = value?.trim();
@@ -19,8 +20,77 @@ type SendMessagePayload = {
   body?: string | null;
 };
 
-// GET: the signed-in user's received messages, newest first.
-export async function GET() {
+// Everything a sender needs to see about a message they authored: what it was,
+// who it was aimed at, and how many of those students have opened it. Staff
+// copies are excluded from both counts.
+async function sentBox(senderId: string, direction: 'asc' | 'desc') {
+  const messages = await prisma.message.findMany({
+    where: { senderId },
+    orderBy: { createdAt: direction },
+    take: 100,
+    select: {
+      id: true,
+      subject: true,
+      body: true,
+      audience: true,
+      createdAt: true,
+      course: { select: { title: true } },
+      badge: { select: { name: true } },
+      // Only meaningful for a DIRECT send, where there is exactly one; a blast
+      // is described by its audience and counts instead.
+      receipts: {
+        where: { isObserver: false },
+        take: 1,
+        select: { user: { select: { name: true, email: true } } },
+      },
+    },
+  });
+
+  const messageIds = messages.map((message) => message.id);
+  // Counted in the database rather than by pulling every receipt back: a
+  // class-wide blast has one receipt per student, and there is no reason to
+  // ship those rows just to length them.
+  const [totals, reads] = messageIds.length
+    ? await Promise.all([
+        prisma.messageReceipt.groupBy({
+          by: ['messageId'],
+          where: { messageId: { in: messageIds }, isObserver: false },
+          _count: { _all: true },
+        }),
+        prisma.messageReceipt.groupBy({
+          by: ['messageId'],
+          where: { messageId: { in: messageIds }, isObserver: false, readAt: { not: null } },
+          _count: { _all: true },
+        }),
+      ])
+    : [[], []];
+
+  const totalByMessage = new Map(totals.map((row) => [row.messageId, row._count._all]));
+  const readByMessage = new Map(reads.map((row) => [row.messageId, row._count._all]));
+
+  return NextResponse.json(
+    {
+      count: messages.length,
+      messages: messages.map((message) => ({
+        id: message.id,
+        subject: message.subject,
+        body: message.body,
+        audience: message.audience,
+        createdAt: message.createdAt.toISOString(),
+        courseTitle: message.course?.title ?? null,
+        badgeName: message.badge?.name ?? null,
+        recipientName: message.receipts[0]?.user.name ?? message.receipts[0]?.user.email ?? null,
+        recipientCount: totalByMessage.get(message.id) ?? 0,
+        readCount: readByMessage.get(message.id) ?? 0,
+      })),
+    },
+    { status: 200 }
+  );
+}
+
+// GET: the signed-in user's mail. ?box=sent returns what they authored, anything
+// else what reached them; ?order=oldest flips the default newest-first sort.
+export async function GET(req: Request) {
   try {
     const clerkUser = await currentUser();
     const email = clerkUser?.emailAddresses?.[0]?.emailAddress?.trim().toLowerCase();
@@ -33,11 +103,18 @@ export async function GET() {
       return NextResponse.json({ count: 0, messages: [] }, { status: 200 });
     }
 
+    const params = new URL(req.url).searchParams;
+    const direction = params.get('order') === 'oldest' ? 'asc' : 'desc';
+
+    if (params.get('box') === 'sent') {
+      return await sentBox(recipient.id, direction);
+    }
+
     // Receipts are what this user can see; the message body is shared with
     // everyone else the same send reached.
     const receipts = await prisma.messageReceipt.findMany({
       where: { userId: recipient.id },
-      orderBy: { createdAt: 'desc' },
+      orderBy: { createdAt: direction },
       take: 100,
       select: {
         readAt: true,
@@ -46,6 +123,7 @@ export async function GET() {
             id: true,
             subject: true,
             body: true,
+            audience: true,
             createdAt: true,
             sender: { select: { name: true, email: true } },
             course: { select: { title: true, createdBy: { select: { name: true } } } },
@@ -62,6 +140,7 @@ export async function GET() {
           id: message.id,
           subject: message.subject,
           body: message.body,
+          audience: message.audience,
           read: readAt != null,
           createdAt: message.createdAt.toISOString(),
           // Prefer the sender's own name; fall back to the course's instructor
@@ -176,6 +255,12 @@ export async function POST(req: Request) {
       return NextResponse.json({ sent: 0 }, { status: 200 });
     }
 
+    // A blast copies course staff as observers; a 1:1 stays between the two
+    // people on it.
+    const receipts = recipientId
+      ? buildDirectReceipts(recipientIds)
+      : await buildBlastReceipts({ courseId, authorId: sender.id, studentIds: recipientIds });
+
     // One authored row plus a receipt per recipient, written together so a
     // message can never exist with a partial audience.
     await prisma.message.create({
@@ -185,11 +270,13 @@ export async function POST(req: Request) {
         audience: recipientId ? MessageAudience.DIRECT : MessageAudience.ALL_STUDENTS,
         subject,
         body,
-        receipts: { create: recipientIds.map((userId) => ({ userId })) },
+        receipts: { create: receipts },
       },
       select: { id: true },
     });
 
+    // The reported count is students reached, not receipts written — staff
+    // copies are not "sends".
     return NextResponse.json({ sent: recipientIds.length }, { status: 201 });
   } catch (error) {
     console.error('POST /api/messages failed:', error);

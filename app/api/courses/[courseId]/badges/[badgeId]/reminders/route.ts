@@ -4,6 +4,7 @@ import { BadgeStatus, CourseRole, MessageAudience } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
 import { canSendCourseMessages, scopeRecipientsToSender } from '@/lib/messaging/audience';
+import { buildBlastReceipts } from '@/lib/messaging/receipts.service';
 
 type ReminderPayload = {
   subject?: string | null;
@@ -107,6 +108,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cou
       return NextResponse.json({ sent: 0 }, { status: 200 });
     }
 
+    const receipts = await buildBlastReceipts({ courseId, authorId: sender.id, studentIds: recipientIds });
+
     await prisma.message.create({
       data: {
         senderId: sender.id,
@@ -115,7 +118,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cou
         audience: MessageAudience.BADGE_INCOMPLETE,
         subject,
         body,
-        receipts: { create: recipientIds.map((userId) => ({ userId })) },
+        receipts: { create: receipts },
       },
       select: { id: true },
     });

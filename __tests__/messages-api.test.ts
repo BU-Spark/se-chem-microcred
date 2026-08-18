@@ -18,11 +18,12 @@ jest.mock('../lib/prisma', () => ({
     user: { findUnique: jest.fn() },
     course: { findFirst: jest.fn() },
     enrollment: { findMany: jest.fn() },
-    message: { create: jest.fn() },
+    message: { create: jest.fn(), findMany: jest.fn() },
     messageReceipt: {
       findMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
+      groupBy: jest.fn(),
     },
     studentBadge: { findMany: jest.fn() },
   },
@@ -33,8 +34,8 @@ const mockPrisma = prisma as unknown as {
   user: { findUnique: jest.Mock };
   course: { findFirst: jest.Mock };
   enrollment: { findMany: jest.Mock };
-  message: { create: jest.Mock };
-  messageReceipt: { findMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
+  message: { create: jest.Mock; findMany: jest.Mock };
+  messageReceipt: { findMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock; groupBy: jest.Mock };
   studentBadge: { findMany: jest.Mock };
 };
 
@@ -49,6 +50,30 @@ function postRequest(body: unknown) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+  });
+}
+
+function getRequest(box?: 'sent', order?: 'oldest') {
+  const query = new URLSearchParams();
+  if (box) query.set('box', box);
+  if (order) query.set('order', order);
+  const suffix = query.toString();
+  return new Request(suffix ? `http://localhost/api/messages?${suffix}` : 'http://localhost/api/messages');
+}
+
+// Both send paths query enrollments twice: once for student recipients, once
+// for the course staff copied on a blast. Route them by the role filter so a
+// test can set each independently.
+function mockEnrollments(options: {
+  students: Array<{ studentId: string; sections?: Array<{ section: string }> }>;
+  staff?: Array<{ studentId: string }>;
+}) {
+  mockPrisma.enrollment.findMany.mockImplementation((args: { where?: { role?: unknown } }) => {
+    const role = args?.where?.role as { in?: string[] } | string | undefined;
+    if (role && typeof role === 'object' && Array.isArray(role.in)) {
+      return Promise.resolve(options.staff ?? []);
+    }
+    return Promise.resolve(options.students.map((student) => ({ sections: [], ...student })));
   });
 }
 
@@ -111,7 +136,7 @@ describe('GET /api/messages', () => {
   it('returns the signed-in user received messages', async () => {
     mockPrisma.messageReceipt.findMany.mockResolvedValue([receiptRow()]);
 
-    const response = await GET();
+    const response = await GET(getRequest());
     const body = await response.json();
 
     expect(response.status).toBe(200);
@@ -119,6 +144,16 @@ describe('GET /api/messages', () => {
     expect(body.messages[0]).toMatchObject({ id: 'm1', read: false, senderName: 'Prof', courseTitle: 'Chem 101' });
     expect(mockPrisma.messageReceipt.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { userId: 'sender-1' } })
+    );
+  });
+
+  it('sorts received mail oldest first when asked', async () => {
+    mockPrisma.messageReceipt.findMany.mockResolvedValue([]);
+
+    await GET(getRequest(undefined, 'oldest'));
+
+    expect(mockPrisma.messageReceipt.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { createdAt: 'asc' } })
     );
   });
 
@@ -132,7 +167,7 @@ describe('GET /api/messages', () => {
       }),
     ]);
 
-    const response = await GET();
+    const response = await GET(getRequest());
     const body = await response.json();
 
     expect(body.messages[0]).toMatchObject({ senderName: 'Prof Alice', courseTitle: 'Chem 101' });
@@ -140,8 +175,58 @@ describe('GET /api/messages', () => {
 
   it('rejects unauthenticated callers', async () => {
     signedInAs(null);
-    const response = await GET();
+    const response = await GET(getRequest());
     expect(response.status).toBe(401);
+  });
+});
+
+describe('GET /api/messages?box=sent', () => {
+  it('reports read counts over students, ignoring staff copies', async () => {
+    mockPrisma.message.findMany.mockResolvedValue([
+      {
+        id: 'm1',
+        subject: 'Notice',
+        body: 'Body',
+        audience: 'ALL_STUDENTS',
+        createdAt: new Date('2026-07-01T00:00:00.000Z'),
+        course: { title: 'Chem 101' },
+        badge: null,
+        receipts: [{ user: { name: 'Sam Student', email: 'sam@x.edu' } }],
+      },
+    ]);
+    mockPrisma.messageReceipt.groupBy
+      .mockResolvedValueOnce([{ messageId: 'm1', _count: { _all: 3 } }])
+      .mockResolvedValueOnce([{ messageId: 'm1', _count: { _all: 1 } }]);
+
+    const response = await GET(getRequest('sent'));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.messages[0]).toMatchObject({ id: 'm1', recipientCount: 3, readCount: 1 });
+    // Both counts must exclude the observers copied on the blast.
+    expect(mockPrisma.messageReceipt.groupBy).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ isObserver: false }) })
+    );
+  });
+
+  it('flips to oldest first when asked', async () => {
+    mockPrisma.message.findMany.mockResolvedValue([]);
+
+    await GET(getRequest('sent', 'oldest'));
+
+    expect(mockPrisma.message.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { createdAt: 'asc' } })
+    );
+  });
+
+  it('returns an empty box without counting receipts', async () => {
+    mockPrisma.message.findMany.mockResolvedValue([]);
+
+    const response = await GET(getRequest('sent'));
+    const body = await response.json();
+
+    expect(body.count).toBe(0);
+    expect(mockPrisma.messageReceipt.groupBy).not.toHaveBeenCalled();
   });
 });
 
@@ -153,7 +238,7 @@ describe('POST /api/messages', () => {
       settings: { allowCheckerMessages: false, allowCrossSectionView: false },
       enrollments: [],
     });
-    mockPrisma.enrollment.findMany.mockResolvedValue([{ studentId: 'student-1', sections: [] }]);
+    mockEnrollments({ students: [{ studentId: 'student-1' }] });
     mockPrisma.message.create.mockResolvedValue({ id: 'm1' });
   });
 
@@ -219,7 +304,7 @@ describe('POST /api/messages', () => {
           audience: 'DIRECT',
           subject: 'Reminder',
           body: 'Please finish.',
-          receipts: { create: [{ userId: 'student-1' }] },
+          receipts: { create: [{ userId: 'student-1', isObserver: false }] },
         }),
       })
     );
@@ -240,7 +325,7 @@ describe('POST /api/messages', () => {
   });
 
   it('returns 404 when the recipient is not a student in the course', async () => {
-    mockPrisma.enrollment.findMany.mockResolvedValue([]);
+    mockEnrollments({ students: [] });
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 'ghost', body: 'Hi' }));
     expect(response.status).toBe(404);
     expect(mockPrisma.message.create).not.toHaveBeenCalled();
@@ -248,44 +333,100 @@ describe('POST /api/messages', () => {
 
   it('limits a checker blast to their own sections', async () => {
     asChecker({ allowCrossSectionView: false, sections: ['A'] });
-    mockPrisma.enrollment.findMany.mockResolvedValue([
-      { studentId: 's1', sections: [{ section: 'A' }] },
-      { studentId: 's2', sections: [{ section: 'B' }] },
-    ]);
+    mockEnrollments({
+      students: [
+        { studentId: 's1', sections: [{ section: 'A' }] },
+        { studentId: 's2', sections: [{ section: 'B' }] },
+      ],
+    });
 
     const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Section note.' }));
     const body = await response.json();
 
     expect(body.sent).toBe(1);
     expect(mockPrisma.message.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ receipts: { create: [{ userId: 's1' }] } }) })
+      expect.objectContaining({
+        data: expect.objectContaining({ receipts: { create: [{ userId: 's1', isObserver: false }] } }),
+      })
     );
   });
 
   it('lets a checker reach every section when cross-section view is on', async () => {
     asChecker({ allowCrossSectionView: true, sections: ['A'] });
-    mockPrisma.enrollment.findMany.mockResolvedValue([
-      { studentId: 's1', sections: [{ section: 'A' }] },
-      { studentId: 's2', sections: [{ section: 'B' }] },
-    ]);
+    mockEnrollments({
+      students: [
+        { studentId: 's1', sections: [{ section: 'A' }] },
+        { studentId: 's2', sections: [{ section: 'B' }] },
+      ],
+    });
 
     const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Course note.' }));
     expect((await response.json()).sent).toBe(2);
   });
 
   it('does not section-limit an instructor', async () => {
-    mockPrisma.enrollment.findMany.mockResolvedValue([
-      { studentId: 's1', sections: [{ section: 'A' }] },
-      { studentId: 's2', sections: [{ section: 'B' }] },
-    ]);
+    mockEnrollments({
+      students: [
+        { studentId: 's1', sections: [{ section: 'A' }] },
+        { studentId: 's2', sections: [{ section: 'B' }] },
+      ],
+    });
 
     const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Course note.' }));
     expect((await response.json()).sent).toBe(2);
   });
 
+  it('copies course staff on a blast as observers', async () => {
+    mockEnrollments({ students: [{ studentId: 's1' }], staff: [{ studentId: 'checker-1' }] });
+
+    const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Notice' }));
+
+    // Staff copies are not sends: the count stays students reached.
+    expect((await response.json()).sent).toBe(1);
+    expect(mockPrisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          receipts: {
+            create: [
+              { userId: 's1', isObserver: false },
+              { userId: 'checker-1', isObserver: true },
+            ],
+          },
+        }),
+      })
+    );
+  });
+
+  it('never copies the author on their own blast', async () => {
+    mockEnrollments({ students: [{ studentId: 's1' }], staff: [{ studentId: 'sender-1' }] });
+
+    await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Notice' }));
+
+    expect(mockPrisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ receipts: { create: [{ userId: 's1', isObserver: false }] } }),
+      })
+    );
+  });
+
+  it('does not copy staff on a 1:1 message', async () => {
+    mockEnrollments({ students: [{ studentId: 'student-1' }], staff: [{ studentId: 'checker-1' }] });
+
+    await POST(postRequest({ courseId: 'course-1', recipientId: 'student-1', body: 'Just you.' }));
+
+    expect(mockPrisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          audience: 'DIRECT',
+          receipts: { create: [{ userId: 'student-1', isObserver: false }] },
+        }),
+      })
+    );
+  });
+
   it('returns 404 when a checker targets a student outside their sections', async () => {
     asChecker({ allowCrossSectionView: false, sections: ['A'] });
-    mockPrisma.enrollment.findMany.mockResolvedValue([{ studentId: 's2', sections: [{ section: 'B' }] }]);
+    mockEnrollments({ students: [{ studentId: 's2', sections: [{ section: 'B' }] }] });
 
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 's2', body: 'Hi' }));
     expect(response.status).toBe(404);
@@ -303,10 +444,7 @@ describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
       settings: { allowCheckerMessages: false, allowCrossSectionView: false },
       enrollments: [],
     });
-    mockPrisma.enrollment.findMany.mockResolvedValue([
-      { studentId: 's1', sections: [] },
-      { studentId: 's2', sections: [] },
-    ]);
+    mockEnrollments({ students: [{ studentId: 's1' }, { studentId: 's2' }] });
     mockPrisma.studentBadge.findMany.mockResolvedValue([]);
     mockPrisma.message.create.mockResolvedValue({ id: 'm1' });
   });
@@ -324,7 +462,7 @@ describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
         data: expect.objectContaining({
           badgeId: 'badge-1',
           audience: 'BADGE_INCOMPLETE',
-          receipts: { create: [{ userId: 's1' }] },
+          receipts: { create: [{ userId: 's1', isObserver: false }] },
         }),
       })
     );
@@ -354,17 +492,21 @@ describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
 
   it('limits a checker reminder to their own sections', async () => {
     asChecker({ allowCheckerMessages: true, allowCrossSectionView: false, sections: ['A'], extra: { id: 'course-1' } });
-    mockPrisma.enrollment.findMany.mockResolvedValue([
-      { studentId: 's1', sections: [{ section: 'A' }] },
-      { studentId: 's2', sections: [{ section: 'B' }] },
-    ]);
+    mockEnrollments({
+      students: [
+        { studentId: 's1', sections: [{ section: 'A' }] },
+        { studentId: 's2', sections: [{ section: 'B' }] },
+      ],
+    });
 
     const response = await reminderPOST(reminderRequest({ body: 'Please finish.' }), reminderContext());
     const body = await response.json();
 
     expect(body.sent).toBe(1);
     expect(mockPrisma.message.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ receipts: { create: [{ userId: 's1' }] } }) })
+      expect.objectContaining({
+        data: expect.objectContaining({ receipts: { create: [{ userId: 's1', isObserver: false }] } }),
+      })
     );
   });
 });
