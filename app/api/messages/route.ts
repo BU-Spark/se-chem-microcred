@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { CourseRole } from '@prisma/client';
+import { CourseRole, MessageAudience } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
 import { canSendCourseMessages, scopeRecipientsToSender } from '@/lib/messaging/audience';
@@ -33,30 +33,36 @@ export async function GET() {
       return NextResponse.json({ count: 0, messages: [] }, { status: 200 });
     }
 
-    const messages = await prisma.message.findMany({
-      where: { recipientId: recipient.id },
+    // Receipts are what this user can see; the message body is shared with
+    // everyone else the same send reached.
+    const receipts = await prisma.messageReceipt.findMany({
+      where: { userId: recipient.id },
       orderBy: { createdAt: 'desc' },
       take: 100,
       select: {
-        id: true,
-        subject: true,
-        body: true,
         readAt: true,
-        createdAt: true,
-        sender: { select: { name: true, email: true } },
-        course: { select: { title: true, createdBy: { select: { name: true } } } },
-        badge: { select: { name: true } },
+        message: {
+          select: {
+            id: true,
+            subject: true,
+            body: true,
+            createdAt: true,
+            sender: { select: { name: true, email: true } },
+            course: { select: { title: true, createdBy: { select: { name: true } } } },
+            badge: { select: { name: true } },
+          },
+        },
       },
     });
 
     return NextResponse.json(
       {
-        count: messages.length,
-        messages: messages.map((message) => ({
+        count: receipts.length,
+        messages: receipts.map(({ readAt, message }) => ({
           id: message.id,
           subject: message.subject,
           body: message.body,
-          read: message.readAt != null,
+          read: readAt != null,
           createdAt: message.createdAt.toISOString(),
           // Prefer the sender's own name; fall back to the course's instructor
           // (its creator) so a real name shows even if the sender has none saved.
@@ -170,14 +176,18 @@ export async function POST(req: Request) {
       return NextResponse.json({ sent: 0 }, { status: 200 });
     }
 
-    await prisma.message.createMany({
-      data: recipientIds.map((id) => ({
-        recipientId: id,
+    // One authored row plus a receipt per recipient, written together so a
+    // message can never exist with a partial audience.
+    await prisma.message.create({
+      data: {
         senderId: sender.id,
         courseId,
+        audience: recipientId ? MessageAudience.DIRECT : MessageAudience.ALL_STUDENTS,
         subject,
         body,
-      })),
+        receipts: { create: recipientIds.map((userId) => ({ userId })) },
+      },
+      select: { id: true },
     });
 
     return NextResponse.json({ sent: recipientIds.length }, { status: 201 });

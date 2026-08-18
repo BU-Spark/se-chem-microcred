@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { BadgeStatus, CourseRole } from '@prisma/client';
+import { BadgeStatus, CourseRole, MessageAudience } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
 import { canSendCourseMessages, scopeRecipientsToSender } from '@/lib/messaging/audience';
@@ -107,15 +107,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cou
       return NextResponse.json({ sent: 0 }, { status: 200 });
     }
 
-    await prisma.message.createMany({
-      data: recipientIds.map((recipientId) => ({
-        recipientId,
+    await prisma.message.create({
+      data: {
         senderId: sender.id,
         courseId,
         badgeId,
+        audience: MessageAudience.BADGE_INCOMPLETE,
         subject,
         body,
-      })),
+        receipts: { create: recipientIds.map((userId) => ({ userId })) },
+      },
+      select: { id: true },
     });
 
     return NextResponse.json({ sent: recipientIds.length }, { status: 201 });

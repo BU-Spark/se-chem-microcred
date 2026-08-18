@@ -18,9 +18,9 @@ jest.mock('../lib/prisma', () => ({
     user: { findUnique: jest.fn() },
     course: { findFirst: jest.fn() },
     enrollment: { findMany: jest.fn() },
-    message: {
+    message: { create: jest.fn() },
+    messageReceipt: {
       findMany: jest.fn(),
-      createMany: jest.fn(),
       findUnique: jest.fn(),
       update: jest.fn(),
     },
@@ -33,7 +33,8 @@ const mockPrisma = prisma as unknown as {
   user: { findUnique: jest.Mock };
   course: { findFirst: jest.Mock };
   enrollment: { findMany: jest.Mock };
-  message: { findMany: jest.Mock; createMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
+  message: { create: jest.Mock };
+  messageReceipt: { findMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
   studentBadge: { findMany: jest.Mock };
 };
 
@@ -49,6 +50,22 @@ function postRequest(body: unknown) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+}
+
+function receiptRow(overrides: { readAt?: Date | null; message?: Record<string, unknown> } = {}) {
+  return {
+    readAt: overrides.readAt ?? null,
+    message: {
+      id: 'm1',
+      subject: 'Hello',
+      body: 'Body',
+      createdAt: new Date('2026-07-01T00:00:00.000Z'),
+      sender: { name: 'Prof', email: 'prof@x.edu' },
+      course: { title: 'Chem 101' },
+      badge: null,
+      ...overrides.message,
+    },
+  };
 }
 
 function reminderRequest(body: unknown) {
@@ -92,18 +109,7 @@ beforeEach(() => {
 
 describe('GET /api/messages', () => {
   it('returns the signed-in user received messages', async () => {
-    mockPrisma.message.findMany.mockResolvedValue([
-      {
-        id: 'm1',
-        subject: 'Hello',
-        body: 'Body',
-        readAt: null,
-        createdAt: new Date('2026-07-01T00:00:00.000Z'),
-        sender: { name: 'Prof', email: 'prof@x.edu' },
-        course: { title: 'Chem 101' },
-        badge: null,
-      },
-    ]);
+    mockPrisma.messageReceipt.findMany.mockResolvedValue([receiptRow()]);
 
     const response = await GET();
     const body = await response.json();
@@ -111,23 +117,19 @@ describe('GET /api/messages', () => {
     expect(response.status).toBe(200);
     expect(body.count).toBe(1);
     expect(body.messages[0]).toMatchObject({ id: 'm1', read: false, senderName: 'Prof', courseTitle: 'Chem 101' });
-    expect(mockPrisma.message.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { recipientId: 'sender-1' } })
+    expect(mockPrisma.messageReceipt.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId: 'sender-1' } })
     );
   });
 
   it('falls back to the course instructor name when the sender has none', async () => {
-    mockPrisma.message.findMany.mockResolvedValue([
-      {
-        id: 'm1',
-        subject: 'Hello',
-        body: 'Body',
-        readAt: null,
-        createdAt: new Date('2026-07-01T00:00:00.000Z'),
-        sender: { name: null, email: 'prof@x.edu' },
-        course: { title: 'Chem 101', createdBy: { name: 'Prof Alice' } },
-        badge: null,
-      },
+    mockPrisma.messageReceipt.findMany.mockResolvedValue([
+      receiptRow({
+        message: {
+          sender: { name: null, email: 'prof@x.edu' },
+          course: { title: 'Chem 101', createdBy: { name: 'Prof Alice' } },
+        },
+      }),
     ]);
 
     const response = await GET();
@@ -152,7 +154,7 @@ describe('POST /api/messages', () => {
       enrollments: [],
     });
     mockPrisma.enrollment.findMany.mockResolvedValue([{ studentId: 'student-1', sections: [] }]);
-    mockPrisma.message.createMany.mockResolvedValue({ count: 1 });
+    mockPrisma.message.create.mockResolvedValue({ id: 'm1' });
   });
 
   it('requires a courseId', async () => {
@@ -174,7 +176,7 @@ describe('POST /api/messages', () => {
     mockPrisma.course.findFirst.mockResolvedValue(null);
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 'student-1', body: 'Hi' }));
     expect(response.status).toBe(403);
-    expect(mockPrisma.message.createMany).not.toHaveBeenCalled();
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
   });
 
   it('blocks a checker when checker messaging is disabled', async () => {
@@ -185,7 +187,7 @@ describe('POST /api/messages', () => {
     });
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 'student-1', body: 'Hi' }));
     expect(response.status).toBe(403);
-    expect(mockPrisma.message.createMany).not.toHaveBeenCalled();
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
   });
 
   it('allows a checker when checker messaging is enabled', async () => {
@@ -209,17 +211,18 @@ describe('POST /api/messages', () => {
     expect(mockPrisma.enrollment.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ studentId: 'student-1' }) })
     );
-    expect(mockPrisma.message.createMany).toHaveBeenCalledWith({
-      data: [
-        {
-          recipientId: 'student-1',
+    expect(mockPrisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
           senderId: 'sender-1',
           courseId: 'course-1',
+          audience: 'DIRECT',
           subject: 'Reminder',
           body: 'Please finish.',
-        },
-      ],
-    });
+          receipts: { create: [{ userId: 'student-1' }] },
+        }),
+      })
+    );
   });
 
   it('sends to every student when allStudents is set', async () => {
@@ -227,7 +230,7 @@ describe('POST /api/messages', () => {
       { studentId: 's1', sections: [] },
       { studentId: 's2', sections: [] },
     ]);
-    mockPrisma.message.createMany.mockResolvedValue({ count: 2 });
+    mockPrisma.message.create.mockResolvedValue({ id: 'm1' });
 
     const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Class-wide notice.' }));
     const body = await response.json();
@@ -240,7 +243,7 @@ describe('POST /api/messages', () => {
     mockPrisma.enrollment.findMany.mockResolvedValue([]);
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 'ghost', body: 'Hi' }));
     expect(response.status).toBe(404);
-    expect(mockPrisma.message.createMany).not.toHaveBeenCalled();
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
   });
 
   it('limits a checker blast to their own sections', async () => {
@@ -254,9 +257,9 @@ describe('POST /api/messages', () => {
     const body = await response.json();
 
     expect(body.sent).toBe(1);
-    expect(mockPrisma.message.createMany).toHaveBeenCalledWith({
-      data: [expect.objectContaining({ recipientId: 's1' })],
-    });
+    expect(mockPrisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ receipts: { create: [{ userId: 's1' }] } }) })
+    );
   });
 
   it('lets a checker reach every section when cross-section view is on', async () => {
@@ -286,7 +289,7 @@ describe('POST /api/messages', () => {
 
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 's2', body: 'Hi' }));
     expect(response.status).toBe(404);
-    expect(mockPrisma.message.createMany).not.toHaveBeenCalled();
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
   });
 });
 
@@ -305,7 +308,7 @@ describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
       { studentId: 's2', sections: [] },
     ]);
     mockPrisma.studentBadge.findMany.mockResolvedValue([]);
-    mockPrisma.message.createMany.mockResolvedValue({ count: 2 });
+    mockPrisma.message.create.mockResolvedValue({ id: 'm1' });
   });
 
   it('skips students who already completed the badge', async () => {
@@ -316,9 +319,15 @@ describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
 
     expect(response.status).toBe(201);
     expect(body.sent).toBe(1);
-    expect(mockPrisma.message.createMany).toHaveBeenCalledWith({
-      data: [expect.objectContaining({ recipientId: 's1', badgeId: 'badge-1' })],
-    });
+    expect(mockPrisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          badgeId: 'badge-1',
+          audience: 'BADGE_INCOMPLETE',
+          receipts: { create: [{ userId: 's1' }] },
+        }),
+      })
+    );
   });
 
   it('blocks a checker when checker messaging is disabled', async () => {
@@ -332,7 +341,7 @@ describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
     const response = await reminderPOST(reminderRequest({ body: 'Please finish.' }), reminderContext());
 
     expect(response.status).toBe(403);
-    expect(mockPrisma.message.createMany).not.toHaveBeenCalled();
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
   });
 
   it('allows a checker when checker messaging is enabled', async () => {
@@ -354,16 +363,16 @@ describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
     const body = await response.json();
 
     expect(body.sent).toBe(1);
-    expect(mockPrisma.message.createMany).toHaveBeenCalledWith({
-      data: [expect.objectContaining({ recipientId: 's1' })],
-    });
+    expect(mockPrisma.message.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ receipts: { create: [{ userId: 's1' }] } }) })
+    );
   });
 });
 
 describe('PATCH /api/messages/[id]', () => {
   it('marks an unread message as read', async () => {
-    mockPrisma.message.findUnique.mockResolvedValue({ id: 'm1', recipientId: 'sender-1', readAt: null });
-    mockPrisma.message.update.mockResolvedValue({});
+    mockPrisma.messageReceipt.findUnique.mockResolvedValue({ id: 'r1', readAt: null });
+    mockPrisma.messageReceipt.update.mockResolvedValue({});
 
     const response = await PATCH(
       new Request('http://localhost/api/messages/m1', { method: 'PATCH' }),
@@ -373,15 +382,14 @@ describe('PATCH /api/messages/[id]', () => {
 
     expect(response.status).toBe(200);
     expect(body.read).toBe(true);
-    expect(mockPrisma.message.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: 'm1' }, data: expect.objectContaining({ readAt: expect.any(Date) }) })
+    expect(mockPrisma.messageReceipt.update).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: 'r1' }, data: expect.objectContaining({ readAt: expect.any(Date) }) })
     );
   });
 
   it('is a no-op for an already-read message', async () => {
-    mockPrisma.message.findUnique.mockResolvedValue({
-      id: 'm1',
-      recipientId: 'sender-1',
+    mockPrisma.messageReceipt.findUnique.mockResolvedValue({
+      id: 'r1',
       readAt: new Date('2026-07-01T00:00:00.000Z'),
     });
 
@@ -390,17 +398,18 @@ describe('PATCH /api/messages/[id]', () => {
       patchContext('m1')
     );
     expect(response.status).toBe(200);
-    expect(mockPrisma.message.update).not.toHaveBeenCalled();
+    expect(mockPrisma.messageReceipt.update).not.toHaveBeenCalled();
   });
 
   it('refuses to mark a message the caller did not receive', async () => {
-    mockPrisma.message.findUnique.mockResolvedValue({ id: 'm1', recipientId: 'other-user', readAt: null });
+    // No receipt for this caller: the message never reached them.
+    mockPrisma.messageReceipt.findUnique.mockResolvedValue(null);
 
     const response = await PATCH(
       new Request('http://localhost/api/messages/m1', { method: 'PATCH' }),
       patchContext('m1')
     );
     expect(response.status).toBe(404);
-    expect(mockPrisma.message.update).not.toHaveBeenCalled();
+    expect(mockPrisma.messageReceipt.update).not.toHaveBeenCalled();
   });
 });
