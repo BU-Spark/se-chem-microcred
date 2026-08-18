@@ -1,9 +1,11 @@
 /** @jest-environment node */
 
+import { NextRequest } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 
 import { GET, POST } from '../app/api/messages/route';
 import { PATCH } from '../app/api/messages/[id]/route';
+import { POST as reminderPOST } from '../app/api/courses/[courseId]/badges/[badgeId]/reminders/route';
 import prisma from '../lib/prisma';
 
 jest.mock('@clerk/nextjs/server', () => ({
@@ -22,6 +24,7 @@ jest.mock('../lib/prisma', () => ({
       findUnique: jest.fn(),
       update: jest.fn(),
     },
+    studentBadge: { findMany: jest.fn() },
   },
 }));
 
@@ -31,6 +34,7 @@ const mockPrisma = prisma as unknown as {
   course: { findFirst: jest.Mock };
   enrollment: { findMany: jest.Mock };
   message: { findMany: jest.Mock; createMany: jest.Mock; findUnique: jest.Mock; update: jest.Mock };
+  studentBadge: { findMany: jest.Mock };
 };
 
 function signedInAs(email: string | null) {
@@ -44,6 +48,35 @@ function postRequest(body: unknown) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+  });
+}
+
+function reminderRequest(body: unknown) {
+  return new NextRequest('http://localhost/api/courses/course-1/badges/badge-1/reminders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+}
+
+function reminderContext() {
+  return { params: Promise.resolve({ courseId: 'course-1', badgeId: 'badge-1' }) };
+}
+
+function asChecker(options: {
+  allowCheckerMessages?: boolean;
+  allowCrossSectionView: boolean;
+  sections: string[];
+  extra?: Record<string, unknown>;
+}) {
+  mockPrisma.course.findFirst.mockResolvedValue({
+    createdById: 'someone-else',
+    settings: {
+      allowCheckerMessages: options.allowCheckerMessages ?? true,
+      allowCrossSectionView: options.allowCrossSectionView,
+    },
+    enrollments: [{ role: 'CHECKER', sections: options.sections.map((section) => ({ section })) }],
+    ...options.extra,
   });
 }
 
@@ -115,10 +148,10 @@ describe('POST /api/messages', () => {
     // Default: sender is the course creator.
     mockPrisma.course.findFirst.mockResolvedValue({
       createdById: 'sender-1',
-      settings: { allowCheckerMessages: false },
+      settings: { allowCheckerMessages: false, allowCrossSectionView: false },
       enrollments: [],
     });
-    mockPrisma.enrollment.findMany.mockResolvedValue([{ studentId: 'student-1' }]);
+    mockPrisma.enrollment.findMany.mockResolvedValue([{ studentId: 'student-1', sections: [] }]);
     mockPrisma.message.createMany.mockResolvedValue({ count: 1 });
   });
 
@@ -147,8 +180,8 @@ describe('POST /api/messages', () => {
   it('blocks a checker when checker messaging is disabled', async () => {
     mockPrisma.course.findFirst.mockResolvedValue({
       createdById: 'someone-else',
-      settings: { allowCheckerMessages: false },
-      enrollments: [{ role: 'CHECKER' }],
+      settings: { allowCheckerMessages: false, allowCrossSectionView: false },
+      enrollments: [{ role: 'CHECKER', sections: [] }],
     });
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 'student-1', body: 'Hi' }));
     expect(response.status).toBe(403);
@@ -158,8 +191,8 @@ describe('POST /api/messages', () => {
   it('allows a checker when checker messaging is enabled', async () => {
     mockPrisma.course.findFirst.mockResolvedValue({
       createdById: 'someone-else',
-      settings: { allowCheckerMessages: true },
-      enrollments: [{ role: 'CHECKER' }],
+      settings: { allowCheckerMessages: true, allowCrossSectionView: false },
+      enrollments: [{ role: 'CHECKER', sections: [] }],
     });
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 'student-1', body: 'Hi' }));
     expect(response.status).toBe(201);
@@ -190,7 +223,10 @@ describe('POST /api/messages', () => {
   });
 
   it('sends to every student when allStudents is set', async () => {
-    mockPrisma.enrollment.findMany.mockResolvedValue([{ studentId: 's1' }, { studentId: 's2' }]);
+    mockPrisma.enrollment.findMany.mockResolvedValue([
+      { studentId: 's1', sections: [] },
+      { studentId: 's2', sections: [] },
+    ]);
     mockPrisma.message.createMany.mockResolvedValue({ count: 2 });
 
     const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Class-wide notice.' }));
@@ -205,6 +241,122 @@ describe('POST /api/messages', () => {
     const response = await POST(postRequest({ courseId: 'course-1', recipientId: 'ghost', body: 'Hi' }));
     expect(response.status).toBe(404);
     expect(mockPrisma.message.createMany).not.toHaveBeenCalled();
+  });
+
+  it('limits a checker blast to their own sections', async () => {
+    asChecker({ allowCrossSectionView: false, sections: ['A'] });
+    mockPrisma.enrollment.findMany.mockResolvedValue([
+      { studentId: 's1', sections: [{ section: 'A' }] },
+      { studentId: 's2', sections: [{ section: 'B' }] },
+    ]);
+
+    const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Section note.' }));
+    const body = await response.json();
+
+    expect(body.sent).toBe(1);
+    expect(mockPrisma.message.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ recipientId: 's1' })],
+    });
+  });
+
+  it('lets a checker reach every section when cross-section view is on', async () => {
+    asChecker({ allowCrossSectionView: true, sections: ['A'] });
+    mockPrisma.enrollment.findMany.mockResolvedValue([
+      { studentId: 's1', sections: [{ section: 'A' }] },
+      { studentId: 's2', sections: [{ section: 'B' }] },
+    ]);
+
+    const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Course note.' }));
+    expect((await response.json()).sent).toBe(2);
+  });
+
+  it('does not section-limit an instructor', async () => {
+    mockPrisma.enrollment.findMany.mockResolvedValue([
+      { studentId: 's1', sections: [{ section: 'A' }] },
+      { studentId: 's2', sections: [{ section: 'B' }] },
+    ]);
+
+    const response = await POST(postRequest({ courseId: 'course-1', allStudents: true, body: 'Course note.' }));
+    expect((await response.json()).sent).toBe(2);
+  });
+
+  it('returns 404 when a checker targets a student outside their sections', async () => {
+    asChecker({ allowCrossSectionView: false, sections: ['A'] });
+    mockPrisma.enrollment.findMany.mockResolvedValue([{ studentId: 's2', sections: [{ section: 'B' }] }]);
+
+    const response = await POST(postRequest({ courseId: 'course-1', recipientId: 's2', body: 'Hi' }));
+    expect(response.status).toBe(404);
+    expect(mockPrisma.message.createMany).not.toHaveBeenCalled();
+  });
+});
+
+// Reminders live on their own route but answer to the same permission rules, so
+// they are covered here rather than in a separate suite.
+describe('POST /api/courses/[courseId]/badges/[badgeId]/reminders', () => {
+  beforeEach(() => {
+    mockPrisma.course.findFirst.mockResolvedValue({
+      id: 'course-1',
+      createdById: 'sender-1',
+      settings: { allowCheckerMessages: false, allowCrossSectionView: false },
+      enrollments: [],
+    });
+    mockPrisma.enrollment.findMany.mockResolvedValue([
+      { studentId: 's1', sections: [] },
+      { studentId: 's2', sections: [] },
+    ]);
+    mockPrisma.studentBadge.findMany.mockResolvedValue([]);
+    mockPrisma.message.createMany.mockResolvedValue({ count: 2 });
+  });
+
+  it('skips students who already completed the badge', async () => {
+    mockPrisma.studentBadge.findMany.mockResolvedValue([{ studentId: 's2' }]);
+
+    const response = await reminderPOST(reminderRequest({ body: 'Please finish.' }), reminderContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(201);
+    expect(body.sent).toBe(1);
+    expect(mockPrisma.message.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ recipientId: 's1', badgeId: 'badge-1' })],
+    });
+  });
+
+  it('blocks a checker when checker messaging is disabled', async () => {
+    asChecker({
+      allowCheckerMessages: false,
+      allowCrossSectionView: false,
+      sections: [],
+      extra: { id: 'course-1' },
+    });
+
+    const response = await reminderPOST(reminderRequest({ body: 'Please finish.' }), reminderContext());
+
+    expect(response.status).toBe(403);
+    expect(mockPrisma.message.createMany).not.toHaveBeenCalled();
+  });
+
+  it('allows a checker when checker messaging is enabled', async () => {
+    asChecker({ allowCheckerMessages: true, allowCrossSectionView: false, sections: [], extra: { id: 'course-1' } });
+
+    const response = await reminderPOST(reminderRequest({ body: 'Please finish.' }), reminderContext());
+
+    expect(response.status).toBe(201);
+  });
+
+  it('limits a checker reminder to their own sections', async () => {
+    asChecker({ allowCheckerMessages: true, allowCrossSectionView: false, sections: ['A'], extra: { id: 'course-1' } });
+    mockPrisma.enrollment.findMany.mockResolvedValue([
+      { studentId: 's1', sections: [{ section: 'A' }] },
+      { studentId: 's2', sections: [{ section: 'B' }] },
+    ]);
+
+    const response = await reminderPOST(reminderRequest({ body: 'Please finish.' }), reminderContext());
+    const body = await response.json();
+
+    expect(body.sent).toBe(1);
+    expect(mockPrisma.message.createMany).toHaveBeenCalledWith({
+      data: [expect.objectContaining({ recipientId: 's1' })],
+    });
   });
 });
 

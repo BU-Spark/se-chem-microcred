@@ -3,6 +3,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { BadgeStatus, CourseRole } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
+import { canSendCourseMessages, scopeRecipientsToSender } from '@/lib/messaging/audience';
 
 type ReminderPayload = {
   subject?: string | null;
@@ -15,7 +16,9 @@ function normalize(value?: string | null) {
 }
 
 // POST: send a lesson reminder to every STUDENT in the course whose badge is
-// not yet COMPLETED. Only the course creator or an INSTRUCTOR/CHECKER may send.
+// not yet COMPLETED. Only the course creator or an INSTRUCTOR/CHECKER may send,
+// and a CHECKER additionally needs the course's allowCheckerMessages setting —
+// a reminder is a message, so it answers to the same switch as /api/messages.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ courseId: string; badgeId: string }> }) {
   try {
     const { courseId, badgeId } = await params;
@@ -42,10 +45,29 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cou
           },
         ],
       },
-      select: { id: true },
+      select: {
+        id: true,
+        createdById: true,
+        settings: { select: { allowCheckerMessages: true, allowCrossSectionView: true } },
+        enrollments: {
+          where: { studentId: sender.id },
+          select: { role: true, sections: { select: { section: true } } },
+        },
+      },
     });
     if (!course) {
       return NextResponse.json({ error: 'Course not found or you do not have permission.' }, { status: 403 });
+    }
+
+    const senderEnrollment = course.enrollments[0] ?? null;
+    const standing = {
+      isCreator: course.createdById === sender.id,
+      role: senderEnrollment?.role ?? null,
+    };
+    const senderSections = senderEnrollment?.sections.map((assignment) => assignment.section) ?? [];
+
+    if (!canSendCourseMessages(standing, course.settings?.allowCheckerMessages ?? false)) {
+      return NextResponse.json({ error: 'Checker messaging is disabled for this course.' }, { status: 403 });
     }
 
     const payload = (await req.json().catch(() => ({}))) as ReminderPayload;
@@ -55,12 +77,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ cou
       return NextResponse.json({ error: 'Message body is required.' }, { status: 400 });
     }
 
-    // Enrolled students in the course.
+    // Enrolled students in the course, narrowed to the sections this sender may
+    // reach (a checker without cross-section view only reminds their own).
     const studentEnrollments = await prisma.enrollment.findMany({
       where: { courseId, role: CourseRole.STUDENT },
-      select: { studentId: true },
+      select: { studentId: true, sections: { select: { section: true } } },
     });
-    const studentIds = studentEnrollments.map((enrollment) => enrollment.studentId);
+    const studentIds = scopeRecipientsToSender(
+      studentEnrollments.map((enrollment) => ({
+        studentId: enrollment.studentId,
+        sections: enrollment.sections.map((assignment) => assignment.section),
+      })),
+      { sender: standing, senderSections, allowCrossSectionView: course.settings?.allowCrossSectionView ?? false }
+    ).map((recipient) => recipient.studentId);
 
     if (studentIds.length === 0) {
       return NextResponse.json({ sent: 0 }, { status: 200 });

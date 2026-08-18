@@ -6,6 +6,7 @@ import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
 import { youtubeUrlFromSummary } from '@/lib/video';
 import { classifyStudentBadgeCohort } from '@/lib/badgeCohorts';
+import { canSendCourseMessages } from '@/lib/messaging/audience';
 
 function normalizeId(value?: string | null) {
   const trimmed = value?.trim();
@@ -98,6 +99,13 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         );
       }
     }
+
+    const canMessage =
+      enrollment.role === 'STUDENT' &&
+      canSendCourseMessages(
+        { isCreator: isCourseCreator, role: viewerRole ?? null },
+        course.settings?.allowCheckerMessages ?? false
+      );
 
     const member = enrollment.student;
 
@@ -237,10 +245,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     return NextResponse.json(
       {
         memberRole: enrollment.role,
-        // The viewer's own role, not the profile subject's. The instructor-only
-        // student actions are hidden for checkers off this; the server enforces
-        // the same rule independently, so this is convenience, not the gate.
         viewerRole: effectiveViewerRole,
+        canMessage,
         member: {
           id: member.id,
           name: member.name,

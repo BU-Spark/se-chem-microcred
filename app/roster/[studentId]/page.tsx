@@ -44,6 +44,7 @@ type StudentProfileBadge = {
 type InstructorMemberProfileResponse = {
   memberRole: EnrollmentRole;
   viewerRole?: EnrollmentRole;
+  canMessage?: boolean;
   member: {
     id: string;
     name: string | null;
@@ -275,6 +276,7 @@ export default function InstructorStudentProfilePage() {
   const currentProfileLabelLower = currentProfileLabel.toLowerCase();
   const showBadgesSection = currentRole === 'STUDENT';
   const canManageStudent = data?.viewerRole === 'INSTRUCTOR';
+  const canMessageStudent = data?.canMessage === true;
   const courseSectionsLabel = data?.course.sections.join(', ') ?? '';
 
   const selectedBadgeTone: BadgeDetailTone | null = useMemo(() => {
@@ -571,9 +573,15 @@ export default function InstructorStudentProfilePage() {
 
                       <div className={styles.badgesHeaderMeta}>
                         <span className={styles.badgesHint}>Select a badge to view details</span>
-                        <button type="button" className={styles.assessmentLink} onClick={() => setIsMessageOpen(true)}>
-                          Message student
-                        </button>
+                        {canMessageStudent ? (
+                          <button
+                            type="button"
+                            className={styles.assessmentLink}
+                            onClick={() => setIsMessageOpen(true)}
+                          >
+                            Message student
+                          </button>
+                        ) : null}
                       </div>
                     </div>
 
@@ -684,7 +692,7 @@ export default function InstructorStudentProfilePage() {
         />
       ) : null}
 
-      {isMessageOpen && courseId && studentId ? (
+      {isMessageOpen && canMessageStudent && courseId && studentId ? (
         <MessageComposeModal
           studentName={data?.member.name ?? 'Student'}
           courseId={courseId}

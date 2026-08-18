@@ -3,6 +3,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { CourseRole } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
+import { canSendCourseMessages, scopeRecipientsToSender } from '@/lib/messaging/audience';
 
 function normalize(value?: string | null) {
   const trimmed = value?.trim();
@@ -106,8 +107,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Specify a recipientId or set allStudents.' }, { status: 400 });
     }
 
-    // Authorize the sender against the course and capture their role so we can
-    // enforce the checker-messaging setting for CHECKERs.
     const course = await prisma.course.findFirst({
       where: {
         id: courseId,
@@ -122,10 +121,10 @@ export async function POST(req: Request) {
       },
       select: {
         createdById: true,
-        settings: { select: { allowCheckerMessages: true } },
+        settings: { select: { allowCheckerMessages: true, allowCrossSectionView: true } },
         enrollments: {
           where: { studentId: sender.id },
-          select: { role: true },
+          select: { role: true, sections: { select: { section: true } } },
         },
       },
     });
@@ -133,26 +132,37 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Course not found or you do not have permission.' }, { status: 403 });
     }
 
-    // A CHECKER (checker) who is not the course creator may only message when
-    // the course allows checker messages.
-    const isCreator = course.createdById === sender.id;
-    const isChecker = course.enrollments.some((enrollment) => enrollment.role === CourseRole.CHECKER);
-    const isInstructor = course.enrollments.some((enrollment) => enrollment.role === CourseRole.INSTRUCTOR);
-    if (!isCreator && !isInstructor && isChecker && !course.settings?.allowCheckerMessages) {
+    const senderEnrollment = course.enrollments[0] ?? null;
+    const standing = {
+      isCreator: course.createdById === sender.id,
+      role: senderEnrollment?.role ?? null,
+    };
+    const senderSections = senderEnrollment?.sections.map((assignment) => assignment.section) ?? [];
+
+    if (!canSendCourseMessages(standing, course.settings?.allowCheckerMessages ?? false)) {
       return NextResponse.json({ error: 'Checker messaging is disabled for this course.' }, { status: 403 });
     }
 
-    // Resolve recipients: a single enrolled student, or all enrolled students.
+    // Resolve recipients: a single enrolled student, or all enrolled students,
+    // then narrow to the sections this sender may reach.
     const studentEnrollments = await prisma.enrollment.findMany({
       where: {
         courseId,
         role: CourseRole.STUDENT,
         ...(recipientId ? { studentId: recipientId } : {}),
       },
-      select: { studentId: true },
+      select: { studentId: true, sections: { select: { section: true } } },
     });
-    const recipientIds = studentEnrollments.map((enrollment) => enrollment.studentId);
+    const recipientIds = scopeRecipientsToSender(
+      studentEnrollments.map((enrollment) => ({
+        studentId: enrollment.studentId,
+        sections: enrollment.sections.map((assignment) => assignment.section),
+      })),
+      { sender: standing, senderSections, allowCrossSectionView: course.settings?.allowCrossSectionView ?? false }
+    ).map((recipient) => recipient.studentId);
 
+    // Same 404 whether the target is not a student here or simply outside the
+    // sender's sections, so a checker can't probe the roster of other sections.
     if (recipientId && recipientIds.length === 0) {
       return NextResponse.json({ error: 'Recipient is not a student in this course.' }, { status: 404 });
     }

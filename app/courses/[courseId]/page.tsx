@@ -319,6 +319,10 @@ export default function CreatedCourseDetailPage() {
   const isInstructorFlag = isInstructor(viewerRole) && !isCheckerView;
   const canAssess = isCheckerView && viewerRole !== 'STUDENT';
   const isStudent = viewerRole === 'STUDENT';
+
+  const effectiveRole = isCheckerView && viewerRole !== 'STUDENT' ? 'CHECKER' : viewerRole;
+  const canSendReminders =
+    effectiveRole === 'INSTRUCTOR' || (effectiveRole === 'CHECKER' && course?.settings?.allowCheckerMessages === true);
   const displayName = isInstructorFlag ? course?.createdBy?.name || '' : user?.fullName || '';
 
   const studentCount = useMemo(
@@ -687,25 +691,25 @@ export default function CreatedCourseDetailPage() {
                             <strong data-tone={availability.tone}>{availability.label}</strong>
                             <span>{availability.detail}</span>
                           </div>
+                          {canSendReminders ? (
+                            <button
+                              type="button"
+                              className={styles.badgeReminderButton}
+                              onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
+                              aria-label={`Send a lesson reminder for ${badge.name}`}
+                            >
+                              Remind
+                            </button>
+                          ) : null}
                           {isInstructorFlag ? (
-                            <>
-                              <button
-                                type="button"
-                                className={styles.badgeReminderButton}
-                                onClick={() => setReminderBadge({ id: badge.id, name: badge.name })}
-                                aria-label={`Send a lesson reminder for ${badge.name}`}
-                              >
-                                Remind
-                              </button>
-                              <button
-                                type="button"
-                                className={styles.badgeUnassignButton}
-                                onClick={() => openBadgeSettings(badge)}
-                                disabled={isDeleting}
-                              >
-                                Settings
-                              </button>
-                            </>
+                            <button
+                              type="button"
+                              className={styles.badgeUnassignButton}
+                              onClick={() => openBadgeSettings(badge)}
+                              disabled={isDeleting}
+                            >
+                              Settings
+                            </button>
                           ) : isStudent ? (
                             <MessageIcon />
                           ) : null}
