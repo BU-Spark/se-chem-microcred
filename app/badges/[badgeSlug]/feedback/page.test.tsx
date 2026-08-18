@@ -83,6 +83,8 @@ function studentData() {
 }
 
 describe('Badge feedback page', () => {
+  let pageFetch: jest.Mock;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseUser.mockReturnValue({
@@ -95,7 +97,7 @@ describe('Badge feedback page', () => {
     });
     mockUseAuth.mockReturnValue({ signOut: jest.fn() });
     mockUseStudentData.mockReturnValue({ data: studentData(), isLoading: false, error: null, refresh: jest.fn() });
-    global.fetch = jest
+    pageFetch = jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -161,7 +163,20 @@ describe('Badge feedback page', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: 'READY_FOR_ASSESSMENT', cooldownUntil: '2099-01-05T00:00:00.000Z' }),
-      }) as unknown as typeof fetch;
+      });
+
+    // The app shell (sidebar) fetches ambient per-user data on every page.
+    // Answer those here so they never consume the queued page responses above.
+    global.fetch = ((url: RequestInfo | URL, init?: RequestInit) => {
+      const href = String(url);
+      if (href.includes('/api/messages/unread') || href.includes('/api/me/access')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ count: 0, canCreateContent: false, isAdmin: false }),
+        });
+      }
+      return pageFetch(url, init);
+    }) as unknown as typeof fetch;
   });
 
   it('renders checker rubric feedback read-only and acknowledges failed feedback review', async () => {
@@ -183,7 +198,7 @@ describe('Badge feedback page', () => {
     expect(mockUseStudentData).toHaveBeenCalledWith('student@example.edu', 'course-1');
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/badges/badge-1/feedback', { method: 'POST' });
+      expect(pageFetch).toHaveBeenCalledWith('/api/badges/badge-1/feedback', { method: 'POST' });
     });
     expect(await screen.findByText(/ready for reassessment/i)).toBeInTheDocument();
 

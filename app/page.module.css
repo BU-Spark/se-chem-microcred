@@ -287,6 +287,20 @@
   color: #ffffff;
 }
 
+.navBadge {
+  margin-left: auto;
+  min-width: 1.35rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 .navItem:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #ffffff;

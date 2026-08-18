@@ -25,7 +25,7 @@
 - **App layer:** Next.js 15 App Router, mostly Client Components that render from the Clerk session and SWR-cached API data. The root layout is `force-dynamic` (every route is auth-gated and reads search params), so nothing is statically prerendered.
 - **Authentication:** Clerk. `middleware.ts` actively protects all non-public routes; individual pages additionally redirect to `/splash` when the session is missing. Sign-in/sign-up live under `app/(auth)`.
 - **Onboarding:** New Clerk sign-ups don't exist in the database yet (the Clerk webhook is stubbed). On completing onboarding (`/onboarding` → `POST /api/onboarding`), the user is upserted with name, demographics, chosen avatar base, and an analytics row. On subsequent requests, `ensureCurrentUser()` matches the Clerk email to the DB user.
-- **Data & APIs:** A broad route-handler surface under `app/api/**` covers courses (create/join/duplicate/enrollments/students/badges/import/reminders), badges, assessments and assessment access codes, checkpoints/attempts, lessons (start/grade/survey), progress, profile, messages, uploads, QR generation, and health.
+- **Data & APIs:** A broad route-handler surface under `app/api/**` covers courses (create/join/duplicate/enrollments/students/badges/import), badges, assessments and assessment access codes, checkpoints/attempts, lessons (start/grade/survey), progress, profile, messages, uploads, QR generation, and health.
 - **Video & QEV:** Lesson playback supports YouTube (via the YouTube Iframe API) and Mux playback IDs (schema field `muxPlaybackId`). The lesson player renders in-video checkpoints — a "Question Embedded Video" (QEV) experience — pausing to quiz the student and record responses. Direct Mux uploads are stubbed (see Known Issues).
 - **QR & assessment codes:** Badge assessment QR codes are generated **server-side** by `/api/qr` using the `qrcode` package (no external QR service). QR payloads plus short-lived `AssessmentAccessCode`s let a checker validate a student's badge in person at `/qr/assessment`.
 - **Rubric assessment:** Badges can carry a `RubricGoal` with weighted `RubricSubgoal`s. Checkers submit pass/fail, score, points, feedback, and per-subgoal responses (`AssessmentAttempt` + `AssessmentSubgoalResponse`); a pass advances the badge to `READY_FOR_FINALIZATION`.
@@ -42,7 +42,7 @@ Key Prisma models (`prisma/schema.prisma`):
 - **Badge / BadgeRequirement / StudentBadge / RubricGoal / RubricSubgoal** — badge definitions (with library import lineage via `sourceBadgeId`), per-student status (LEARNING → READY_FOR_ASSESSMENT → READY_FOR_FINALIZATION → COMPLETED), and rubrics.
 - **AssessmentAttempt / AssessmentSubgoalResponse / AssessmentAccessCode** — in-person grading records and short-lived access codes.
 - **SurveyPrompt / SurveyResponse** — lesson- and badge-context feedback surveys.
-- **Message** — in-app messaging (feature-flagged WIP).
+- **Message / MessageReceipt** — in-app messaging. One authored `Message` carries the body, sender, course/badge context, and an audience descriptor (`DIRECT`, `ALL_STUDENTS`, `BADGE_INCOMPLETE`); a `MessageReceipt` per person records who it reached and their own read state. The audience is frozen at send time, so later enrollees never see older mail and unenrolled students keep what they already received. Staff copied on a blast get an `isObserver` receipt and are excluded from the sender's read count.
 
 ## Getting Started
 
@@ -183,7 +183,7 @@ Signed-out visitors see the marketing **splash** (`/splash`). Authenticated user
 
 - **My Analytics (`/analytics`)** — Progress tiles (hours, badge counts, questions answered) and score gauges.
 - **Profile (`/profile`)** — Consolidated student controls: sensitive-field auto-hide with Clerk re-auth, demographics editor, language selector, course contacts, quick stats, and security actions.
-- **Messages (`/messages`)** — In-app messaging (WIP; nav entry only shown when the dev env flag is set).
+- **Messages (`/messages`)** — Received and Sent tabs, both cross-course and role-agnostic, with a newest/oldest sort. Sent shows each message's read count over its student audience. The sidebar carries an unread badge.
 - **Report (`/report`)** — Reporting surface.
 - **Instructor QEV prototype (`/instructor/qev-demo`)** — Standalone cue-point authoring demo (predates the integrated in-lesson QEV player).
 - **Grades (`/grades`) & Settings (`/settings`)** — Placeholder "coming soon" pages retained for parity; functional controls live on Profile. Not currently in the sidebar nav.
@@ -192,7 +192,7 @@ Signed-out visitors see the marketing **splash** (`/splash`). Authenticated user
 
 Route handlers live under `app/api/**`. Highlights:
 
-- **Courses:** `courses` (list/create), `courses/mine`, `courses/created`, `courses/enrolled`, `courses/checker`, `courses/join`, and per-course `courses/[courseId]` (detail, `duplicate`, `enrollments`, `students`, `badges`, `badges/import`, `badges/[badgeId]/reminders`).
+- **Courses:** `courses` (list/create), `courses/mine`, `courses/created`, `courses/enrolled`, `courses/checker`, `courses/join`, and per-course `courses/[courseId]` (detail, `duplicate`, `enrollments`, `students`, `badges`, `badges/import`).
 - **Badges & assessment:** `badges`, `badges/[badgeId]` (+ `assess`, `feedback`, `survey`), `badges/export/[id]`, `assessment-codes`, `attempts/[skillId]`.
 - **Lessons & progress:** `lessons/[lessonId]` (+ `start`, `grade`, `survey`), `checkpoints/[checkpointId]/attempt`, `checkpoint-snapshot`, `progress/[skillId]`.
 - **User:** `onboarding`, `profile/demographics`, `profile/display-name`, `profile/reverify`, `demo/student` (aggregate student graph), `messages`.
@@ -218,7 +218,7 @@ Provide the same env vars as local (`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHAB
 ## Known Issues
 
 - **Stubbed integrations:** `uploads/video` (Mux upload), `webhooks/mux`, and `webhooks/clerk` return `202 "not yet implemented"`. New users are created via the onboarding endpoint rather than a Clerk webhook.
-- **Messages** is instructor/checker → student only; students have no reply path, there is no unread indicator, and the "message the whole class" case is supported by the API but not yet exposed in the UI.
+- **Messages** are instructor/checker → student only; students have no reply path. Sends go through `POST /api/messages`, which picks the audience from the payload: `recipientId` for a 1:1 (from a student's roster profile), `badgeId` for everyone who has not completed that badge (the badge's **Remind** button), or `allStudents` for the whole course (**Message students** on the course detail page). A CHECKER may send only while the course's `allowCheckerMessages` setting is on, and reaches only their own sections unless `allowCrossSectionView` is also on. The whole-course audience is instructor-only regardless of either setting.
 - **Checkpoint snapshots** rely on YouTube thumbnails rather than true timestamp stills (accurate stills would require processing the source video).
 - **Completion metrics** can be inaccurate in edge cases; percentage math needs reinforcement.
 - Some UI surfaces are not fully aligned with the intended Figma design (badge/skill-tracking screens), and the standalone `/instructor/qev-demo` prototype overlaps with the integrated in-lesson QEV player.
