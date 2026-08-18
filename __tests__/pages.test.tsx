@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import HomePage from '../app/page';
-import BadgeWalletPage from '../app/badges/page';
+import BadgePassportPage from '../app/badges/page';
 import BadgeFeedbackPage from '@/app/badges/[badgeSlug]/feedback/page';
 import AnalyticsPage from '../app/analytics/page';
 import ProfilePage from '../app/profile/page';
@@ -413,26 +413,118 @@ describe('Home page', () => {
   });
 });
 
-describe('Badge Wallet page', () => {
+describe('Badge Passport page', () => {
   it('hides content for signed-out users and redirects', () => {
     mockUseUser.mockReturnValue({ isLoaded: true, isSignedIn: false, user: null });
-    render(<BadgeWalletPage />);
+    render(<BadgePassportPage />);
     expect(mockReplace).toHaveBeenCalledWith('/sign-in');
   });
 
-  it('renders sections and opens badge modal with status-specific actions', () => {
-    render(<BadgeWalletPage />);
+  it('lists only completed badges and hides in-progress states', () => {
+    render(<BadgePassportPage />);
 
-    expect(screen.getByText(/Completed Badges/i)).toBeInTheDocument();
-    expect(screen.getByText(/In Review/i)).toBeInTheDocument();
+    expect(screen.getByText('Bunsen Burner Badge')).toBeInTheDocument();
+    // Ready-for-assessment / in-review / locked badges belong to the course
+    // dashboard now — the passport is a completed-only record.
+    expect(screen.queryByText('Assessment Badge')).not.toBeInTheDocument();
+    expect(screen.getByText(/Nothing here is self-reported/i)).toBeInTheDocument();
+  });
 
-    fireEvent.click(screen.getByRole('button', { name: /Bunsen Burner/i }));
-    expect(screen.getByText(/Badge finalized/i)).toBeInTheDocument();
+  it('derives the passport identity strip from stored student fields', () => {
+    render(<BadgePassportPage />);
 
-    const assessmentToggle = document.querySelector('button[aria-controls="assessment-badges"]') as HTMLButtonElement;
-    fireEvent.click(assessmentToggle);
-    fireEvent.click(screen.getByRole('button', { name: /^Assessment Badge$/i }));
-    expect(screen.getByText(/Show your checker this QR code/i)).toBeInTheDocument();
+    expect(screen.getByText(/^CHKD-\d{4}-\d{4}$/)).toBeInTheDocument();
+    // Dates render in the viewer's timezone, so match the shape, not a fixed day.
+    expect(screen.getByText(/^Issued \d{2} [A-Z][a-z]{2} \d{4}$/)).toBeInTheDocument();
+    expect(screen.getByText('1 badge')).toBeInTheDocument();
+  });
+
+  // Two completed badges in different courses, so the course filter has something
+  // to narrow: one in the mocked enrollment (Chem 101) and one with no resolvable
+  // course, which collects under "Other".
+  function renderWithTwoCourses() {
+    const studentData = createStudentData();
+    studentData.badges.completed = [
+      {
+        ...studentData.badges.completed[0],
+        id: 'b-course',
+        slug: 'course-badge',
+        name: 'Course Badge',
+        courseId: 'course-1',
+        awardedAt: '2025-03-01T12:00:00.000Z',
+      },
+      {
+        ...studentData.badges.completed[0],
+        id: 'b-loose',
+        slug: 'loose-badge',
+        name: 'Loose Badge',
+        courseId: null,
+        awardedAt: '2026-03-01T12:00:00.000Z',
+      },
+    ];
+    mockUseStudentData.mockReturnValue({ data: studentData, isLoading: false, error: null, refresh: jest.fn() });
+    render(<BadgePassportPage />);
+  }
+
+  it('narrows the record to the courses checked in the filter modal', () => {
+    renderWithTwoCourses();
+
+    fireEvent.click(screen.getByRole('button', { name: /Courses/i }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Chem 101/i }));
+
+    expect(screen.getByText('Course Badge')).toBeInTheDocument();
+    expect(screen.queryByText('Loose Badge')).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 1 of 2')).toBeInTheDocument();
+
+    // Unchecking everything returns to the unfiltered record.
+    fireEvent.click(screen.getByRole('button', { name: /Clear selection/i }));
+    expect(screen.getByText('Loose Badge')).toBeInTheDocument();
+  });
+
+  it('keeps only badges earned on or before the date picked from the calendar', () => {
+    // Pinned so the calendar always opens on a known month and the walk back to
+    // the target month is a fixed number of clicks.
+    jest.useFakeTimers().setSystemTime(new Date(2026, 5, 15, 12));
+
+    try {
+      renderWithTwoCourses();
+
+      fireEvent.click(screen.getByRole('button', { name: /Earned on or before/i }));
+      expect(screen.getByText('June 2026')).toBeInTheDocument();
+      // Future days can't hold a badge, so they're disabled.
+      expect(screen.getByRole('button', { name: '16' })).toBeDisabled();
+
+      for (let i = 0; i < 5; i += 1) {
+        fireEvent.click(screen.getByRole('button', { name: 'Previous month' }));
+      }
+      expect(screen.getByText('January 2026')).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: '15' }));
+
+      // Cutoff 15 Jan 2026 keeps the Mar 2025 badge and drops the Mar 2026 one.
+      expect(screen.getByText('Course Badge')).toBeInTheDocument();
+      expect(screen.queryByText('Loose Badge')).not.toBeInTheDocument();
+      expect(screen.getByText('15 Jan 2026')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: /Clear filters/i }));
+      expect(screen.getByText('Loose Badge')).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('hides the course control when every badge shares one course', () => {
+    render(<BadgePassportPage />);
+    expect(screen.queryByRole('button', { name: /Courses/i })).not.toBeInTheDocument();
+  });
+
+  it('opens the badge detail with export and feedback actions', () => {
+    render(<BadgePassportPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Bunsen Burner Badge/i }));
+
+    expect(screen.getByRole('button', { name: /Export to LinkedIn/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Review feedback/i }));
+    expect(mockPush).toHaveBeenCalledWith('/badges/bunsen-burner-badge/feedback');
   });
 });
 
