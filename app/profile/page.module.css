@@ -27,7 +27,7 @@
   font-family: 'Lato', sans-serif;
   font-size: 48px;
   font-weight: 700;
-  color: #000000;
+  color: var(--checkd-black);
   line-height: 1.05;
 }
 
@@ -43,7 +43,7 @@
    Main Profile Card
    =========================== */
 .profileCard {
-  background: #ffffff;
+  background: var(--checkd-white);
   border-radius: 40px;
   border: 4px solid #d9d9d9;
   padding: 2.5rem 3rem;
@@ -60,14 +60,14 @@
 .infoColumn {
   display: flex;
   flex-direction: column;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .sectionTitle {
   font-family: 'Lato', sans-serif;
   font-size: 24px;
   font-weight: 400;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .primaryName {
@@ -76,7 +76,7 @@
   font-size: 48px;
   font-weight: 700;
   line-height: 1.05;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .roleLabel {
@@ -84,14 +84,14 @@
   font-family: 'Lato', sans-serif;
   font-weight: 400;
   font-size: 24px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .metaLine {
   margin-top: 0.25rem;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 /* Email / BUID row */
@@ -121,7 +121,7 @@
   border: 4px solid #d9d9d9;
   display: grid;
   place-items: center;
-  background: #ffffff;
+  background: var(--checkd-white);
   overflow: hidden;
 }
 
@@ -139,7 +139,7 @@
   align-items: center;
   gap: 0.4rem;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
   font-weight: 400;
   cursor: pointer;
   text-decoration: none;
@@ -148,7 +148,7 @@
 }
 
 .editAvatarText {
-  border-bottom: 1px solid #000000;
+  border-bottom: 1px solid var(--checkd-black);
   padding-bottom: 1px;
 }
 
@@ -184,14 +184,14 @@
   border: none;
   padding: 0;
   cursor: pointer;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .demographicTitle {
   font-family: 'Lato', sans-serif;
   font-size: 24px;
   font-weight: 400;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .caret {
@@ -199,7 +199,7 @@
   font-size: 18px;
   line-height: 1;
   transition: transform 0.2s ease;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .caretOpen {
@@ -215,7 +215,7 @@
 .detailLabel {
   font-size: 20px;
   font-weight: 400;
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Lato', sans-serif;
 }
 
@@ -244,7 +244,7 @@
   font-size: 20px;
   font-style: italic;
   font-weight: 300;
-  color: #000000;
+  color: var(--checkd-black);
   padding: 0;
 }
 
@@ -262,7 +262,7 @@
    Badges card
    =========================== */
 .badgesCard {
-  background: #ffffff;
+  background: var(--checkd-white);
   border-radius: 40px;
   border: 4px solid #d9d9d9;
   padding: 2rem 3rem 2.5rem;
@@ -281,14 +281,14 @@
   font-family: 'Lato', sans-serif;
   font-size: 48px;
   font-weight: 700;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .badgeSectionLabel {
   font-family: 'Lato', sans-serif;
   font-size: 24px;
   font-weight: 400;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .badgeRow {
@@ -312,7 +312,7 @@
   width: 160px;
   height: 160px;
   border-radius: 50%;
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   flex-shrink: 0;
 }
 
@@ -323,7 +323,7 @@
 .badgeName {
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
   text-align: center;
 }
 
@@ -345,7 +345,7 @@
 }
 
 .badgeDropdownHeader .caret {
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font-size: 22px;
 }
 
@@ -415,7 +415,7 @@
   font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;
   font-weight: 400;
-  color: #000000;
+  color: var(--checkd-black);
   cursor: pointer;
   text-decoration: underline;
 }
@@ -435,7 +435,7 @@
 .demographicModal {
   width: min(520px, 95%);
   border-radius: 1.5rem;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 1.75rem 2rem 1.75rem;
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.4);
   display: flex;
@@ -477,8 +477,8 @@
 .demographicModalField input:focus,
 .demographicModalField select:focus {
   outline: none;
-  border-color: #2e6aa9;
-  box-shadow: 0 0 0 3px rgba(46, 106, 169, 0.15);
+  border-color: var(--checkd-blue-high);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-high-rgb) / 0.15);
 }
 
 .demographicModalLabel {
@@ -499,7 +499,7 @@
   font-family: 'Lato', sans-serif;
   border-radius: 999px;
   border: 1px solid #d1d5db;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 0.5rem 1.3rem;
   font-size: 0.95rem;
   font-weight: 600;
@@ -515,8 +515,8 @@
   font-family: 'Lato', sans-serif;
   border-radius: 999px;
   border: none;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
   padding: 0.5rem 1.6rem;
   font-size: 0.95rem;
   font-weight: 600;
@@ -524,7 +524,7 @@
 }
 
 .demographicModalSave:hover {
-  background: #285d94;
+  filter: brightness(0.93);
 }
 
 .demographicModalSave:disabled,
@@ -548,7 +548,7 @@
 .languageModal {
   width: min(520px, 95%);
   border-radius: 1.5rem;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 1.75rem 2rem 1.75rem;
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.4);
   display: flex;
@@ -609,7 +609,7 @@
 
 .languageTag {
   font-size: 0.75rem;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 /* actions at bottom of language modal */
@@ -624,7 +624,7 @@
 .languageModalCancel {
   border-radius: 999px;
   border: 1px solid #d1d5db;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 0.5rem 1.1rem;
   font-size: 0.9rem;
   cursor: pointer;
@@ -633,8 +633,8 @@
 .languageModalSave {
   border-radius: 999px;
   border: none;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
   padding: 0.5rem 1.4rem;
   font-size: 0.9rem;
   font-weight: 600;

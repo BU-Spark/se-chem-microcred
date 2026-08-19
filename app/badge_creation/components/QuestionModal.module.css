@@ -15,7 +15,7 @@
   width: min(1100px, 100%);
   max-height: calc(100vh - 3rem);
   overflow: auto;
-  background: #ffffff;
+  background: var(--checkd-white);
   border-radius: 14px;
   padding: 0;
   display: flex;

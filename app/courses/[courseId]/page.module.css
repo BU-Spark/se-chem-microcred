@@ -1,14 +1,14 @@
 .page {
   display: flex;
   min-height: calc(100vh - 80px);
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 .main {
   flex: 1;
   min-height: 100vh;
   padding: 1.5rem 1.75rem 3rem;
-  background: #ffffff;
+  background: var(--checkd-white);
   font-family: 'Open Sans', system-ui, sans-serif;
 }
 
@@ -29,7 +29,7 @@
   font-size: 48px;
   font-weight: 700;
   line-height: 1.05;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .statusBlock {
@@ -46,7 +46,7 @@
 
 .inlineLink {
   width: fit-content;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font-weight: 600;
   text-decoration: none;
 }
@@ -82,7 +82,7 @@
   font-family: 'Lato', system-ui, sans-serif;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .personCard {
@@ -106,7 +106,7 @@
   flex: 0 0 3rem;
   border: 2px solid #dadada;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 .personAvatarImage {
@@ -120,8 +120,8 @@
   display: grid;
   place-items: center;
   border-radius: 999px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font-size: 0.8rem;
   font-weight: 700;
 }
@@ -149,7 +149,7 @@
   font-size: 0.98rem;
   font-weight: 600;
   line-height: 1.3;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .personEmail {
@@ -202,7 +202,7 @@
   padding: 0.1rem 0.5rem;
   border-radius: 8px;
   background: #eef4fb;
-  color: #174f8e;
+  color: var(--checkd-blue);
   font-family: 'Open Sans', system-ui, sans-serif;
   font-size: 0.95rem;
   font-weight: 700;
@@ -240,14 +240,14 @@
   font-weight: 400;
   text-decoration: none;
   transition: filter 0.16s ease;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   border: 0;
   cursor: pointer;
 }
 
 .primaryButton:hover {
-  filter: brightness(1.04);
+  background: var(--checkd-blue-low);
 }
 
 .primaryButton:disabled {
@@ -263,8 +263,8 @@
   min-height: 2.7rem;
   border: 1px solid #cfd8e3;
   border-radius: 0.8rem;
-  background: #ffffff;
-  color: #2e6aa9;
+  background: var(--checkd-white);
+  color: var(--checkd-blue);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
@@ -293,7 +293,7 @@
   font-size: 2.5rem;
   font-weight: 700;
   line-height: 1.05;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .sectionCount {
@@ -333,7 +333,7 @@
 .badgeCard:hover,
 .badgeCard:focus-within {
   background: #eef4fb;
-  box-shadow: 0 6px 18px rgba(46, 106, 169, 0.12);
+  box-shadow: 0 6px 18px rgb(var(--checkd-blue-rgb) / 0.12);
 }
 
 .badgeCard:hover .badgeToken {
@@ -347,7 +347,7 @@
   height: 6.4rem;
   flex: none;
   border-radius: 999px;
-  background-color: #2e6aa9;
+  background-color: var(--checkd-blue);
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -363,7 +363,7 @@
   font-size: 0.95rem;
   font-weight: 600;
   line-height: 1.3;
-  color: #000000;
+  color: var(--checkd-black);
   overflow-wrap: anywhere;
 }
 
@@ -406,7 +406,7 @@
 
 .badgeIconButton:hover {
   background: #eef4fb;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 .badgeIconButton:disabled {
@@ -431,7 +431,7 @@
   min-height: 2.9rem;
   border: 1.5px solid #c98a86;
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--checkd-white);
   color: #b42318;
   cursor: pointer;
   font-family: 'Lato', system-ui, sans-serif;
@@ -486,7 +486,7 @@
   min-height: 3rem;
   border: 1px solid #c8d4e0;
   border-radius: 0.8rem;
-  background: #ffffff;
+  background: var(--checkd-white);
   color: #111111;
   font-family: 'Open Sans', system-ui, sans-serif;
   font-size: 1rem;
@@ -506,7 +506,7 @@
 }
 
 .successText {
-  color: #1b6b3a;
+  color: var(--checkd-black);
 }
 
 .modalOverlay {
@@ -524,9 +524,9 @@
   position: relative;
   width: min(520px, 100%);
   border-radius: 30px;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 40px 44px 36px;
-  color: #000000;
+  color: var(--checkd-black);
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
@@ -540,7 +540,7 @@
   right: 20px;
   border: none;
   background: transparent;
-  color: #000000;
+  color: var(--checkd-black);
   cursor: pointer;
   font-family: 'Lato', sans-serif;
   font-size: 28px;
@@ -594,12 +594,12 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #111827;
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 .assessmentCodeField input:focus {
-  border-color: #0066a6;
-  box-shadow: 0 0 0 3px rgba(0, 102, 166, 0.14);
+  border-color: var(--checkd-blue-high);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-high-rgb) / 0.14);
   outline: none;
 }
 
@@ -619,7 +619,7 @@
   border: 0;
   border-radius: 19px;
   background: var(--brand-color);
-  color: #ffffff;
+  color: var(--checkd-white);
   cursor: pointer;
   font-family: 'Lato', sans-serif;
   font-size: 17px;
@@ -628,7 +628,7 @@
 }
 
 .confirmButton:hover {
-  filter: brightness(1.05);
+  background: var(--checkd-blue-low);
 }
 
 .modalCloseButton:disabled,
@@ -694,7 +694,7 @@
   width: min(560px, 100%);
   max-height: calc(100vh - 3rem);
   overflow: auto;
-  background: #ffffff;
+  background: var(--checkd-white);
   border-radius: 24px;
   padding: 2rem 2.25rem 1.75rem;
   box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25);
@@ -731,7 +731,7 @@
 }
 
 .importStepActive {
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 .importStepMuted {
@@ -761,8 +761,8 @@
   width: 3.25rem;
   height: 3.25rem;
   border-radius: 50%;
-  background: #e7f5ec;
-  color: #1b6b3a;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
   font-size: 1.7rem;
   font-weight: 700;
 }
@@ -868,8 +868,8 @@
 .badgesCard {
   border: 1px solid #dce3ec;
   border-radius: 16px;
-  background: #ffffff;
-  box-shadow: 0 10px 30px rgba(20, 42, 80, 0.045);
+  background: var(--checkd-white);
+  box-shadow: 0 10px 30px rgb(var(--checkd-blue-rgb) / 0.045);
 }
 
 .heroCard {
@@ -1148,11 +1148,11 @@
 .badgeToken {
   width: 6rem;
   height: 6rem;
-  border: 3px solid #ffffff;
+  border: 3px solid var(--checkd-white);
   background-color: #eaf1fa;
   box-shadow:
     0 0 0 2px var(--brand-color),
-    0 7px 18px rgba(20, 42, 80, 0.18);
+    0 7px 18px rgb(var(--checkd-blue-rgb) / 0.18);
   transition:
     transform 160ms ease,
     box-shadow 160ms ease,
@@ -1163,7 +1163,7 @@
   transform: translateY(-2px);
   box-shadow:
     0 0 0 3px var(--brand-color),
-    0 10px 22px rgba(20, 42, 80, 0.22);
+    0 10px 22px rgb(var(--checkd-blue-rgb) / 0.22);
 }
 .badgeCopy {
   min-width: 0;
@@ -1196,7 +1196,7 @@
   height: 0.45rem;
   margin-right: 0.45rem;
   border-radius: 50%;
-  background: #2f9e62;
+  background: var(--checkd-green);
   vertical-align: 0.05rem;
 }
 .availability strong[data-tone='scheduled']::before {
@@ -1208,7 +1208,7 @@
   padding: 0.65rem 0.8rem;
   border: 1px solid #c9d3e1;
   border-radius: 8px;
-  background: #fff;
+  background: var(--checkd-white);
   color: #0b1833;
   font:
     700 0.78rem/1 'Open Sans',
@@ -1310,7 +1310,7 @@
 }
 .assessmentModal .assessmentCodeField input:focus {
   border-color: var(--brand-color);
-  box-shadow: 0 0 0 3px rgba(31, 95, 171, 0.16);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-high-rgb) / 0.16);
 }
 .assessmentModal .assessmentCodeField input[aria-invalid='true'] {
   border-color: #b42318;
@@ -1404,7 +1404,7 @@
   position: relative;
   z-index: 1;
   padding: 0 0.45rem;
-  background: #fff;
+  background: var(--checkd-white);
 }
 .importStepActive {
   color: var(--brand-color);
@@ -1426,7 +1426,7 @@
 }
 .importField select:focus {
   border-color: var(--brand-color);
-  box-shadow: 0 0 0 3px rgba(31, 95, 171, 0.16);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-high-rgb) / 0.16);
   outline: none;
 }
 .importModalActions {
@@ -1448,7 +1448,7 @@
   padding: 0.75rem 1rem;
   border: 1px solid #e3a7a2;
   border-radius: 8px;
-  background: #fff;
+  background: var(--checkd-white);
   color: #b42318;
   cursor: pointer;
   font:
@@ -1471,10 +1471,10 @@
 .importConfirmIcon {
   width: 3.5rem;
   height: 3.5rem;
-  background: #e9f6ef;
-  color: #238657;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
   font-size: 1.5rem;
-  box-shadow: 0 0 0 1px #b9e1ca;
+  box-shadow: 0 0 0 1px var(--checkd-green);
 }
 .importCountdown {
   color: #718096;
@@ -1551,7 +1551,7 @@
   border: 0;
   border-radius: 8px;
   background: #c52b20;
-  color: #fff;
+  color: var(--checkd-white);
   cursor: pointer;
   font:
     700 0.86rem/1 'Open Sans',

@@ -29,12 +29,12 @@
 .item {
   border: 2px solid #e2e2e2;
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 1rem 1.25rem;
 }
 
 .itemUnread {
-  border-color: #2e6aa9;
+  border-color: var(--checkd-blue);
   background: #f5f9ff;
 }
 
@@ -85,7 +85,7 @@
 .tab {
   border: 2px solid #e2e2e2;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 0.4rem 1.1rem;
   font-family: 'Lato', sans-serif;
   font-size: 0.9rem;
@@ -99,9 +99,9 @@
 }
 
 .tabActive {
-  border-color: #2e6aa9;
+  border-color: var(--checkd-blue);
   background: #f5f9ff;
-  color: #1f4d7a;
+  color: var(--checkd-blue);
 }
 
 .readCount {
@@ -129,7 +129,7 @@
 .orderSelect {
   border: 2px solid #e2e2e2;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 0.35rem 0.75rem;
   font-family: 'Open Sans', sans-serif;
   font-size: 0.85rem;

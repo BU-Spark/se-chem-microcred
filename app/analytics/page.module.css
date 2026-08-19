@@ -1,12 +1,12 @@
 /* ===== Design tokens (single source of truth) ===== */
 .page {
-  --c-blue: #2e6aa9;
-  --c-lime: #c9db50;
-  --c-lime-soft: rgba(201, 219, 80, 0.18);
+  --c-blue: var(--checkd-blue);
+  --c-lime: var(--checkd-green);
+  --c-lime-soft: rgb(var(--checkd-green-rgb) / 0.18);
   --c-red: #c64d4d;
   --c-track: #d9d9d9;
   --c-card-border: #d9d9d9;
-  --c-ink: #000000;
+  --c-ink: var(--checkd-black);
 }
 
 .headerRow {
@@ -28,7 +28,7 @@
   font-size: 48px;
   line-height: 1.05;
   font-weight: 700;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .pageSubtitle {
@@ -61,7 +61,7 @@
 
 /* Generic card */
 .card {
-  background: #ffffff;
+  background: var(--checkd-white);
   border-radius: 20px;
   border: 3px solid var(--c-card-border);
   box-shadow: none;
@@ -476,7 +476,9 @@
   font-family: 'Lato', sans-serif;
   font-weight: 600;
   cursor: pointer;
-  transition: filter 0.2s ease, background-color 0.2s ease;
+  transition:
+    filter 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .signOffButton:hover {

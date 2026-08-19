@@ -256,7 +256,7 @@ export default function CourseBadgeProgress() {
               kind: 'completed' as const,
               label: 'Students who have completed this badge',
               percent: summary.completedPercent,
-              color: '#22a06b',
+              color: 'var(--checkd-green)',
             },
             {
               kind: 'learning' as const,
@@ -287,7 +287,7 @@ export default function CourseBadgeProgress() {
     const completedDeg = (summary?.completedPercent ?? 0) * 3.6;
     const inProgressDeg = (summary?.inProgressPercent ?? 0) * 3.6;
     const inProgressEnd = completedDeg + inProgressDeg;
-    return `conic-gradient(#22a06b 0deg ${completedDeg}deg, #f0a33b ${completedDeg}deg ${inProgressEnd}deg, #dfe5ec ${inProgressEnd}deg 360deg)`;
+    return `conic-gradient(var(--checkd-green) 0deg ${completedDeg}deg, #f0a33b ${completedDeg}deg ${inProgressEnd}deg, #dfe5ec ${inProgressEnd}deg 360deg)`;
   })();
   const checkpointCount = assessment?.checkpoints.length ?? 0;
   const videoTitle = assessment?.videoTitle || badge?.lesson?.title || 'Lesson video';

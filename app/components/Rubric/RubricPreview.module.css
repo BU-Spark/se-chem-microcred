@@ -1,7 +1,7 @@
 /* Mirrors the badge editor's Create Rubric step (app/badge_creation/page.module.css)
    so a finished rubric reads exactly like the one an instructor authored. */
 .panel {
-  background: #ffffff;
+  background: var(--checkd-white);
   border: 1px solid #e3e7ec;
   border-radius: 14px;
   overflow: hidden;

@@ -13,7 +13,7 @@
   width: min(520px, 100%);
   max-height: calc(100vh - 3rem);
   overflow: auto;
-  background: #ffffff;
+  background: var(--checkd-white);
   border-radius: 28px;
   padding: 1.75rem 1.9rem;
   display: flex;
@@ -57,12 +57,12 @@
   font-family: 'Open Sans', sans-serif;
   font-size: 0.96rem;
   color: #222222;
-  background: #ffffff;
+  background: var(--checkd-white);
   outline: none;
 }
 
 .select:focus {
-  border-color: #2e6aa9;
+  border-color: var(--checkd-blue-high);
 }
 
 .input,
@@ -73,7 +73,7 @@
   font-family: 'Open Sans', sans-serif;
   font-size: 0.96rem;
   color: #222222;
-  background: #ffffff;
+  background: var(--checkd-white);
   outline: none;
 }
 
@@ -88,7 +88,7 @@
 
 .input:focus,
 .textarea:focus {
-  border-color: #2e6aa9;
+  border-color: var(--checkd-blue-high);
 }
 
 .sliderRow {
@@ -99,7 +99,7 @@
 
 .slider {
   flex: 1;
-  accent-color: #2e6aa9;
+  accent-color: var(--checkd-blue);
 }
 
 .slider:disabled {
@@ -124,7 +124,7 @@
 
 .toggleOption {
   border: none;
-  background: #ffffff;
+  background: var(--checkd-white);
   color: #3b3b3b;
   font-family: 'Lato', sans-serif;
   font-size: 0.9rem;
@@ -133,8 +133,8 @@
 }
 
 .toggleOptionActive {
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
 }
 
 .error {
@@ -164,14 +164,14 @@
 
 .cancelButton {
   border: 3px solid #d7d7d7;
-  background: #ffffff;
+  background: var(--checkd-white);
   color: #303030;
 }
 
 .saveButton {
   border: none;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
 }
 
 .saveButton:disabled {

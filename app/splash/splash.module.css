@@ -20,7 +20,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
-  background: linear-gradient(180deg, #f6f9fd 0%, #ffffff 46%);
+  background: linear-gradient(180deg, #f6f9fd 0%, var(--checkd-white) 46%);
 }
 
 /* ---------- Header ---------- */
@@ -56,13 +56,16 @@
 }
 
 .navSignup {
-  color: #fff;
-  background: #2f5596;
+  color: var(--checkd-white);
+  background: var(--checkd-blue);
   text-decoration: none;
   padding: 9px 18px;
   border-radius: 9px;
 }
 
+.navSignup:hover {
+  background: var(--checkd-blue-low);
+}
 /* ---------- Hero ---------- */
 .hero {
   flex: 1;
@@ -82,7 +85,7 @@
   gap: 8px;
   background: #eef4fb;
   border: 1px solid #dce8f6;
-  color: #2f5596;
+  color: var(--checkd-blue);
   font-weight: 600;
   font-size: 13px;
   padding: 7px 14px;
@@ -94,7 +97,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #82b13f;
+  background: var(--checkd-green);
   display: inline-block;
   animation: pulseDot 1.8s ease-in-out infinite;
 }
@@ -109,7 +112,7 @@
 }
 
 .heroTitleAccent {
-  color: #2f5596;
+  color: var(--checkd-blue);
 }
 
 .heroText {
@@ -132,14 +135,18 @@
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  background: #2f5596;
-  color: #fff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   text-decoration: none;
   font-weight: 700;
   font-size: 16px;
   padding: 15px 30px;
   border-radius: 11px;
-  box-shadow: 0 10px 26px -8px rgba(47, 85, 150, 0.55);
+  box-shadow: 0 10px 26px -8px rgb(var(--checkd-blue-rgb) / 0.55);
+}
+
+.ctaPrimary:hover {
+  background: var(--checkd-blue-low);
 }
 
 .ctaArrow {
@@ -148,7 +155,7 @@
 }
 
 .ctaSecondary {
-  color: #2f5596;
+  color: var(--checkd-blue);
   text-decoration: none;
   font-weight: 700;
   font-size: 15px;
@@ -188,7 +195,7 @@
 }
 
 .howEyebrow {
-  color: #82b13f;
+  color: var(--checkd-black);
   font-weight: 700;
   font-size: 14px;
   letter-spacing: 0.08em;
@@ -200,7 +207,7 @@
   font-size: 40px;
   font-weight: 800;
   letter-spacing: -0.02em;
-  color: #2f5596;
+  color: var(--checkd-blue);
 }
 
 .cardGrid {
@@ -210,7 +217,7 @@
 }
 
 .card {
-  background: #fff;
+  background: var(--checkd-white);
   border: 1px solid #e8eef6;
   border-radius: 20px;
   padding: 34px 30px;
@@ -229,14 +236,14 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #2f5596;
+  color: var(--checkd-blue);
   margin-bottom: 20px;
 }
 
 .cardNumber {
   font-size: 30px;
   font-weight: 800;
-  color: #82b13f;
+  color: var(--checkd-black);
   letter-spacing: 0.02em;
   margin-bottom: 12px;
 }

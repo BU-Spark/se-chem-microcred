@@ -40,7 +40,9 @@
   border: 2px solid rgba(17, 24, 39, 0.15);
   cursor: pointer;
   padding: 0;
-  transition: transform 0.1s ease, box-shadow 0.1s ease;
+  transition:
+    transform 0.1s ease,
+    box-shadow 0.1s ease;
 }
 
 .swatch:hover {
@@ -48,8 +50,8 @@
 }
 
 .swatchSelected {
-  border-color: #2e6aa9;
-  box-shadow: 0 0 0 3px rgba(46, 106, 169, 0.35);
+  border-color: var(--checkd-blue);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-rgb) / 0.35);
 }
 
 /* Icon tone toggle */
@@ -63,7 +65,7 @@
 
 .toneButton {
   padding: 0.4rem 1.1rem;
-  background: #ffffff;
+  background: var(--checkd-white);
   border: none;
   cursor: pointer;
   font-family: Lato, sans-serif;
@@ -76,8 +78,8 @@
 }
 
 .toneSelected {
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
 }
 
 /* Search */
@@ -92,8 +94,8 @@
 
 .searchInput:focus {
   outline: none;
-  border-color: #2e6aa9;
-  box-shadow: 0 0 0 2px rgba(46, 106, 169, 0.2);
+  border-color: var(--checkd-blue-high);
+  box-shadow: 0 0 0 2px rgb(var(--checkd-blue-high-rgb) / 0.2);
 }
 
 .statusText {
@@ -122,12 +124,14 @@
   align-items: center;
   justify-content: center;
   aspect-ratio: 1 / 1;
-  background: #ffffff;
+  background: var(--checkd-white);
   border: 1px solid rgba(17, 24, 39, 0.15);
   border-radius: 10px;
   cursor: pointer;
   color: #1f2937;
-  transition: background 0.1s ease, border-color 0.1s ease;
+  transition:
+    background 0.1s ease,
+    border-color 0.1s ease;
 }
 
 .iconButton:hover {
@@ -135,8 +139,8 @@
 }
 
 .iconSelected {
-  border-color: #2e6aa9;
-  box-shadow: 0 0 0 2px rgba(46, 106, 169, 0.35);
+  border-color: var(--checkd-blue);
+  box-shadow: 0 0 0 2px rgb(var(--checkd-blue-rgb) / 0.35);
 }
 
 /* Preview */
@@ -153,7 +157,7 @@
   width: 100%;
   aspect-ratio: 1 / 1;
   overflow: hidden;
-  border: 4px solid #2e6aa9;
+  border: 4px solid var(--checkd-blue);
   background: #d9d9d9;
 }
 

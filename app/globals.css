@@ -4,12 +4,33 @@
 :root {
   --font-outfit: 'Arial';
 
+  /* =========================
+     Checkd brand palette — single source of truth.
+     globals.css is imported once in app/layout.tsx. CSS Modules scope class
+     names, NOT custom properties, so every *.module.css can use these with
+     var() directly — nothing to import or redeclare per file.
+     Change a value here and it changes everywhere.
+     ========================= */
+  --checkd-blue: #2e6aa9;
+  --checkd-green: #c9db50;
+  --checkd-blue-high: #8dc0e3;
+  --checkd-blue-low: #184b80;
+  --checkd-white: #ffffff;
+  --checkd-black: #000000;
+
+  /* Channel triplets, for when a palette colour needs an alpha:
+     rgb(var(--checkd-blue-rgb) / 0.3) */
+  --checkd-blue-rgb: 46 106 169;
+  --checkd-green-rgb: 201 219 80;
+  --checkd-blue-high-rgb: 141 192 227;
+  --checkd-blue-low-rgb: 24 75 128;
+
   /* Brand */
-  --brand-color: #1f5fab;
+  --brand-color: var(--checkd-blue);
   /* sidebar + primary */
-  --brand-color-600: #3c83d6;
+  --brand-color-600: var(--checkd-blue-low);
   /* secondary action */
-  --brand-on: #ffffff;
+  --brand-on: var(--checkd-white);
   /* on-brand text */
   --brand-muted: rgba(255, 255, 255, 0.18);
   --brand-muted-hover: rgba(255, 255, 255, 0.28);
@@ -19,15 +40,15 @@
   /* e.g. url('/logo.svg') */
 
   /* Light Theme */
-  --page-bg: #ffffff;
-  --page-bg-gradient-start: #ffffff;
-  --page-bg-gradient-end: #ffffff;
+  --page-bg: var(--checkd-white);
+  --page-bg-gradient-start: var(--checkd-white);
+  --page-bg-gradient-end: var(--checkd-white);
 
   --text-color: #2c3e50;
-  --primary-accent: #0060c7;
-  --secondary-accent: #28a745;
+  --primary-accent: var(--checkd-blue);
+  --secondary-accent: var(--checkd-green);
 
-  --card-bg: #ffffff;
+  --card-bg: var(--checkd-white);
   --card-bg-alt: #f7f8fb;
   /* homepage card surface */
   --card-border: #e5e7eb;
@@ -39,12 +60,12 @@
   --divider-strong: rgba(148, 163, 184, 0.3);
 
   /* Alerts */
-  --alert-ok-bg: rgba(209, 250, 229, 0.6);
-  --alert-ok-border: rgba(16, 185, 129, 0.4);
-  --alert-ok-text: #0f5132;
+  --alert-ok-bg: rgb(var(--checkd-green-rgb) / 0.6);
+  --alert-ok-border: rgb(var(--checkd-green-rgb) / 0.4);
+  --alert-ok-text: var(--checkd-black);
 
   --alert-info-bg: rgba(227, 233, 246, 0.6);
-  --alert-info-border: rgba(31, 95, 171, 0.25);
+  --alert-info-border: rgb(var(--checkd-blue-rgb) / 0.25);
   --alert-info-text: #1f2937;
 }
 
@@ -62,8 +83,8 @@ html.dark {
   --page-bg-gradient-end: #0f172a;
 
   --text-color: #e2e8f0;
-  --primary-accent: #a246f8;
-  --secondary-accent: #f595c6;
+  --primary-accent: var(--checkd-blue-high);
+  --secondary-accent: var(--checkd-green);
 
   --card-bg: #0b1222;
   /* deeper card */
@@ -75,16 +96,16 @@ html.dark {
   --divider: rgba(148, 163, 184, 0.16);
   --divider-strong: rgba(148, 163, 184, 0.28);
 
-  --brand-color: #3f7be0;
-  --brand-color-600: #5a93f0;
-  --brand-on: #ffffff;
+  --brand-color: var(--checkd-blue);
+  --brand-color-600: var(--checkd-blue-low);
+  --brand-on: var(--checkd-white);
 
-  --alert-ok-bg: rgba(16, 185, 129, 0.15);
-  --alert-ok-border: rgba(16, 185, 129, 0.5);
-  --alert-ok-text: #bbf7d0;
+  --alert-ok-bg: rgb(var(--checkd-green-rgb) / 0.15);
+  --alert-ok-border: rgb(var(--checkd-green-rgb) / 0.5);
+  --alert-ok-text: var(--checkd-green);
 
-  --alert-info-bg: rgba(31, 95, 171, 0.18);
-  --alert-info-border: rgba(31, 95, 171, 0.45);
+  --alert-info-bg: rgb(var(--checkd-blue-rgb) / 0.18);
+  --alert-info-border: rgb(var(--checkd-blue-rgb) / 0.45);
   --alert-info-text: #c7d2fe;
 }
 
@@ -379,7 +400,7 @@ html.dark .emptyState {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: rgba(31, 95, 171, 0.8);
+  color: rgb(var(--checkd-blue-rgb) / 0.8);
   font-weight: 600;
   font-size: 0.9rem;
   height: 140px;
@@ -436,7 +457,7 @@ html.dark .cardMeta {
 }
 
 .cardButton:hover {
-  filter: brightness(0.92);
+  background: var(--checkd-blue-low);
 }
 
 .secondaryAction {
@@ -504,7 +525,7 @@ html.dark .surveyQuestion {
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  border: 2px solid rgba(31, 95, 171, 0.25);
+  border: 2px solid rgb(var(--checkd-blue-rgb) / 0.25);
   background: #f1f5f9;
   color: var(--brand-color);
   font-weight: 600;
@@ -519,7 +540,7 @@ html.dark .surveyQuestion {
 .surveyFaceSelected {
   transform: translateY(-4px);
   border-color: var(--brand-color);
-  background: rgba(31, 95, 171, 0.16);
+  background: rgb(var(--checkd-blue-rgb) / 0.16);
 }
 
 .surveySubmit {
@@ -527,8 +548,8 @@ html.dark .surveyQuestion {
   padding: 0.7rem 1.8rem;
   border-radius: 999px;
   border: none;
-  background: var(--brand-color);
-  color: var(--brand-on);
+  background: var(--checkd-green);
+  color: var(--checkd-black);
   font-weight: 600;
   cursor: pointer;
   transition: filter 0.2s ease;
@@ -654,12 +675,12 @@ html.dark .error-boundary details {
 }
 
 .rte-container:focus-within {
-  border-color: var(--primary-accent);
-  box-shadow: 0 0 0 3px rgba(0, 96, 199, 0.12);
+  border-color: var(--checkd-blue-high);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-high-rgb) / 0.12);
 }
 
 html.dark .rte-container:focus-within {
-  box-shadow: 0 0 0 3px rgba(162, 70, 248, 0.18);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-high-rgb) / 0.18);
 }
 
 /* ---- Toolbar ---- */
@@ -699,12 +720,12 @@ html.dark .rte-container:focus-within {
 }
 
 .rte-toolbar-btn--active {
-  background: rgba(0, 96, 199, 0.14);
+  background: rgb(var(--checkd-blue-rgb) / 0.14);
   color: var(--primary-accent);
 }
 
 html.dark .rte-toolbar-btn--active {
-  background: rgba(162, 70, 248, 0.2);
+  background: rgb(var(--checkd-blue-high-rgb) / 0.2);
   color: var(--primary-accent);
 }
 

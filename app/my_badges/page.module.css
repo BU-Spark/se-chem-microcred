@@ -1,7 +1,7 @@
 .page {
   display: flex;
   min-height: calc(100vh - 80px);
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 .main {
@@ -30,8 +30,8 @@
   height: 59px;
   border: 0;
   border-radius: 19px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   cursor: pointer;
   font-family: 'Lato', 'Open Sans', sans-serif;
   font-size: 24px;
@@ -42,7 +42,7 @@
 }
 
 .createButton:hover {
-  background: #285d94;
+  background: var(--checkd-blue-low);
 }
 
 .secondaryButton,
@@ -50,7 +50,7 @@
   border: 0;
   border-radius: 999px;
   background: #f0f5fb;
-  color: #1f5fab;
+  color: var(--checkd-blue);
   cursor: pointer;
   font-size: 0.96rem;
   font-weight: 700;
@@ -65,7 +65,7 @@
 
 .secondaryButton {
   background: #f0f5fb;
-  color: #1f5fab;
+  color: var(--checkd-blue);
 }
 
 .statusMessage {
@@ -146,7 +146,7 @@
   border: 0;
   border-radius: 999px;
   background: #b42318;
-  color: #ffffff;
+  color: var(--checkd-white);
   cursor: pointer;
   font-size: 0.96rem;
   font-weight: 700;
@@ -182,7 +182,7 @@
   max-width: 219px;
   aspect-ratio: 1 / 1;
   border-radius: 50%;
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   transition:
     transform 0.15s ease,
     box-shadow 0.15s ease;
@@ -195,12 +195,12 @@
 .badgeCard:hover .badgeToken,
 .badgeCard:focus-visible .badgeToken {
   transform: translateY(-3px);
-  box-shadow: 0 12px 26px rgba(46, 106, 169, 0.32);
+  box-shadow: 0 12px 26px rgb(var(--checkd-blue-rgb) / 0.32);
 }
 
 .badgeName {
   margin: 0;
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
   font-weight: 400;
@@ -222,7 +222,7 @@
 .editModal {
   width: min(560px, 100%);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--checkd-white);
   box-shadow: 0 22px 48px rgba(15, 23, 42, 0.24);
   display: flex;
   flex-direction: column;

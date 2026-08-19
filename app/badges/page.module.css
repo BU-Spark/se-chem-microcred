@@ -460,7 +460,7 @@
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: #c9db50;
+  background: var(--checkd-green);
   border: 2px solid var(--card-bg);
 }
 
@@ -535,7 +535,7 @@
   width: 8px;
   height: 8px;
   flex: 0 0 8px;
-  background: #c9db50;
+  background: var(--checkd-green);
 }
 
 /* ---- Badge detail modal ---- */

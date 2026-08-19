@@ -20,12 +20,14 @@
 .link {
   padding: 0.35rem 0.75rem;
   border-radius: 9999px;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .linkActive {
   background-color: rgba(255, 255, 255, 0.25);
-  color: #0d1a4f;
+  color: var(--checkd-blue);
   font-weight: 600;
 }
 
@@ -43,12 +45,12 @@ html.dark .header {
 }
 
 html.dark .linkActive {
-  background-color: rgba(162, 70, 248, 0.25);
-  color: #f8e8ff;
+  background-color: rgb(var(--checkd-blue-high-rgb) / 0.25);
+  color: var(--checkd-blue-high);
 }
 
 html.dark .link:hover {
-  background-color: rgba(162, 70, 248, 0.1);
+  background-color: rgb(var(--checkd-blue-high-rgb) / 0.1);
 }
 
 .actions {
@@ -84,7 +86,9 @@ html.dark .link:hover {
   color: inherit;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: background-color 0.2s ease, color 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease;
 }
 
 .authButton:hover {

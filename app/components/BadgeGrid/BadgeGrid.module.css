@@ -30,7 +30,7 @@
   width: 8.35rem;
   height: 8.35rem;
   border-radius: 50%;
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   border: 3px solid transparent;
   transition:
     transform 0.16s ease,
@@ -42,10 +42,10 @@
 .badgeBubbleInteractive:hover,
 .badgeTokenButton:hover .badgeBubbleInteractive {
   transform: translateY(-1px);
-  box-shadow: 0 10px 22px rgba(46, 106, 169, 0.18);
+  box-shadow: 0 10px 22px rgb(var(--checkd-blue-rgb) / 0.18);
 }
 .badgeBubbleCompleted {
-  background: #94bf66;
+  background: var(--checkd-green);
 }
 .badgeName {
   margin: 0;

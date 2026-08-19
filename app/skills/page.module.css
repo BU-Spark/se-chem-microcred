@@ -42,7 +42,9 @@
   background: rgba(255, 255, 255, 0.55);
   border-radius: 1rem;
   border: 1px solid rgba(15, 23, 42, 0.08);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .skillCard:hover {
@@ -70,13 +72,13 @@
   border-radius: 999px;
   font-family: 'Lato', sans-serif;
   font-weight: 600;
-  background: rgba(0, 96, 199, 0.1);
-  color: #004085;
+  background: rgb(var(--checkd-blue-rgb) / 0.1);
+  color: var(--checkd-blue);
 }
 
 .statusBadgeCompleted {
-  background: rgba(40, 167, 69, 0.15);
-  color: #1d6630;
+  background: rgb(var(--checkd-green-rgb) / 0.15);
+  color: var(--checkd-black);
 }
 
 .statusBadgeLocked {
@@ -93,7 +95,7 @@
 
 .progressValue {
   height: 100%;
-  background: linear-gradient(135deg, #0060c7, #28a745);
+  background: linear-gradient(135deg, var(--checkd-blue), var(--checkd-green));
   transition: width 0.3s ease;
 }
 
@@ -145,13 +147,13 @@ html.dark .skillFooter {
 }
 
 html.dark .statusBadge {
-  background: rgba(162, 70, 248, 0.2);
-  color: #f8e8ff;
+  background: rgb(var(--checkd-blue-high-rgb) / 0.2);
+  color: var(--checkd-blue-high);
 }
 
 html.dark .statusBadgeCompleted {
-  background: rgba(40, 167, 69, 0.25);
-  color: #bef7d0;
+  background: rgb(var(--checkd-green-rgb) / 0.25);
+  color: var(--checkd-green);
 }
 
 html.dark .statusBadgeLocked {
