@@ -25,11 +25,11 @@
 
 .link:hover {
   color: var(--ui-ink);
-  background: #fff;
+  background: var(--checkd-white);
 }
 .active {
   color: var(--ui-navy-900);
-  background: #fff;
+  background: var(--checkd-white);
   box-shadow: var(--ui-shadow-sm);
 }
 

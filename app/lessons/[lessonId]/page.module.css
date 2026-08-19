@@ -33,7 +33,7 @@
   padding: 1.5rem 1.75rem;
   border: 1px solid #e2e8f0;
   border-radius: 18px;
-  background: #ffffff;
+  background: var(--checkd-white);
   box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
 }
 
@@ -66,7 +66,7 @@
   padding: 0.45rem 0.8rem;
   border-radius: 999px;
   background: #edf4fc;
-  color: #1f5fab;
+  color: var(--checkd-blue);
   font-size: 0.95rem;
   font-weight: 700;
 }
@@ -181,16 +181,16 @@
 .timelineLine {
   height: 2px;
   flex: 1;
-  background: #7da7d2;
+  background: var(--checkd-blue);
 }
 
 .timelineCircle {
   width: 24px;
   height: 24px;
   flex: 0 0 24px;
-  border: 3px solid #2e6aa9;
+  border: 3px solid var(--checkd-blue);
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 .timelineFinalCircle {
@@ -200,9 +200,9 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  border: 2px solid #2e6aa9;
+  border: 2px solid var(--checkd-blue);
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 .timelineFinalCircle img {
@@ -227,9 +227,9 @@
   justify-content: center;
   padding: 0.8rem 1.5rem;
   border-radius: 999px;
-  background: #1f5fab;
-  color: #ffffff;
-  box-shadow: 0 12px 28px rgba(31, 95, 171, 0.28);
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
+  box-shadow: 0 12px 28px rgb(var(--checkd-blue-rgb) / 0.28);
   font-size: 1rem;
   font-weight: 800;
   text-decoration: none;
@@ -242,12 +242,12 @@
 
 .primaryButton:hover {
   transform: translateY(-1px);
-  background: #194f91;
-  box-shadow: 0 16px 34px rgba(31, 95, 171, 0.32);
+  background: var(--checkd-blue-low);
+  box-shadow: 0 16px 34px rgb(var(--checkd-blue-rgb) / 0.32);
 }
 
 .primaryButton:focus-visible {
-  outline: 3px solid rgba(46, 106, 169, 0.3);
+  outline: 3px solid rgb(var(--checkd-blue-rgb) / 0.3);
   outline-offset: 3px;
 }
 
@@ -279,7 +279,7 @@
     padding: 0.85rem;
     border: 1px solid #e2e8f0;
     border-radius: 16px;
-    background: #ffffff;
+    background: var(--checkd-white);
   }
 
   .thumb {

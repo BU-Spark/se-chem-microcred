@@ -1,7 +1,7 @@
 .page {
   display: flex;
   min-height: calc(100vh - 80px);
-  background: #ffffff;
+  background: var(--checkd-white);
   font-family: 'Open Sans', sans-serif;
 }
 
@@ -25,7 +25,7 @@
   font-size: 48px;
   font-weight: 700;
   line-height: 1.05;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 @media (max-width: 640px) {
@@ -87,11 +87,11 @@
 
 .courseCard:hover {
   transform: translateY(-4px);
-  box-shadow: 0 16px 32px rgba(30, 56, 85, 0.16);
+  box-shadow: 0 16px 32px rgb(var(--checkd-blue-rgb) / 0.16);
 }
 
 .courseCard:focus-visible {
-  outline: 3px solid rgba(46, 106, 169, 0.32);
+  outline: 3px solid rgb(var(--checkd-blue-rgb) / 0.32);
   outline-offset: 4px;
 }
 
@@ -112,7 +112,7 @@
 }
 
 .addCourseMedia {
-  border: 4px solid #2E6AA9;
+  border: 4px solid var(--checkd-blue);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -146,7 +146,7 @@
   min-height: 46%;
   padding: 2.6rem 1.15rem 1rem;
   background: linear-gradient(to top, rgba(12, 28, 47, 0.86), rgba(12, 28, 47, 0));
-  color: #ffffff;
+  color: var(--checkd-white);
   pointer-events: none;
 }
 
@@ -180,7 +180,7 @@
   font-size: clamp(4rem, 10vw, 5.75rem);
   font-weight: 300;
   line-height: 1;
-  color: #ffffff;
+  color: var(--checkd-white);
 }
 
 .courseText {

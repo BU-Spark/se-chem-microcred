@@ -10,7 +10,7 @@
   aspect-ratio: 16 / 11;
   border-radius: 18px;
   overflow: hidden;
-  background: #000000;
+  background: var(--checkd-black);
 }
 
 .frame,
@@ -55,8 +55,8 @@
   height: 44px;
   border: none;
   border-radius: 14px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font-family: 'Lato', sans-serif;
   font-size: 32px;
   font-weight: 700;
@@ -69,7 +69,7 @@
 }
 
 .addButton:hover {
-  filter: brightness(1.08);
+  background: var(--checkd-blue-low);
 }
 
 .controls {
@@ -105,7 +105,7 @@
   width: 16px;
   height: 16px;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--checkd-white);
   transform: translate(-50%, -50%);
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
@@ -116,9 +116,9 @@
   width: 10px;
   height: 10px;
   border-radius: 999px;
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 2px #ffffff;
+  box-shadow: 0 0 0 2px var(--checkd-white);
 }
 
 .controlRow {
@@ -130,7 +130,7 @@
 .controlButton {
   border: none;
   background: transparent;
-  color: #ffffff;
+  color: var(--checkd-white);
   font-size: 1rem;
   line-height: 1;
   cursor: pointer;
@@ -145,6 +145,6 @@
   margin-left: auto;
   font-family: 'Open Sans', sans-serif;
   font-size: 0.8rem;
-  color: #ffffff;
+  color: var(--checkd-white);
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }

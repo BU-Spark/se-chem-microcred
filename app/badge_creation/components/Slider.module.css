@@ -12,7 +12,7 @@
 
 .range {
   flex: 1;
-  accent-color: #2e6aa9;
+  accent-color: var(--checkd-blue);
   cursor: pointer;
 }
 

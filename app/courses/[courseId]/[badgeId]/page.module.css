@@ -26,7 +26,7 @@
 
 .eyebrow {
   margin: 0.15rem 0 -0.2rem;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font:
     700 0.75rem/1.2 'Open Sans',
     sans-serif;
@@ -40,7 +40,7 @@
   font-size: clamp(2rem, 4vw, 2.75rem);
   font-weight: 700;
   line-height: 1.05;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .backLink,
@@ -49,7 +49,7 @@
   border: none;
   padding: 0;
   background: transparent;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font-family: 'Lato', sans-serif;
   font-weight: 700;
   text-decoration: none;
@@ -80,7 +80,7 @@
   padding: 1.5rem;
   border: 1px solid #dfe5ed;
   border-radius: 16px;
-  background: #fff;
+  background: var(--checkd-white);
   box-shadow: 0 8px 24px rgb(27 48 73 / 6%);
 }
 
@@ -92,7 +92,7 @@
   display: grid;
   place-items: center;
   background: #eaf2fb;
-  color: #205f9f;
+  color: var(--checkd-blue);
   border: 1px solid #c9dced;
 }
 
@@ -102,7 +102,7 @@
 
 .descriptionLabel {
   margin: 0;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font:
     700 0.8rem/1.3 'Open Sans',
     sans-serif;
@@ -112,7 +112,7 @@
 
 .descriptionText {
   margin: 0.45rem 0 0;
-  color: #26384d;
+  color: var(--checkd-blue);
   font:
     400 1rem/1.6 'Open Sans',
     sans-serif;
@@ -140,7 +140,7 @@
 .card {
   border: 1px solid #dfe5ed;
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: clamp(1.25rem, 2.5vw, 2rem);
   margin-bottom: 1.5rem;
   box-shadow: 0 8px 24px rgb(27 48 73 / 5%);
@@ -156,7 +156,7 @@
 
 .cardTitle {
   margin: 0;
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Lato', sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
@@ -176,13 +176,13 @@
 }
 
 .primaryButton {
-  background: #2e6aa9;
-  color: #fff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   box-shadow: 0 4px 12px rgb(46 106 169 / 20%);
 }
 .secondaryButton {
   background: #e9f0f8;
-  color: #173f69;
+  color: var(--checkd-blue);
 }
 .iconButton {
   padding: 0.35rem 0.75rem;
@@ -205,7 +205,7 @@
 
 .checkpointCount {
   margin: 0.5rem 0 0;
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Lato', sans-serif;
   font-size: 0.9rem;
   font-weight: 400;
@@ -241,7 +241,7 @@
 }
 
 .proficientCard .statusDot {
-  background: #22a06b;
+  background: var(--checkd-green);
 }
 .learningCard .statusDot {
   background: #f0a33b;
@@ -281,7 +281,7 @@
   padding: 1.25rem;
   border: 1px solid #e5eaf0;
   border-radius: 16px;
-  background: linear-gradient(145deg, #ffffff 0%, #f6f9fc 100%);
+  background: linear-gradient(145deg, var(--checkd-white) 0%, #f6f9fc 100%);
 }
 
 .statColumn {
@@ -292,7 +292,7 @@
 
 .bigStat strong {
   display: block;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font-family: 'Lato', sans-serif;
   font-size: 48px;
   font-weight: 700;
@@ -302,7 +302,7 @@
 .bigStat span {
   display: block;
   margin-top: 0.5rem;
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Lato', sans-serif;
   font-size: 24px;
   font-weight: 400;
@@ -340,7 +340,7 @@
   position: absolute;
   inset: 13px;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--checkd-white);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -349,14 +349,18 @@
 }
 
 .completionRingInner strong {
-  color: #17324d;
-  font: 800 2rem/1 'Lato', sans-serif;
+  color: var(--checkd-blue);
+  font:
+    800 2rem/1 'Lato',
+    sans-serif;
 }
 
 .completionRingInner span {
   margin-top: 0.35rem;
   color: #6b7b8e;
-  font: 700 0.72rem/1 'Open Sans', sans-serif;
+  font:
+    700 0.72rem/1 'Open Sans',
+    sans-serif;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -370,7 +374,7 @@
 
 .barLabel {
   margin: 0 0 0.4rem;
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
 }
@@ -396,7 +400,7 @@
 }
 
 .barPercent {
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   min-width: 36px;
@@ -428,7 +432,7 @@
   width: 18px;
   height: 8px;
   content: '';
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   clip-path: polygon(0 0, 50% 68%, 100% 0, 100% 30%, 50% 100%, 0 30%);
   transform: translateY(-50%);
 }
@@ -509,7 +513,7 @@
   max-height: 85vh;
   overflow: hidden;
   border-radius: 20px;
-  background: #fff;
+  background: var(--checkd-white);
   padding: 1.5rem;
   box-shadow: 0 24px 70px rgb(0 0 0 / 25%);
 }
@@ -554,7 +558,7 @@
   background: #f6f8fa;
 }
 .rosterTable a {
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font-weight: 700;
 }
 
@@ -586,7 +590,7 @@
 }
 
 .videoPlaceholder {
-  color: #ffffff;
+  color: var(--checkd-white);
   font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
   font-weight: 700;
@@ -601,7 +605,7 @@
 
 .videoTitle {
   margin: 0;
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Lato', sans-serif;
   font-size: 24px;
   font-weight: 400;
@@ -609,7 +613,7 @@
 
 .videoLength {
   margin: 0.35rem 0 0;
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
 }
@@ -624,7 +628,7 @@
   gap: 0.35rem;
   border: none;
   background: transparent;
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Open Sans', sans-serif;
   font-style: italic;
   font-size: 16px;
@@ -659,13 +663,13 @@
   height: 14px;
   margin-top: 0.35rem;
   border-radius: 999px;
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   flex: 0 0 auto;
 }
 
 .timelineSegment {
   margin: 0;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font-family: 'Lato', sans-serif;
   font-size: 16px;
   font-weight: 700;
@@ -673,7 +677,7 @@
 
 .timelineTitle {
   margin: 0.2rem 0 0;
-  color: #000000;
+  color: var(--checkd-black);
   font-family: 'Lato', sans-serif;
   font-size: 18px;
   font-weight: 700;

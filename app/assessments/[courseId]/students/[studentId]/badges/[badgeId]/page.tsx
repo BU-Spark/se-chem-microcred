@@ -469,7 +469,14 @@ export default function AssessmentReadinessPage() {
                   <button
                     type="button"
                     className={styles.primaryButton}
-                    style={phase === 'confirm' ? { backgroundColor: finalPassed ? '#15803d' : '#b91c1c' } : undefined}
+                    style={
+                      phase === 'confirm'
+                        ? finalPassed
+                          ? // Checkd Green needs black text — white on it is 1.6:1.
+                            { backgroundColor: 'var(--checkd-green)', color: 'var(--checkd-black)' }
+                          : { backgroundColor: '#b91c1c', color: 'var(--checkd-white)' }
+                        : undefined
+                    }
                     disabled={!canStartNewAssessment || isSubmitting}
                     onClick={() => {
                       if (phase === 'overview') {

@@ -27,7 +27,7 @@
   font-size: 48px;
   font-weight: 700;
   line-height: 1.05;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .pageSubtitle {
@@ -37,7 +37,7 @@
 }
 
 .formCard {
-  background: #ffffff;
+  background: var(--checkd-white);
   border-radius: 1.75rem;
   padding: 2.5rem;
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
@@ -116,14 +116,14 @@
 }
 
 .buttonPrimary {
-  background: #1f5fab;
-  color: #ffffff;
-  box-shadow: 0 18px 36px rgba(31, 95, 171, 0.2);
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
+  box-shadow: 0 18px 36px rgb(var(--checkd-blue-rgb) / 0.2);
 }
 
 .buttonSecondary {
-  background: rgba(15, 67, 142, 0.08);
-  color: #1f5fab;
+  background: rgb(var(--checkd-blue-rgb) / 0.08);
+  color: var(--checkd-blue);
 }
 
 .buttonGhost {
@@ -136,7 +136,7 @@
 }
 
 .previewCard {
-  background: #ffffff;
+  background: var(--checkd-white);
   border-radius: 1.5rem;
   padding: 2rem;
   border: 1px solid rgba(148, 163, 184, 0.25);

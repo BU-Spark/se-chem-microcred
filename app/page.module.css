@@ -9,7 +9,7 @@
   /* If there's no top bar, use 100vh */
   padding: 0;
   /* Remove outer whitespace to avoid a large white card look */
-  background: #ffffff;
+  background: var(--checkd-white);
   /* Page surface doubles as background */
 }
 
@@ -32,7 +32,7 @@
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   border-radius: 0;
   /* Square corners */
   color: #f8fbff;
@@ -111,7 +111,7 @@
   padding: 0;
   border: none;
   border-radius: 0 0.65rem 0.65rem 0;
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   color: #f8fbff;
   cursor: pointer;
   box-shadow: none;
@@ -120,7 +120,7 @@
 }
 
 .collapseToggle:hover {
-  background: #2e6aa9;
+  background: var(--checkd-blue-low);
   color: rgba(255, 255, 255, 0.72);
 }
 
@@ -171,7 +171,7 @@
   width: 38px;
   height: 38px;
   border-width: 2px;
-  box-shadow: 0 4px 10px rgba(13, 45, 79, 0.24);
+  box-shadow: 0 4px 10px rgb(var(--checkd-blue-rgb) / 0.24);
 }
 
 .sidebarCollapsed .profile {
@@ -215,7 +215,7 @@
   font-size: 1.75rem;
   font-weight: 600;
   text-transform: uppercase;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 .avatarFrame {
@@ -226,8 +226,8 @@
   overflow: hidden;
   border: 3px solid rgba(255, 255, 255, 0.94);
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 7px 18px rgba(13, 45, 79, 0.28);
+  background: var(--checkd-white);
+  box-shadow: 0 7px 18px rgb(var(--checkd-blue-rgb) / 0.28);
 }
 
 .avatarImage {
@@ -284,7 +284,7 @@
 
 .navItemActive {
   background: rgba(255, 255, 255, 0.18);
-  color: #ffffff;
+  color: var(--checkd-white);
 }
 
 .navBadge {
@@ -293,7 +293,7 @@
   padding: 0.05rem 0.4rem;
   border-radius: 999px;
   background: #ef4444;
-  color: #ffffff;
+  color: var(--checkd-white);
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1.35rem;
@@ -303,7 +303,7 @@
 
 .navItem:hover {
   background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  color: var(--checkd-white);
   transform: translateX(2px);
 }
 
@@ -311,7 +311,7 @@
   width: 19px;
   height: 19px;
   flex: 0 0 19px;
-  color: #ffffff;
+  color: var(--checkd-white);
 }
 
 .brandFooter {
@@ -335,8 +335,8 @@
   padding: 0.6rem 0.9rem;
   border-radius: 0.7rem;
   border: 1px solid rgba(255, 255, 255, 0.24);
-  background: rgba(19, 58, 99, 0.24);
-  color: #ffffff;
+  background: rgb(var(--checkd-blue-rgb) / 0.24);
+  color: var(--checkd-white);
   font-weight: 600;
   font-family: 'Lato', sans-serif;
   font-size: 0.92rem;
@@ -405,12 +405,12 @@
   width: 654px;
   height: 102px;
 
-  background: #ffffff;
+  background: var(--checkd-white);
   border: 3px solid #dedede;
   border-radius: 18px;
   padding: 0 24px;
 
-  color: #285a9a;
+  color: var(--checkd-blue);
   cursor: pointer;
 }
 
@@ -445,7 +445,7 @@
 
 .brandMark {
   font-weight: 700;
-  color: #1f5fab;
+  color: var(--checkd-blue);
   font-size: 1.25rem;
   display: flex;
   align-items: center;
@@ -469,7 +469,7 @@
   /* figma */
   letter-spacing: 0;
   /* figma */
-  color: #000000;
+  color: var(--checkd-black);
   /* figma */
 }
 
@@ -519,7 +519,7 @@
   padding-left: 0.9rem;
   border: 1px solid #cfd8e3;
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--checkd-white);
   color: #7a8797;
   transition:
     border-color 0.18s ease,
@@ -527,8 +527,8 @@
 }
 
 .joinInputShell:focus-within {
-  border-color: #2e6aa9;
-  box-shadow: 0 0 0 3px rgba(46, 106, 169, 0.12);
+  border-color: var(--checkd-blue-high);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-high-rgb) / 0.12);
 }
 
 .joinInputShell > svg {
@@ -546,8 +546,8 @@
   padding: 0.75rem 1.35rem;
   border: none;
   border-radius: 12px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font-weight: 700;
   cursor: pointer;
 }
@@ -586,13 +586,13 @@
 }
 
 .joinStatus {
-  background: #ecfdf3;
-  color: #1b6b3a;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
 }
 
 .joinModal {
   width: min(560px, calc(100% - 2rem));
-  background: #ffffff;
+  background: var(--checkd-white);
   border: 1px solid rgba(208, 216, 226, 0.8);
   border-radius: 18px;
   padding: 1.5rem;
@@ -687,7 +687,7 @@
   /* figma */
   letter-spacing: 0;
   /* figma */
-  color: #000000;
+  color: var(--checkd-black);
   /* figma */
 }
 
@@ -703,7 +703,7 @@
   /* figma */
   letter-spacing: 0;
   /* figma */
-  color: #000000;
+  color: var(--checkd-black);
   /* figma */
   margin-left: 5px;
 }
@@ -714,7 +714,7 @@
   height: 59px;
   /* Figma height */
 
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   /* Figma button color */
   border-radius: 19px;
   /* Figma border radius */
@@ -739,11 +739,11 @@
 }
 
 .cardButton:hover {
-  filter: brightness(0.95);
+  background: var(--checkd-blue-low);
 }
 
 .secondaryAction {
-  background: #3c83d6;
+  background: var(--checkd-blue);
 }
 
 .createCourseCard {
@@ -751,7 +751,7 @@
   flex-direction: column;
   width: 391px;
   height: 458px;
-  border: 2px solid #2e6aa9;
+  border: 2px solid var(--checkd-blue);
   text-decoration: none;
   background: white;
   overflow: hidden;
@@ -774,7 +774,7 @@
 
 .createCourseBottom {
   height: 64px;
-  border-top: 2px solid #2e6aa9;
+  border-top: 2px solid var(--checkd-blue);
   display: flex;
   align-items: center;
   padding: 0 16px;
@@ -802,7 +802,7 @@
   font-size: 48px;
   font-weight: 700;
   line-height: 1.05;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .welcomeSubtitle {
@@ -830,7 +830,7 @@
   border: 1px solid #d9e0e8;
   border-bottom: none;
   border-radius: 12px 12px 0 0;
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 .courseTab {
@@ -844,7 +844,7 @@
   padding: 0.65rem 1rem;
   border: none;
   border-right: 1px solid #e1e6ec;
-  background: #ffffff;
+  background: var(--checkd-white);
   color: #4f5d70;
   font-family: 'Lato', sans-serif;
   font-size: 1rem;
@@ -871,22 +871,22 @@
 
 .courseTab:hover {
   background: #f7faff;
-  color: #244f82;
+  color: var(--checkd-blue);
 }
 
 .courseTabActive {
   background: #f3f7fd;
-  color: #1f5fab;
+  color: var(--checkd-blue);
 }
 
 .courseTabActive::after {
-  background: #2e6aa9;
+  background: var(--checkd-blue);
 }
 
 .courseTab:focus-visible,
 .primaryCourseAction:focus-visible,
 .secondaryCourseAction:focus-visible {
-  outline: 3px solid rgba(46, 106, 169, 0.3);
+  outline: 3px solid rgb(var(--checkd-blue-rgb) / 0.3);
   outline-offset: 2px;
 }
 
@@ -904,7 +904,7 @@
   padding: 0 0.4rem;
   border: 1px solid #d5dce5;
   border-radius: 7px;
-  background: #ffffff;
+  background: var(--checkd-white);
   color: #4f5d70;
   font-family: 'Open Sans', sans-serif;
   font-size: 0.76rem;
@@ -948,7 +948,7 @@
   overflow: hidden;
   border: 1px solid #dfe5ed;
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--checkd-white);
   box-shadow: 0 8px 24px rgb(27 48 73 / 5%);
 }
 
@@ -964,7 +964,7 @@
 
 .analyticsEyebrow {
   margin: 0 0 0.2rem;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font-family: 'Open Sans', sans-serif;
   font-size: 0.7rem;
   font-weight: 800;
@@ -983,7 +983,7 @@
 .analyticsHeaderIcon {
   width: 24px;
   height: 24px;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 .analyticsGrid {
@@ -1011,7 +1011,7 @@
   place-items: center;
   border-radius: 11px;
   background: #eaf2fb;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 .analyticsMetricIcon svg {
@@ -1020,8 +1020,8 @@
 }
 
 .greenMetric .analyticsMetricIcon {
-  background: #e9f7f0;
-  color: #168153;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
 }
 
 .amberMetric .analyticsMetricIcon {
@@ -1110,19 +1110,19 @@
 }
 
 .primaryCourseAction {
-  border: 1px solid #2e6aa9;
-  background: #2e6aa9;
-  color: #ffffff;
+  border: 1px solid var(--checkd-blue);
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
 }
 
 .primaryCourseAction:hover {
-  background: #285f99;
+  background: var(--checkd-blue-low);
   transform: translateY(-1px);
 }
 
 .secondaryCourseAction {
   border: 1px solid #ccd5df;
-  background: #ffffff;
+  background: var(--checkd-white);
   color: #334155;
 }
 
@@ -1149,7 +1149,7 @@
   width: 34px;
   height: 34px;
   margin-bottom: 0.25rem;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 .courseEmptyState h3,
@@ -1158,7 +1158,7 @@
 }
 
 .courseEmptyState h3 {
-  color: #263548;
+  color: var(--checkd-blue);
   font-family: 'Lato', sans-serif;
   font-size: 1.05rem;
 }
@@ -1193,7 +1193,7 @@
   border: 1px solid #dfe5ed;
   border-left: 0;
   border-radius: 0 16px 16px 0;
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 .courseCardWithMetrics.courseCardWithMetrics {
@@ -1294,7 +1294,7 @@
   font-size: clamp(4rem, 10vw, 5.75rem);
   font-weight: 300;
   line-height: 1;
-  color: #ffffff;
+  color: var(--checkd-white);
 }
 
 .addTileLabel {
@@ -1303,7 +1303,7 @@
   font-size: 2rem;
   font-weight: 400;
   line-height: 1.1;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 /* =========================
@@ -1316,15 +1316,15 @@
   gap: 0.6rem;
   padding: 0.85rem 1.5rem;
   border-radius: 19px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font-family: 'Lato', sans-serif;
   font-size: 1.1rem;
   font-weight: 500;
   text-decoration: none;
   border: none;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(31, 95, 171, 0.32);
+  box-shadow: 0 10px 24px rgb(var(--checkd-blue-rgb) / 0.32);
   transition:
     filter 0.15s ease,
     transform 0.15s ease;
@@ -1332,7 +1332,7 @@
 }
 
 .duplicateButton:hover {
-  filter: brightness(1.05);
+  background: var(--checkd-blue-low);
   transform: translateY(-1px);
 }
 
@@ -1351,15 +1351,15 @@
   gap: 0.6rem;
   padding: 0.85rem 1.5rem;
   border-radius: 19px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font-family: 'Lato', sans-serif;
   font-size: 1.1rem;
   font-weight: 500;
   text-decoration: none;
   border: none;
   cursor: pointer;
-  box-shadow: 0 10px 24px rgba(31, 95, 171, 0.32);
+  box-shadow: 0 10px 24px rgb(var(--checkd-blue-rgb) / 0.32);
   transition:
     filter 0.15s ease,
     transform 0.15s ease;
@@ -1367,7 +1367,7 @@
 }
 
 .joinButton:hover {
-  filter: brightness(1.05);
+  background: var(--checkd-blue-low);
   transform: translateY(-1px);
 }
 
@@ -1383,7 +1383,7 @@
 .welcomeModal {
   position: relative;
   width: min(560px, 92%);
-  background: #ffffff;
+  background: var(--checkd-white);
   border: 4px solid #d9d9d9;
   border-radius: 40px;
   padding: 3rem 3.25rem 2.75rem;
@@ -1436,8 +1436,8 @@
   padding: 0.8rem 1.9rem;
   border-radius: 16px;
   border: none;
-  background: #3a6ea5;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font-family: 'Lato', sans-serif;
   font-size: 1.2rem;
   font-weight: 500;
@@ -1447,7 +1447,7 @@
 }
 
 .welcomeCreateButton:hover {
-  filter: brightness(1.05);
+  background: var(--checkd-blue-low);
 }
 
 /* =========================
@@ -1458,7 +1458,7 @@
   width: min(600px, calc(100% - 2rem));
   max-height: 80vh;
   overflow-y: auto;
-  background: #ffffff;
+  background: var(--checkd-white);
   border: 1px solid rgba(208, 216, 226, 0.8);
   border-radius: 18px;
   padding: 1.5rem;
@@ -1497,7 +1497,7 @@
   padding: 0.75rem;
   border: 1px solid #e1e6ec;
   border-radius: 11px;
-  background: #ffffff;
+  background: var(--checkd-white);
   transition:
     border-color 0.18s ease,
     background-color 0.18s ease;
@@ -1523,7 +1523,7 @@
   place-items: center;
   border-radius: 9px;
   background: #edf4fc;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 .dupItemIcon svg {
@@ -1548,7 +1548,7 @@
   padding: 0.5rem 1.1rem;
   border-radius: 9px;
   border: 1px solid #ccd5df;
-  background: #ffffff;
+  background: var(--checkd-white);
   color: #344054;
   font-weight: 700;
   cursor: pointer;
@@ -1603,7 +1603,7 @@
   place-items: center;
   border-radius: 11px;
   background: #edf4fc;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 .modalIcon svg {
@@ -1627,7 +1627,7 @@
 
 .modalCloseButton:hover {
   background: #f1f4f7;
-  color: #24354a;
+  color: var(--checkd-blue);
 }
 
 .modalCloseButton svg {
@@ -1664,18 +1664,18 @@
 }
 
 .modalPrimaryButton {
-  border: 1px solid #2e6aa9;
-  background: #2e6aa9;
-  color: #ffffff;
+  border: 1px solid var(--checkd-blue);
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
 }
 
 .modalPrimaryButton:hover {
-  background: #285f99;
+  background: var(--checkd-blue-low);
 }
 
 .modalSecondaryButton {
   border: 1px solid #ccd5df;
-  background: #ffffff;
+  background: var(--checkd-white);
   color: #344054;
 }
 
@@ -1716,7 +1716,7 @@
 
 .accessModal {
   width: min(480px, 92%);
-  background: #ffffff;
+  background: var(--checkd-white);
   border-radius: 20px;
   padding: 2rem;
   box-shadow: 0 45px 60px rgba(15, 23, 42, 0.35);
@@ -1745,8 +1745,8 @@
   padding: 0.75rem 1.5rem;
   border: none;
   border-radius: 999px;
-  background: #1f5fab;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font-weight: 700;
   cursor: pointer;
 }

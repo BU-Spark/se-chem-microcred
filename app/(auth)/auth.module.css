@@ -9,7 +9,7 @@
   justify-content: center;
   gap: 28px;
   padding: 48px 20px;
-  background: linear-gradient(180deg, #f6f9fd 0%, #ffffff 46%);
+  background: linear-gradient(180deg, #f6f9fd 0%, var(--checkd-white) 46%);
 }
 
 .logo {
