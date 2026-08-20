@@ -408,6 +408,7 @@
   flex-wrap: wrap;
 }
 .badgeImagePreview {
+  position: relative;
   width: 112px;
   height: 112px;
   overflow: hidden;
@@ -447,6 +448,7 @@
   color: #53647d;
 }
 .imagePositionCanvas {
+  position: relative;
   width: min(280px, 70vw);
   aspect-ratio: 1;
   margin: 0 auto;

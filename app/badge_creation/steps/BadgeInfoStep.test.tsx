@@ -61,18 +61,19 @@ describe('BadgeInfoStep assessment policy fields', () => {
 });
 
 describe('BadgeInfoStep image upload', () => {
-  it('keeps a persisted edit image contained before deferred styles load', () => {
-    renderStep({ imageUrl: 'data:image/webp;base64,persisted-badge' });
+  it('contains a persisted video thumbnail when an edited badge has no uploaded image', () => {
+    renderStep({ imageUrl: '', youtubeUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' });
 
     const preview = screen.getByAltText('Badge image preview').parentElement;
-    expect(preview).toHaveStyle({ width: '112px', height: '112px', flex: '0 0 112px', overflow: 'hidden' });
+    expect(preview).toHaveStyle({
+      position: 'relative',
+      width: '112px',
+      height: '112px',
+      flex: '0 0 112px',
+      overflow: 'hidden',
+    });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Adjust image position' }));
-    const positionCanvas = screen.getByTestId('badge-image-position-canvas');
-    expect(positionCanvas.style.width).toBe('70vw');
-    expect(positionCanvas.style.maxWidth).toBe('280px');
-    expect(positionCanvas.style.aspectRatio).toBe('1');
-    expect(positionCanvas.style.overflow).toBe('hidden');
+    expect(screen.queryByRole('button', { name: 'Adjust image position' })).not.toBeInTheDocument();
   });
 
   it('shows the selected image in the circular preview immediately', async () => {
