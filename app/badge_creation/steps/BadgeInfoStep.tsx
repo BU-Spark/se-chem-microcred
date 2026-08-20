@@ -98,7 +98,10 @@ export default function BadgeInfoStep({
         </label>
         <p className={styles.fieldHelp}>Upload square artwork for this badge. PNG, JPEG, or WebP; up to 8 MB.</p>
         <div className={styles.badgeImageUploadRow}>
-          <div className={styles.badgeImagePreview}>
+          <div
+            className={styles.badgeImagePreview}
+            style={{ width: 112, height: 112, flex: '0 0 112px', overflow: 'hidden' }}
+          >
             <BadgeImage
               imageUrl={localPreviewUrl || draft.imageUrl}
               imagePositionX={draft.imagePositionX}
@@ -139,6 +142,7 @@ export default function BadgeInfoStep({
             <div
               className={styles.imagePositionCanvas}
               data-testid="badge-image-position-canvas"
+              style={{ width: '70vw', maxWidth: 280, aspectRatio: '1', overflow: 'hidden' }}
               onPointerDown={handlePositionPointerDown}
               onPointerMove={handlePositionPointerMove}
               onPointerUp={handlePositionPointerEnd}
