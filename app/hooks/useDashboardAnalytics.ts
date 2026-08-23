@@ -14,6 +14,7 @@ export type DashboardAnalytics = {
   student: {
     lessonsNotStarted: number;
     lessonsInProgress: number;
+    lessonsCompleted: number;
     readyForAssessment: number;
     upcomingDeadlines: number;
     overdueLessons: number;

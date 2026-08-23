@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import BadgeFeedbackPage from './page';
 
@@ -209,5 +210,55 @@ describe('Badge feedback page', () => {
     // Next-attempt window = the returned cooldownUntil (Jan 5, 2099).
     expect(screen.getByText(/2099/)).toBeInTheDocument();
     expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+  });
+
+  it('lets a student who is ready for assessment view the QR and short code', async () => {
+    const readyStudentData = studentData();
+    const readyBadge = {
+      ...readyStudentData.badges.inReview[0],
+      status: 'READY_FOR_ASSESSMENT' as const,
+      description: 'Ready for the skill check',
+      latestAttemptPassed: null,
+    };
+    readyStudentData.badges.inReview = [];
+    (readyStudentData.badges.readyForAssessment as unknown as Array<typeof readyBadge>).push(readyBadge);
+    mockUseStudentData.mockReturnValue({ data: readyStudentData, isLoading: false, error: null, refresh: jest.fn() });
+
+    pageFetch = jest.fn(async (url: RequestInfo | URL) => {
+      const href = String(url);
+      if (href === '/api/badges/badge-1/feedback') {
+        return {
+          ok: true,
+          json: async () => ({
+            badge: {
+              id: 'badge-1',
+              slug: 'learning-badge',
+              name: 'Learning Badge',
+              description: 'Ready for the skill check',
+              status: 'READY_FOR_ASSESSMENT',
+              score: null,
+              awardedAt: null,
+              cooldownUntil: null,
+              cooldownDays: 0,
+            },
+            rubric: null,
+            latestAttempt: null,
+          }),
+        };
+      }
+      if (href === '/api/assessment-codes') {
+        return { ok: true, json: async () => ({ code: 'ABCD-2345' }) };
+      }
+      return { ok: false, json: async () => ({ error: 'Unexpected request' }) };
+    });
+
+    const user = userEvent.setup();
+    render(<BadgeFeedbackPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'View code' }));
+
+    expect(await screen.findByAltText('Learning Badge QR code')).toBeInTheDocument();
+    expect(await screen.findByText('ABCD-2345')).toBeInTheDocument();
+    expect(pageFetch).toHaveBeenCalledWith('/api/assessment-codes', expect.objectContaining({ method: 'POST' }));
   });
 });

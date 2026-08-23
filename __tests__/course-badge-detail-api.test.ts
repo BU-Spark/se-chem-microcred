@@ -516,9 +516,7 @@ describe('course badge detail API', () => {
     expect(body.students[0]).toEqual(
       expect.objectContaining({ status: 'COMPLETED', analyticsStatus: 'PROFICIENT', stillLearningReason: null })
     );
-    expect(body.summary).toEqual(
-      expect.objectContaining({ completedCount: 1, inProgressCount: 0, inReviewCount: 0 })
-    );
+    expect(body.summary).toEqual(expect.objectContaining({ completedCount: 1, inProgressCount: 0, inReviewCount: 0 }));
   });
 
   // The rating aggregates are the reason this route touches Prisma at all. Feed

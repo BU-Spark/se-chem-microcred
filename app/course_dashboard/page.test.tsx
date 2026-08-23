@@ -71,6 +71,36 @@ describe('Course dashboard page', () => {
     });
   });
 
+  it('places course details inside the title box', async () => {
+    mockUseStudentData.mockReturnValue({
+      data: {
+        student: { name: 'Student Demo', email: 'student@example.edu' },
+        course: {
+          id: 'course-2',
+          code: 'CHEM 101',
+          section: '02',
+          title: 'General Chemistry',
+          description: 'Build foundational laboratory skills.',
+          contacts: [{ id: 'instructor-1', name: 'Dr. Rivera', type: 'instructor', email: 'rivera@example.edu' }],
+        },
+        lessons: { upNext: [], inProgress: [], completed: [] },
+        badges: { inReview: [] },
+        surveys: { pendingBadge: [] },
+      },
+      isLoading: false,
+      refresh: jest.fn(),
+    });
+
+    render(<CourseDashboardPage />);
+
+    const title = await screen.findByRole('heading', { name: 'General Chemistry' });
+    const titleBox = title.closest('section');
+    expect(titleBox).toHaveTextContent('About this course');
+    expect(titleBox).toHaveTextContent('Build foundational laboratory skills.');
+    expect(titleBox).toHaveTextContent('Dr. Rivera');
+    expect(screen.getAllByRole('heading', { name: 'About this course' })).toHaveLength(1);
+  });
+
   it('uses the badge requirement video for the card image when the lesson has no segment video', async () => {
     // Badge videos live on badgeRequirements[].youtubeUrl, not on a segment (bug #14).
     // A badge-only lesson must resolve to the YouTube thumbnail, not the ChemSkills dummy.
@@ -124,11 +154,12 @@ describe('Course dashboard page', () => {
   });
 
   const makeBadge = (slug: string, status: string, latestAttemptPassed: boolean | null) => ({
-    id: `id-${slug}`,
+    id: 'b1',
     slug,
     name: 'Safety',
     status,
     latestAttemptPassed,
+    cooldownUntil: null as string | null,
   });
 
   const dataWithCompletedLesson = (
@@ -181,6 +212,65 @@ describe('Course dashboard page', () => {
 
     const review = await screen.findByRole('link', { name: 'Review' });
     expect(review.getAttribute('href')).toBe('/lessons/lab-safety/video?courseId=course-2');
+  });
+
+  it.each([
+    [
+      'awaiting a first assessment',
+      'READY_FOR_ASSESSMENT',
+      null,
+      'Assessment in progress',
+      'Pick up where you left off',
+    ],
+    ['awaiting failed-feedback review', 'IN_REVIEW', false, 'Assessment in progress', 'Pick up where you left off'],
+    [
+      'awaiting passed-feedback review and rating',
+      'IN_REVIEW',
+      true,
+      'Assessment in progress',
+      'Pick up where you left off',
+    ],
+    ['out of assessment attempts', 'LOCKED', false, 'Video lesson in progress', 'Pick up where you left off'],
+    ['has earned the badge', 'COMPLETED', true, 'Completed', 'Completed'],
+    [
+      'finished the lesson but still owes lesson feedback',
+      'LEARNING',
+      null,
+      'Video lesson in progress',
+      'Pick up where you left off',
+    ],
+  ])(
+    'shows the consolidated badge state under the correct section when the student is %s',
+    async (_label, status, passed, text, sectionTitle) => {
+      const bucket =
+        status === 'READY_FOR_ASSESSMENT'
+          ? 'readyForAssessment'
+          : status === 'IN_REVIEW'
+            ? 'inReview'
+            : status === 'LOCKED'
+              ? 'locked'
+              : status === 'LEARNING'
+                ? 'learning'
+                : 'completed';
+      mockUseStudentData.mockReturnValue(dataWithCompletedLesson('safety', bucket, status, passed as boolean | null));
+
+      render(<CourseDashboardPage />);
+
+      const statusText = (await screen.findAllByText(text)).find((element) => element.tagName === 'DIV');
+      expect(statusText).toBeDefined();
+      expect(statusText!.closest('section')).toHaveTextContent(sectionTitle);
+    }
+  );
+
+  it('keeps a reassessment cooldown in the consolidated assessment state', async () => {
+    const payload = dataWithCompletedLesson('safety', 'readyForAssessment', 'READY_FOR_ASSESSMENT', false);
+    payload.data.badges.readyForAssessment[0].cooldownUntil = '2099-08-21T14:30:00.000Z';
+    mockUseStudentData.mockReturnValue(payload);
+
+    render(<CourseDashboardPage />);
+
+    const statusText = await screen.findByText('Assessment in progress');
+    expect(statusText.closest('section')).toHaveTextContent('Pick up where you left off');
   });
 
   // Start/Continue drop the student straight into the video + checkpoint questions,

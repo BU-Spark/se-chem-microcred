@@ -157,6 +157,7 @@ describe('Courses Page', () => {
             student: {
               lessonsNotStarted: 5,
               lessonsInProgress: 2,
+              lessonsCompleted: 2,
               readyForAssessment: 1,
               upcomingDeadlines: 3,
               overdueLessons: 1,
@@ -164,16 +165,18 @@ describe('Courses Page', () => {
             checker: { readyForAssessment: 4, awaitingStudentReview: 2, upcomingDeadlines: 1 },
             byCourse: {
               instructor: {
-                'created-course-1': { students: 18, badges: 4, active: 1 },
-                'created-course-2': { students: 0, badges: 1, active: 0 },
+                'created-course-1': { students: 18, checkers: 3, activeBadges: 4 },
+                'created-course-2': { students: 0, checkers: 0, activeBadges: 1 },
               },
               student: {
-                'course-1': { lessonsNotStarted: 2, lessonsInProgress: 1, upcomingDeadlines: 1, overdueLessons: 0 },
-                'course-2': { lessonsNotStarted: 3, lessonsInProgress: 1, upcomingDeadlines: 2, overdueLessons: 1 },
+                'course-1': { lessonsNotStarted: 2, lessonsInProgress: 1, lessonsCompleted: 3 },
+                'course-2': { lessonsNotStarted: 3, lessonsInProgress: 1, lessonsCompleted: 2 },
               },
               checker: {
                 'checker-course-1': {
                   sections: 1,
+                  studentsToAssess: 3,
+                  activeBadges: 2,
                   readyForAssessment: 4,
                   awaitingStudentReview: 2,
                   upcomingDeadlines: 1,
@@ -306,9 +309,13 @@ describe('Courses Page', () => {
     renderCourses();
 
     expect(screen.getByText('Student Demo')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Your courses' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /Instructor/ })).toHaveAttribute('aria-selected', 'true');
-    expect(screen.getByRole('tab', { name: /Enrolled/ })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    const courseTabs = screen.getAllByRole('tab');
+    expect(courseTabs[0]).toHaveTextContent('Student');
+    expect(courseTabs[1]).toHaveTextContent('Checker');
+    expect(courseTabs[2]).toHaveTextContent('Instructor');
+    expect(screen.getByRole('tab', { name: /Instructor/ })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tab', { name: /Student/ })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: /Checker/ })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
@@ -323,6 +330,9 @@ describe('Courses Page', () => {
     // The three per-role fetches are consolidated into a single request.
     expect(mockFetch).toHaveBeenCalledTimes(2);
 
+    expect(await screen.findByText('General Chemistry')).toBeInTheDocument();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Student2', 'Checker1', 'Instructor2']);
+    fireEvent.click(screen.getByRole('tab', { name: /Instructor/ }));
     expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
     expect(screen.getByText('Created Course 2')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Create course' })).toBeInTheDocument();
@@ -335,19 +345,23 @@ describe('Courses Page', () => {
       '/courses/created-course-2'
     );
     expect(screen.queryByText('Checker Course 1')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('Created Course 1 analytics')).toHaveTextContent('18Students4Badges03/30/26Created');
+    expect(screen.getByLabelText('Created Course 1 analytics')).toHaveTextContent(
+      '18Students enrolled3Checkers enrolled4Badges active03/30/26Date created'
+    );
 
     fireEvent.click(screen.getByRole('tab', { name: /Checker/ }));
-    expect(screen.getByLabelText('Checker Course 1 analytics')).toHaveTextContent('1Sections4Students to assess');
+    expect(screen.getByLabelText('Checker Course 1 analytics')).toHaveTextContent(
+      '1Assigned sections3Students to assess2Badges active'
+    );
     expect(screen.getByText('Checker Course 1')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Checker Course 1' })).toHaveAttribute(
       'href',
       '/courses/checker-course-1?view=checker'
     );
 
-    fireEvent.click(screen.getByRole('tab', { name: /Enrolled/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /Student/ }));
     expect(screen.getByLabelText('General Chemistry analytics')).toHaveTextContent(
-      '2To start1In progress1Due soon0Overdue'
+      '2Not started1In progress3Completed'
     );
     expect(screen.getByText('General Chemistry')).toBeInTheDocument();
     expect(screen.getByText('Organic Chemistry')).toBeInTheDocument();
@@ -420,6 +434,7 @@ describe('Courses Page', () => {
       });
     });
 
+    fireEvent.click(screen.getByRole('tab', { name: /Instructor/ }));
     expect(screen.getByRole('link', { name: 'Create course' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Welcome' })).not.toBeInTheDocument();
     expect(screen.queryByText('Create Course')).not.toBeInTheDocument();
@@ -430,7 +445,7 @@ describe('Courses Page', () => {
 
     renderCourses();
 
-    await screen.findByText('Created Course 1');
+    await screen.findByText('General Chemistry');
 
     const profileLink = screen.getByRole('link', { name: 'My Profile' });
     const coursesLink = screen.getByRole('link', { name: 'Dashboard' });
@@ -446,7 +461,7 @@ describe('Courses Page', () => {
 
       renderCourses();
 
-      await screen.findByText('Created Course 1');
+      await screen.findByText('General Chemistry');
 
       const coursesLink = screen.getByRole('link', { name: 'Dashboard' });
 
@@ -485,7 +500,7 @@ describe('Courses Page', () => {
 
     renderCourses();
 
-    await screen.findByText('Created Course 1');
+    await screen.findByText('General Chemistry');
 
     const button = screen.getByRole('button', { name: 'Sign off' });
     fireEvent.click(button);
@@ -502,9 +517,8 @@ describe('Courses Page', () => {
   it('joins a course by course code and refreshes the course list', async () => {
     renderCourses();
 
-    await screen.findByText('Created Course 1');
+    await screen.findByText('General Chemistry');
 
-    fireEvent.click(screen.getByRole('tab', { name: /Enrolled/ }));
     fireEvent.click(screen.getByTestId('join-course-card'));
     expect(await screen.findByRole('heading', { name: 'Join a course' })).toBeInTheDocument();
 

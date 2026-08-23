@@ -379,9 +379,10 @@ describe('Home page', () => {
     render(<HomePage />);
 
     expect(await screen.findByRole('tab', { name: /Instructor/i })).toBeInTheDocument();
-    expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('tab', { name: /Enrolled/i }));
+    expect(screen.getByRole('tab', { name: /Student/i })).toHaveAttribute('aria-selected', 'true');
     expect(await screen.findByText('Chem 101')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /Instructor/i }));
+    expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
   });
 
   // Home no longer hosts the badge survey: a ?surveyBadge deep link hands off to

@@ -9,7 +9,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal';
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
-import { useStudentData, type LessonRecord } from '../hooks/useStudentData';
+import { useStudentData, type BadgeRecord, type LessonRecord } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
 interface LessonCard {
@@ -21,11 +21,52 @@ interface LessonCard {
   variant?: 'start' | 'continue' | 'completed';
   image?: string;
   href?: string;
+  section: 'upNext' | 'inProgress' | 'completed';
   // Set when an instructor waived the QEV requirement of a badge this lesson
   // backs. The waiver deliberately leaves lesson progress alone, so without this
   // the card sits in "Pick up where you left off" while the badge reports itself
   // ready to assess — two true statements that read as a contradiction.
   waivedNote?: string;
+}
+
+/**
+ * Keep lesson cards in their three broad progress groups while explaining the
+ * badge step that follows the video. The badge is the richer state machine:
+ * lesson progress alone cannot distinguish assessment, feedback, cooldown, and
+ * award states after a lesson has been completed.
+ */
+function describeLessonState(record: LessonRecord, badgesById?: Map<string, BadgeRecord>) {
+  if (record.status !== 'COMPLETED') {
+    if (record.status === 'IN_PROGRESS') {
+      return 'Video lesson in progress';
+    }
+    return 'Lesson not started';
+  }
+
+  const badge = record.badgeRequirements
+    ?.map((requirement) => badgesById?.get(requirement.badgeId))
+    .find((candidate): candidate is BadgeRecord => Boolean(candidate));
+
+  if (!badge || badge.status === 'COMPLETED' || badge.status === 'NOT_STARTED') return 'Completed';
+
+  if (badge.status === 'LEARNING' || badge.status === 'LOCKED') return 'Video lesson in progress';
+
+  if (badge.status === 'IN_REVIEW' || badge.status === 'READY_FOR_ASSESSMENT') return 'Assessment in progress';
+
+  return 'Completed';
+}
+
+function resolveLessonSection(record: LessonRecord, badgesById?: Map<string, BadgeRecord>): LessonCard['section'] {
+  if (record.status === 'NOT_STARTED') return 'upNext';
+  if (record.status === 'IN_PROGRESS') return 'inProgress';
+
+  const badge = record.badgeRequirements
+    ?.map((requirement) => badgesById?.get(requirement.badgeId))
+    .find((candidate): candidate is BadgeRecord => Boolean(candidate));
+
+  if (badge?.status === 'LEARNING' || badge?.status === 'LOCKED') return 'inProgress';
+  if (badge?.status === 'IN_REVIEW' || badge?.status === 'READY_FOR_ASSESSMENT') return 'inProgress';
+  return 'completed';
 }
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
@@ -145,7 +186,8 @@ function resolveLessonImage(record: LessonRecord) {
 function lessonRecordToCard(
   record: LessonRecord,
   startedBadgeSlugs?: Set<string>,
-  waivedBadgeNamesById?: Map<string, string>
+  waivedBadgeNamesById?: Map<string, string>,
+  badgesById?: Map<string, BadgeRecord>
 ): LessonCard {
   const due = formatDueDate(record.dueDate);
   const metaParts: string[] = [];
@@ -156,17 +198,7 @@ function lessonRecordToCard(
     metaParts.push(`${record.estimatedMinutes} min`);
   }
 
-  // Progress reads as a checkpoint count ("1 of 2 checkpoints") rather than a percent.
-  const totalCheckpoints = record.checkpoints?.length ?? 0;
-  const passedCheckpoints = record.completedCheckpointIds?.length ?? 0;
-  const statusLabel =
-    record.status === 'COMPLETED'
-      ? 'Completed'
-      : record.status === 'IN_PROGRESS'
-        ? totalCheckpoints > 0
-          ? `${passedCheckpoints} of ${totalCheckpoints} checkpoint${totalCheckpoints === 1 ? '' : 's'}`
-          : 'In progress'
-        : 'Not started';
+  const statusLabel = describeLessonState(record, badgesById);
 
   const actionLabel = record.status === 'COMPLETED' ? 'Review' : record.status === 'IN_PROGRESS' ? 'Continue' : 'Start';
 
@@ -205,6 +237,7 @@ function lessonRecordToCard(
     variant,
     image: resolveLessonImage(record),
     href,
+    section: resolveLessonSection(record, badgesById),
     waivedNote: waivedBadgeName
       ? `Your instructor cleared this requirement for ${waivedBadgeName} — you can be assessed without finishing it.`
       : undefined,
@@ -359,21 +392,46 @@ function HomePageContent() {
     return names;
   }, [studentData]);
 
+  const badgesById = useMemo(() => {
+    const result = new Map<string, BadgeRecord>();
+    const badges = studentData?.badges;
+    if (!badges) return result;
+
+    const allBadges = [
+      ...(badges.completed ?? []),
+      ...(badges.inReview ?? []),
+      ...(badges.locked ?? []),
+      ...(badges.readyForAssessment ?? []),
+      ...(badges.learning ?? []),
+      ...(badges.notStarted ?? []),
+    ];
+    for (const badge of allBadges) result.set(badge.id, badge);
+    return result;
+  }, [studentData]);
+
   const upNextLessons = useMemo(() => {
     return (
-      studentData?.lessons.upNext.map((record) => lessonRecordToCard(record, undefined, waivedBadgeNamesById)) ?? []
+      studentData?.lessons.upNext.map((record) =>
+        lessonRecordToCard(record, undefined, waivedBadgeNamesById, badgesById)
+      ) ?? []
     );
-  }, [studentData, waivedBadgeNamesById]);
+  }, [badgesById, studentData, waivedBadgeNamesById]);
 
-  const continueLessons = useMemo(() => {
-    return (
-      studentData?.lessons.inProgress.map((record) => lessonRecordToCard(record, undefined, waivedBadgeNamesById)) ?? []
-    );
-  }, [studentData, waivedBadgeNamesById]);
+  const { continueLessons, completedLessons } = useMemo(() => {
+    const activeCards =
+      studentData?.lessons.inProgress.map((record) =>
+        lessonRecordToCard(record, undefined, waivedBadgeNamesById, badgesById)
+      ) ?? [];
+    const resolvedCompletedCards =
+      studentData?.lessons.completed?.map((record) =>
+        lessonRecordToCard(record, startedBadgeSlugs, waivedBadgeNamesById, badgesById)
+      ) ?? [];
 
-  const completedLessons = useMemo(() => {
-    return studentData?.lessons.completed?.map((record) => lessonRecordToCard(record, startedBadgeSlugs)) ?? [];
-  }, [studentData, startedBadgeSlugs]);
+    return {
+      continueLessons: [...activeCards, ...resolvedCompletedCards.filter((card) => card.section === 'inProgress')],
+      completedLessons: resolvedCompletedCards.filter((card) => card.section === 'completed'),
+    };
+  }, [badgesById, startedBadgeSlugs, studentData, waivedBadgeNamesById]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
@@ -535,7 +593,9 @@ function HomePageContent() {
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
-        <section className={styles.hero}>
+        <section
+          className={`${styles.hero} ${courseDescription || courseContacts.length > 0 ? styles.heroWithDetails : styles.heroWithoutDetails}`}
+        >
           <div className={styles.heroText}>
             <p className={styles.heroEyebrow}>Welcome back, {displayName}</p>
             <h1 className={styles.heroTitle}>{courseTitle || 'Your course'}</h1>
@@ -547,6 +607,22 @@ function HomePageContent() {
               </p>
             ) : null}
           </div>
+          {courseDescription || courseContacts.length > 0 ? (
+            <div className={styles.heroDetails}>
+              <h2 className={styles.heroDetailsTitle}>About this course</h2>
+              {courseDescription ? <p className={styles.heroDetailsText}>{courseDescription}</p> : null}
+              {courseContacts.length > 0 ? (
+                <ul className={styles.heroContacts}>
+                  {courseContacts.map((contact) => (
+                    <li key={contact.id} className={styles.heroContactItem}>
+                      <span className={styles.contactName}>{contact.name}</span>
+                      <span className={styles.contactMeta}>{contact.type}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
         </section>
 
         <div className={styles.statRow}>
@@ -611,23 +687,6 @@ function HomePageContent() {
                 <ul className={styles.badgeList}>{readyBadgeAlerts.map(renderBadgeListItem)}</ul>
               )}
             </section>
-
-            {courseDescription || courseContacts.length > 0 ? (
-              <section className={styles.panel}>
-                <h2 className={styles.panelTitle}>About this course</h2>
-                {courseDescription ? <p className={styles.panelText}>{courseDescription}</p> : null}
-                {courseContacts.length > 0 ? (
-                  <ul className={styles.contactList}>
-                    {courseContacts.map((contact) => (
-                      <li key={contact.id} className={styles.contactItem}>
-                        <span className={styles.contactName}>{contact.name}</span>
-                        <span className={styles.contactMeta}>{contact.type}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </section>
-            ) : null}
           </aside>
         </div>
       </main>

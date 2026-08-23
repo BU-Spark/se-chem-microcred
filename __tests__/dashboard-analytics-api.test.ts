@@ -39,7 +39,7 @@ describe('GET /api/dashboard/analytics', () => {
     (mockPrisma.course.findMany as jest.Mock).mockResolvedValue([
       {
         id: 'taught-1',
-        enrollments: [{ id: 'student-enrollment-1' }],
+        enrollments: [{ role: 'STUDENT' }, { role: 'CHECKER' }],
         lessons: [
           {
             badgeRequirements: [
@@ -95,25 +95,28 @@ describe('GET /api/dashboard/analytics', () => {
         {
           status: 'READY_FOR_ASSESSMENT',
           cooldownUntil: null,
-          student: { enrollments: [{ courseId: 'checked-1', sections: [{ section: 'A1' }] }] },
+          student: { id: 'student-a', enrollments: [{ courseId: 'checked-1', sections: [{ section: 'A1' }] }] },
           badge: { requirements: [{ lesson: { courseId: 'checked-1' } }] },
         },
         {
           status: 'READY_FOR_ASSESSMENT',
           cooldownUntil: null,
-          student: { enrollments: [{ courseId: 'checked-1', sections: [{ section: 'B2' }] }] },
+          student: { id: 'student-b', enrollments: [{ courseId: 'checked-1', sections: [{ section: 'B2' }] }] },
           badge: { requirements: [{ lesson: { courseId: 'checked-1' } }] },
         },
         {
           status: 'IN_REVIEW',
           cooldownUntil: null,
-          student: { enrollments: [{ courseId: 'checked-1', sections: [{ section: 'A1' }] }] },
+          student: { id: 'student-a', enrollments: [{ courseId: 'checked-1', sections: [{ section: 'A1' }] }] },
           badge: { requirements: [{ lesson: { courseId: 'checked-1' } }] },
         },
       ])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([]);
-    (mockPrisma.badge.findMany as jest.Mock).mockResolvedValue([]);
+    (mockPrisma.badge.findMany as jest.Mock)
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'active-checker-badge', requirements: [{ lesson: { courseId: 'checked-1' } }] }]);
   });
 
   it('returns action-oriented metrics and respects checker section scope', async () => {
@@ -129,17 +132,32 @@ describe('GET /api/dashboard/analytics', () => {
       student: {
         lessonsNotStarted: 3,
         lessonsInProgress: 1,
+        lessonsCompleted: 1,
         readyForAssessment: 1,
         upcomingDeadlines: 1,
         overdueLessons: 1,
       },
       checker: { readyForAssessment: 1, awaitingStudentReview: 1, upcomingDeadlines: 2 },
       byCourse: {
-        instructor: { 'taught-1': { students: 1, badges: 1, active: 1 } },
+        instructor: { 'taught-1': { students: 1, checkers: 1, activeBadges: 1 } },
         student: {
-          'student-1': { lessonsNotStarted: 3, lessonsInProgress: 1, overdueLessons: 1, upcomingDeadlines: 1 },
+          'student-1': {
+            lessonsNotStarted: 3,
+            lessonsInProgress: 1,
+            lessonsCompleted: 1,
+            overdueLessons: 1,
+            upcomingDeadlines: 1,
+          },
         },
-        checker: { 'checked-1': { sections: 1, readyForAssessment: 1, awaitingStudentReview: 1 } },
+        checker: {
+          'checked-1': {
+            sections: 1,
+            readyForAssessment: 1,
+            awaitingStudentReview: 1,
+            studentsToAssess: 1,
+            activeBadges: 1,
+          },
+        },
       },
       windowDays: 14,
     });

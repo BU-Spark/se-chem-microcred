@@ -317,7 +317,7 @@ function HomeContent() {
   const checkerCoursesError = coursesError;
 
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [activeCourseTab, setActiveCourseTab] = useState<'instructor' | 'enrolled' | 'checker'>('instructor');
+  const [activeCourseTab, setActiveCourseTab] = useState<'instructor' | 'enrolled' | 'checker'>('enrolled');
   const [activeSurvey, setActiveSurvey] = useState<{
     promptId: string;
     badgeId: string;
@@ -715,19 +715,15 @@ function HomeContent() {
           <div className={styles.courseCardMetrics} aria-label={`${course.title} analytics`}>
             <span className={styles.courseCardMetric}>
               <strong>{analytics.lessonsNotStarted ?? 0}</strong>
-              <span>To start</span>
+              <span>Not started</span>
             </span>
             <span className={styles.courseCardMetric}>
               <strong>{analytics.lessonsInProgress ?? 0}</strong>
               <span>In progress</span>
             </span>
             <span className={styles.courseCardMetric}>
-              <strong>{analytics.upcomingDeadlines ?? 0}</strong>
-              <span>Due soon</span>
-            </span>
-            <span className={styles.courseCardMetric}>
-              <strong>{analytics.overdueLessons ?? 0}</strong>
-              <span>Overdue</span>
+              <strong>{analytics.lessonsCompleted ?? 0}</strong>
+              <span>Completed</span>
             </span>
           </div>
         ) : null}
@@ -741,7 +737,7 @@ function HomeContent() {
 
       <main className={`main ${styles.main}`}>
         <header className={styles.welcomeHeader}>
-          <h1 className={styles.welcomeTitle}>Your courses</h1>
+          <h1 className={styles.welcomeTitle}>Dashboard</h1>
           <p className={styles.welcomeSubtitle}>Manage the courses you teach, take, and review.</p>
         </header>
 
@@ -770,9 +766,9 @@ function HomeContent() {
           <div className={styles.courseTabs} role="tablist" aria-label="Course permissions">
             {(
               [
-                { id: 'instructor', label: 'Instructor', icon: 'lucide:graduation-cap', count: createdCourses.length },
-                { id: 'enrolled', label: 'Enrolled', icon: 'lucide:user-round', count: enrolledCourseCards.length },
+                { id: 'enrolled', label: 'Student', icon: 'lucide:user-round', count: enrolledCourseCards.length },
                 { id: 'checker', label: 'Checker', icon: 'lucide:shield-check', count: checkerEnrollments.length },
+                { id: 'instructor', label: 'Instructor', icon: 'lucide:graduation-cap', count: createdCourses.length },
               ] as const
             ).map((tab) => (
               <button
@@ -869,15 +865,19 @@ function HomeContent() {
                           ? undefined
                           : [
                               {
-                                label: 'Students',
+                                label: 'Students enrolled',
                                 value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.students ?? 0,
                               },
                               {
-                                label: 'Badges',
-                                value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.badges ?? 0,
+                                label: 'Checkers enrolled',
+                                value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.checkers ?? 0,
                               },
                               {
-                                label: 'Created',
+                                label: 'Badges active',
+                                value: dashboardAnalytics?.byCourse?.instructor?.[course.id]?.activeBadges ?? 0,
+                              },
+                              {
+                                label: 'Date created',
                                 value: formatCourseCreatedDate(course.createdAt),
                                 compact: true,
                               },
@@ -933,14 +933,19 @@ function HomeContent() {
                             ? undefined
                             : [
                                 {
-                                  label: 'Sections',
+                                  label: 'Assigned sections',
                                   value: dashboardAnalytics?.byCourse?.checker?.[enrollment.course.id]?.sections ?? 0,
                                 },
                                 {
                                   label: 'Students to assess',
                                   value:
-                                    dashboardAnalytics?.byCourse?.checker?.[enrollment.course.id]?.readyForAssessment ??
+                                    dashboardAnalytics?.byCourse?.checker?.[enrollment.course.id]?.studentsToAssess ??
                                     0,
+                                },
+                                {
+                                  label: 'Badges active',
+                                  value:
+                                    dashboardAnalytics?.byCourse?.checker?.[enrollment.course.id]?.activeBadges ?? 0,
                                 },
                               ]
                         }

@@ -21,8 +21,8 @@ export async function GET() {
         select: {
           id: true,
           enrollments: {
-            where: { role: CourseRole.STUDENT, status: EnrollmentStatus.ACTIVE },
-            select: { id: true },
+            where: { status: EnrollmentStatus.ACTIVE },
+            select: { role: true },
           },
           lessons: {
             select: {
@@ -154,6 +154,7 @@ export async function GET() {
               cooldownUntil: true,
               student: {
                 select: {
+                  id: true,
                   enrollments: {
                     where: {
                       courseId: { in: checkerCourseIds },
@@ -186,9 +187,10 @@ export async function GET() {
         const status = lesson.progress[0]?.status ?? LessonStatus.NOT_STARTED;
         if (status === LessonStatus.NOT_STARTED) totals.notStarted += 1;
         if (status === LessonStatus.IN_PROGRESS) totals.inProgress += 1;
+        if (status === LessonStatus.COMPLETED) totals.completed += 1;
         return totals;
       },
-      { notStarted: 0, inProgress: 0, upcoming: 0, overdue: 0 }
+      { notStarted: 0, inProgress: 0, completed: 0, upcoming: 0, overdue: 0 }
     );
 
     for (const row of studentDeadlineRows) {
@@ -211,63 +213,84 @@ export async function GET() {
       })
     );
 
-    const [instructorActionRows, pendingCheckerRows, instructorDeadlineRows, studentReadyRows, checkerDeadlineRows] =
-      await Promise.all([
-        createdCourseIds.length
-          ? prisma.studentBadge.findMany({
-              where: {
-                status: { in: [BadgeStatus.READY_FOR_ASSESSMENT, BadgeStatus.IN_REVIEW] },
-                badge: badgeInCourses(createdCourseIds),
-              },
-              select: {
-                status: true,
-                cooldownUntil: true,
-                badge: { select: { requirements: { select: { lesson: { select: { courseId: true } } } } } },
-              },
-            })
-          : [],
-        createdCourseIds.length
-          ? prisma.enrollment.findMany({
-              where: {
-                courseId: { in: createdCourseIds },
-                role: CourseRole.CHECKER,
-                status: EnrollmentStatus.PENDING,
-              },
-              select: { courseId: true },
-            })
-          : [],
-        createdCourseIds.length
-          ? prisma.badge.findMany({
-              where: {
-                neverCloses: { not: true },
-                closesOn: { gte: now, lte: upcomingCutoff },
-                ...badgeInCourses(createdCourseIds),
-              },
-              select: { requirements: { select: { lesson: { select: { courseId: true } } } } },
-            })
-          : [],
-        studentCourseIds.length
-          ? prisma.studentBadge.findMany({
-              where: {
-                studentId: user.id,
-                status: BadgeStatus.READY_FOR_ASSESSMENT,
-                OR: [{ cooldownUntil: null }, { cooldownUntil: { lte: now } }],
-                badge: badgeInCourses(studentCourseIds),
-              },
-              select: { badge: { select: { requirements: { select: { lesson: { select: { courseId: true } } } } } } },
-            })
-          : [],
-        checkerCourseIds.length
-          ? prisma.badge.findMany({
-              where: {
-                neverCloses: { not: true },
-                closesOn: { gte: now, lte: upcomingCutoff },
-                ...badgeInCourses(checkerCourseIds),
-              },
-              select: { requirements: { select: { lesson: { select: { courseId: true } } } } },
-            })
-          : [],
-      ]);
+    const [
+      instructorActionRows,
+      pendingCheckerRows,
+      instructorDeadlineRows,
+      studentReadyRows,
+      checkerDeadlineRows,
+      checkerActiveBadgeRows,
+    ] = await Promise.all([
+      createdCourseIds.length
+        ? prisma.studentBadge.findMany({
+            where: {
+              status: { in: [BadgeStatus.READY_FOR_ASSESSMENT, BadgeStatus.IN_REVIEW] },
+              badge: badgeInCourses(createdCourseIds),
+            },
+            select: {
+              status: true,
+              cooldownUntil: true,
+              badge: { select: { requirements: { select: { lesson: { select: { courseId: true } } } } } },
+            },
+          })
+        : [],
+      createdCourseIds.length
+        ? prisma.enrollment.findMany({
+            where: {
+              courseId: { in: createdCourseIds },
+              role: CourseRole.CHECKER,
+              status: EnrollmentStatus.PENDING,
+            },
+            select: { courseId: true },
+          })
+        : [],
+      createdCourseIds.length
+        ? prisma.badge.findMany({
+            where: {
+              neverCloses: { not: true },
+              closesOn: { gte: now, lte: upcomingCutoff },
+              ...badgeInCourses(createdCourseIds),
+            },
+            select: { requirements: { select: { lesson: { select: { courseId: true } } } } },
+          })
+        : [],
+      studentCourseIds.length
+        ? prisma.studentBadge.findMany({
+            where: {
+              studentId: user.id,
+              status: BadgeStatus.READY_FOR_ASSESSMENT,
+              OR: [{ cooldownUntil: null }, { cooldownUntil: { lte: now } }],
+              badge: badgeInCourses(studentCourseIds),
+            },
+            select: { badge: { select: { requirements: { select: { lesson: { select: { courseId: true } } } } } } },
+          })
+        : [],
+      checkerCourseIds.length
+        ? prisma.badge.findMany({
+            where: {
+              neverCloses: { not: true },
+              closesOn: { gte: now, lte: upcomingCutoff },
+              ...badgeInCourses(checkerCourseIds),
+            },
+            select: { requirements: { select: { lesson: { select: { courseId: true } } } } },
+          })
+        : [],
+      checkerCourseIds.length
+        ? prisma.badge.findMany({
+            where: {
+              AND: [
+                { OR: [{ availableOn: null }, { availableOn: { lte: now } }] },
+                { OR: [{ neverCloses: true }, { closesOn: null }, { closesOn: { gt: now } }] },
+              ],
+              ...badgeInCourses(checkerCourseIds),
+            },
+            select: {
+              id: true,
+              requirements: { select: { lesson: { select: { courseId: true } } } },
+            },
+          })
+        : [],
+    ]);
 
     type CourseActions = Record<string, Record<string, number>>;
     const byCourse: { instructor: CourseActions; student: CourseActions; checker: CourseActions } = {
@@ -286,15 +309,14 @@ export async function GET() {
           lesson.badgeRequirements.map((requirement) => [requirement.badge.id, requirement.badge])
         )
       );
-      const isActive = Array.from(badges.values()).some(
-        (badge) =>
-          (!badge.availableOn || badge.availableOn <= now) &&
-          (badge.neverCloses === true || !badge.closesOn || badge.closesOn > now)
-      );
       byCourse.instructor[course.id] = {
-        students: course.enrollments.length,
-        badges: badges.size,
-        active: isActive ? 1 : 0,
+        students: course.enrollments.filter((enrollment) => enrollment.role === CourseRole.STUDENT).length,
+        checkers: course.enrollments.filter((enrollment) => enrollment.role === CourseRole.CHECKER).length,
+        activeBadges: Array.from(badges.values()).filter(
+          (badge) =>
+            (!badge.availableOn || badge.availableOn <= now) &&
+            (badge.neverCloses === true || !badge.closesOn || badge.closesOn > now)
+        ).length,
       };
     }
     for (const enrollment of checkerEnrollments) {
@@ -318,6 +340,7 @@ export async function GET() {
       const status = lesson.progress[0]?.status ?? LessonStatus.NOT_STARTED;
       if (status === LessonStatus.NOT_STARTED) metric('student', lesson.courseId, 'lessonsNotStarted');
       if (status === LessonStatus.IN_PROGRESS) metric('student', lesson.courseId, 'lessonsInProgress');
+      if (status === LessonStatus.COMPLETED) metric('student', lesson.courseId, 'lessonsCompleted');
     }
     for (const row of studentReadyRows) {
       for (const requirement of row.badge.requirements) {
@@ -340,6 +363,35 @@ export async function GET() {
         if (requirement.lesson?.courseId) metric('checker', requirement.lesson.courseId, key);
       }
     }
+    const studentsToAssessByCourse = new Map<string, Set<string>>();
+    for (const row of checkerRowsInScope) {
+      if (row.status !== BadgeStatus.READY_FOR_ASSESSMENT || (row.cooldownUntil && row.cooldownUntil > now)) continue;
+      for (const requirement of row.badge.requirements) {
+        const courseId = requirement.lesson?.courseId;
+        if (!courseId) continue;
+        const students = studentsToAssessByCourse.get(courseId) ?? new Set<string>();
+        students.add(row.student.id);
+        studentsToAssessByCourse.set(courseId, students);
+      }
+    }
+    for (const [courseId, students] of studentsToAssessByCourse) {
+      byCourse.checker[courseId] ??= {};
+      byCourse.checker[courseId].studentsToAssess = students.size;
+    }
+    const activeCheckerBadgesByCourse = new Map<string, Set<string>>();
+    for (const badge of checkerActiveBadgeRows) {
+      for (const requirement of badge.requirements) {
+        const courseId = requirement.lesson?.courseId;
+        if (!courseId) continue;
+        const badges = activeCheckerBadgesByCourse.get(courseId) ?? new Set<string>();
+        badges.add(badge.id);
+        activeCheckerBadgesByCourse.set(courseId, badges);
+      }
+    }
+    for (const [courseId, badges] of activeCheckerBadgesByCourse) {
+      byCourse.checker[courseId] ??= {};
+      byCourse.checker[courseId].activeBadges = badges.size;
+    }
     for (const row of checkerDeadlineRows) {
       for (const requirement of row.requirements) {
         if (requirement.lesson?.courseId) metric('checker', requirement.lesson.courseId, 'upcomingDeadlines');
@@ -356,6 +408,7 @@ export async function GET() {
       student: {
         lessonsNotStarted: studentLessonMetrics.notStarted,
         lessonsInProgress: studentLessonMetrics.inProgress,
+        lessonsCompleted: studentLessonMetrics.completed,
         readyForAssessment: studentReady,
         upcomingDeadlines: studentLessonMetrics.upcoming,
         overdueLessons: studentLessonMetrics.overdue,

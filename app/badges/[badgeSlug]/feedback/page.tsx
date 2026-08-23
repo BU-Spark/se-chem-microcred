@@ -9,6 +9,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal';
+import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import styles from './page.module.css';
 import { toTitleCase } from '@/lib/utils';
@@ -134,6 +135,7 @@ export default function BadgeFeedbackPage() {
   const [surveyRating, setSurveyRating] = useState(3);
   const [finalizeState, setFinalizeState] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
   const [finalizeError, setFinalizeError] = useState<string | null>(null);
+  const [isAssessmentCodeOpen, setIsAssessmentCodeOpen] = useState(false);
   const { data: studentData, refresh: refreshStudentData } = useStudentData(
     user?.primaryEmailAddress?.emailAddress,
     requestedCourseId
@@ -420,6 +422,12 @@ export default function BadgeFeedbackPage() {
               <p>This badge is finalized and added to your completed list. Great work!</p>
             ) : null}
             {finalizeError && !isSurveyOpen ? <p>{finalizeError}</p> : null}
+
+            {displayedStatus === 'READY_FOR_ASSESSMENT' && !cooldown.active ? (
+              <button type="button" className={styles.primaryButton} onClick={() => setIsAssessmentCodeOpen(true)}>
+                View code
+              </button>
+            ) : null}
           </div>
 
           <div className={styles.section}>
@@ -562,6 +570,16 @@ export default function BadgeFeedbackPage() {
             selectedOptionImage: styles.surveyFaceImageSelected,
             submit: styles.surveySubmit,
           }}
+        />
+      ) : null}
+
+      {isAssessmentCodeOpen ? (
+        <AssessmentCodeModal
+          badgeId={badge.id}
+          badgeName={badge.name}
+          courseId={lessonCourseId}
+          studentId={studentData?.student.id}
+          onClose={() => setIsAssessmentCodeOpen(false)}
         />
       ) : null}
     </div>
