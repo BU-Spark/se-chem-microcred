@@ -121,7 +121,14 @@ export default function AssessmentReadinessPage() {
   const sideContact = profile?.contacts.find((contact) => contact.type === 'INSTRUCTOR') ?? instructor;
   const canStartAssessment = badgeDetail?.progress.precheckComplete === true;
   const assessmentComplete = badgeDetail?.progress.assessmentComplete === true;
-  const canStartNewAssessment = canStartAssessment && !assessmentComplete;
+  // The server owns this gate (it mirrors the assess POST guard). Grading was
+  // previously opened on `!assessmentComplete`, which only means "no passing
+  // attempt on record" — a checker override writes a failing attempt, so the
+  // screen re-armed itself the moment the override was saved and let a checker
+  // re-grade before the student had seen any of it.
+  const canAssess = badgeDetail?.progress.canAssess === true;
+  const awaitingStudentReview = badgeDetail?.progress.awaitingStudentReview === true;
+  const canStartNewAssessment = canStartAssessment && !assessmentComplete && canAssess;
   const isAssessmentStarted = phase !== 'overview';
   const assessmentStatus = badgeDetail?.progress.assessmentComplete ? 'Complete' : 'Incomplete';
   const currentStep = badgeDetail?.progress.currentCheckpoint || (canStartAssessment ? 'Assessment' : 'Precheck');
@@ -295,6 +302,33 @@ export default function AssessmentReadinessPage() {
                         Please have the student complete the requirement before attempting an in-person assessment. If
                         you think this is a mistake, contact your instructor.
                       </p>
+                    </div>
+                  ) : null}
+
+                  {/* The student cleared the precheck but the badge is not assessable
+                      right now. The common case is an override: the result is graded
+                      and sitting with the student, and re-grading has to wait for them
+                      to review it. Without this the screen would simply render empty. */}
+                  {canStartAssessment && !canAssess && !assessmentComplete ? (
+                    <div className={styles.unablePanel}>
+                      <h2>{awaitingStudentReview ? 'Waiting on the student' : 'Unable to assess'}</h2>
+                      {awaitingStudentReview ? (
+                        <>
+                          <p>
+                            This badge has already been assessed and the result is with the student. They need to review
+                            the feedback before another assessment can be recorded.
+                          </p>
+                          <p>
+                            If the result was recorded in error, an instructor can correct it from the student&apos;s
+                            roster page rather than assessing again.
+                          </p>
+                        </>
+                      ) : (
+                        <p>
+                          This badge is not open for assessment right now. If you think this is a mistake, contact your
+                          instructor.
+                        </p>
+                      )}
                     </div>
                   ) : null}
 

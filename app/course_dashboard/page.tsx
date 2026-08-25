@@ -9,7 +9,8 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
-import { useStudentData, type BadgeRecord, type LessonRecord } from '../hooks/useStudentData';
+import { useStudentData, useRefreshAllStudentData, type BadgeRecord, type LessonRecord } from '../hooks/useStudentData';
+import { BADGE_STATUS_LABEL } from '@/lib/badgeStatusLabels';
 import styles from './page.module.css';
 
 interface LessonCard {
@@ -51,7 +52,14 @@ function describeLessonState(record: LessonRecord, badgesById?: Map<string, Badg
 
   if (badge.status === 'LEARNING' || badge.status === 'LOCKED') return 'Video lesson in progress';
 
-  if (badge.status === 'IN_REVIEW' || badge.status === 'READY_FOR_ASSESSMENT') return 'Assessment in progress';
+  // IN_REVIEW and READY_FOR_ASSESSMENT are distinct states and must not share a
+  // label: IN_REVIEW means the assessment is graded and waiting on the student,
+  // and collapsing it into "Assessment in progress" is what made this card
+  // contradict the feedback tab. Take the in-review wording from the shared map so
+  // the two surfaces stay in step.
+  if (badge.status === 'IN_REVIEW') return BADGE_STATUS_LABEL.IN_REVIEW;
+
+  if (badge.status === 'READY_FOR_ASSESSMENT') return 'Assessment in progress';
 
   return 'Completed';
 }
@@ -251,6 +259,7 @@ function HomePageContent() {
   const signOut = useSignOut();
   const courseId = searchParams.get('courseId');
   const { data: studentData, isLoading, refresh } = useStudentData(user?.primaryEmailAddress?.emailAddress, courseId);
+  const refreshAllStudentData = useRefreshAllStudentData();
   const pathname = usePathname();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{
@@ -509,6 +518,9 @@ function HomePageContent() {
       }
 
       await refresh();
+      // Rating a badge finalizes it to COMPLETED, which the badge feedback tab
+      // reads from its own cache entry. Invalidate those too.
+      refreshAllStudentData();
       closeSurveyModal();
     } catch (error) {
       console.error('Failed to submit survey', error);
@@ -517,7 +529,7 @@ function HomePageContent() {
       // is not left with a permanently dead button.
       setIsSubmittingSurvey(false);
     }
-  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal, isSubmittingSurvey]);
+  }, [activeSurvey, surveyRating, studentData, refresh, refreshAllStudentData, closeSurveyModal, isSubmittingSurvey]);
 
   if (!isLoaded || !isSignedIn) {
     return null;

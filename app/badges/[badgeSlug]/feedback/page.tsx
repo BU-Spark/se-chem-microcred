@@ -6,21 +6,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
+import { useStudentData, useRefreshAllStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal/AssessmentCodeModal';
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import styles from './page.module.css';
 import { toTitleCase } from '@/lib/utils';
-
-const BADGE_STATUS_LABEL: Record<string, string> = {
-  LEARNING: 'Still learning',
-  READY_FOR_ASSESSMENT: 'Ready for assessment',
-  IN_REVIEW: 'In review',
-  COMPLETED: 'Completed',
-  LOCKED: 'Locked',
-};
+import { BADGE_STATUS_LABEL } from '@/lib/badgeStatusLabels';
 
 function formatDate(iso: string | null) {
   if (!iso) return null;
@@ -136,10 +129,8 @@ export default function BadgeFeedbackPage() {
   const [finalizeState, setFinalizeState] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
   const [finalizeError, setFinalizeError] = useState<string | null>(null);
   const [isAssessmentCodeOpen, setIsAssessmentCodeOpen] = useState(false);
-  const { data: studentData, refresh: refreshStudentData } = useStudentData(
-    user?.primaryEmailAddress?.emailAddress,
-    requestedCourseId
-  );
+  const refreshAllStudentData = useRefreshAllStudentData();
+  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress, requestedCourseId);
 
   const allBadges = useMemo<BadgeRecord[]>(() => {
     if (!studentData) {
@@ -242,6 +233,10 @@ export default function BadgeFeedbackPage() {
           setReviewedStatus(payload.status as BadgeRecord['status']);
           setReviewedCooldownUntil((payload.cooldownUntil as string | null) ?? null);
           setReviewRequestState('done');
+          // The badge just changed status server-side. Local state alone would leave
+          // the course dashboard rendering the pre-transition status from its own
+          // cache entry, so invalidate every student-data key, not just this one.
+          refreshAllStudentData();
         }
       })
       .catch((error) => {
@@ -254,7 +249,7 @@ export default function BadgeFeedbackPage() {
     return () => {
       isCancelled = true;
     };
-  }, [badge, feedbackDetail, reviewRequestState]);
+  }, [badge, feedbackDetail, reviewRequestState, refreshAllStudentData]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -309,7 +304,7 @@ export default function BadgeFeedbackPage() {
       setReviewedStatus('COMPLETED');
       setFinalizeState('done');
       setIsSurveyOpen(false);
-      void refreshStudentData();
+      refreshAllStudentData();
     } catch (error) {
       setFinalizeError(error instanceof Error ? error.message : 'Unable to finalize this badge.');
       setFinalizeState('error');

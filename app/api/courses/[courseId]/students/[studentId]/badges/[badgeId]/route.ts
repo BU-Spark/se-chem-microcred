@@ -499,6 +499,20 @@ export async function GET(
       badgeProgress.status === 'COMPLETED' ||
       (badgeProgress.status === 'IN_REVIEW' && Boolean(latestPassingAssessment)) ||
       Boolean(latestPassingAssessment);
+    // Mirrors this route's own POST guard, which records an attempt only while the
+    // badge sits at READY_FOR_ASSESSMENT. Exposed so the checker screen blocks the
+    // same cases the API rejects instead of walking a checker through a full
+    // re-grade that 409s on submit.
+    //
+    // assessmentComplete is NOT that gate and must not be used as one: it means
+    // "there is a passing attempt on record". A checker override writes a
+    // passed:false attempt, so an overridden badge reports assessmentComplete
+    // false while sitting at IN_REVIEW — which is exactly how a checker could
+    // re-open grading straight after overriding, with no student review in between.
+    const canAssess = badgeProgress.status === BadgeStatus.READY_FOR_ASSESSMENT;
+    // Graded and waiting on the student to acknowledge the feedback. Distinguished
+    // from the other blocked states so the UI can say why it is blocked.
+    const awaitingStudentReview = badgeProgress.status === BadgeStatus.IN_REVIEW;
     const percentComplete =
       totalCheckpoints === 0
         ? precheckComplete
@@ -765,6 +779,8 @@ export async function GET(
           percentComplete,
           precheckComplete,
           assessmentComplete,
+          canAssess,
+          awaitingStudentReview,
           currentCheckpoint,
           totalCheckpoints,
           completedCheckpoints,

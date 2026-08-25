@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import useSWR from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 
 import { fetcher } from './lib/fetcher';
 
@@ -208,12 +208,36 @@ async function fetchStudentData(url: string): Promise<StudentApiResponse> {
   }
 }
 
+// Every student-data cache entry hangs off this path. The key also carries the
+// courseId, so the same student has a separate entry per course-scoped surface
+// (the course dashboard) alongside the unscoped one (my badges, badge feedback).
+export const STUDENT_DATA_KEY_PREFIX = '/api/demo/student';
+
+/**
+ * Revalidate every student-data entry, whatever courseId it was keyed under.
+ *
+ * An assessment status mutation is not scoped to the tab that triggered it: a
+ * student acknowledging feedback moves the badge for the course dashboard too. The
+ * per-hook `refresh` only touches the caller's own key, which is why the course
+ * tab kept rendering a pre-transition status after the feedback tab had already
+ * moved on. Use this after any mutation that changes a badge's status.
+ */
+export function useRefreshAllStudentData() {
+  const { mutate } = useSWRConfig();
+
+  return useCallback(() => {
+    void mutate((key) => typeof key === 'string' && key.startsWith(STUDENT_DATA_KEY_PREFIX), undefined, {
+      revalidate: true,
+    });
+  }, [mutate]);
+}
+
 export function useStudentData(email?: string | null, courseId?: string | null) {
   const key = useMemo(() => {
     if (!email) return null;
     const params = new URLSearchParams({ email });
     if (courseId) params.set('courseId', courseId);
-    return `/api/demo/student?${params.toString()}`;
+    return `${STUDENT_DATA_KEY_PREFIX}?${params.toString()}`;
   }, [courseId, email]);
 
   const {

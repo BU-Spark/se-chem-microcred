@@ -25,9 +25,15 @@ jest.mock('@clerk/nextjs', () => ({
 }));
 
 const mockUseStudentData = jest.fn();
-jest.mock('../../../hooks/useStudentData', () => ({
-  useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
-}));
+jest.mock('../../../hooks/useStudentData', () => {
+  // Stable identity: the component lists this in effect/callback dependency
+  // arrays, so a fresh jest.fn() per render would re-fire them every commit.
+  const refreshAllStudentData = jest.fn();
+  return {
+    useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
+    useRefreshAllStudentData: () => refreshAllStudentData,
+  };
+});
 
 type MockImageProps = {
   src: string | { src: string };

@@ -182,6 +182,43 @@ describe('/api/badges/[badgeId]/feedback', () => {
     );
   });
 
+  // A checker override downgrades a passing result to "still learning" and records a
+  // failing attempt. That is a real assessment outcome, not a clerical correction, so
+  // it spends an attempt like any other fail. Do NOT add an isOverride exclusion to
+  // the count below: the checker override and the instructor's roster-level grade
+  // override both write isOverride rows, so exempting them here would silently hand
+  // the student unlimited retries.
+  it('spends a reassessment attempt when the fail came from a checker override', async () => {
+    mockPrisma.assessmentAttempt.findFirst.mockResolvedValue({
+      ...failedAttempt,
+      responses: [
+        {
+          id: 'response-override',
+          subgoalText: 'Checker override',
+          points: 0,
+          passed: false,
+          feedback: 'Spilled acid and did not report it.',
+          isOverride: true,
+          sortOrder: 1,
+        },
+      ],
+    });
+    // reassessmentLimit 2 => total allowed 3; this override is the 3rd fail.
+    mockPrisma.assessmentAttempt.count.mockResolvedValue(3);
+    mockPrisma.studentBadge.update.mockResolvedValue({ status: BadgeStatus.LOCKED, cooldownUntil: null });
+
+    const response = await POST(new Request('http://localhost/api/badges/badge-1/feedback'), routeContext());
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.status).toBe(BadgeStatus.LOCKED);
+
+    // The budget counts every failed attempt; overrides are not filtered out.
+    expect(mockPrisma.assessmentAttempt.count).toHaveBeenCalledWith({
+      where: { studentId: 'student-1', badgeId: 'badge-1', passed: false },
+    });
+  });
+
   it('does not acknowledge a badge with no failed assessment feedback', async () => {
     mockPrisma.assessmentAttempt.findFirst.mockResolvedValue(null);
     mockPrisma.assessmentAttempt.count.mockResolvedValue(0);
