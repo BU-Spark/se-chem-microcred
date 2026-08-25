@@ -606,60 +606,60 @@ describe('Grades and Settings placeholders', () => {
 });
 
 describe('Lesson detail page', () => {
-  it('renders timeline parts from checkpoints and segments', () => {
-    const data = createStudentData();
-    data.lessons.catalog = [
+  const baseLesson = (): StudentData['lessons']['catalog'][number] => ({
+    id: 'lesson-3',
+    slug: 'lesson-3',
+    title: 'Lesson 3',
+    summary: 'Video lesson',
+    description: 'Desc',
+    thumbnailUrl: null,
+    estimatedMinutes: 20,
+    dueDate: '2025-01-03T12:00:00.000Z',
+    availableOn: null,
+    sortOrder: 2,
+    passingPercent: 70,
+    status: 'IN_PROGRESS',
+    percentComplete: 50,
+    segments: [
       {
-        id: 'lesson-3',
-        slug: 'lesson-3',
-        title: 'Lesson 3',
-        summary: 'Video lesson',
-        description: 'Desc',
+        id: 'seg-1',
+        title: 'Segment 1',
+        summary: null,
+        duration: 2,
+        videoUrl: null,
+        muxPlaybackId: null,
         thumbnailUrl: null,
-        estimatedMinutes: 20,
-        dueDate: '2025-01-03T12:00:00.000Z',
-        availableOn: null,
-        sortOrder: 2,
-        passingPercent: 70,
-        status: 'IN_PROGRESS',
-        percentComplete: 50,
-        segments: [
-          {
-            id: 'seg-1',
-            title: 'Segment 1',
-            summary: null,
-            duration: 2,
-            videoUrl: null,
-            muxPlaybackId: null,
-            thumbnailUrl: null,
-            status: 'NOT_STARTED',
-            checkpointIds: [],
-          },
-        ],
-        checkpoints: [
-          {
-            id: 'cp-1',
-            title: 'Checkpoint 1',
-            description: null,
-            label: 'Check point',
-            meta: JSON.stringify({ points: 5, segmentLabel: 'Segment 1 Starts 00:00:00' }),
-            questionCount: 2,
-            segmentId: 'seg-1',
-            timeOffsetSeconds: 30,
-            snapshotUrl: null,
-            questions: [],
-          },
-        ],
-        badgeRequirements: [{ badgeId: 'b2', badgeName: 'Assessment Badge', badgeSlug: 'assessment-badge' }],
-        skills: [],
-        lastGradePercent: null,
-        lastGradePassed: null,
-        lastGradedAt: null,
-        completedCheckpointIds: [],
-        resumeTimeSeconds: 0,
-        answeredCheckpointIds: [],
+        status: 'NOT_STARTED',
+        checkpointIds: [],
       },
-    ];
+    ],
+    checkpoints: [
+      {
+        id: 'cp-1',
+        title: 'Checkpoint 1',
+        description: null,
+        label: 'Check point',
+        meta: JSON.stringify({ points: 5, segmentLabel: 'Segment 1 Starts 00:00:00' }),
+        questionCount: 2,
+        segmentId: 'seg-1',
+        timeOffsetSeconds: 30,
+        snapshotUrl: null,
+        questions: [],
+      },
+    ],
+    badgeRequirements: [{ badgeId: 'b2', badgeName: 'Assessment Badge', badgeSlug: 'assessment-badge' }],
+    skills: [],
+    lastGradePercent: null,
+    lastGradePassed: null,
+    lastGradedAt: null,
+    completedCheckpointIds: [],
+    resumeTimeSeconds: 0,
+    answeredCheckpointIds: [],
+  });
+
+  it('renders outline parts, derived durations and the badge overview', () => {
+    const data = createStudentData();
+    data.lessons.catalog = [baseLesson()];
 
     mockUseStudentData.mockReturnValue({ data, isLoading: false, error: null });
     mockParams = { lessonId: 'lesson-3' };
@@ -667,9 +667,38 @@ describe('Lesson detail page', () => {
 
     expect(screen.getByText(/Lesson 3/i)).toBeInTheDocument();
     expect(screen.getByText(/Part 1/i)).toBeInTheDocument();
-    expect(screen.getByText(/Checkpoint/i)).toBeInTheDocument();
+    expect(screen.getByText('Checkpoint')).toBeInTheDocument();
     expect(screen.getByText('2 questions')).toBeInTheDocument();
+    expect(screen.getByText('End of lesson')).toBeInTheDocument();
     expect(screen.queryByText(/segmentLabel/)).not.toBeInTheDocument();
+
+    // The badge, its description and the earn-it lifecycle share one card.
+    expect(screen.getByText('Assessment Badge')).toBeInTheDocument();
+    expect(screen.getByText('Needs in-person assessment')).toBeInTheDocument();
+    expect(screen.getByText(/Pass the in-person assessment/i)).toBeInTheDocument();
+
+    // 2s of segment video, so both the part and the lesson total round down.
+    expect(screen.getAllByText('<1 min').length).toBeGreaterThan(0);
+  });
+
+  it('reports a missing video length instead of a zero duration', () => {
+    const data = createStudentData();
+    const lesson = baseLesson();
+    data.lessons.catalog = [
+      {
+        ...lesson,
+        estimatedMinutes: null,
+        segments: [{ ...lesson.segments[0], duration: null }],
+        checkpoints: [],
+      },
+    ];
+
+    mockUseStudentData.mockReturnValue({ data, isLoading: false, error: null });
+    mockParams = { lessonId: 'lesson-3' };
+    render(<LessonDetailPage />);
+
+    expect(screen.getByText(/Video length not recorded/i)).toBeInTheDocument();
+    expect(screen.getByText('Length unavailable')).toBeInTheDocument();
   });
 });
 
