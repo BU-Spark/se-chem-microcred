@@ -32,9 +32,15 @@ jest.mock('next/image', () => ({
   },
 }));
 
-jest.mock('../hooks/useStudentData', () => ({
-  useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
-}));
+jest.mock('../hooks/useStudentData', () => {
+  // Stable identity: the component lists this in effect/callback dependency
+  // arrays, so a fresh jest.fn() per render would re-fire them every commit.
+  const refreshAllStudentData = jest.fn();
+  return {
+    useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
+    useRefreshAllStudentData: () => refreshAllStudentData,
+  };
+});
 
 describe('Course dashboard page', () => {
   beforeEach(() => {
@@ -222,14 +228,8 @@ describe('Course dashboard page', () => {
       'Assessment in progress',
       'Pick up where you left off',
     ],
-    ['awaiting failed-feedback review', 'IN_REVIEW', false, 'Assessment in progress', 'Pick up where you left off'],
-    [
-      'awaiting passed-feedback review and rating',
-      'IN_REVIEW',
-      true,
-      'Assessment in progress',
-      'Pick up where you left off',
-    ],
+    ['awaiting failed-feedback review', 'IN_REVIEW', false, 'In review', 'Pick up where you left off'],
+    ['awaiting passed-feedback review and rating', 'IN_REVIEW', true, 'In review', 'Pick up where you left off'],
     ['out of assessment attempts', 'LOCKED', false, 'Video lesson in progress', 'Pick up where you left off'],
     ['has earned the badge', 'COMPLETED', true, 'Completed', 'Completed'],
     [

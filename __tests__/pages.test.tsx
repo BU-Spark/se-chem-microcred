@@ -35,9 +35,15 @@ jest.mock('@clerk/nextjs', () => ({
 }));
 
 const mockUseStudentData = jest.fn();
-jest.mock('../app/hooks/useStudentData', () => ({
-  useStudentData: () => mockUseStudentData(),
-}));
+jest.mock('../app/hooks/useStudentData', () => {
+  // Stable identity: consumers list this in effect/callback dependency arrays,
+  // so a fresh jest.fn() per render would re-fire them every commit.
+  const refreshAllStudentData = jest.fn();
+  return {
+    useStudentData: () => mockUseStudentData(),
+    useRefreshAllStudentData: () => refreshAllStudentData,
+  };
+});
 
 beforeEach(() => {
   // Home is asserted here in its stacked layout; pin the flag off so the suite

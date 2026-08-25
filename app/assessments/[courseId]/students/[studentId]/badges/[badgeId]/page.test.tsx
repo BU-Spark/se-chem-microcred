@@ -69,6 +69,10 @@ function createBadgePayload() {
       percentComplete: 100,
       precheckComplete: true,
       assessmentComplete: false,
+      // The server-owned assess gate: true only while the badge sits at
+      // READY_FOR_ASSESSMENT.
+      canAssess: true,
+      awaitingStudentReview: false,
       currentCheckpoint: null,
       totalCheckpoints: 2,
       completedCheckpoints: 2,
@@ -501,6 +505,8 @@ describe('Assessment readiness page', () => {
             progress: {
               ...createBadgePayload().progress,
               assessmentComplete: true,
+              canAssess: false,
+              awaitingStudentReview: true,
             },
           }),
         } as Response;
@@ -514,5 +520,48 @@ describe('Assessment readiness page', () => {
     const action = await screen.findByRole('button', { name: 'Assessment complete' });
     expect(action).toBeDisabled();
     expect(screen.queryByText('Safe burner operation')).not.toBeInTheDocument();
+  });
+
+  // A checker override downgrades a passing result to still learning, which records
+  // a FAILING attempt. assessmentComplete only tracks whether a PASSING attempt
+  // exists, so it stays false here — and gating grading on it alone is what let a
+  // checker re-open the rubric and reassess immediately after overriding, before the
+  // student had seen the feedback. The gate is the badge status, via canAssess.
+  it('does not re-open grading straight after a checker override', async () => {
+    mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return {
+          ok: true,
+          json: async () => ({
+            ...createBadgePayload(),
+            badge: { ...createBadgePayload().badge, status: 'IN_REVIEW' },
+            progress: {
+              ...createBadgePayload().progress,
+              // No passing attempt on record — the override failed the student.
+              assessmentComplete: false,
+              canAssess: false,
+              awaitingStudentReview: true,
+            },
+          }),
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    // The checker is told why, rather than being shown an empty screen.
+    expect(await screen.findByRole('heading', { name: 'Waiting on the student' })).toBeInTheDocument();
+
+    // The rubric never re-opens and the action is dead.
+    expect(screen.queryByText('Safe burner operation')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirm and Start' })).toBeDisabled();
   });
 });
