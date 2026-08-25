@@ -707,6 +707,10 @@ export default function BadgeCreationPage() {
           isEditMode={isEditMode}
           courseId={courseId}
           badgeName={draft.badgeName}
+          imageUrl={draft.imageUrl}
+          imagePositionX={draft.imagePositionX}
+          imagePositionY={draft.imagePositionY}
+          youtubeUrl={draft.youtubeUrl}
           onClose={handleSuccessClose}
         />
       ) : null}

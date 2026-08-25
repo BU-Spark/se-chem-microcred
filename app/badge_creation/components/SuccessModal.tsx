@@ -1,16 +1,25 @@
 import Link from 'next/link';
 
+import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import styles from '../page.module.css';
 
 export default function SuccessModal({
   isEditMode,
   courseId,
   badgeName,
+  imageUrl,
+  imagePositionX,
+  imagePositionY,
+  youtubeUrl,
   onClose,
 }: {
   isEditMode: boolean;
   courseId: string | null;
   badgeName: string;
+  imageUrl: string;
+  imagePositionX: number;
+  imagePositionY: number;
+  youtubeUrl: string;
   onClose: () => void;
 }) {
   // The dialog's accessible name is set via aria-label so the visible heading can
@@ -34,7 +43,15 @@ export default function SuccessModal({
 
         <h2 className={styles.successTitle}>Success!</h2>
 
-        <div className={styles.successBadgeCircle} aria-hidden="true" />
+        <div className={styles.successBadgeCircle} aria-hidden="true">
+          <BadgeImage
+            imageUrl={imageUrl}
+            imagePositionX={imagePositionX}
+            imagePositionY={imagePositionY}
+            videoUrl={youtubeUrl}
+            alt=""
+          />
+        </div>
 
         {badgeName ? <p className={styles.successBadgeName}>{badgeName}</p> : null}
 
