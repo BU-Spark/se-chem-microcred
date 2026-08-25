@@ -2138,11 +2138,13 @@
 }
 
 .successBadgeCircle {
+  position: relative;
   width: 190px;
   height: 190px;
   border-radius: 999px;
   background: #d9d9d9;
   margin: 26px 0 22px;
+  overflow: hidden;
 }
 
 .successBadgeName {
