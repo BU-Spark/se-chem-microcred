@@ -11,7 +11,7 @@ import neutralSelected from '@/public/assets/survey_faces/neutral_selected.svg';
 import slightlyHappySelected from '@/public/assets/survey_faces/slightly_happy_selected.svg';
 import veryHappySelected from '@/public/assets/survey_faces/very_happy_selected.svg';
 
-import type { SurveyOption } from './index';
+import type { SurveyOption } from './SurveyModal';
 
 /**
  * The 1–5 emoji scale every survey uses: the badge rating, the QEV rating, and

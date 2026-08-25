@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 
-import Modal from '../Modal';
+import Modal from '../Modal/Modal';
 import styles from './AssessmentCodeModal.module.css';
 
 type AssessmentCodeModalProps = {

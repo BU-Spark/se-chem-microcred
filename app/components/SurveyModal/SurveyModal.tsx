@@ -2,7 +2,7 @@
 
 import Image, { type ImageProps } from 'next/image';
 
-import Modal from '../Modal';
+import Modal from '../Modal/Modal';
 
 export type SurveyOption = {
   value: number;

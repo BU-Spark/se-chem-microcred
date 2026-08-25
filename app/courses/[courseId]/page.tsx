@@ -20,9 +20,9 @@ import sapphireAvatar from '@/public/edit_avatar/sapphire.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import ExportCsvDataButton from '@/app/components/Export/ExportToCsv';
-import BadgeToken from '@/app/components/BadgeToken';
+import BadgeToken from '@/app/components/BadgeToken/BadgeToken';
 import { useCreatedCourseDetail, type CourseBadge } from './hooks/useCreatedCourseDetail';
-import BadgeImage from '@/app/components/BadgeImage';
+import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import styles from './page.module.css';
 
 type AssignedBadge = CourseBadge & {

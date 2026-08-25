@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 
-import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
+import AssessmentCodeModal from '@/app/components/AssessmentCodeModal/AssessmentCodeModal';
 
 /**
  * These cases used to drive the QR through the Badge Passport (/badges), which

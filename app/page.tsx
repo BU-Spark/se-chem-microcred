@@ -25,7 +25,7 @@ import veryHappySelected from '../public/assets/survey_faces/very_happy_selected
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import CourseTileImage from '@/app/components/Courses/CourseTileImage';
-import SurveyModal from '@/app/components/SurveyModal';
+import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
 import type { CourseImageFields } from '@/lib/courseImage';
 
 interface EnrolledCourseCardData extends CourseImageFields {

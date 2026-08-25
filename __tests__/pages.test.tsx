@@ -548,7 +548,16 @@ describe('Analytics page', () => {
   it('computes badge percentages and renders stat cards', () => {
     render(<AnalyticsPage />);
     expect(screen.getAllByText(/badges completed/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Average assessment score/i)).toBeInTheDocument();
+    expect(screen.getByText(/Badge Summary/i)).toBeInTheDocument();
+  });
+
+  // The circular score dials are gated off behind SHOW_CIRCULAR_SCORES in
+  // app/components/AnalyticsPanel. The data still flows; only the UI is hidden.
+  it('hides the circular score dials', () => {
+    render(<AnalyticsPage />);
+    expect(screen.queryByText(/Average assessment score/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Highest scoring badge/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Lowest scoring badge/i)).not.toBeInTheDocument();
   });
 });
 
@@ -569,6 +578,13 @@ describe('Profile page', () => {
     expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
     jest.useRealTimers();
+  });
+
+  it('renders the analytics panel in place of the student badges card', () => {
+    render(<ProfilePage />);
+    expect(screen.getByText(/Total Progress/i)).toBeInTheDocument();
+    expect(screen.getByText(/Badge Summary/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Student Badges/i)).not.toBeInTheDocument();
   });
 });
 

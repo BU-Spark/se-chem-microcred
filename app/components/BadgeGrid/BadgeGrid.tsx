@@ -1,6 +1,6 @@
 'use client';
 
-import BadgeImage from '@/app/components/BadgeImage';
+import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import styles from './BadgeGrid.module.css';
 
 export type BadgeGridItem = {

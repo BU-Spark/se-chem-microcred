@@ -10,8 +10,8 @@ import { useMyCourses } from '../hooks/useMyCourses';
 import { derivePassportNumber, formatPassportDate } from '@/lib/students/passport';
 import styles from './page.module.css';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import BadgeImage from '@/app/components/BadgeImage';
-import Modal from '@/app/components/Modal';
+import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
+import Modal from '@/app/components/Modal/Modal';
 import EarnedBeforePicker from './EarnedBeforePicker';
 
 // Completed badges whose course can't be resolved (no lesson-backed requirement,

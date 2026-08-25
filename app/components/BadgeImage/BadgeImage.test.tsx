@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import BadgeImage from './index';
+import BadgeImage from './BadgeImage';
 
 jest.mock('@/app/components/Video/Youtube/YoutubeThumbnail', () => ({
   __esModule: true,

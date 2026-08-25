@@ -7,8 +7,8 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useBadgesCatalog, type BadgeCatalogItem } from '@/app/hooks/useBadgesCatalog';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import BadgeImage from '@/app/components/BadgeImage';
-import BadgeToken from '@/app/components/BadgeToken';
+import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
+import BadgeToken from '@/app/components/BadgeToken/BadgeToken';
 import styles from './page.module.css';
 
 // A badge's "main page" lives at /courses/[courseId]/[badgeId], so we need the course it's

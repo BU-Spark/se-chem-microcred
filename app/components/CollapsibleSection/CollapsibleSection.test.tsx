@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import CollapsibleSection from './index';
+import CollapsibleSection from './CollapsibleSection';
 
 describe('CollapsibleSection', () => {
   it('connects its toggle to the visible panel', () => {

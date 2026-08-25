@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import Modal from '../../components/Modal';
+import Modal from '../../components/Modal/Modal';
 import styles from './CourseBlastModal.module.css';
 
 // Instructor-typed badge names are never rewritten. Append "Badge" only when the

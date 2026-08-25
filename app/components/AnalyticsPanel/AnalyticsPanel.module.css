@@ -1,0 +1,314 @@
+/* Analytics panel — the two cards (Total Progress + Badge Summary) extracted from
+   app/analytics/page.tsx so both /analytics and /profile can render them.
+
+   The design tokens below used to live on the analytics page's `.page` wrapper.
+   They MUST stay on this panel's own root: the card rules here and the inline
+   styles in BadgeSummaryDial (var(--c-lime), var(--c-red)) both read them, so a
+   host page that doesn't define them would render the panel colorless. */
+.panel {
+  --c-blue: var(--checkd-blue);
+  --c-lime: var(--checkd-green);
+  --c-lime-soft: rgb(var(--checkd-green-rgb) / 0.18);
+  --c-red: #c64d4d;
+  --c-track: #d9d9d9;
+  --c-card-border: #d9d9d9;
+  --c-ink: var(--checkd-black);
+}
+
+.analyticsGrid {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.78fr) minmax(560px, 1.22fr);
+  gap: 1.75rem;
+  align-items: stretch;
+}
+
+/* Generic card */
+.card {
+  background: var(--checkd-white);
+  border-radius: 20px;
+  border: 3px solid var(--c-card-border);
+  box-shadow: none;
+  padding: 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  height: 100%;
+}
+
+.progressCard {
+  padding: 1.5rem 1.5rem 1.25rem;
+  gap: 0.5rem;
+}
+
+.cardTitle {
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  font-size: 24px;
+  color: var(--c-blue);
+}
+
+.progressTitle {
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid var(--c-track);
+}
+
+/* ===== Left card: progress list ===== */
+
+.progressList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.progressItem {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--c-track);
+}
+
+.progressIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+}
+
+.progressIcon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.iconLime {
+  background: var(--c-lime-soft);
+  color: var(--c-lime);
+}
+
+.iconLime svg {
+  color: var(--c-lime);
+}
+
+.progressContent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.progressValue {
+  font-family: 'Lato', sans-serif;
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--c-blue);
+}
+
+.progressLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: var(--c-ink);
+}
+
+.progressItem:last-child {
+  border-bottom: none;
+  padding-bottom: 0.25rem;
+}
+
+/* ===== Right card: badge summary ===== */
+
+.badgeSummary {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.badgeSummaryTitle {
+  text-align: right;
+  font-weight: 400;
+  font-family: 'Lato', sans-serif;
+}
+
+.badgeTop {
+  display: grid;
+  grid-template-columns: minmax(0, auto) 1fr;
+  align-items: center;
+  gap: 2rem;
+}
+
+.badgeDial {
+  width: 220px;
+  height: 220px;
+  display: block;
+  margin: 0 auto;
+}
+
+.badgeRows {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.badgeRow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.badgeRowHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.badgeLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: var(--c-ink);
+  font-weight: 400;
+}
+
+.badgeBar {
+  width: 100%;
+  height: 16px;
+  border-radius: 999px;
+  background: var(--c-track);
+  overflow: hidden;
+}
+
+.badgeFill {
+  height: 100%;
+  border-radius: inherit;
+  transition: width 1s ease-out;
+  /* animate width change */
+}
+
+.badgeFillCompleted {
+  background: var(--c-lime);
+}
+
+.badgeFillAvailable {
+  background: var(--c-red);
+}
+
+.badgePercentage {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: var(--c-ink);
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.badgeScoreDivider {
+  height: 1px;
+  background: var(--c-track);
+  margin-top: 0.25rem;
+}
+
+.badgeScoreRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(190px, 1fr));
+  gap: 1.25rem;
+  align-items: start;
+  width: 100%;
+}
+
+/* ===== Bottom row: circular score cards ===== */
+
+.scoreCard {
+  background: transparent;
+  border-radius: 0;
+  border: none;
+  padding: 0.5rem 0.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  align-items: center;
+  text-align: center;
+  box-shadow: none;
+  min-width: 0;
+  width: 100%;
+}
+
+.circularStat {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: grid;
+  place-items: center;
+}
+
+.circularStat svg {
+  position: absolute;
+  inset: 0;
+  /* Center the 120px ring inside the 140px box so it aligns with the
+     grid-centered value text (otherwise the ring pins to the top-left). */
+  margin: auto;
+}
+
+.circularTrack {
+  stroke: var(--c-track);
+}
+
+.circularProgress {
+  stroke: var(--c-blue);
+  transition: stroke-dashoffset 1s ease-out;
+  /* animate ring */
+}
+
+.circularStatValue {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  font-family: 'Lato', sans-serif;
+  font-weight: 900;
+  color: var(--c-blue);
+  line-height: 1;
+}
+
+.circularStatNumber {
+  font-size: 48px;
+  font-weight: 900;
+}
+
+.circularStatPercent {
+  font-size: 28px;
+  font-weight: 900;
+}
+
+.scoreLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  color: var(--c-ink);
+  line-height: 1.25;
+  text-align: center;
+}
+
+@media (max-width: 920px) {
+  .badgeTop {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+
+  .badgeRows {
+    width: 100%;
+  }
+
+  .badgeScoreRow {
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .badgeDial {
+    margin: 0 auto;
+  }
+
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .badgeSummaryTitle {
+    text-align: left;
+  }
+}

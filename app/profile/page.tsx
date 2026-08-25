@@ -7,14 +7,13 @@ import { useUser, useReverification } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../hooks/useStudentData';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-import BadgeToken from '@/app/components/BadgeToken';
 import styles from './page.module.css';
 import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
-import BadgeImage from '@/app/components/BadgeImage';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
 import { splitName } from '@/lib/text/name';
+import { AnalyticsPanel } from '@/app/components/AnalyticsPanel/AnalyticsPanel';
 
 function avatarAsset(base?: string | null) {
   switch (base) {
@@ -73,10 +72,6 @@ export default function ProfilePage() {
 
   // ---------- Demographic dropdown (expand/collapse) ----------
   const [demographicOpen, setDemographicOpen] = useState(false);
-
-  // ---------- Badge section dropdowns ----------
-  const [notStartedOpen, setNotStartedOpen] = useState(false);
-  const [completedOpen, setCompletedOpen] = useState(false);
 
   // ---------- 2. Language picker ----------
   // language settings (ready for future languages)
@@ -296,10 +291,6 @@ export default function ProfilePage() {
 
   const avatarSrc = avatarAsset(optimisticAvatarBase ?? studentData?.student.avatar?.base ?? cachedAvatarBase);
 
-  const learningBadges = studentData?.badges.learning ?? [];
-  const completedBadges = studentData?.badges.completed ?? [];
-  const notStartedBadges = studentData?.badges.notStarted ?? [];
-
   return (
     <div className="page">
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
@@ -400,117 +391,8 @@ export default function ProfilePage() {
               </button>
             </aside>
           </section>
-
-          {/* ===================== Badges card ===================== */}
-          <section className={styles.badgesCard}>
-            <div className={styles.badgesHeader}>
-              <h2 className={styles.badgesTitle}>Student Badges</h2>
-              <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
-                <span className={styles.editPencilText}>Edit</span>
-                <Image src={editIcon} alt="" width={20} height={20} className={styles.editPencilIcon} />
-              </button>
-            </div>
-
-            {/* In-progress */}
-            <h3 className={styles.badgeSectionLabel}>In-progress</h3>
-            <div className={styles.badgeRow}>
-              {learningBadges.length === 0 ? (
-                <div className={styles.emptyState}>No badges in progress.</div>
-              ) : (
-                learningBadges.map((badge) => (
-                  <BadgeToken key={badge.id} className={styles.badgeToken}>
-                    <div className={styles.badgeCircle}>
-                      <BadgeImage
-                        imageUrl={badge.imageUrl}
-                        imagePositionX={badge.imagePositionX}
-                        imagePositionY={badge.imagePositionY}
-                        videoUrl={badge.youtubeUrl}
-                        alt={`${badge.name} thumbnail`}
-                        className={styles.badgeCircleImage}
-                      />
-                    </div>
-                    <div className={styles.badgeName}>{badge.name}</div>
-                  </BadgeToken>
-                ))
-              )}
-            </div>
-
-            {/* Not yet started */}
-            <div className={styles.badgeDropdownSection}>
-              <button
-                type="button"
-                className={styles.badgeDropdownHeader}
-                onClick={() => setNotStartedOpen((open) => !open)}
-                aria-expanded={notStartedOpen}
-              >
-                <span className={styles.badgeSectionLabel}>Not yet started</span>
-                <span className={`${styles.caret} ${notStartedOpen ? styles.caretOpen : ''}`} aria-hidden="true">
-                  ⌄
-                </span>
-              </button>
-              {notStartedOpen && (
-                <div className={styles.badgeRow}>
-                  {notStartedBadges.length === 0 ? (
-                    <div className={styles.emptyState}>No badges to show.</div>
-                  ) : (
-                    notStartedBadges.map((badge) => (
-                      <BadgeToken key={badge.id} className={styles.badgeToken}>
-                        <div className={styles.badgeCircle}>
-                          <BadgeImage
-                            imageUrl={badge.imageUrl}
-                            imagePositionX={badge.imagePositionX}
-                            imagePositionY={badge.imagePositionY}
-                            videoUrl={badge.youtubeUrl}
-                            alt={`${badge.name} thumbnail`}
-                            className={styles.badgeCircleImage}
-                          />
-                        </div>
-                        <div className={styles.badgeName}>{badge.name}</div>
-                      </BadgeToken>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Completed */}
-            <div className={styles.badgeDropdownSection}>
-              <button
-                type="button"
-                className={styles.badgeDropdownHeader}
-                onClick={() => setCompletedOpen((open) => !open)}
-                aria-expanded={completedOpen}
-              >
-                <span className={styles.badgeSectionLabel}>Completed</span>
-                <span className={`${styles.caret} ${completedOpen ? styles.caretOpen : ''}`} aria-hidden="true">
-                  ⌄
-                </span>
-              </button>
-              {completedOpen && (
-                <div className={styles.badgeRow}>
-                  {completedBadges.length === 0 ? (
-                    <div className={styles.emptyState}>No completed badges yet.</div>
-                  ) : (
-                    completedBadges.map((badge) => (
-                      <BadgeToken key={badge.id} className={styles.badgeToken}>
-                        <div className={styles.badgeCircle}>
-                          <BadgeImage
-                            imageUrl={badge.imageUrl}
-                            imagePositionX={badge.imagePositionX}
-                            imagePositionY={badge.imagePositionY}
-                            videoUrl={badge.youtubeUrl}
-                            alt={`${badge.name} thumbnail`}
-                            className={styles.badgeCircleImage}
-                          />
-                        </div>
-                        <div className={styles.badgeName}>{badge.name}</div>
-                      </BadgeToken>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
+          {/* ===================== Analytics ===================== */}
+          <AnalyticsPanel />
         </div>
       </main>
 

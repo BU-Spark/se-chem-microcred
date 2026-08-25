@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react';
-import BadgeGrid from './index';
+import BadgeGrid from './BadgeGrid';
 
 describe('BadgeGrid', () => {
   it('renders selectable badges', () => {

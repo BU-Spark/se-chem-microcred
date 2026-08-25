@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent } from
 import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 import ChipInput from '../components/ChipInput';
-import BadgeImage from '@/app/components/BadgeImage';
+import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import { prepareBadgeImage } from '../lib/badge-image';
 
 export default function BadgeInfoStep({

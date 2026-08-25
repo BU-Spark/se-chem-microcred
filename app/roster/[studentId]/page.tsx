@@ -6,9 +6,9 @@ import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigat
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { generateInitials, getNameForProfile } from '@/lib/text/name';
-import CollapsibleSection from '@/app/components/CollapsibleSection';
-import BadgeGrid from '@/app/components/BadgeGrid';
-import StudentProfileCard from '@/app/components/StudentProfileCard';
+import CollapsibleSection from '@/app/components/CollapsibleSection/CollapsibleSection';
+import BadgeGrid from '@/app/components/BadgeGrid/BadgeGrid';
+import StudentProfileCard from '@/app/components/StudentProfileCard/StudentProfileCard';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
