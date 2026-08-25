@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import HomePage from '../app/page';
 import BadgePassportPage from '../app/badges/page';
 import BadgeFeedbackPage from '@/app/badges/[badgeSlug]/feedback/page';
-import AnalyticsPage from '../app/analytics/page';
 import ProfilePage from '../app/profile/page';
 import GradesPage from '../app/grades/page';
 import SettingsPage from '../app/settings/page';
@@ -544,23 +543,6 @@ describe('Badge Feedback page', () => {
   });
 });
 
-describe('Analytics page', () => {
-  it('computes badge percentages and renders stat cards', () => {
-    render(<AnalyticsPage />);
-    expect(screen.getAllByText(/badges completed/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Badge Summary/i)).toBeInTheDocument();
-  });
-
-  // The circular score dials are gated off behind SHOW_CIRCULAR_SCORES in
-  // app/components/AnalyticsPanel. The data still flows; only the UI is hidden.
-  it('hides the circular score dials', () => {
-    render(<AnalyticsPage />);
-    expect(screen.queryByText(/Average assessment score/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Highest scoring badge/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Lowest scoring badge/i)).not.toBeInTheDocument();
-  });
-});
-
 describe('Profile page', () => {
   it('masks sensitive info after timeout and shows the demographic dropdown toggle', () => {
     jest.useFakeTimers();
@@ -580,11 +562,30 @@ describe('Profile page', () => {
     jest.useRealTimers();
   });
 
+  // The standalone /analytics route was removed; the profile page is now the only
+  // surface that renders the analytics panel, so its coverage lives here.
   it('renders the analytics panel in place of the student badges card', () => {
     render(<ProfilePage />);
     expect(screen.getByText(/Total Progress/i)).toBeInTheDocument();
     expect(screen.getByText(/Badge Summary/i)).toBeInTheDocument();
     expect(screen.queryByText(/Student Badges/i)).not.toBeInTheDocument();
+  });
+
+  it('computes badge percentages and renders the analytics stat cards', () => {
+    render(<ProfilePage />);
+    expect(screen.getAllByText(/badges completed/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/badges ready to be reassessed/i)).toBeInTheDocument();
+    expect(screen.getByText(/badges not yet attempted/i)).toBeInTheDocument();
+    expect(screen.getByText(/Badges Available/i)).toBeInTheDocument();
+  });
+
+  // The circular score dials are gated off behind SHOW_CIRCULAR_SCORES in
+  // app/components/AnalyticsPanel. The data still flows; only the UI is hidden.
+  it('hides the circular score dials', () => {
+    render(<ProfilePage />);
+    expect(screen.queryByText(/Average assessment score/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Highest scoring badge/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Lowest scoring badge/i)).not.toBeInTheDocument();
   });
 });
 

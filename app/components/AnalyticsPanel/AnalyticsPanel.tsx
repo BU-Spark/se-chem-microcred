@@ -159,7 +159,8 @@ function CircularScore({ value, label }: ScoreItem) {
 /**
  * The two analytics cards (Total Progress + Badge Summary), with no page chrome of
  * their own — no sidebar, no <main>, no auth redirect — so a host page can drop them
- * into an existing layout. `/analytics` and `/profile` both render this.
+ * into an existing layout. Rendered by `/profile`; the standalone `/analytics` route
+ * it was extracted from has been removed.
  *
  * Reads its own data via `useStudentData`, which is SWR-backed: a host page that
  * already calls the hook with the same email shares one request rather than

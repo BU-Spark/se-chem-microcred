@@ -37,7 +37,6 @@ const NAV_ICONS: Record<string, string> = {
   '/my_badges': 'lucide:badge-check',
   '/badges': 'lucide:wallet-cards',
   '/messages': 'lucide:message-circle',
-  '/analytics': 'lucide:chart-no-axes-combined',
   '/profile': 'lucide:user-round',
 };
 
@@ -46,7 +45,6 @@ export const SIDEBAR_NAV: NavItem[] = [
   { label: 'Created Badges', href: '/my_badges' },
   { label: 'Badge Passport', href: '/badges' },
   { label: 'My Messages', href: '/messages' },
-  { label: 'My Analytics', href: '/analytics' },
   { label: 'My Profile', href: '/profile' }, // In this combine the setting and profile features.
 ];
 

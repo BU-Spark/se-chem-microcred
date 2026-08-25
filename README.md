@@ -176,8 +176,7 @@ Signed-out visitors see the marketing **splash** (`/splash`). Authenticated user
 
 ### Other
 
-- **My Analytics (`/analytics`)** — Progress tiles (hours, badge counts, questions answered) and score gauges.
-- **Profile (`/profile`)** — Consolidated student controls: sensitive-field auto-hide with Clerk re-auth, demographics editor, language selector, course contacts, quick stats, and security actions.
+- **Profile (`/profile`)** — Consolidated student controls: sensitive-field auto-hide with Clerk re-auth, demographics editor, language selector, course contacts, quick stats, and security actions. Also carries the analytics panel (progress tiles and badge summary, via `app/components/AnalyticsPanel`) that used to live on a standalone `/analytics` route.
 - **Messages (`/messages`)** — Received and Sent tabs, both cross-course and role-agnostic, with a newest/oldest sort. Sent shows each message's read count over its student audience. The sidebar carries an unread badge.
 - **Report (`/report`)** — Reporting surface.
 - **Instructor QEV prototype (`/instructor/qev-demo`)** — Standalone cue-point authoring demo (predates the integrated in-lesson QEV player).

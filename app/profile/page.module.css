@@ -226,12 +226,6 @@
   font-family: 'Open Sans', sans-serif;
 }
 
-.emptyState {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 14px;
-  color: #6b7280;
-}
-
 /* Edit pencil link */
 .editPencil {
   display: inline-flex;
@@ -256,97 +250,6 @@
 .editPencilIcon {
   width: 20px;
   height: 20px;
-}
-
-/* ===========================
-   Badges card
-   =========================== */
-.badgesCard {
-  background: var(--checkd-white);
-  border-radius: 40px;
-  border: 4px solid #d9d9d9;
-  padding: 2rem 3rem 2.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.badgesHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.badgesTitle {
-  font-family: 'Lato', sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  color: var(--checkd-black);
-}
-
-.badgeSectionLabel {
-  font-family: 'Lato', sans-serif;
-  font-size: 24px;
-  font-weight: 400;
-  color: var(--checkd-black);
-}
-
-.badgeRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem 2.5rem;
-  padding: 0.5rem 0 1rem;
-}
-
-.badgeToken {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  width: 176px;
-}
-
-.badgeCircle {
-  position: relative;
-  overflow: hidden;
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  background: var(--checkd-blue);
-  flex-shrink: 0;
-}
-
-.badgeCircleImage {
-  object-fit: cover;
-}
-
-.badgeName {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  color: var(--checkd-black);
-  text-align: center;
-}
-
-.badgeDropdownSection {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.badgeDropdownHeader {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  align-self: flex-start;
-}
-
-.badgeDropdownHeader .caret {
-  color: var(--checkd-blue);
-  font-size: 22px;
 }
 
 /* ===========================
@@ -380,15 +283,6 @@
 
   .pageTitle {
     font-size: 38px;
-  }
-
-  .badgesTitle {
-    font-size: 2rem;
-  }
-
-  .badgeCircle {
-    width: 120px;
-    height: 120px;
   }
 }
 

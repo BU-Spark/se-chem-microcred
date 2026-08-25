@@ -1,5 +1,5 @@
-/* Analytics panel — the two cards (Total Progress + Badge Summary) extracted from
-   app/analytics/page.tsx so both /analytics and /profile can render them.
+/* Analytics panel — the two cards (Total Progress + Badge Summary), extracted from
+   the former app/analytics page (now removed) and rendered by /profile.
 
    The design tokens below used to live on the analytics page's `.page` wrapper.
    They MUST stay on this panel's own root: the card rules here and the inline
