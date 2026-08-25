@@ -1,0 +1,92 @@
+/* Sections of the lesson summary panel: flat, separated by a hairline rather
+   than nested in their own bordered cards (boxes inside a box read as noise). */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.eyebrow {
+  margin: 0;
+  color: #64748b;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.badgeRow {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+}
+
+/* next/image renders the badge art with `fill`, which anchors to the nearest
+   positioned ancestor — without this the image escapes and covers the whole
+   sticky summary panel. */
+.badgeArt {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  flex: 0 0 56px;
+  overflow: hidden;
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  background: var(--card-bg-alt);
+}
+
+.badgeArtImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* flex-grow so the name/description block claims the row's spare width instead
+   of shrinking toward min-content and wrapping every other word. */
+.badgeText {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.badgeName {
+  display: block;
+  color: var(--text-color);
+  font-family: 'Lato', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.badgeDescription {
+  display: block;
+  color: #475569;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.98rem;
+  line-height: 1.55;
+}
+
+.skillList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skillChip {
+  padding: 0.35rem 0.8rem;
+  border-radius: 999px;
+  background: #edf4fc;
+  color: var(--checkd-blue);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.92rem;
+  font-weight: 700;
+}

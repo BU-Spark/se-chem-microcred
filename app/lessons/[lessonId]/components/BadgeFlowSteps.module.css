@@ -1,0 +1,81 @@
+/* A flat panel section like the badge/skills blocks above it. */
+.flow {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--card-border);
+}
+
+.eyebrow {
+  margin: 0;
+  color: #64748b;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.76rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+/* Connector between the step markers, so the three steps read as one flow. */
+.step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: start;
+}
+
+.step:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  top: 26px;
+  left: 11px;
+  width: 2px;
+  height: calc(100% - 18px);
+  background: rgb(var(--checkd-blue-rgb) / 0.25);
+}
+
+.marker {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.stepText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.stepTitle {
+  color: var(--text-color);
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.stepDetail {
+  color: #64748b;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
