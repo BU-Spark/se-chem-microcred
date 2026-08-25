@@ -1,6 +1,12 @@
 import { DEFAULT_DRAFT } from '../types';
 import type { BadgeCatalogItem, BadgeDraft, CheckpointDraft, CheckpointQuestionDraft } from '../types';
 
+// Points are authored per question (issue #248); a checkpoint's total is just
+// their sum, not authored directly.
+export function checkpointTotalPoints(checkpoint: CheckpointDraft) {
+  return checkpoint.questions.reduce((sum, question) => sum + (Number(question.points) || 0), 0);
+}
+
 export function extractYouTubeId(url?: string | null) {
   if (!url) return null;
 

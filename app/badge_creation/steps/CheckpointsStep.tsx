@@ -6,18 +6,12 @@ import { LessonVideoPage } from '@/app/lessons/[lessonId]/video';
 
 import QuestionModal from '../components/QuestionModal';
 import VideoCheckpointPlayer from '../components/VideoCheckpointPlayer';
-import { parseTimecodeToSeconds } from '../lib/badge-helpers';
+import { checkpointTotalPoints, parseTimecodeToSeconds } from '../lib/badge-helpers';
 import { buildPreviewLesson } from '../lib/preview-lesson';
 import styles from '../page.module.css';
 import type { BadgeDraft, CheckpointDraft, CheckpointQuestionDraft } from '../types';
 
 type CheckpointsTab = 'create' | 'preview';
-
-// Points are authored per question (issue #248); the checkpoint-level total
-// shown in the rail and modal header is just their sum, not authored directly.
-function checkpointTotalPoints(checkpoint: CheckpointDraft) {
-  return checkpoint.questions.reduce((sum, question) => sum + (Number(question.points) || 0), 0);
-}
 
 export default function CheckpointsStep({
   draft,
@@ -472,42 +466,6 @@ export default function CheckpointsStep({
                               />
                             </label>
                           </div>
-                        )}
-
-                        <div className={styles.cpDivider} aria-hidden="true" />
-
-                        <label className={styles.cpFeedbackRow}>
-                          <input
-                            type="checkbox"
-                            className={styles.cpCheckbox}
-                            checked={question.incorrectFeedbackEnabled}
-                            aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} add incorrect-answer feedback`}
-                            onChange={(event) =>
-                              updateCheckpointQuestion(
-                                selectedCheckpoint.id,
-                                question.id,
-                                'incorrectFeedbackEnabled',
-                                event.target.checked
-                              )
-                            }
-                          />
-                          <span>Add feedback for incorrect answers</span>
-                        </label>
-                        {question.incorrectFeedbackEnabled && (
-                          <textarea
-                            aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} incorrect-answer feedback`}
-                            className={`${styles.cpInput} ${styles.cpFeedbackText}`}
-                            value={question.incorrectFeedback}
-                            placeholder="Shown to learners who answer incorrectly."
-                            onChange={(event) =>
-                              updateCheckpointQuestion(
-                                selectedCheckpoint.id,
-                                question.id,
-                                'incorrectFeedback',
-                                event.target.value
-                              )
-                            }
-                          />
                         )}
                       </section>
                     </div>

@@ -10,9 +10,11 @@
 }
 
 /* Wide, full-bleed dialog: the header and footer rules span the whole card, so
-   padding lives on the sections rather than the modal itself. */
+   padding lives on the sections rather than the modal itself. Sized generously
+   (issue #248) so the 50/50 prompt/answer split has real room to breathe
+   instead of squeezing the rich-text editors down to a sliver. */
 .modal {
-  width: min(1100px, 100%);
+  width: min(1440px, 96vw);
   max-height: calc(100vh - 3rem);
   overflow: auto;
   background: var(--checkd-white);

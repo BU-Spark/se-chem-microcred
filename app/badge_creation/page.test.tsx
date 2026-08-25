@@ -464,7 +464,7 @@ describe('Badge creation page', () => {
     expect(await screen.findByRole('dialog', { name: 'Badge updated successfully.' })).toBeInTheDocument();
   });
 
-  it('captures skills and short-answer unit/feedback in the submitted draft', async () => {
+  it('captures skills and short-answer unit in the submitted draft', async () => {
     render(<BadgeCreationPage />);
 
     fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Pipetting' } });
@@ -482,10 +482,6 @@ describe('Badge creation page', () => {
       target: { value: '10' },
     });
     fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 unit'), { target: { value: 'mL' } });
-    fireEvent.click(screen.getByLabelText('Checkpoint 1 question 1 add incorrect-answer feedback'));
-    fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 incorrect-answer feedback'), {
-      target: { value: 'Re-measure carefully.' },
-    });
     fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> rubric
@@ -514,8 +510,6 @@ describe('Badge creation page', () => {
         questionType: 'shortAnswer',
         numericAnswer: '10',
         unit: 'mL',
-        incorrectFeedback: 'Re-measure carefully.',
-        incorrectFeedbackEnabled: true,
       })
     );
   });

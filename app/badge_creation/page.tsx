@@ -605,7 +605,9 @@ export default function BadgeCreationPage() {
           </section>
 
           <section
-            className={`${styles.canvasCard} ${activeStep.key === 'rubric' ? styles.canvasCardBare : ''}`.trim()}
+            className={`${styles.canvasCard} ${
+              activeStep.key === 'rubric' || activeStep.key === 'review' ? styles.canvasCardBare : ''
+            }`.trim()}
           >
             <div className={styles.cardHeader}>
               <div>
