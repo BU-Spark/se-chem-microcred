@@ -6,7 +6,6 @@ import { normalizeEmail } from '@/lib/text/email';
 import prisma from '@/lib/prisma';
 import { resolveEffectiveBadgePolicy } from '@/lib/badgePolicy';
 import { resolveFailAcknowledge } from '@/lib/badgeState';
-import { isAlphaMode } from '@/lib/adminAccess';
 
 type RouteContext = {
   params: Promise<{
@@ -250,7 +249,7 @@ export async function POST(_request: Request, context: RouteContext) {
 
   const policy = resolveEffectiveBadgePolicy(studentBadge, studentBadge.badge);
   const now = new Date();
-  const transition = resolveFailAcknowledge(failedAttempts, policy, now, { alphaMode: isAlphaMode() });
+  const transition = resolveFailAcknowledge(failedAttempts, policy, now);
 
   const updated = await prisma.studentBadge.update({
     where: { id: studentBadge.id },

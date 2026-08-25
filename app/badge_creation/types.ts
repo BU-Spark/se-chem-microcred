@@ -163,7 +163,7 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   videoLength: '',
   passingPercent: 70,
   checkpoints: [],
-  reassessmentLimit: 0,
+  reassessmentLimit: 3,
   cooldownDays: 0,
   reassessmentRequired: false,
   reassessmentResources: [],

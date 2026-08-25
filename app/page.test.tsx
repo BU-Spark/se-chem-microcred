@@ -28,10 +28,10 @@ const mockFetch = jest.fn();
 function withShellFetch(pageFetch: jest.Mock) {
   return ((url: RequestInfo | URL, init?: RequestInit) => {
     const href = String(url);
-    if (href.includes('/api/messages/unread') || href.includes('/api/me/access')) {
+    if (href.includes('/api/messages/unread')) {
       return Promise.resolve({
         ok: true,
-        json: async () => ({ count: 0, canCreateContent: false, isAdmin: false }),
+        json: async () => ({ count: 0 }),
       });
     }
     return pageFetch(url, init);
@@ -61,12 +61,6 @@ jest.mock('next/image', () => ({
 
 jest.mock('./hooks/useStudentData', () => ({
   useStudentData: () => mockUseStudentData(),
-}));
-
-// Treat the test user as an allowlisted admin so the alpha lock doesn't hide the
-// Create UI or add a /api/me/access fetch. Lock behavior is covered in the API tests.
-jest.mock('./hooks/useCanCreateContent', () => ({
-  useCanCreateContent: () => ({ canCreateContent: true, isAdmin: true, isLoading: false }),
 }));
 
 function createClerkState(overrides = {}) {

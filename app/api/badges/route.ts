@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { canCreateContent } from '@/lib/adminAccess';
 import { normalizeRubricGoal, normalizePassingPercent, normalizeBadgePolicy } from '@/lib/badges/badge.service';
 import { parseTimeToSeconds, parseDate } from '@/lib/utils';
 import { normalizeString, normalizeSkills } from '@/lib/checkpoints/normalizeWrite';
@@ -230,12 +229,6 @@ export async function POST(req: NextRequest) {
     }
 
     const creatorEmail = clerkUser.emailAddresses[0].emailAddress.trim().toLowerCase();
-
-    // Alpha lock: creation is temporarily restricted to allowlisted accounts.
-    // Reversible by clearing ALPHA_ADMIN_EMAILS (see lib/adminAccess.ts).
-    if (!canCreateContent(creatorEmail)) {
-      return NextResponse.json({ error: 'Badge creation is restricted during the alpha test.' }, { status: 403 });
-    }
 
     const creator = await prisma.user.findUnique({
       where: { email: creatorEmail },

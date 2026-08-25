@@ -3,6 +3,7 @@
 import { useState } from 'react';
 
 import { useFocusTrap } from '@/app/hooks/useFocusTrap';
+import { SYSTEM_DEFAULT_BADGE_POLICY } from '@/lib/badgePolicy';
 import styles from './StudentBadgeConfigModal.module.css';
 
 export type StudentBadgeConfig = {
@@ -31,7 +32,9 @@ export function StudentBadgeConfigModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const [reassessmentLimit, setReassessmentLimit] = useState<number>(initial.reassessmentLimit ?? 0);
+  const [reassessmentLimit, setReassessmentLimit] = useState<number>(
+    initial.reassessmentLimit ?? SYSTEM_DEFAULT_BADGE_POLICY.reassessmentLimit
+  );
   const [reassessmentRequired, setReassessmentRequired] = useState<boolean>(initial.reassessmentRequired ?? false);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

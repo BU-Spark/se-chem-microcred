@@ -4,8 +4,17 @@ import { SYSTEM_DEFAULT_BADGE_POLICY, resolveEffectiveBadgePolicy } from '../lib
 import { computeCooldownUntil, isCoolingDown, isLockedOut, resolveFailAcknowledge } from '../lib/badgeState';
 
 describe('resolveEffectiveBadgePolicy', () => {
+  it('defaults to 3 reassessments, i.e. 4 total attempts before LOCKED', () => {
+    expect(SYSTEM_DEFAULT_BADGE_POLICY.reassessmentLimit).toBe(3);
+  });
+
   it('falls back to the system default when nothing is set', () => {
     expect(resolveEffectiveBadgePolicy(null, null)).toEqual(SYSTEM_DEFAULT_BADGE_POLICY);
+  });
+
+  it('inherits the system default when a badge leaves the limit unset', () => {
+    const effective = resolveEffectiveBadgePolicy(null, { reassessmentLimit: null });
+    expect(effective.reassessmentLimit).toBe(3);
   });
 
   it('uses the badge default when the student has no override', () => {
@@ -80,19 +89,5 @@ describe('resolveFailAcknowledge', () => {
     const result = resolveFailAcknowledge(1, policy, new Date('2026-07-18T00:00:00Z'));
     expect(result.status).toBe(BadgeStatus.LOCKED);
     expect(result.cooldownUntil).toBeNull();
-  });
-
-  it('suppresses the lock in alpha mode, keeping the badge retryable with its cooldown', () => {
-    const policy = { reassessmentLimit: 0, cooldownDays: 5, reassessmentRequired: false };
-    const now = new Date('2026-07-18T00:00:00Z');
-    const result = resolveFailAcknowledge(1, policy, now, { alphaMode: true });
-    expect(result.status).toBe(BadgeStatus.READY_FOR_ASSESSMENT);
-    expect(result.cooldownUntil).toEqual(new Date('2026-07-23T00:00:00Z'));
-  });
-
-  it('still locks when alpha mode is off', () => {
-    const policy = { reassessmentLimit: 0, cooldownDays: 5, reassessmentRequired: false };
-    const result = resolveFailAcknowledge(1, policy, new Date('2026-07-18T00:00:00Z'), { alphaMode: false });
-    expect(result.status).toBe(BadgeStatus.LOCKED);
   });
 });

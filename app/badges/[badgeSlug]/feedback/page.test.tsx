@@ -29,12 +29,6 @@ jest.mock('../../../hooks/useStudentData', () => ({
   useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
 }));
 
-// The Sidebar rendered by this page reads content-access; stub it so it doesn't add
-// a /api/me/access fetch that would perturb the fetch expectations.
-jest.mock('../../../hooks/useCanCreateContent', () => ({
-  useCanCreateContent: () => ({ canCreateContent: true, isAdmin: true, isLoading: false }),
-}));
-
 type MockImageProps = {
   src: string | { src: string };
   alt: string;
@@ -170,10 +164,10 @@ describe('Badge feedback page', () => {
     // Answer those here so they never consume the queued page responses above.
     global.fetch = ((url: RequestInfo | URL, init?: RequestInit) => {
       const href = String(url);
-      if (href.includes('/api/messages/unread') || href.includes('/api/me/access')) {
+      if (href.includes('/api/messages/unread')) {
         return Promise.resolve({
           ok: true,
-          json: async () => ({ count: 0, canCreateContent: false, isAdmin: false }),
+          json: async () => ({ count: 0 }),
         });
       }
       return pageFetch(url, init);

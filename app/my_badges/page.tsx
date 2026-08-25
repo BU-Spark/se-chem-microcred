@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import { useBadgesCatalog, type BadgeCatalogItem } from '@/app/hooks/useBadgesCatalog';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BadgeImage from '@/app/components/BadgeImage';
@@ -26,7 +25,6 @@ export default function MyBadgesPage() {
   const signOut = useSignOut();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { data, isLoading, error, refresh } = useBadgesCatalog(isLoaded && Boolean(isSignedIn));
-  const { canCreateContent } = useCanCreateContent(isLoaded && Boolean(isSignedIn));
   const [badgePendingDelete, setBadgePendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -95,11 +93,9 @@ export default function MyBadgesPage() {
       <main className={`main ${styles.main}`}>
         <h1 className={styles.pageTitle}>Badges</h1>
 
-        {canCreateContent ? (
-          <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
-            Create New Badge
-          </button>
-        ) : null}
+        <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
+          Create New Badge
+        </button>
 
         {isLoading ? <p className={styles.statusMessage}>Loading badges...</p> : null}
 
@@ -138,17 +134,15 @@ export default function MyBadgesPage() {
                     </BadgeToken>
                     <span className={styles.badgeName}>{badge.name}</span>
                   </Link>
-                  {canCreateContent ? (
-                    <button
-                      type="button"
-                      className={styles.badgeDeleteButton}
-                      onClick={() => requestDeleteBadge({ id: badge.id, name: badge.name })}
-                      disabled={isDeleting}
-                      aria-label={`Delete ${badge.name}`}
-                    >
-                      Delete
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className={styles.badgeDeleteButton}
+                    onClick={() => requestDeleteBadge({ id: badge.id, name: badge.name })}
+                    disabled={isDeleting}
+                    aria-label={`Delete ${badge.name}`}
+                  >
+                    Delete
+                  </button>
                 </div>
               );
             })}

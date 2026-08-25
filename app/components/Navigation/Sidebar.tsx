@@ -7,7 +7,6 @@ import { useEffect, useState } from 'react';
 import { Icon } from '@iconify/react';
 import { useUnreadMessages } from '@/app/hooks/useUnreadMessages';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
-import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import sapphire from '@/public/edit_avatar/sapphire.svg';
 import ruby from '@/public/edit_avatar/ruby.svg';
 import emerald from '@/public/edit_avatar/emerald.svg';
@@ -68,7 +67,6 @@ const COLLAPSED_STORAGE_KEY = 'sidebarCollapsed';
 
 export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut }: SidebarProps) {
   const pathname = usePathname();
-  const { isAdmin } = useCanCreateContent();
   const [collapsed, setCollapsed] = useState(true);
   const [ready, setReady] = useState(false);
   useEffect(() => {
@@ -84,9 +82,6 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
       return next;
     });
   };
-  // My Badges is an admin-only surface (independent of ALPHA_MODE): hide it from
-  // non-admins. Hidden by default while access loads.
-  const visibleNavItems = isAdmin ? navItems : navItems.filter((item) => item.href !== '/my_badges');
   const { displayName: contextDisplayName, avatarBase } = useDatabaseDisplayNameContext();
   const unreadCount = useUnreadMessages();
   const resolvedDisplayName =
@@ -138,7 +133,7 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
 
         {/* Nav Links */}
         <nav className={styles.navList}>
-          {visibleNavItems.map((item) => {
+          {navItems.map((item) => {
             const isCourseWorkspace =
               pathname === '/course_dashboard' ||
               pathname === '/courses' ||

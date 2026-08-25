@@ -2,7 +2,6 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMyCourses } from './hooks/useMyCourses';
-import { useCanCreateContent } from './hooks/useCanCreateContent';
 import { useDashboardAnalytics } from './hooks/useDashboardAnalytics';
 import Image, { type StaticImageData } from 'next/image';
 import Link from 'next/link';
@@ -297,7 +296,6 @@ function HomeContent() {
     error: fetchError,
     mutate: refreshCourses,
   } = useMyCourses(isLoaded && isSignedIn);
-  const { canCreateContent } = useCanCreateContent(isLoaded && isSignedIn);
   const {
     data: dashboardAnalytics,
     isLoading: isLoadingDashboardAnalytics,
@@ -815,12 +813,10 @@ function HomeContent() {
               <div className={styles.courseActions}>
                 {activeCourseTab === 'instructor' ? (
                   <>
-                    {canCreateContent ? (
-                      <Link href="/courses/new" className={styles.primaryCourseAction} data-testid="add-course-card">
-                        <Icon icon="lucide:plus" aria-hidden="true" />
-                        Create course
-                      </Link>
-                    ) : null}
+                    <Link href="/courses/new" className={styles.primaryCourseAction} data-testid="add-course-card">
+                      <Icon icon="lucide:plus" aria-hidden="true" />
+                      Create course
+                    </Link>
                     <button
                       type="button"
                       className={styles.secondaryCourseAction}
