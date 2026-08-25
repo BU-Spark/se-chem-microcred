@@ -83,11 +83,6 @@ SEEDED_DEMO_EMAIL="your-instructor-clerk-email@example.com"
 # student bypass the video requirement, so omit this outside local dev.
 # (Replaces NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV, still read as a fallback.)
 NEXT_PUBLIC_DEV_QEV_SKIP="true"
-
-# Feature flag for MVP -- to be removed after initial testing phase with clients. Flip to false to allow all users to create
-ALPHA_MODE="true"
-# List of allowed emails to create content during the MVP (locally make this just your email, in staging/prod use an actual list) -- This is needed in otherwise Alpha_Mode var will lock everyone out
-ALPHA_ADMIN_EMAILS="<comma separated list of emails that are valid>"
 ```
 
 Get Clerk keys by creating a project at https://clerk.com/ and copying the Publishable and Secret keys.

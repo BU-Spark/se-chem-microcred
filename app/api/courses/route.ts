@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { CourseContactType, CourseRole, Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { canCreateContent } from '@/lib/adminAccess';
 import { normalizeEmail } from '@/lib/text/email';
 
 type CreateOrUpdateCoursePayload = {
@@ -108,12 +107,6 @@ export async function POST(req: NextRequest) {
 
     if (!creatorEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Alpha lock: creation is temporarily restricted to allowlisted accounts.
-    // Reversible by clearing ALPHA_ADMIN_EMAILS (see lib/adminAccess.ts).
-    if (!canCreateContent(creatorEmail)) {
-      return NextResponse.json({ error: 'Course creation is restricted during the alpha test.' }, { status: 403 });
     }
 
     const body = (await req.json()) as CreateOrUpdateCoursePayload;

@@ -17,10 +17,10 @@ const mockFetch = jest.fn();
 function withShellFetch(pageFetch: jest.Mock) {
   return ((url: RequestInfo | URL, init?: RequestInit) => {
     const href = String(url);
-    if (href.includes('/api/messages/unread') || href.includes('/api/me/access')) {
+    if (href.includes('/api/messages/unread')) {
       return Promise.resolve({
         ok: true,
-        json: async () => ({ count: 0, canCreateContent: false, isAdmin: false }),
+        json: async () => ({ count: 0 }),
       });
     }
     return pageFetch(url, init);
@@ -42,12 +42,6 @@ jest.mock('@clerk/nextjs', () => ({
 
 jest.mock('../../hooks/useStudentData', () => ({
   useStudentData: () => mockUseStudentData(),
-}));
-
-// The Sidebar rendered by this page reads content-access; stub it so it doesn't add
-// a /api/me/access fetch that would perturb the ordered mockFetch expectations.
-jest.mock('../../hooks/useCanCreateContent', () => ({
-  useCanCreateContent: () => ({ canCreateContent: true, isAdmin: true, isLoading: false }),
 }));
 
 jest.mock('next/image', () => ({
