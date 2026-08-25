@@ -1,10 +1,18 @@
 import { CheckpointQuestionPayload } from '@/lib/checkpoints/types';
 import { parseFiniteNumber } from '@/lib/utils';
+import { hasVisibleQuestionText, sanitizeQuestionRichText } from '@/lib/question-rich-text';
+
+// Multiple-choice options are authored in the same rich-text editor as the
+// question prompt (issue #248), so they're sanitized the same way rather than
+// treated as plain strings.
+function normalizeRichTextOption(value?: string | null): string | null {
+  return hasVisibleQuestionText(value) ? sanitizeQuestionRichText(value) : null;
+}
 
 //Capped at 8 options and Defaulted to being capped.
 export function normalizeOptions(options?: string[] | null, CAPPED = true, MAX_OPTIONS = 8): string[] {
   const normalized = (options ?? [])
-    .map((option) => normalizeString(option))
+    .map((option) => normalizeRichTextOption(option))
     .filter((option): option is string => Boolean(option));
 
   if (!CAPPED) {
@@ -79,6 +87,14 @@ export function buildQuestionOptions(question: CheckpointQuestionPayload) {
 export function normalizeString(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+// Point value for a checkpoint question or rubric task. Non-finite input falls
+// back to `fallback`; negative values clamp to 0.
+export function normalizePoints(value: number | string | null | undefined, fallback: number) {
+  const parsed = typeof value === 'string' ? Number(value) : value;
+  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.round(parsed));
 }
 
 export function normalizeSkills(skills?: string[] | null) {

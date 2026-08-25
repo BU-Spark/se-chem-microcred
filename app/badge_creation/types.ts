@@ -19,12 +19,15 @@ export type CheckpointQuestionDraft = {
   // Optional feedback shown when a learner answers incorrectly.
   incorrectFeedback: string;
   incorrectFeedbackEnabled: boolean;
+  // Point value for this question; weights lesson (QEV) grading (issue #248).
+  // Authored per question rather than per checkpoint, since a checkpoint can
+  // hold several questions worth different amounts.
+  points: number;
 };
 
 export type CheckpointDraft = CheckpointQuestionDraft & {
   title: string;
   time: string;
-  points: number;
   segmentLabel: string;
   questions: CheckpointQuestionDraft[];
 };

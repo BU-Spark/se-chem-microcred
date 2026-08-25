@@ -323,7 +323,7 @@ describe('badge creation API', () => {
           prompt: '<p>What should you check first?</p>',
           options: {
             type: 'multipleChoice',
-            options: ['Gas off', 'Gas on'],
+            options: ['<p>Gas off</p>', '<p>Gas on</p>'],
             correctIndices: [0, 1],
           },
           correctIndex: 0,
@@ -334,7 +334,7 @@ describe('badge creation API', () => {
           prompt: '<p>What color should a steady flame be?</p>',
           options: {
             type: 'multipleChoice',
-            options: ['Orange', 'Blue', 'Yellow'],
+            options: ['<p>Orange</p>', '<p>Blue</p>', '<p>Yellow</p>'],
             correctIndices: [1],
           },
           correctIndex: 1,
@@ -829,7 +829,7 @@ describe('badge creation API', () => {
           prompt: '<p>Second question?</p>',
           options: {
             type: 'multipleChoice',
-            options: ['Red', 'Blue'],
+            options: ['<p>Red</p>', '<p>Blue</p>'],
             correctIndices: [1],
           },
           correctIndex: 1,

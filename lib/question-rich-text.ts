@@ -29,10 +29,15 @@ export function sanitizeQuestionRichText(value?: string | null) {
 }
 
 export function hasVisibleQuestionText(value?: string | null) {
-  return (
-    sanitizeQuestionRichText(value)
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .trim().length > 0
-  );
+  return toPlainText(value).length > 0;
+}
+
+// Strips question/answer rich text down to plain text, for surfaces (instructor
+// history tables, CSV exports) that render text only, not HTML.
+export function toPlainText(value?: string | null) {
+  return sanitizeQuestionRichText(value)
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }

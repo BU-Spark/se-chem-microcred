@@ -1280,10 +1280,12 @@
   gap: 20px;
 }
 
-/* Prompt editor on the left, answer settings in a matching card on the right. */
+/* Prompt editor on the left, answer settings in a matching card on the right.
+   Split evenly (issue #248) so the answer side — question type, points, and
+   choices — has as much room to work in as the prompt. */
 .cpQuestionRow {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.62fr);
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -1337,6 +1339,39 @@
   min-height: 230px;
 }
 
+/* Question type + points sit side by side atop the answer card. */
+.cpAnswerMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.cpAnswerMetaRow > .cpField {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.cpComputedValue {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+/* Answer choices share the same rich-text editor as the question prompt
+   (issue #248), sized for a single short line instead of a full paragraph. */
+.cpChoiceEditor {
+  min-width: 0;
+}
+
+.cpChoiceEditor :global(.rte-container) {
+  border-color: #e3e7ec;
+  border-radius: 8px;
+}
+
+.cpChoiceEditor :global(.rte-container--compact) :global(.rte-content-editable) {
+  min-height: 44px;
+}
+
 .cpDivider {
   height: 1px;
   background: #e3e7ec;
@@ -1352,25 +1387,23 @@
 .cpChoiceRow {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: start;
   gap: 12px;
 }
 
 .cpCheckbox {
   width: 18px;
   height: 18px;
+  margin-top: 12px;
   accent-color: var(--checkd-blue);
   cursor: pointer;
-}
-
-.cpChoiceInput {
-  min-width: 0;
 }
 
 .cpRemoveChoice {
   border: none;
   background: transparent;
   padding: 0 2px;
+  margin-top: 8px;
   font-size: 18px;
   line-height: 1;
   color: #6b7280;

@@ -70,6 +70,7 @@ function makeDefaultCheckpointQuestion(id = `question-${Date.now()}`): Checkpoin
     unit: '',
     incorrectFeedback: '',
     incorrectFeedbackEnabled: false,
+    points: 1,
   };
 }
 
@@ -377,7 +378,6 @@ export default function BadgeCreationPage() {
             id,
             title: `Checkpoint ${nextCount}`,
             time,
-            points: 5,
             questions: [makeDefaultCheckpointQuestion('question-1')],
             segmentLabel: `Segment ${nextCount} Starts ${time}`,
           },

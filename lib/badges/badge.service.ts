@@ -8,6 +8,7 @@ import prisma from '@/lib/prisma';
 import {
   normalizeCorrectIndices,
   normalizeOptions,
+  normalizePoints,
   normalizeRichText,
   normalizeString,
   buildQuestionOptions,
@@ -32,9 +33,11 @@ function buildCheckpointQuestionsWithSummary(checkpoint: CheckpointPayload) {
       const prompt = getQuestionPrompt(question);
       const questionType = question.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice';
       const options = questionType === 'multipleChoice' ? normalizeOptions(question.options) : [];
+      const points = normalizePoints(question.points, 1);
       return {
         sortOrder: questionIndex,
         prompt,
+        points,
         questionOptions: buildQuestionOptions(question),
         summary: {
           number: questionIndex + 1,
@@ -48,16 +51,11 @@ function buildCheckpointQuestionsWithSummary(checkpoint: CheckpointPayload) {
           unit: normalizeString(question.unit),
           incorrectFeedback: normalizeString(question.incorrectFeedback),
           incorrectFeedbackEnabled: Boolean(normalizeString(question.incorrectFeedback)),
+          points,
         },
       };
     })
     .filter((question) => Boolean(question.prompt));
-}
-
-function normalizePoints(value: number | string | null | undefined, fallback: number) {
-  const parsed = typeof value === 'string' ? Number(value) : value;
-  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
-  return Math.max(0, Math.round(parsed));
 }
 
 // Lesson passing threshold: percent of checkpoint questions a student must get
@@ -235,7 +233,9 @@ function buildRequirementSummary({
           number: index + 1,
           title: normalizeString(checkpoint.title) ?? `Checkpoint ${index + 1}`,
           time: normalizeString(checkpoint.time),
-          points: Number(checkpoint.points) || 0,
+          // Sum of the checkpoint's own questions — points are authored per
+          // question (issue #248); this total is kept for display only.
+          points: questions.reduce((sum, question) => sum + (question.points ?? 0), 0),
           question: firstQuestion?.question ?? null,
           questionType: firstQuestion?.questionType ?? 'multipleChoice',
           segmentLabel: normalizeString(checkpoint.segmentLabel),
@@ -552,6 +552,7 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
               prompt: question.prompt!,
               options: question.questionOptions.options,
               correctIndex: question.questionOptions.correctIndex,
+              points: question.points,
             }))
           );
           if (questionData.length > 0) await tx.checkpointQuestion.createMany({ data: questionData });
@@ -817,11 +818,13 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
                     prompt: question.prompt!,
                     options: question.questionOptions.options,
                     correctIndex: question.questionOptions.correctIndex,
+                    points: question.points,
                   },
                   update: {
                     prompt: question.prompt!,
                     options: question.questionOptions.options,
                     correctIndex: question.questionOptions.correctIndex,
+                    points: question.points,
                   },
                 });
               }

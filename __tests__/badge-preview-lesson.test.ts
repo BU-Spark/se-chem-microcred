@@ -21,6 +21,7 @@ function question(overrides: Partial<CheckpointQuestionDraft> = {}): CheckpointQ
     unit: '',
     incorrectFeedback: '',
     incorrectFeedbackEnabled: false,
+    points: 1,
     ...overrides,
   };
 }
@@ -31,7 +32,6 @@ function checkpoint(overrides: Partial<CheckpointDraft> = {}): CheckpointDraft {
     ...base,
     title: 'Checkpoint 1',
     time: '00:00:30',
-    points: 5,
     segmentLabel: 'Segment 1 Starts 00:00:30',
     questions: [base],
     ...overrides,
@@ -115,9 +115,25 @@ describe('buildPreviewLesson', () => {
 
     const previewQuestion = lesson.checkpoints[0].questions[0];
     expect(previewQuestion.type).toBe('multipleChoice');
-    expect(previewQuestion.options).toEqual(['Blue', 'Yellow', 'Orange']);
+    // Options are authored in the same rich-text editor as the prompt (#248) and
+    // go through the same write-normalization, so plain text round-trips as HTML.
+    expect(previewQuestion.options).toEqual(['<p>Blue</p>', '<p>Yellow</p>', '<p>Orange</p>']);
     expect(previewQuestion.correctIndices).toEqual([0, 2]);
     expect(previewQuestion.correctIndex).toBe(0);
+  });
+
+  it('carries each question point value into the preview (#248)', () => {
+    const lesson = buildPreviewLesson(
+      draft({
+        checkpoints: [
+          checkpoint({
+            questions: [question({ id: 'question-a', points: 3 }), question({ id: 'question-b', points: 2 })],
+          }),
+        ],
+      })
+    );
+
+    expect(lesson.checkpoints[0].questions.map((entry) => entry.points)).toEqual([3, 2]);
   });
 
   it('normalizes short-answer questions into an accepted range', () => {

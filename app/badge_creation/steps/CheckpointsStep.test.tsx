@@ -44,6 +44,7 @@ function buildCheckpoint(overrides: Partial<CheckpointDraft> = {}): CheckpointDr
         unit: '',
         incorrectFeedback: '',
         incorrectFeedbackEnabled: false,
+        points: 5,
       },
     ],
     ...overrides,

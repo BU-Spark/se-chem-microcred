@@ -154,10 +154,10 @@ describe('Badge creation page', () => {
     fireEvent.change(screen.getByLabelText('Question 1 prompt'), {
       target: { value: 'What should you check first?' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Choice 1'), {
+    fireEvent.change(screen.getByLabelText('Question 1 choice 1'), {
       target: { value: 'Gas valve is off' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Choice 2'), {
+    fireEvent.change(screen.getByLabelText('Question 1 choice 2'), {
       target: { value: 'Bench is wet' },
     });
     fireEvent.click(screen.getByLabelText('Question 1 choice 2 is correct'));
@@ -172,10 +172,10 @@ describe('Badge creation page', () => {
     fireEvent.change(screen.getByLabelText('Question 2 prompt'), {
       target: { value: 'What color should the flame be?' },
     });
-    fireEvent.change(screen.getAllByPlaceholderText('Choice 1')[1], {
+    fireEvent.change(screen.getByLabelText('Question 2 choice 1'), {
       target: { value: 'Orange' },
     });
-    fireEvent.change(screen.getAllByPlaceholderText('Choice 2')[1], {
+    fireEvent.change(screen.getByLabelText('Question 2 choice 2'), {
       target: { value: 'Blue' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
