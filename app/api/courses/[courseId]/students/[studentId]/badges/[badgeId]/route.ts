@@ -4,6 +4,7 @@ import { currentUser } from '@clerk/nextjs/server';
 
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import { normalizeCheckpointQuestion, type NormalizedCheckpointQuestion } from '@/lib/checkpointQuestions';
+import { toPlainText } from '@/lib/question-rich-text';
 import { resolveEffectiveBadgePolicy } from '@/lib/badgePolicy';
 import { isBadgeClosed } from '@/lib/badgeAvailability';
 import {
@@ -54,7 +55,13 @@ function answerTextFromResponse(
   }
 
   const options = Array.isArray(question.options) ? question.options : [];
-  return indices.map((index) => (index < options.length ? String(options[index]) : `Option ${index + 1}`)).join(', ');
+  // Options are authored as rich text (issue #248); this history table renders
+  // plain text, so strip formatting rather than leaking raw HTML into the cell.
+  return indices
+    .map((index) =>
+      index < options.length ? toPlainText(String(options[index])) || `Option ${index + 1}` : `Option ${index + 1}`
+    )
+    .join(', ');
 }
 
 function formatCheckpointLabel(label: string | null | undefined, sortOrder: number) {

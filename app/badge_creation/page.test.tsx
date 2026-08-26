@@ -154,10 +154,10 @@ describe('Badge creation page', () => {
     fireEvent.change(screen.getByLabelText('Question 1 prompt'), {
       target: { value: 'What should you check first?' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Choice 1'), {
+    fireEvent.change(screen.getByLabelText('Question 1 choice 1'), {
       target: { value: 'Gas valve is off' },
     });
-    fireEvent.change(screen.getByPlaceholderText('Choice 2'), {
+    fireEvent.change(screen.getByLabelText('Question 1 choice 2'), {
       target: { value: 'Bench is wet' },
     });
     fireEvent.click(screen.getByLabelText('Question 1 choice 2 is correct'));
@@ -172,10 +172,10 @@ describe('Badge creation page', () => {
     fireEvent.change(screen.getByLabelText('Question 2 prompt'), {
       target: { value: 'What color should the flame be?' },
     });
-    fireEvent.change(screen.getAllByPlaceholderText('Choice 1')[1], {
+    fireEvent.change(screen.getByLabelText('Question 2 choice 1'), {
       target: { value: 'Orange' },
     });
-    fireEvent.change(screen.getAllByPlaceholderText('Choice 2')[1], {
+    fireEvent.change(screen.getByLabelText('Question 2 choice 2'), {
       target: { value: 'Blue' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
@@ -464,7 +464,7 @@ describe('Badge creation page', () => {
     expect(await screen.findByRole('dialog', { name: 'Badge updated successfully.' })).toBeInTheDocument();
   });
 
-  it('captures skills and short-answer unit/feedback in the submitted draft', async () => {
+  it('captures skills and short-answer unit in the submitted draft', async () => {
     render(<BadgeCreationPage />);
 
     fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Pipetting' } });
@@ -482,10 +482,6 @@ describe('Badge creation page', () => {
       target: { value: '10' },
     });
     fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 unit'), { target: { value: 'mL' } });
-    fireEvent.click(screen.getByLabelText('Checkpoint 1 question 1 add incorrect-answer feedback'));
-    fireEvent.change(screen.getByLabelText('Checkpoint 1 question 1 incorrect-answer feedback'), {
-      target: { value: 'Re-measure carefully.' },
-    });
     fireEvent.click(screen.getByRole('button', { name: 'Close question editor' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> rubric
@@ -514,8 +510,6 @@ describe('Badge creation page', () => {
         questionType: 'shortAnswer',
         numericAnswer: '10',
         unit: 'mL',
-        incorrectFeedback: 'Re-measure carefully.',
-        incorrectFeedbackEnabled: true,
       })
     );
   });

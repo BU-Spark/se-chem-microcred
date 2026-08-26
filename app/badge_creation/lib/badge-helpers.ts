@@ -1,6 +1,12 @@
 import { DEFAULT_DRAFT } from '../types';
 import type { BadgeCatalogItem, BadgeDraft, CheckpointDraft, CheckpointQuestionDraft } from '../types';
 
+// Points are authored per question (issue #248); a checkpoint's total is just
+// their sum, not authored directly.
+export function checkpointTotalPoints(checkpoint: CheckpointDraft) {
+  return checkpoint.questions.reduce((sum, question) => sum + (Number(question.points) || 0), 0);
+}
+
 export function extractYouTubeId(url?: string | null) {
   if (!url) return null;
 
@@ -168,6 +174,9 @@ function questionFromCatalog(
     unit: question?.unit ? String(question.unit) : '',
     incorrectFeedback: question?.incorrectFeedback ? String(question.incorrectFeedback) : '',
     incorrectFeedbackEnabled: Boolean(question?.incorrectFeedback) || Boolean(question?.incorrectFeedbackEnabled),
+    // Points are authored per question (issue #248); default to 1 for legacy
+    // catalog entries saved before questions carried their own point value.
+    points: question?.points != null && Number.isFinite(Number(question.points)) ? Number(question.points) : 1,
   };
 }
 
@@ -183,7 +192,6 @@ export function checkpointFromCatalog(checkpoint: CatalogCheckpoint | undefined,
     id: `checkpoint-${index + 1}`,
     title,
     time: checkpoint?.time || '00:00:00',
-    points: Number(checkpoint?.points) || 5,
     questions,
     segmentLabel: checkpoint?.segmentLabel || `Segment ${index + 1} Starts ${checkpoint?.time || '00:00:00'}`,
   };

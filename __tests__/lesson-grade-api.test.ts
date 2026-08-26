@@ -83,7 +83,13 @@ describe('POST /api/lessons/[lessonId]/grade', () => {
       },
     };
 
-    mockComputeLessonGrade.mockResolvedValue({ totalQuestions: 10, correctAnswers: 6, percent: 60 });
+    mockComputeLessonGrade.mockResolvedValue({
+      totalQuestions: 10,
+      correctAnswers: 6,
+      pointsEarned: 6,
+      pointsPossible: 10,
+      percent: 60,
+    });
     mockPrisma.$transaction.mockImplementation(async (callback) => callback(tx));
 
     const response = await gradeLesson();
@@ -131,7 +137,13 @@ describe('POST /api/lessons/[lessonId]/grade', () => {
       checkpoints: [{ id: 'checkpoint-1' }],
       badgeRequirements: [{ badge: { closesOn: new Date(Date.now() - 60_000), neverCloses: false } }],
     });
-    mockComputeLessonGrade.mockResolvedValue({ totalQuestions: 10, correctAnswers: 10, percent: 100 });
+    mockComputeLessonGrade.mockResolvedValue({
+      totalQuestions: 10,
+      correctAnswers: 10,
+      pointsEarned: 10,
+      pointsPossible: 10,
+      percent: 100,
+    });
 
     const response = await gradeLesson();
 

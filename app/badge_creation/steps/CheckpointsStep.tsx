@@ -4,10 +4,9 @@ import { useMemo, useState } from 'react';
 import RichTextEditor from '@/app/components/RichText/RichTextEditor';
 import { LessonVideoPage } from '@/app/lessons/[lessonId]/video';
 
-import AutoGrowTextarea from '../components/AutoGrowTextarea';
 import QuestionModal from '../components/QuestionModal';
 import VideoCheckpointPlayer from '../components/VideoCheckpointPlayer';
-import { parseTimecodeToSeconds } from '../lib/badge-helpers';
+import { checkpointTotalPoints, parseTimecodeToSeconds } from '../lib/badge-helpers';
 import { buildPreviewLesson } from '../lib/preview-lesson';
 import styles from '../page.module.css';
 import type { BadgeDraft, CheckpointDraft, CheckpointQuestionDraft } from '../types';
@@ -177,7 +176,7 @@ export default function CheckpointsStep({
                 <div className={styles.cpCheckpointRow}>
                   <div className={styles.cpCheckpointLabel}>
                     <span>{checkpoint.title}</span>
-                    <span>{checkpoint.points} points</span>
+                    <span>{checkpointTotalPoints(checkpoint)} points</span>
                   </div>
                   <button
                     type="button"
@@ -235,18 +234,13 @@ export default function CheckpointsStep({
                     />
                   </label>
 
-                  <label className={styles.cpField}>
-                    <span className={styles.cpFieldLabel}>Points</span>
-                    <input
-                      className={styles.cpInput}
-                      type="number"
-                      min={1}
-                      value={selectedCheckpoint.points}
-                      onChange={(event) =>
-                        updateCheckpoint(selectedCheckpoint.id, 'points', Number(event.target.value) || 1)
-                      }
-                    />
-                  </label>
+                  <div className={styles.cpField}>
+                    <span className={styles.cpFieldLabel}>Total points</span>
+                    <span className={styles.cpComputedValue}>
+                      {checkpointTotalPoints(selectedCheckpoint)}{' '}
+                      {checkpointTotalPoints(selectedCheckpoint) === 1 ? 'point' : 'points'}
+                    </span>
+                  </div>
                 </div>
 
                 <div className={styles.cpQuestionList}>
@@ -285,25 +279,46 @@ export default function CheckpointsStep({
                       </section>
 
                       <section className={styles.cpCard}>
-                        <label className={styles.cpField}>
-                          <span className={styles.cpFieldLabel}>Question type</span>
-                          <select
-                            aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} type`}
-                            className={styles.cpSelect}
-                            value={question.questionType}
-                            onChange={(event) =>
-                              updateCheckpointQuestion(
-                                selectedCheckpoint.id,
-                                question.id,
-                                'questionType',
-                                event.target.value as CheckpointQuestionDraft['questionType']
-                              )
-                            }
-                          >
-                            <option value="multipleChoice">Multiple choice</option>
-                            <option value="shortAnswer">Short answer number</option>
-                          </select>
-                        </label>
+                        <div className={styles.cpAnswerMetaRow}>
+                          <label className={styles.cpField}>
+                            <span className={styles.cpFieldLabel}>Question type</span>
+                            <select
+                              aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} type`}
+                              className={styles.cpSelect}
+                              value={question.questionType}
+                              onChange={(event) =>
+                                updateCheckpointQuestion(
+                                  selectedCheckpoint.id,
+                                  question.id,
+                                  'questionType',
+                                  event.target.value as CheckpointQuestionDraft['questionType']
+                                )
+                              }
+                            >
+                              <option value="multipleChoice">Multiple choice</option>
+                              <option value="shortAnswer">Short answer number</option>
+                            </select>
+                          </label>
+
+                          <label className={styles.cpField}>
+                            <span className={styles.cpFieldLabel}>Points</span>
+                            <input
+                              className={styles.cpInput}
+                              type="number"
+                              min={0}
+                              value={question.points}
+                              aria-label={`Question ${questionIndex + 1} points`}
+                              onChange={(event) =>
+                                updateCheckpointQuestion(
+                                  selectedCheckpoint.id,
+                                  question.id,
+                                  'points',
+                                  Math.max(0, Math.round(Number(event.target.value))) || 0
+                                )
+                              }
+                            />
+                          </label>
+                        </div>
 
                         <div className={styles.cpDivider} aria-hidden="true" />
 
@@ -324,19 +339,31 @@ export default function CheckpointsStep({
                                   }
                                   aria-label={`Question ${questionIndex + 1} choice ${optionIndex + 1} is correct`}
                                 />
-                                <AutoGrowTextarea
-                                  className={`${styles.cpInput} ${styles.cpChoiceInput}`}
-                                  value={option}
-                                  placeholder={`Choice ${optionIndex + 1}`}
-                                  onChange={(event) =>
-                                    updateCheckpointQuestionOption(
-                                      selectedCheckpoint.id,
-                                      question.id,
-                                      optionIndex,
-                                      event.target.value
-                                    )
-                                  }
-                                />
+                                <div className={styles.cpChoiceEditor}>
+                                  {/* Options have no stable id of their own, and the editor
+                                      is uncontrolled after mount (Lexical), so removing a
+                                      choice would leave a surviving editor showing stale
+                                      text once indices shift. Keying on the option count
+                                      too forces every choice editor in the question to
+                                      remount (and re-read the current text) whenever one is
+                                      added or removed, without remounting on every keystroke. */}
+                                  <RichTextEditor
+                                    key={`${question.id}-option-${optionIndex}-of-${question.options.length}`}
+                                    namespace={`CheckpointChoice-${selectedCheckpoint.id}-${question.id}-${optionIndex}`}
+                                    toolbar="inline"
+                                    ariaLabel={`Question ${questionIndex + 1} choice ${optionIndex + 1}`}
+                                    placeholder={`Choice ${optionIndex + 1}`}
+                                    initialHTML={option}
+                                    onChange={(html) =>
+                                      updateCheckpointQuestionOption(
+                                        selectedCheckpoint.id,
+                                        question.id,
+                                        optionIndex,
+                                        html
+                                      )
+                                    }
+                                  />
+                                </div>
                                 {question.options.length > 2 ? (
                                   <button
                                     type="button"
@@ -439,42 +466,6 @@ export default function CheckpointsStep({
                               />
                             </label>
                           </div>
-                        )}
-
-                        <div className={styles.cpDivider} aria-hidden="true" />
-
-                        <label className={styles.cpFeedbackRow}>
-                          <input
-                            type="checkbox"
-                            className={styles.cpCheckbox}
-                            checked={question.incorrectFeedbackEnabled}
-                            aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} add incorrect-answer feedback`}
-                            onChange={(event) =>
-                              updateCheckpointQuestion(
-                                selectedCheckpoint.id,
-                                question.id,
-                                'incorrectFeedbackEnabled',
-                                event.target.checked
-                              )
-                            }
-                          />
-                          <span>Add feedback for incorrect answers</span>
-                        </label>
-                        {question.incorrectFeedbackEnabled && (
-                          <textarea
-                            aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} incorrect-answer feedback`}
-                            className={`${styles.cpInput} ${styles.cpFeedbackText}`}
-                            value={question.incorrectFeedback}
-                            placeholder="Shown to learners who answer incorrectly."
-                            onChange={(event) =>
-                              updateCheckpointQuestion(
-                                selectedCheckpoint.id,
-                                question.id,
-                                'incorrectFeedback',
-                                event.target.value
-                              )
-                            }
-                          />
                         )}
                       </section>
                     </div>

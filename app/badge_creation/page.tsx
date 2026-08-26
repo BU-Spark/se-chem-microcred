@@ -70,6 +70,7 @@ function makeDefaultCheckpointQuestion(id = `question-${Date.now()}`): Checkpoin
     unit: '',
     incorrectFeedback: '',
     incorrectFeedbackEnabled: false,
+    points: 1,
   };
 }
 
@@ -377,7 +378,6 @@ export default function BadgeCreationPage() {
             id,
             title: `Checkpoint ${nextCount}`,
             time,
-            points: 5,
             questions: [makeDefaultCheckpointQuestion('question-1')],
             segmentLabel: `Segment ${nextCount} Starts ${time}`,
           },
@@ -605,7 +605,9 @@ export default function BadgeCreationPage() {
           </section>
 
           <section
-            className={`${styles.canvasCard} ${activeStep.key === 'rubric' ? styles.canvasCardBare : ''}`.trim()}
+            className={`${styles.canvasCard} ${
+              activeStep.key === 'rubric' || activeStep.key === 'review' ? styles.canvasCardBare : ''
+            }`.trim()}
           >
             <div className={styles.cardHeader}>
               <div>

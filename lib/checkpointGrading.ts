@@ -26,6 +26,7 @@ export type EvaluatedCheckpointQuestion = {
   tolerancePercent: number;
   acceptedRange: { min: number; max: number } | null;
   isCorrect: boolean;
+  points: number;
 };
 
 // Grades one checkpoint submission against its normalized questions. Shared by
@@ -75,6 +76,7 @@ export function evaluateCheckpointAttempt(
       tolerancePercent: question.tolerancePercent,
       acceptedRange: question.acceptedRange,
       isCorrect,
+      points: question.points,
     };
   });
 }

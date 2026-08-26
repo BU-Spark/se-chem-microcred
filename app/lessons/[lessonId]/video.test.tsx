@@ -62,6 +62,7 @@ function buildLesson(overrides: Partial<LessonRecord> = {}): LessonRecord {
             expectedAnswer: null,
             tolerancePercent: 0,
             acceptedRange: null,
+            points: 1,
           },
         ],
       },

@@ -14,6 +14,7 @@ function multipleChoice(overrides: Partial<NormalizedCheckpointQuestion> = {}): 
     expectedAnswer: null,
     tolerancePercent: 0,
     acceptedRange: null,
+    points: 1,
     ...overrides,
   };
 }
@@ -29,6 +30,7 @@ function shortAnswer(overrides: Partial<NormalizedCheckpointQuestion> = {}): Nor
     expectedAnswer: 42,
     tolerancePercent: 0,
     acceptedRange: { min: 40, max: 45 },
+    points: 1,
     ...overrides,
   };
 }
@@ -38,6 +40,14 @@ describe('evaluateCheckpointAttempt', () => {
     const [result] = evaluateCheckpointAttempt([{ questionId: 'question-1', selectedIndex: 1 }], [multipleChoice()]);
     expect(result.isCorrect).toBe(true);
     expect(result.selectedIndices).toEqual([1]);
+  });
+
+  it('carries the question point value through to the evaluated result', () => {
+    const [result] = evaluateCheckpointAttempt(
+      [{ questionId: 'question-1', selectedIndex: 1 }],
+      [multipleChoice({ points: 3 })]
+    );
+    expect(result.points).toBe(3);
   });
 
   it('marks a wrong single-choice selection incorrect', () => {

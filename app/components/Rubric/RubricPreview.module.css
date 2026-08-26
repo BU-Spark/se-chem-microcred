@@ -1,15 +1,18 @@
 /* Mirrors the badge editor's Create Rubric step (app/badge_creation/page.module.css)
-   so a finished rubric reads exactly like the one an instructor authored. */
+   so a finished rubric reads exactly like the one an instructor authored.
+   Card treatment (issue #249): no outline, no shadow — the rubric sits
+   directly on the page as one coherent block. Sections are told apart by a
+   couple of hairline separators and a shade shift for the instructions
+   column, not by boxing everything in its own bordered "bubble". */
 .panel {
-  background: var(--checkd-white);
-  border: 1px solid #e3e7ec;
-  border-radius: 14px;
+  background: var(--card-bg);
+  border-radius: 16px;
   overflow: hidden;
 }
 
 .goalSection {
   padding: 20px 24px 22px;
-  border-bottom: 1px solid #e3e7ec;
+  border-bottom: 1px solid var(--card-border);
 }
 
 .sectionHeading {
@@ -64,10 +67,11 @@
   min-width: 0;
 }
 
+/* Set off by its tinted background alone, not a border, so the two-column
+   body reads as one card rather than two bordered boxes side by side. */
 .instructionsColumn {
   padding: 22px 24px 26px;
-  border-left: 1px solid #e3e7ec;
-  background: #f7f8fa;
+  background: var(--card-bg-alt);
   min-width: 0;
 }
 
@@ -79,25 +83,18 @@
   color: #111418;
 }
 
+/* Subgoals are told apart by whitespace, not a ruled line under each one —
+   a stack of bordered rows is exactly the cascading look #249 removes. */
 .subgoalList {
   display: flex;
   flex-direction: column;
+  gap: 22px;
 }
 
 .subgoalBlock {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 18px 0;
-  border-bottom: 1px solid #eceff3;
-}
-
-.subgoalBlock:first-child {
-  padding-top: 0;
-}
-
-.subgoalBlock:last-child {
-  border-bottom: none;
 }
 
 .subgoalHeader {
@@ -182,11 +179,6 @@
 @media (max-width: 1200px) {
   .body {
     grid-template-columns: 1fr;
-  }
-
-  .instructionsColumn {
-    border-left: none;
-    border-top: 1px solid #e3e7ec;
   }
 }
 

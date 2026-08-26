@@ -140,6 +140,8 @@ export interface LessonRecord {
       expectedAnswer: number | null;
       tolerancePercent: number;
       acceptedRange: { min: number; max: number } | null;
+      // Weights this question in lesson (QEV) grading (issue #248).
+      points: number;
     }>;
   }>;
   badgeRequirements: Array<{

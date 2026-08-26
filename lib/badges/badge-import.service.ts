@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 import { parseTimeToSeconds, slugify, formatQuestionCount } from '@/lib/utils';
 import { CheckpointPayload, CheckpointQuestionPayload } from '@/lib/checkpoints/types';
-import { buildQuestionOptions, normalizeString, normalizeSkills } from '../checkpoints/normalizeWrite';
+import { buildQuestionOptions, normalizePoints, normalizeString, normalizeSkills } from '../checkpoints/normalizeWrite';
 import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
 import { buildYoutubeThumbnail } from '@/lib/video';
 
@@ -19,6 +19,7 @@ function buildCheckpointQuestionsForImport(checkpoint: CheckpointPayload) {
     .map((question, questionIndex) => ({
       sortOrder: questionIndex,
       prompt: getQuestionPrompt(question),
+      points: normalizePoints(question.points, 1),
       questionOptions: buildQuestionOptions(question),
     }))
     .filter((question) => Boolean(question.prompt));
@@ -151,6 +152,7 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
                           prompt: true,
                           options: true,
                           correctIndex: true,
+                          points: true,
                         },
                       },
                     },
@@ -311,6 +313,7 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
             prompt: question.prompt,
             options: question.options as Prisma.InputJsonValue,
             correctIndex: question.correctIndex,
+            points: question.points,
           }));
         });
 
@@ -359,6 +362,7 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
               prompt: question.prompt!,
               options: question.questionOptions.options,
               correctIndex: question.questionOptions.correctIndex,
+              points: question.points,
             }))
           );
 

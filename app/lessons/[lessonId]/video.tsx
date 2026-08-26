@@ -895,15 +895,29 @@ export function LessonVideoPage({
 
   const finalizeLessonAssessment = useCallback(async () => {
     // Preview grades locally, mirroring computeLessonGrade(): every checkpoint
-    // question counts toward the total, and only the latest attempt per
-    // checkpoint contributes correct answers.
+    // question counts toward the total, only the latest attempt per checkpoint
+    // contributes correct answers, and the percent is point-weighted (#248).
     if (previewMode) {
       const totalQuestions = orderedCheckpoints.reduce((total, checkpoint) => total + checkpoint.questions.length, 0);
       const correctAnswers = orderedCheckpoints.reduce((total, checkpoint) => {
         const attempt = previewAttemptsRef.current[checkpoint.id] ?? [];
         return total + attempt.filter((entry) => entry.isCorrect === true).length;
       }, 0);
-      const percent = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+      const pointsPossible = orderedCheckpoints.reduce(
+        (total, checkpoint) => total + checkpoint.questions.reduce((sum, question) => sum + question.points, 0),
+        0
+      );
+      const pointsEarned = orderedCheckpoints.reduce((total, checkpoint) => {
+        const attempt = previewAttemptsRef.current[checkpoint.id] ?? [];
+        const pointsByQuestionId = new Map(checkpoint.questions.map((question) => [question.id, question.points]));
+        return (
+          total +
+          attempt
+            .filter((entry) => entry.isCorrect === true)
+            .reduce((sum, entry) => sum + (pointsByQuestionId.get(entry.questionId) ?? 0), 0)
+        );
+      }, 0);
+      const percent = pointsPossible > 0 ? (pointsEarned / pointsPossible) * 100 : 0;
       const passingPercent = lesson.passingPercent ?? 0;
       const result: LessonAssessmentResult = {
         passed: percent >= passingPercent,
@@ -1781,7 +1795,10 @@ export function LessonVideoPage({
                                     aria-pressed={isSelected}
                                   >
                                     {supportsMultiple ? `${isSelected ? '✓ ' : ''}` : ''}
-                                    {option}
+                                    <span
+                                      className={styles.questionRichText}
+                                      dangerouslySetInnerHTML={{ __html: sanitizeQuestionRichText(String(option)) }}
+                                    />
                                   </button>
                                 );
                               }

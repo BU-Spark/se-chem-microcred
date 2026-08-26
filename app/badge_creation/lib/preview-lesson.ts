@@ -31,6 +31,7 @@ function toPreviewCheckpoint(checkpoint: CheckpointDraft, index: number): Lesson
       prompt: question.question ?? '',
       options: options as unknown as Prisma.JsonValue,
       correctIndex,
+      points: question.points,
     });
   });
 

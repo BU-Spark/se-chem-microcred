@@ -313,6 +313,10 @@ model CheckpointQuestion {
   prompt       String
   options      Json
   correctIndex Int?
+  // Point value for this question, used to weight lesson (QEV) grading —
+  // moved here from the checkpoint (issue #248) since a checkpoint can hold
+  // several questions worth different amounts.
+  points       Int      @default(1)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
