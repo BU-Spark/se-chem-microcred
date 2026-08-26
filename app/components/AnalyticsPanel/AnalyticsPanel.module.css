@@ -8,27 +8,27 @@
 .panel {
   --c-blue: var(--checkd-blue);
   --c-lime: var(--checkd-green);
-  --c-lime-soft: rgb(var(--checkd-green-rgb) / 0.18);
   --c-red: #c64d4d;
   --c-track: #d9d9d9;
-  --c-card-border: #d9d9d9;
   --c-ink: var(--checkd-black);
 }
 
 .analyticsGrid {
   display: grid;
-  grid-template-columns: minmax(300px, 0.78fr) minmax(560px, 1.22fr);
-  gap: 1.75rem;
+  /* minmax(0, …) rather than a px floor: the columns must be allowed to shrink,
+     otherwise the grid forces the whole page wider than the viewport. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 3rem;
   align-items: stretch;
 }
 
 /* Generic card */
 .card {
-  background: var(--checkd-white);
-  border-radius: 20px;
-  border: 3px solid var(--c-card-border);
+  background: transparent;
+  border-radius: 0;
+  border: none;
   box-shadow: none;
-  padding: 1.75rem;
+  padding: 0;
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -36,20 +36,17 @@
 }
 
 .progressCard {
-  padding: 1.5rem 1.5rem 1.25rem;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
+/* Small letterspaced section label, matching the page's other section headings */
 .cardTitle {
   font-family: 'Lato', sans-serif;
   font-weight: 700;
-  font-size: 24px;
-  color: var(--c-blue);
-}
-
-.progressTitle {
-  padding-bottom: 0.85rem;
-  border-bottom: 1px solid var(--c-track);
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--checkd-blue-low);
 }
 
 /* ===== Left card: progress list ===== */
@@ -61,57 +58,35 @@
 }
 
 .progressItem {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1rem 0;
-  border-bottom: 1px solid var(--c-track);
-}
-
-.progressIcon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
   display: grid;
-  place-items: center;
-}
-
-.progressIcon svg {
-  width: 26px;
-  height: 26px;
-}
-
-.iconLime {
-  background: var(--c-lime-soft);
-  color: var(--c-lime);
-}
-
-.iconLime svg {
-  color: var(--c-lime);
-}
-
-.progressContent {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
+  grid-template-columns: 4.5rem 1fr;
+  align-items: center;
+  column-gap: 2.5rem;
+  padding: 1.15rem 0;
+  border-bottom: 1px solid var(--c-track);
 }
 
 .progressValue {
   font-family: 'Lato', sans-serif;
-  font-size: 32px;
+  font-size: 60px;
+  line-height: 1;
   font-weight: 700;
-  color: var(--c-blue);
+  color: var(--c-ink);
+}
+
+.progressValueZero {
+  font-weight: 400;
+  color: #9ca3af;
 }
 
 .progressLabel {
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: var(--c-ink);
+  color: #6b7280;
 }
 
 .progressItem:last-child {
   border-bottom: none;
-  padding-bottom: 0.25rem;
 }
 
 /* ===== Right card: badge summary ===== */
@@ -123,9 +98,7 @@
 }
 
 .badgeSummaryTitle {
-  text-align: right;
-  font-weight: 400;
-  font-family: 'Lato', sans-serif;
+  text-align: left;
 }
 
 .badgeTop {
@@ -156,9 +129,10 @@
 
 .badgeRowHead {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
+  padding-bottom: 0.5rem;
 }
 
 .badgeLabel {
@@ -168,9 +142,14 @@
   font-weight: 400;
 }
 
+.badgeSummaryTitle,
+.progressTitle {
+  margin-bottom: 0.25rem;
+}
+
 .badgeBar {
   width: 100%;
-  height: 16px;
+  height: 5px;
   border-radius: 999px;
   background: var(--c-track);
   overflow: hidden;
@@ -192,11 +171,19 @@
 }
 
 .badgePercentage {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
+  font-family: 'Lato', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
   color: var(--c-ink);
   min-width: 2.5rem;
   text-align: right;
+}
+
+/* 0% carries no weight — mute it so the meaningful figure leads. */
+.badgePercentageZero {
+  font-weight: 400;
+  color: #9ca3af;
 }
 
 .badgeScoreDivider {
@@ -282,6 +269,13 @@
   color: var(--c-ink);
   line-height: 1.25;
   text-align: center;
+}
+
+@media (max-width: 1024px) {
+  .analyticsGrid {
+    grid-template-columns: 1fr;
+    gap: 2.5rem;
+  }
 }
 
 @media (max-width: 920px) {
