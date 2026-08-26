@@ -8,7 +8,6 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../hooks/useStudentData';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import styles from './page.module.css';
-import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
@@ -301,12 +300,13 @@ export default function ProfilePage() {
             <h1 className={styles.pageTitle}>My Profile</h1>
             <span className={styles.greeting}>Hello, {greetingName}</span>
           </header>
+          <div className={styles.headerRule} aria-hidden="true" />
 
-          {/* ===================== Profile card ===================== */}
-          <section className={styles.profileCard}>
-            {/* LEFT: student info */}
+          {/* ===================== Identity ===================== */}
+          <section className={styles.identityRow}>
+            {/* LEFT: name, details, inline actions */}
             <div className={styles.infoColumn}>
-              <h2 className={styles.sectionTitle}>My Info:</h2>
+              <h2 className={styles.eyebrow}>My Info:</h2>
 
               <div className={styles.primaryName}>
                 {lastName ? (
@@ -320,9 +320,13 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <div className={styles.metaLine}>Date Created: {createdAt}</div>
+              <div className={styles.infoRule} aria-hidden="true" />
 
               <div className={styles.detailGridTop}>
+                <div>
+                  <div className={styles.detailLabel}>Date Created:</div>
+                  <div className={styles.detailValue}>{createdAt}</div>
+                </div>
                 <div>
                   <div className={styles.detailLabel}>Email:</div>
                   <div className={styles.detailValue}>{studentEmail}</div>
@@ -339,24 +343,18 @@ export default function ProfilePage() {
                 <button type="button" className={styles.inlineLink} onClick={handleOpenLanguageModal}>
                   Change Language
                 </button>
+                <button type="button" className={styles.inlineLink} onClick={() => setIsEditAvatarOpen(true)}>
+                  Edit avatar
+                </button>
               </div>
             </div>
 
-            {/* CENTER: avatar */}
-            <div className={styles.avatarColumn}>
+            {/* RIGHT: avatar, then demographic dropdown + edit */}
+            <aside className={styles.avatarColumn}>
               <div className={styles.avatarFrame}>
                 <Image src={avatarSrc} alt="Student avatar" width={280} height={280} className={styles.avatarImage} />
               </div>
 
-              <button type="button" className={styles.editAvatarLink} onClick={() => setIsEditAvatarOpen(true)}>
-                <span className={styles.editAvatarText}>Edit avatar</span>
-                <Image src={editIcon} alt="Edit avatar" width={16} height={16} className={styles.editAvatarIcon} />
-              </button>
-            </div>
-
-            {/* RIGHT: demographic dropdown */}
-            <aside className={styles.rightColumn}>
-              {/* Demographic Info dropdown */}
               <div className={styles.demographicSection}>
                 <button
                   type="button"
@@ -368,6 +366,10 @@ export default function ProfilePage() {
                   <span className={`${styles.caret} ${demographicOpen ? styles.caretOpen : ''}`} aria-hidden="true">
                     ⌄
                   </span>
+                </button>
+
+                <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
+                  Edit
                 </button>
 
                 {demographicOpen && (
@@ -383,14 +385,11 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
-
-              {/* Edit pencil for demographic area -> demographic/edit handler */}
-              <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
-                <span className={styles.editPencilText}>Edit</span>
-                <Image src={editIcon} alt="" width={20} height={20} className={styles.editPencilIcon} />
-              </button>
             </aside>
           </section>
+
+          <div className={styles.sectionRule} aria-hidden="true" />
+
           {/* ===================== Analytics ===================== */}
           <AnalyticsPanel />
         </div>

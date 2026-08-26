@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, type ReactNode } from 'react';
+import { useMemo } from 'react';
 import { useUser } from '@clerk/nextjs';
 
 import { useStudentData, type BadgeRecord } from '@/app/hooks/useStudentData';
@@ -14,8 +14,6 @@ type ProgressItem = {
   id: string;
   value: string;
   label: string;
-  icon: ReactNode;
-  iconClassName: string;
 };
 
 type ScoreItem = {
@@ -23,38 +21,6 @@ type ScoreItem = {
   value: number;
   label: string;
 };
-
-function BadgeCheckIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor">
-      <path
-        d="M12 3.5 6.8 5.6A1 1 0 0 0 6 6.5v5.95a6 6 0 0 0 4.11 5.7l1.7.55 1.77-.56a6 6 0 0 0 4.12-5.7V6.5a1 1 0 0 0-.8-.97L12 3.5Z"
-        strokeLinejoin="round"
-      />
-      <path d="m9.5 12 2 2.1 3.3-3.7" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function ClipboardIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor">
-      <rect x="5.5" y="4.8" width="13" height="15" rx="1.6" />
-      <path d="M9.5 4.8V3.6h5v1.2" strokeLinecap="round" />
-      <path d="M9.5 10.2h5" strokeLinecap="round" />
-      <path d="M9.5 13.6h5" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function CrossBadgeIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" strokeWidth={1.8} stroke="currentColor">
-      <circle cx="12" cy="12" r="9.2" />
-      <path d="m9.1 9.1 5.8 5.8M14.9 9.1l-5.8 5.8" strokeLinecap="round" />
-    </svg>
-  );
-}
 
 function BadgeSummaryDial({ completed, available }: { completed: number; available: number }) {
   // Two stroked SVG arcs (lime = completed, red = available) with rounded caps and
@@ -217,22 +183,16 @@ export function AnalyticsPanel({ className }: { className?: string } = {}) {
       id: 'badges-completed',
       value: String(studentData?.badges.completed.length ?? 0),
       label: 'badges completed',
-      icon: <BadgeCheckIcon />,
-      iconClassName: `${styles.progressIcon} ${styles.iconLime}`,
     },
     {
       id: 'badges-reassess',
       value: String(studentData?.badges.readyForAssessment.length ?? analytics?.badgesReadyForAssessment ?? 0),
       label: 'badges ready to be reassessed',
-      icon: <ClipboardIcon />,
-      iconClassName: `${styles.progressIcon} ${styles.iconLime}`,
     },
     {
       id: 'badges-not-attempted',
       value: String(analytics?.badgesNotAttempted ?? 0),
       label: 'badges not yet attempted',
-      icon: <CrossBadgeIcon />,
-      iconClassName: `${styles.progressIcon} ${styles.iconLime}`,
     },
   ];
 
@@ -261,11 +221,11 @@ export function AnalyticsPanel({ className }: { className?: string } = {}) {
         <div className={styles.progressList}>
           {progressItems.map((item) => (
             <div key={item.id} className={styles.progressItem}>
-              <div className={item.iconClassName}>{item.icon}</div>
-              <div className={styles.progressContent}>
-                <span className={styles.progressValue}>{item.value}</span>
-                <span className={styles.progressLabel}>{item.label}</span>
-              </div>
+              {/* A zero reads as "nothing here" — mute it so a real count is what draws the eye. */}
+              <span className={`${styles.progressValue} ${item.value === '0' ? styles.progressValueZero : ''}`}>
+                {item.value}
+              </span>
+              <span className={styles.progressLabel}>{item.label}</span>
             </div>
           ))}
         </div>
@@ -281,7 +241,11 @@ export function AnalyticsPanel({ className }: { className?: string } = {}) {
               <div className={styles.badgeRow}>
                 <div className={styles.badgeRowHead}>
                   <span className={styles.badgeLabel}>Badges Completed</span>
-                  <span className={styles.badgePercentage}>{completedPercent}%</span>
+                  <span
+                    className={`${styles.badgePercentage} ${completedPercent === 0 ? styles.badgePercentageZero : ''}`}
+                  >
+                    {completedPercent}%
+                  </span>
                 </div>
                 <div className={styles.badgeBar}>
                   <div
@@ -293,7 +257,11 @@ export function AnalyticsPanel({ className }: { className?: string } = {}) {
               <div className={styles.badgeRow}>
                 <div className={styles.badgeRowHead}>
                   <span className={styles.badgeLabel}>Badges Available</span>
-                  <span className={styles.badgePercentage}>{availablePercent}%</span>
+                  <span
+                    className={`${styles.badgePercentage} ${availablePercent === 0 ? styles.badgePercentageZero : ''}`}
+                  >
+                    {availablePercent}%
+                  </span>
                 </div>
                 <div className={styles.badgeBar}>
                   <div
@@ -305,7 +273,7 @@ export function AnalyticsPanel({ className }: { className?: string } = {}) {
             </div>
           </div>
 
-          <div className={styles.badgeScoreDivider} />
+          {SHOW_CIRCULAR_SCORES && <div className={styles.badgeScoreDivider} />}
           {SHOW_CIRCULAR_SCORES && (
             <div className={styles.badgeScoreRow}>
               {scoreItems.map((item) => (
