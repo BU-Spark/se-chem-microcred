@@ -1,4 +1,5 @@
 /** @jest-environment node */
+// Issues: #258 multi-word last names
 
 import { POST } from '../app/api/assessment-codes/route';
 import { GET } from '../app/qr/assessment-code/route';
@@ -88,6 +89,8 @@ describe('Assessment access codes', () => {
       email: 'student@example.edu',
       name: 'Student Example',
       externalId: null,
+      firstName: null,
+      lastName: null,
       avatar: null,
     });
     mockSyncLessonBadgesForStudent.mockResolvedValue({ readyForAssessment: false });

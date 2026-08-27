@@ -1,3 +1,4 @@
+// Issues: #258 multi-word last names
 import { GET } from '@/app/api/dashboard/analytics/route';
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import prisma from '@/lib/prisma';
@@ -33,6 +34,8 @@ describe('GET /api/dashboard/analytics', () => {
       name: 'Test User',
       email: 'test@example.edu',
       externalId: 'clerk-user-1',
+      firstName: null,
+      lastName: null,
       avatar: null,
     });
 
