@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 
 import BadgeCreationPage from './page';
+import { DRAFT_MAX_AGE_MS } from './types';
 
 const mockReplace = jest.fn();
 const mockPush = jest.fn();
@@ -87,6 +88,40 @@ describe('Badge creation page', () => {
       }),
     });
     global.fetch = mockFetch as unknown as typeof fetch;
+  });
+
+  describe('saved drafts (#244)', () => {
+    const draftKey = 'badge_creation_draft_v5:prof@example.edu';
+    const storedDraft = (savedAt: number) =>
+      JSON.stringify({ savedAt, draft: { badgeName: 'Recovered Badge', videoUrl: 'https://youtu.be/stale' } });
+
+    it('restores a recent draft and offers a way to start over', async () => {
+      window.localStorage.setItem(draftKey, storedDraft(Date.now()));
+      render(<BadgeCreationPage />);
+
+      expect(await screen.findByDisplayValue('Recovered Badge')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Start a new badge' }));
+
+      expect(screen.queryByDisplayValue('Recovered Badge')).not.toBeInTheDocument();
+      expect(window.localStorage.getItem(draftKey)).toBeNull();
+    });
+
+    it('discards a draft older than the max age instead of restoring it', async () => {
+      window.localStorage.setItem(draftKey, storedDraft(Date.now() - DRAFT_MAX_AGE_MS - 1));
+      render(<BadgeCreationPage />);
+
+      await screen.findByRole('heading', { name: 'Create a Badge' });
+      expect(screen.queryByDisplayValue('Recovered Badge')).not.toBeInTheDocument();
+    });
+
+    it('ignores a draft saved under another account', async () => {
+      window.localStorage.setItem('badge_creation_draft_v5:someone-else@example.edu', storedDraft(Date.now()));
+      render(<BadgeCreationPage />);
+
+      await screen.findByRole('heading', { name: 'Create a Badge' });
+      expect(screen.queryByDisplayValue('Recovered Badge')).not.toBeInTheDocument();
+    });
   });
 
   it('starts a new video with no checkpoints', async () => {

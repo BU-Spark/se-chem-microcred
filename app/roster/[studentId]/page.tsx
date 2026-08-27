@@ -1,5 +1,4 @@
 'use client';
-
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -436,7 +435,7 @@ export default function InstructorStudentProfilePage() {
               </Link>
             ) : null}
             <p className={styles.eyebrow}>{data?.course.title ?? 'Course roster'}</p>
-            <h1 className={styles.pageTitle}>{currentProfileLabel} Profile</h1>
+            <h1 className="page-heading">{currentProfileLabel} Profile</h1>
           </header>
 
           {!courseId && !isLoading ? (

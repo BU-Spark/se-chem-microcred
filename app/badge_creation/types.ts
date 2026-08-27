@@ -60,6 +60,7 @@ export type BadgeDraft = {
   imageUrl: string;
   imagePositionX: number;
   imagePositionY: number;
+  imageScale: number;
   // LinkedIn-style skill tags (max 5). Persisted in BadgeRequirement.summary JSON.
   skills: string[];
   availableOn: string;
@@ -68,7 +69,7 @@ export type BadgeDraft = {
   youtubeUrl: string;
   videoTitle: string;
   videoLength: string;
-  // Percent of checkpoint questions a student must answer correctly to pass the lesson.
+  // Percent of total points from checkpoint questions a student must answer correctly to pass the lesson. i.e 70% = 7/10 points
   passingPercent: number;
   checkpoints: CheckpointDraft[];
   reassessmentLimit: number;
@@ -85,6 +86,7 @@ export type BadgeCatalogItem = {
   imageUrl?: string | null;
   imagePositionX?: number | null;
   imagePositionY?: number | null;
+  imageScale?: number | null;
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
@@ -140,7 +142,20 @@ export type BadgesResponse = {
   badges: BadgeCatalogItem[];
 };
 
-export const DRAFT_STORAGE_KEY = 'badge_creation_draft_v4';
+const DRAFT_STORAGE_PREFIX = 'badge_creation_draft_v5';
+
+/** Drafts older than this are discarded on load rather than silently restored. */
+export const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+export type StoredBadgeDraft = {
+  savedAt: number;
+  draft: BadgeDraft;
+};
+
+export function badgeDraftStorageKey(email?: string | null) {
+  const normalized = email?.trim().toLowerCase();
+  return normalized ? `${DRAFT_STORAGE_PREFIX}:${normalized}` : null;
+}
 export const DEFAULT_VIDEO_FALLBACK = 'Lesson video';
 
 export const STEP_DEFINITIONS: StepDefinition[] = [
@@ -157,6 +172,7 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   imageUrl: '',
   imagePositionX: 50,
   imagePositionY: 50,
+  imageScale: 115,
   skills: [],
   availableOn: '',
   closesOn: '',

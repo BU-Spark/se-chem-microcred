@@ -11,6 +11,8 @@ export interface StudentData {
   student: {
     id: string;
     name: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string;
     externalId: string | null;
     gender: string | null;
@@ -165,6 +167,7 @@ export interface BadgeRecord {
   imageUrl?: string | null;
   imagePositionX?: number | null;
   imagePositionY?: number | null;
+  imageScale?: number | null;
   status: BadgeStatus;
   awardedAt: string | null;
   score: number | null;
@@ -210,20 +213,8 @@ async function fetchStudentData(url: string): Promise<StudentApiResponse> {
   }
 }
 
-// Every student-data cache entry hangs off this path. The key also carries the
-// courseId, so the same student has a separate entry per course-scoped surface
-// (the course dashboard) alongside the unscoped one (my badges, badge feedback).
 export const STUDENT_DATA_KEY_PREFIX = '/api/demo/student';
 
-/**
- * Revalidate every student-data entry, whatever courseId it was keyed under.
- *
- * An assessment status mutation is not scoped to the tab that triggered it: a
- * student acknowledging feedback moves the badge for the course dashboard too. The
- * per-hook `refresh` only touches the caller's own key, which is why the course
- * tab kept rendering a pre-transition status after the feedback tab had already
- * moved on. Use this after any mutation that changes a badge's status.
- */
 export function useRefreshAllStudentData() {
   const { mutate } = useSWRConfig();
 

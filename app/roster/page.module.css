@@ -42,10 +42,6 @@
   flex-wrap: wrap;
 }
 
-.pageTitle {
-  composes: heading from '../components/PageHeading/PageHeading.module.css';
-}
-
 .pageSubtitle {
   margin: 0;
   font-size: 1rem;

@@ -10,6 +10,7 @@ export default function SuccessModal({
   imageUrl,
   imagePositionX,
   imagePositionY,
+  imageScale,
   youtubeUrl,
   onClose,
 }: {
@@ -19,6 +20,7 @@ export default function SuccessModal({
   imageUrl: string;
   imagePositionX: number;
   imagePositionY: number;
+  imageScale: number;
   youtubeUrl: string;
   onClose: () => void;
 }) {
@@ -48,6 +50,7 @@ export default function SuccessModal({
             imageUrl={imageUrl}
             imagePositionX={imagePositionX}
             imagePositionY={imagePositionY}
+            imageScale={imageScale}
             videoUrl={youtubeUrl}
             alt=""
           />

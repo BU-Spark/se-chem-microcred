@@ -23,15 +23,6 @@
   gap: 1.5rem;
 }
 
-.pageTitle {
-  margin: 0;
-  font-family: Lato, sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  line-height: 1.05;
-  color: var(--checkd-black);
-}
-
 .progressTrack {
   position: relative;
   display: flex;
@@ -2301,9 +2292,6 @@
     padding: 24px 20px 32px;
   }
 
-  .pageTitle {
-    font-size: 38px;
-  }
 
   .canvasCard,
   .editorCard,
@@ -2353,4 +2341,121 @@
   .optionRow > .removeTextButton {
     margin-top: 0;
   }
+}
+
+.draftNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--checkd-blue-high);
+  border-radius: 12px;
+  background: rgb(var(--checkd-blue-rgb) / 0.08);
+  color: var(--checkd-blue-low);
+  font-size: 0.9375rem;
+}
+
+.draftNoticeAction {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--checkd-blue);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.draftNoticeAction:hover {
+  color: var(--checkd-blue-low);
+}
+
+.badgeImageDropActive {
+  outline: 2px dashed var(--checkd-blue);
+  outline-offset: 6px;
+  background: rgb(var(--checkd-blue-rgb) / 0.06);
+  border-radius: 12px;
+}
+
+.badgeImageUrlRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.badgeImageUrlInput {
+  flex: 1 1 16rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--checkd-blue-high);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.badgeImageUrlInput:focus-visible {
+  outline: none;
+  border-color: var(--checkd-blue);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-rgb) / 0.15);
+}
+
+.badgeImageUrlButton {
+  flex: 0 0 auto;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.badgeImageUrlButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.imageZoomRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.imageZoomLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--checkd-blue-low);
+}
+
+.imageZoomSlider {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--checkd-blue);
+}
+
+.imageZoomValue {
+  flex: 0 0 3.5rem;
+  text-align: right;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--checkd-blue-low);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

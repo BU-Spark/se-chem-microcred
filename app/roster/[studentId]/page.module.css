@@ -47,12 +47,6 @@
   text-transform: uppercase;
 }
 
-.pageTitle {
-  composes: heading from '../../components/PageHeading/PageHeading.module.css';
-}
-
-@media (max-width: 640px) {
-}
 
 .statusMessage {
   margin: 0;

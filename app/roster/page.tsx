@@ -1,5 +1,4 @@
 'use client';
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
@@ -474,7 +473,7 @@ export default function StudentRosterPage() {
           {courseId ? <BackButton href={`/courses/${courseId}${returnToCheckerView ? '?view=checker' : ''}`} /> : null}
 
           <header className={styles.header}>
-            <h1 className={styles.pageTitle}>{rosterLabel} Roster</h1>
+            <h1 className="page-heading">{rosterLabel} Roster</h1>
             <p className={styles.pageSubtitle}>
               {course ? (
                 <>

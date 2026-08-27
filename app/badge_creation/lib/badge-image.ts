@@ -10,6 +10,12 @@ export function badgeImageOutputDimensions(width: number, height: number) {
   };
 }
 
+export async function badgeImageFileFromDataUrl(dataUrl: string, filename = 'badge-image'): Promise<File> {
+  const response = await fetch(dataUrl);
+  const blob = await response.blob();
+  return new File([blob], filename, { type: blob.type });
+}
+
 export async function prepareBadgeImage(file: File): Promise<string> {
   if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type))
     throw new Error('Choose a PNG, JPEG, or WebP image.');

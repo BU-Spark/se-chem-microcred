@@ -13,6 +13,7 @@ export type BadgeCatalogItem = {
   imageUrl: string | null;
   imagePositionX: number;
   imagePositionY: number;
+  imageScale: number;
   createdAt: string;
   assignedStudentCount: number;
   requirements: Array<{

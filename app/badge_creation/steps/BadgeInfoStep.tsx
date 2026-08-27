@@ -1,9 +1,18 @@
-import { useEffect, useRef, useState, type ChangeEvent, type PointerEvent } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+  type PointerEvent,
+  type WheelEvent,
+} from 'react';
 import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 import ChipInput from '../components/ChipInput';
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
-import { prepareBadgeImage } from '../lib/badge-image';
+import { badgeImageFileFromDataUrl, prepareBadgeImage } from '../lib/badge-image';
+import { DEFAULT_BADGE_IMAGE_SCALE, MAX_BADGE_IMAGE_SCALE, MIN_BADGE_IMAGE_SCALE } from '@/lib/badges/badge-image';
 
 export default function BadgeInfoStep({
   draft,
@@ -15,6 +24,10 @@ export default function BadgeInfoStep({
   const [imageError, setImageError] = useState('');
   const [localPreviewUrl, setLocalPreviewUrl] = useState('');
   const [isPositionDialogOpen, setIsPositionDialogOpen] = useState(false);
+  // Issue #246: alternatives to the file picker -- drag-and-drop, paste, and a URL.
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [isLoadingUrl, setIsLoadingUrl] = useState(false);
   const dragStart = useRef<{ pointerId: number; x: number; y: number; positionX: number; positionY: number } | null>(
     null
   );
@@ -26,15 +39,12 @@ export default function BadgeInfoStep({
     [localPreviewUrl]
   );
 
-  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = '';
-    if (!file) return;
-
+  const acceptImageFile = async (file: File) => {
     const nextPreviewUrl = URL.createObjectURL(file);
     setLocalPreviewUrl(nextPreviewUrl);
     updateDraft('imagePositionX', 50);
     updateDraft('imagePositionY', 50);
+    updateDraft('imageScale', DEFAULT_BADGE_IMAGE_SCALE);
     try {
       setImageError('');
       const preparedImageUrl = await prepareBadgeImage(file);
@@ -46,11 +56,71 @@ export default function BadgeInfoStep({
     }
   };
 
+  const handleImageChange = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    await acceptImageFile(file);
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLDivElement>) => {
+    if (!Array.from(event.dataTransfer.types).includes('Files')) return;
+    event.preventDefault();
+    setIsDraggingOver(true);
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    // Moving over a child fires dragleave on the parent; ignore those so the
+    // highlight does not flicker as the pointer crosses the zone's contents.
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) return;
+    setIsDraggingOver(false);
+  };
+
+  const handleDrop = async (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    setIsDraggingOver(false);
+    const file = event.dataTransfer.files?.[0];
+    if (file) await acceptImageFile(file);
+  };
+
+  const handlePaste = async (event: React.ClipboardEvent<HTMLDivElement>) => {
+    const file = Array.from(event.clipboardData.files)[0];
+    if (!file) return;
+    event.preventDefault();
+    await acceptImageFile(file);
+  };
+
+  const loadImageFromUrl = async () => {
+    const url = imageUrlInput.trim();
+    if (!url || isLoadingUrl) return;
+
+    setIsLoadingUrl(true);
+    setImageError('');
+    try {
+      const response = await fetch('/api/uploads/badge-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const payload = (await response.json()) as { dataUrl?: string; error?: string };
+      if (!response.ok || !payload.dataUrl) throw new Error(payload.error || 'Could not load that image.');
+
+      await acceptImageFile(await badgeImageFileFromDataUrl(payload.dataUrl));
+      setImageUrlInput('');
+    } catch (error) {
+      setImageError(error instanceof Error ? error.message : 'Could not load that image.');
+    } finally {
+      setIsLoadingUrl(false);
+    }
+  };
+
   const removeImage = () => {
     setLocalPreviewUrl('');
     setImageError('');
     setIsPositionDialogOpen(false);
+    setImageUrlInput('');
     updateDraft('imageUrl', '');
+    updateDraft('imageScale', DEFAULT_BADGE_IMAGE_SCALE);
   };
 
   const handlePositionPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -77,6 +147,12 @@ export default function BadgeInfoStep({
     if (dragStart.current?.pointerId === event.pointerId) dragStart.current = null;
   };
 
+  const handleZoomWheel = (event: WheelEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    const next = draft.imageScale - Math.sign(event.deltaY) * 5;
+    updateDraft('imageScale', Math.min(MAX_BADGE_IMAGE_SCALE, Math.max(MIN_BADGE_IMAGE_SCALE, next)));
+  };
+
   return (
     <div className={styles.badgeInfoLayout}>
       <div className={styles.badgeInfoField}>
@@ -96,8 +172,18 @@ export default function BadgeInfoStep({
         <label className={styles.sectionLabel} htmlFor="badgeImage">
           Badge image
         </label>
-        <p className={styles.fieldHelp}>Upload square artwork for this badge. PNG, JPEG, or WebP; up to 8 MB.</p>
-        <div className={styles.badgeImageUploadRow}>
+        <p className={styles.fieldHelp}>
+          Upload square artwork for this badge. PNG, JPEG, or WebP; up to 8 MB. Drop a file here, paste one, or paste a
+          link.
+        </p>
+
+        <div
+          className={`${styles.badgeImageUploadRow} ${isDraggingOver ? styles.badgeImageDropActive : ''}`.trim()}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          onPaste={handlePaste}
+        >
           <div
             className={styles.badgeImagePreview}
             style={{ position: 'relative', width: 112, height: 112, flex: '0 0 112px', overflow: 'hidden' }}
@@ -106,6 +192,7 @@ export default function BadgeInfoStep({
               imageUrl={localPreviewUrl || draft.imageUrl}
               imagePositionX={draft.imagePositionX}
               imagePositionY={draft.imagePositionY}
+              imageScale={draft.imageScale}
               videoUrl={draft.youtubeUrl}
               alt="Badge image preview"
             />
@@ -118,6 +205,34 @@ export default function BadgeInfoStep({
               </button>
             ) : null}
           </div>
+        </div>
+
+        <div className={styles.badgeImageUrlRow}>
+          <label className={styles.visuallyHidden} htmlFor="badgeImageUrl">
+            Image URL
+          </label>
+          <input
+            id="badgeImageUrl"
+            type="url"
+            className={styles.badgeImageUrlInput}
+            placeholder="Or paste an image URL"
+            value={imageUrlInput}
+            onChange={(event) => setImageUrlInput(event.target.value)}
+            onKeyDown={(event) => {
+              // Enter inside the wizard would otherwise advance the step.
+              if (event.key !== 'Enter') return;
+              event.preventDefault();
+              void loadImageFromUrl();
+            }}
+          />
+          <button
+            type="button"
+            className={styles.badgeImageUrlButton}
+            onClick={() => void loadImageFromUrl()}
+            disabled={!imageUrlInput.trim() || isLoadingUrl}
+          >
+            {isLoadingUrl ? 'Loading…' : 'Use image'}
+          </button>
         </div>
         {localPreviewUrl || draft.imageUrl ? (
           <div className={styles.badgeImagePositionActions}>
@@ -138,7 +253,7 @@ export default function BadgeInfoStep({
             aria-labelledby="positionTitle"
           >
             <h2 id="positionTitle">Position badge image</h2>
-            <p>Drag the image until it looks right inside the circle.</p>
+            <p>Drag to move the image, and zoom in to crop closer.</p>
             <div
               className={styles.imagePositionCanvas}
               data-testid="badge-image-position-canvas"
@@ -147,14 +262,36 @@ export default function BadgeInfoStep({
               onPointerMove={handlePositionPointerMove}
               onPointerUp={handlePositionPointerEnd}
               onPointerCancel={handlePositionPointerEnd}
+              onWheel={handleZoomWheel}
             >
               <BadgeImage
                 imageUrl={localPreviewUrl || draft.imageUrl}
                 imagePositionX={draft.imagePositionX}
                 imagePositionY={draft.imagePositionY}
+                imageScale={draft.imageScale}
                 alt="Adjust badge image position"
               />
             </div>
+
+            <div className={styles.imageZoomRow}>
+              <label className={styles.imageZoomLabel} htmlFor="badgeImageZoom">
+                Zoom
+              </label>
+              <input
+                id="badgeImageZoom"
+                type="range"
+                className={styles.imageZoomSlider}
+                min={MIN_BADGE_IMAGE_SCALE}
+                max={MAX_BADGE_IMAGE_SCALE}
+                step={5}
+                value={draft.imageScale}
+                onChange={(event) => updateDraft('imageScale', Number(event.target.value))}
+              />
+              <output className={styles.imageZoomValue} htmlFor="badgeImageZoom">
+                {Math.round((draft.imageScale / DEFAULT_BADGE_IMAGE_SCALE) * 100)}%
+              </output>
+            </div>
+
             <div className={styles.imagePositionDialogActions}>
               <button
                 type="button"
@@ -162,9 +299,10 @@ export default function BadgeInfoStep({
                 onClick={() => {
                   updateDraft('imagePositionX', 50);
                   updateDraft('imagePositionY', 50);
+                  updateDraft('imageScale', DEFAULT_BADGE_IMAGE_SCALE);
                 }}
               >
-                Center image
+                Reset image
               </button>
               <button
                 type="button"
@@ -262,8 +400,6 @@ export default function BadgeInfoStep({
   );
 }
 
-// Coerce a numeric-input string to a clamped integer, treating blank/invalid input
-// as the low bound so the draft never stores NaN.
 function clampInt(raw: string, min: number, max?: number) {
   const parsed = Number.parseInt(raw, 10);
   const value = Number.isNaN(parsed) ? min : parsed;
