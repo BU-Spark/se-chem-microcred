@@ -7,7 +7,7 @@ const coursesResponse: MyCoursesResponse = {
   user: { name: 'Student Demo', email: 'student@example.edu' },
   created: { count: 1, courses: [{ id: 'created-1' }] },
   enrolled: { count: 1, enrollments: [{ id: 'enrolled-1' }] },
-  assessor: { count: 0, enrollments: [] },
+  checker: { count: 0, enrollments: [] },
 };
 
 describe('useMyCourses', () => {
@@ -35,7 +35,7 @@ describe('useMyCourses', () => {
     await waitFor(() => expect(result.current.data).toEqual(coursesResponse));
     expect(result.current.created).toEqual(coursesResponse.created);
     expect(result.current.enrolled).toEqual(coursesResponse.enrolled);
-    expect(result.current.assessor).toEqual(coursesResponse.assessor);
+    expect(result.current.checker).toEqual(coursesResponse.checker);
     expect(result.current.error).toBeUndefined();
     expect(result.current.mutate).toEqual(expect.any(Function));
   });

@@ -21,8 +21,11 @@ export type EffectiveBadgePolicy = {
 };
 
 // Applied when neither the StudentBadge override nor the Badge default is set.
+// Every student gets 1 assessment plus `reassessmentLimit` reassessments, so the
+// default budget is 4 attempts before LOCKED. Instructors can raise or lower the
+// limit per badge, or per student via the StudentBadge override.
 export const SYSTEM_DEFAULT_BADGE_POLICY: EffectiveBadgePolicy = {
-  reassessmentLimit: 0,
+  reassessmentLimit: 3,
   cooldownDays: 0,
   reassessmentRequired: false,
 };

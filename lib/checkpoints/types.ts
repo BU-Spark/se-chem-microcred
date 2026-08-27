@@ -14,6 +14,8 @@ export type CheckpointQuestionPayload = {
   unit?: string | null;
   incorrectFeedback?: string | null;
   incorrectFeedbackEnabled?: boolean | null;
+  // Point value for this question; weights lesson (QEV) grading (issue #248).
+  points?: number | string | null;
 };
 
 export type CheckpointPayload = CheckpointQuestionPayload & {

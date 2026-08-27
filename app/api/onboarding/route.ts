@@ -22,6 +22,9 @@ function clean(value?: string | null) {
  * Completes account onboarding. Upserts the signed-in user into the DB (new Clerk
  * sign-ups don't exist here yet because the Clerk webhook is not wired up), saving
  * name + demographics, the chosen avatar base, and ensuring an analytics row exists.
+ *
+ * Also stamps onboardedAt, which is the sole record that this flow ran and the only
+ * thing that lifts the server-side gate in app/components/OnboardingGate.tsx.
  */
 export async function POST(request: Request) {
   const clerkUser = await currentUser();
@@ -58,15 +61,27 @@ export async function POST(request: Request) {
     : null;
 
   try {
+    // onboardedAt is what the server-side gate reads, and this route is its only
+    // writer -- ensureCurrentUser() must never set it, or lazily-provisioned rows
+    // would look onboarded. Stamped unconditionally so a user who re-runs the flow
+    // (or completes it after an earlier interrupted sign-up) still clears the gate.
+    const onboardedAt = new Date();
+
     const user = await prisma.user.upsert({
       where: { email },
       update: {
         name,
+        firstName,
+        lastName,
+        onboardedAt,
         ...demographics,
       },
       create: {
         email,
         name,
+        firstName,
+        lastName,
+        onboardedAt,
         ...demographics,
       },
       select: { id: true, name: true },

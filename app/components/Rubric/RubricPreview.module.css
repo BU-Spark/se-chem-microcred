@@ -1,0 +1,199 @@
+/* Mirrors the badge editor's Create Rubric step (app/badge_creation/page.module.css)
+   so a finished rubric reads exactly like the one an instructor authored.
+   Card treatment (issue #249): no outline, no shadow — the rubric sits
+   directly on the page as one coherent block. Sections are told apart by a
+   couple of hairline separators and a shade shift for the instructions
+   column, not by boxing everything in its own bordered "bubble". */
+.panel {
+  background: var(--card-bg);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.goalSection {
+  padding: 20px 24px 22px;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.sectionHint,
+.columnHint {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #6b7280;
+}
+
+.columnHint {
+  display: block;
+  margin: 6px 0 18px;
+  max-width: 62ch;
+  line-height: 1.5;
+}
+
+.goalValue {
+  margin: 12px 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #111418;
+}
+
+.body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.62fr);
+  align-items: stretch;
+}
+
+.bodyFullWidth {
+  display: block;
+}
+
+.subgoalColumn {
+  padding: 22px 24px 26px;
+  min-width: 0;
+}
+
+/* Set off by its tinted background alone, not a border, so the two-column
+   body reads as one card rather than two bordered boxes side by side. */
+.instructionsColumn {
+  padding: 22px 24px 26px;
+  background: var(--card-bg-alt);
+  min-width: 0;
+}
+
+.instructionsBody {
+  margin-top: 12px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #111418;
+}
+
+/* Subgoals are told apart by whitespace, not a ruled line under each one —
+   a stack of bordered rows is exactly the cascading look #249 removes. */
+.subgoalList {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.subgoalBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.subgoalHeader {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.subgoalNumber {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #111418;
+}
+
+.subgoalText {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #111418;
+}
+
+.thresholdText {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #4b5563;
+  white-space: nowrap;
+}
+
+.taskList {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.taskItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.taskRow {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Holds a grading control (pass/fail switch, result badge) after the points. */
+.taskControl {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.taskFooter {
+  padding-left: 46px;
+}
+
+.taskNumber {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.taskText {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #111418;
+}
+
+.taskPoints {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #4b5563;
+  white-space: nowrap;
+}
+
+@media (max-width: 1200px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .goalSection,
+  .subgoalColumn,
+  .instructionsColumn {
+    padding: 18px;
+  }
+
+  .subgoalHeader {
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+
+  .thresholdText {
+    grid-column: 2;
+  }
+}

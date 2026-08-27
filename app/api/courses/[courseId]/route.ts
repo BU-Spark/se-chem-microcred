@@ -40,7 +40,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       );
     }
 
-    // A pending assessor request does not grant access yet — only an active
+    // A pending checker request does not grant access yet — only an active
     // enrollment (or course ownership) does.
     const viewerEnrollment = course.enrollments.find(
       (enrollment) => enrollment.student.id === user.id && enrollment.status === 'ACTIVE'

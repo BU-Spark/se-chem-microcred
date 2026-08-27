@@ -28,6 +28,8 @@ export type NormalizedCheckpointQuestion = {
   expectedAnswer: number | null;
   tolerancePercent: number;
   acceptedRange: { min: number; max: number } | null;
+  // Weights this question in lesson (QEV) grading (issue #248).
+  points: number;
 };
 
 export type RawCheckpointQuestion = {
@@ -35,7 +37,12 @@ export type RawCheckpointQuestion = {
   prompt: string;
   options: Prisma.JsonValue;
   correctIndex: number | null;
+  points?: number | null;
 };
+
+function normalizeQuestionPoints(value: number | null | undefined) {
+  return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.round(value)) : 1;
+}
 
 function coerceShortAnswerOptions(value: Prisma.JsonValue): ShortAnswerOptions | null {
   if (!value || Array.isArray(value) || typeof value !== 'object') {
@@ -121,6 +128,7 @@ export function normalizeCheckpointQuestion(question: RawCheckpointQuestion): No
       expectedAnswer,
       tolerancePercent: tolerancePercentValue,
       acceptedRange,
+      points: normalizeQuestionPoints(question.points),
     };
   }
 
@@ -159,6 +167,7 @@ export function normalizeCheckpointQuestion(question: RawCheckpointQuestion): No
     expectedAnswer: null,
     tolerancePercent: 0,
     acceptedRange: null,
+    points: normalizeQuestionPoints(question.points),
   };
 }
 

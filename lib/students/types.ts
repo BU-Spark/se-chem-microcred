@@ -70,9 +70,14 @@ export interface BadgeRecord {
   slug: string;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
+  imagePositionX?: number | null;
+  imagePositionY?: number | null;
+  imageScale?: number | null;
   status: BadgeStatus;
   awardedAt: string | null;
   score: number | null;
+  qevWaivedAt?: string | null;
   youtubeUrl: string | null;
   requirements: Array<{
     summary: string | null;

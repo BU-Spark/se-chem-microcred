@@ -1,3 +1,4 @@
+// Issues: #258 multi-word last names
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -8,6 +9,8 @@ import { isInstructor } from '@/lib/roles';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
+import BadgeRatings, { type BadgeRatingsData } from './BadgeRatings';
+import BadgeRosterPanel, { type RosterCohort, type RosterStage } from './BadgeRosterPanel';
 import styles from './page.module.css';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED' | 'NOT_STARTED';
@@ -50,6 +53,14 @@ type ProgressSummary = {
   inReviewPercent: number;
   lockedPercent: number;
   averageScore: number | null;
+  videoInProgressCount: number;
+  videoCompletedOnlyCount: number;
+  inPersonFailedCount: number;
+  videoInProgressPercent: number;
+  videoCompletedOnlyPercent: number;
+  inPersonFailedPercent: number;
+  feedbackResponseCount: number;
+  averageRating: number | null;
 };
 
 type AssessmentDetails = {
@@ -87,6 +98,9 @@ type StudentProgressRow = {
   student: {
     id: string;
     name: string | null;
+    // Issue #258: discrete name parts, preferred over re-splitting `name`.
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     externalId: string | null;
   };
@@ -99,6 +113,14 @@ type StudentProgressRow = {
     updatedAt: string;
   } | null;
   status: BadgeStatus;
+  analyticsStatus: 'PROFICIENT' | 'STILL_LEARNING' | 'NOT_STARTED';
+  stillLearningReason: 'VIDEO_IN_PROGRESS' | 'VIDEO_COMPLETED_ONLY' | 'IN_PERSON_FAILED' | null;
+  videoStatus: 'COMPLETED' | 'IN_PROGRESS' | 'NOT_STARTED';
+  assessmentAttemptCount: number;
+  feedback: { rating: number; comment: string | null; submittedAt: string; question: string } | null;
+  cohort?: RosterCohort;
+  stage?: RosterStage;
+  locked?: boolean;
 };
 
 type BadgeDetailResponse = {
@@ -106,6 +128,13 @@ type BadgeDetailResponse = {
   badge: BadgeDetail | null;
   course: CourseDetail;
   summary: ProgressSummary;
+  cohorts: {
+    totalStudents: number;
+    proficient: { count: number; percent: number };
+    stillLearning: { count: number; percent: number; lockedCount: number };
+    notStarted: { count: number; percent: number };
+  } | null;
+  ratings: BadgeRatingsData | null;
   assessment: AssessmentDetails;
   students: StudentProgressRow[];
 };
@@ -174,36 +203,13 @@ function useBadgeDetails(courseId?: string | null, badgeId?: string | null, emai
   return { data, isLoading, error };
 }
 
-/** Circular ring indicator approximated with a conic-gradient. */
-function RingIndicator({ percent, caption }: { percent: number; caption: string }) {
-  const clamped = Math.round(Math.max(0, Math.min(100, percent)));
-
-  return (
-    <div className={styles.ringIndicator}>
-      <div
-        className={styles.ring}
-        style={{ background: `conic-gradient(#2e6aa9 ${clamped * 3.6}deg, #d9d9d9 0deg)` }}
-        role="img"
-        aria-label={`${caption}: ${clamped}%`}
-      >
-        <div className={styles.ringInner}>
-          <span className={styles.ringValueGroup}>
-            <span className={styles.ringValue}>{clamped}</span>
-            <span className={styles.ringPercent}>%</span>
-          </span>
-        </div>
-      </div>
-      <p className={styles.ringCaption}>{caption}</p>
-    </div>
-  );
-}
-
 export default function CourseBadgeProgress() {
   const params = useParams<{ courseId: string; badgeId: string }>();
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
   const signOut = useSignOut();
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isRosterOpen, setIsRosterOpen] = useState(false);
 
   const courseId = resolveParam(params?.courseId);
   const badgeId = resolveParam(params?.badgeId);
@@ -250,9 +256,24 @@ export default function CourseBadgeProgress() {
     () =>
       summary
         ? [
-            { label: 'Students who have completed this badge', percent: summary.completedPercent, color: '#c9db50' },
-            { label: 'Students still in progress', percent: summary.inProgressPercent, color: '#f3b55b' },
-            { label: 'Students not yet started', percent: summary.notStartedPercent, color: '#d4d4d4' },
+            {
+              kind: 'completed' as const,
+              label: 'Students who have completed this badge',
+              percent: summary.completedPercent,
+              color: 'var(--checkd-green)',
+            },
+            {
+              kind: 'learning' as const,
+              label: 'Students still in progress',
+              percent: summary.inProgressPercent,
+              color: '#f0a33b',
+            },
+            {
+              kind: 'not-started' as const,
+              label: 'Students not yet started',
+              percent: summary.notStartedPercent,
+              color: '#a8b3c2',
+            },
           ]
         : [],
     [summary]
@@ -270,7 +291,7 @@ export default function CourseBadgeProgress() {
     const completedDeg = (summary?.completedPercent ?? 0) * 3.6;
     const inProgressDeg = (summary?.inProgressPercent ?? 0) * 3.6;
     const inProgressEnd = completedDeg + inProgressDeg;
-    return `conic-gradient(#c9db50 0deg ${completedDeg}deg, #f3b55b ${completedDeg}deg ${inProgressEnd}deg, #e4e4e4 ${inProgressEnd}deg 360deg)`;
+    return `conic-gradient(var(--checkd-green) 0deg ${completedDeg}deg, #f0a33b ${completedDeg}deg ${inProgressEnd}deg, #dfe5ec ${inProgressEnd}deg 360deg)`;
   })();
   const checkpointCount = assessment?.checkpoints.length ?? 0;
   const videoTitle = assessment?.videoTitle || badge?.lesson?.title || 'Lesson video';
@@ -285,7 +306,8 @@ export default function CourseBadgeProgress() {
         <div className={styles.content}>
           <header className={styles.header}>
             <BackButton onClick={handleBackToCourse} />
-            <h1 className={styles.pageTitle}>{badge?.name ?? course?.title ?? 'Badge'}</h1>
+            <p className={styles.eyebrow}>Badge analytics</p>
+            <h1 className="page-heading">{badge?.name ?? course?.title ?? 'Badge'}</h1>
           </header>
 
           {isLoading ? <p className={styles.statusMessage}>Loading badge details...</p> : null}
@@ -307,10 +329,30 @@ export default function CourseBadgeProgress() {
           {!isLoading && !error && badge && summary && assessment ? (
             <>
               <section className={styles.hero}>
-                <div className={styles.badgeCircle} aria-hidden="true" />
+                <div className={styles.badgeCircle} aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="52" height="52" fill="none">
+                    <path
+                      d="M12 3 20 7v6c0 4.4-3.1 7.3-8 9-4.9-1.7-8-4.6-8-9V7l8-4Z"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                    />
+                    <path
+                      d="m8.5 12 2.2 2.2 4.8-5"
+                      stroke="currentColor"
+                      strokeWidth="1.8"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </div>
                 <div className={styles.heroCopy}>
-                  <p className={styles.descriptionLabel}>Description</p>
+                  <p className={styles.descriptionLabel}>{course?.title}</p>
                   <p className={styles.descriptionText}>{badge.description || 'No badge description provided.'}</p>
+                  <div className={styles.heroMeta}>
+                    <span>{badge.lesson?.title || 'Lesson not assigned'}</span>
+                    <span>{summary.totalStudents} students</span>
+                    <span>{checkpointCount} checkpoints</span>
+                  </div>
                 </div>
               </section>
 
@@ -322,26 +364,41 @@ export default function CourseBadgeProgress() {
                       Showing progress for: <strong>All students</strong>
                     </p>
                   </div>
+                  {isInstructorFlag ? (
+                    <button type="button" className={styles.primaryButton} onClick={() => setIsRosterOpen(true)}>
+                      View badge roster
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className={styles.statusGrid}>
+                  <article className={`${styles.statusCard} ${styles.proficientCard}`}>
+                    <span className={styles.statusDot} aria-hidden="true" />
+                    <div>
+                      <p>Proficient</p>
+                      <strong>{summary.completedCount}</strong>
+                      <span>{summary.completedPercent}% of students</span>
+                    </div>
+                  </article>
+                  <article className={`${styles.statusCard} ${styles.learningCard}`}>
+                    <span className={styles.statusDot} aria-hidden="true" />
+                    <div>
+                      <p>Still Learning</p>
+                      <strong>{summary.inProgressCount}</strong>
+                      <span>{summary.inProgressPercent}% of students</span>
+                    </div>
+                  </article>
+                  <article className={`${styles.statusCard} ${styles.notStartedCard}`}>
+                    <span className={styles.statusDot} aria-hidden="true" />
+                    <div>
+                      <p>Not Started</p>
+                      <strong>{summary.notStartedCount}</strong>
+                      <span>{summary.notStartedPercent}% of students</span>
+                    </div>
+                  </article>
                 </div>
 
                 <div className={styles.progressBody}>
-                  <div className={styles.statColumn}>
-                    <div className={styles.bigStat}>
-                      <strong>N/A</strong>
-                      <span>Average time to completion</span>
-                    </div>
-                    <div className={styles.bigStat}>
-                      <strong>{summary.completedPercent}%</strong>
-                      <span>Got checkd on their first try</span>
-                    </div>
-                    <div className={styles.bigStat}>
-                      <strong>{summary.inProgressPercent}%</strong>
-                      <span>Watched optional learning videos</span>
-                    </div>
-                  </div>
-
-                  <div className={styles.divider} aria-hidden="true" />
-
                   <div className={styles.chartColumn}>
                     <div className={styles.topCharts}>
                       <div
@@ -351,49 +408,94 @@ export default function CourseBadgeProgress() {
                         aria-label={`Badge completion: ${completionPercent}%`}
                       >
                         <div className={styles.completionRingInner}>
-                          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" aria-hidden="true">
-                            <path
-                              d="M5 13l4 4L19 7"
-                              stroke="#8aa30f"
-                              strokeWidth="3"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
+                          <strong>{completionPercent}%</strong>
+                          <span>proficient</span>
                         </div>
                       </div>
 
                       <div className={styles.barBreakdown}>
-                        {breakdownBars.map((bar) => (
-                          <div key={bar.label} className={styles.barRow}>
-                            <p className={styles.barLabel}>{bar.label}</p>
-                            <div className={styles.barTrackRow}>
-                              <div className={styles.barTrack}>
-                                <div
-                                  className={styles.barFill}
-                                  style={{
-                                    width: `${Math.max(0, Math.min(100, bar.percent))}%`,
-                                    background: bar.color,
-                                  }}
-                                />
+                        {breakdownBars.map((bar) => {
+                          const barContent = (
+                            <div className={styles.barRow}>
+                              <p className={styles.barLabel}>{bar.label}</p>
+                              <div className={styles.barTrackRow}>
+                                <div className={styles.barTrack}>
+                                  <div
+                                    className={styles.barFill}
+                                    style={{
+                                      width: `${Math.max(0, Math.min(100, bar.percent))}%`,
+                                      background: bar.color,
+                                    }}
+                                  />
+                                </div>
+                                <span className={styles.barPercent}>{bar.percent}%</span>
                               </div>
-                              <span className={styles.barPercent}>{bar.percent}%</span>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                          );
 
-                    {/* The design shows "Average precheck score" + "Average assessment score",
-                        but the API only tracks one score. Show the metrics we actually have:
-                        % of students ready for assessment, and the average assessment score. */}
-                    <div className={styles.ringRow}>
-                      <RingIndicator percent={summary.readyForAssessmentPercent} caption="Ready for assessment" />
-                      <RingIndicator percent={summary.averageScore ?? 0} caption="Average assessment score" />
+                          if (bar.kind === 'not-started') {
+                            return (
+                              <div key={bar.kind} className={styles.staticBarRow}>
+                                {barContent}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <details key={bar.kind} className={styles.barDetails}>
+                              <summary>{barContent}</summary>
+                              {bar.kind === 'completed' ? (
+                                <div className={styles.analyticsRow}>
+                                  <span>Average assessment score</span>
+                                  <strong>
+                                    {summary.completedCount} student{summary.completedCount === 1 ? '' : 's'}
+                                  </strong>
+                                  <strong>{summary.averageScore != null ? `${summary.averageScore}%` : '—'}</strong>
+                                </div>
+                              ) : (
+                                <div className={styles.barDetailList}>
+                                  {[
+                                    {
+                                      label: 'Started the video, haven’t finished',
+                                      count: summary.videoInProgressCount,
+                                      percent: summary.videoInProgressPercent,
+                                    },
+                                    {
+                                      label: 'Finished the video lesson, not yet assessed',
+                                      count: summary.videoCompletedOnlyCount,
+                                      percent: summary.videoCompletedOnlyPercent,
+                                    },
+                                    {
+                                      label: 'Assessed in person, haven’t passed yet',
+                                      count: summary.inPersonFailedCount,
+                                      percent: summary.inPersonFailedPercent,
+                                    },
+                                    {
+                                      label: 'Passed in person, badge not awarded yet',
+                                      count: summary.inReviewCount,
+                                      percent: summary.inReviewPercent,
+                                    },
+                                  ].map((item) => (
+                                    <div key={item.label} className={styles.analyticsRow}>
+                                      <span>{item.label}</span>
+                                      <strong>
+                                        {item.count} student{item.count === 1 ? '' : 's'}
+                                      </strong>
+                                      <strong>{item.percent}%</strong>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </details>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
               </section>
+
+              {data?.ratings ? <BadgeRatings ratings={data.ratings} /> : null}
 
               <section className={styles.card} aria-label="Assessment details">
                 <div className={styles.cardHeader}>
@@ -479,6 +581,94 @@ export default function CourseBadgeProgress() {
           ) : null}
         </div>
       </main>
+
+      {isInstructorFlag && isRosterOpen && badge && courseId && badgeId ? (
+        <BadgeRosterPanel
+          badgeName={badge.name}
+          courseId={courseId}
+          badgeId={badgeId}
+          rows={data?.students ?? []}
+          onClose={() => setIsRosterOpen(false)}
+        />
+      ) : null}
+
+      {/* Legacy inline roster replaced by BadgeRosterPanel.
+        <div className={styles.modalBackdrop} role="presentation" onMouseDown={() => setIsRosterOpen(false)}>
+          <section
+            className={styles.rosterModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="badge-roster-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className={styles.rosterHeader}>
+              <div>
+                <h2 id="badge-roster-title">{badge.name} roster</h2>
+                <p>{data.students.length} students</p>
+              </div>
+              <div className={styles.rosterActions}>
+                <button type="button" className={styles.secondaryButton} onClick={exportRoster}>
+                  Export CSV
+                </button>
+                <button
+                  type="button"
+                  className={styles.iconButton}
+                  onClick={() => setIsRosterOpen(false)}
+                  aria-label="Close roster"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <div className={styles.tableScroller}>
+              <table className={styles.rosterTable}>
+                <thead>
+                  <tr>
+                    <th>Student</th>
+                    <th>Section</th>
+                    <th>Progress</th>
+                    <th>Video</th>
+                    <th>Assessment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.students.map((row) => (
+                    <tr key={row.enrollmentId}>
+                      <td>
+                        <Link href={`/roster/${row.student.id}?courseId=${courseId}&badgeId=${badge.id}`}>
+                          {row.student.name || row.student.email || 'Student'}
+                        </Link>
+                      </td>
+                      <td>{row.sections.join(', ') || '—'}</td>
+                      <td>
+                        {row.analyticsStatus === 'PROFICIENT'
+                          ? 'Proficient'
+                          : row.analyticsStatus === 'NOT_STARTED'
+                            ? 'Not Started'
+                            : 'Still Learning'}
+                      </td>
+                      <td>
+                        {row.videoStatus === 'COMPLETED'
+                          ? 'Completed'
+                          : row.videoStatus === 'IN_PROGRESS'
+                            ? 'In Progress'
+                            : 'Not Started'}
+                      </td>
+                      <td>
+                        {row.analyticsStatus === 'PROFICIENT'
+                          ? 'Proficient'
+                          : row.assessmentAttemptCount > 0
+                            ? `${row.assessmentAttemptCount} attempt${row.assessmentAttemptCount === 1 ? '' : 's'}`
+                            : 'Not attempted'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      */}
     </div>
   );
 }

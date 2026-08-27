@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { CourseContactType, CourseRole, Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { canCreateContent } from '@/lib/adminAccess';
 import { normalizeEmail } from '@/lib/text/email';
 
 type CreateOrUpdateCoursePayload = {
@@ -18,7 +17,7 @@ type CreateOrUpdateCoursePayload = {
 
   settings?: {
     allowCooldownOverride?: boolean;
-    allowAssessorMessages?: boolean;
+    allowCheckerMessages?: boolean;
     allowCrossSectionView?: boolean;
   };
 
@@ -72,7 +71,7 @@ function badRequest(message: string, details?: unknown) {
 }
 
 // Generate a code that is unique across BOTH the student `code` and the
-// `assessorCode` columns, so a single join box can unambiguously resolve which
+// `checkerCode` columns, so a single join box can unambiguously resolve which
 // role a pasted code grants. `exclude` guards against colliding with another
 // code generated earlier in the same transaction (not yet persisted).
 async function generateUniqueCourseCode(tx: Prisma.TransactionClient, exclude: string[] = []) {
@@ -84,7 +83,7 @@ async function generateUniqueCourseCode(tx: Prisma.TransactionClient, exclude: s
     }
 
     const existing = await tx.course.findFirst({
-      where: { OR: [{ code }, { assessorCode: code }] },
+      where: { OR: [{ code }, { checkerCode: code }] },
       select: { id: true },
     });
 
@@ -108,12 +107,6 @@ export async function POST(req: NextRequest) {
 
     if (!creatorEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Alpha lock: creation is temporarily restricted to allowlisted accounts.
-    // Reversible by clearing ALPHA_ADMIN_EMAILS (see lib/adminAccess.ts).
-    if (!canCreateContent(creatorEmail)) {
-      return NextResponse.json({ error: 'Course creation is restricted during the alpha test.' }, { status: 403 });
     }
 
     const body = (await req.json()) as CreateOrUpdateCoursePayload;
@@ -229,23 +222,22 @@ export async function POST(req: NextRequest) {
         if (isUpdate && existingCourse) {
           const currentCodes = await tx.course.findUnique({
             where: { id: existingCourse.id },
-            select: { code: true, assessorCode: true },
+            select: { code: true, checkerCode: true },
           });
 
           if (!savedCourseCode) {
             savedCourseCode = currentCodes?.code ?? (await generateUniqueCourseCode(tx));
           }
 
-          // Backfill the assessor code for courses created before this feature.
-          const savedAssessorCode =
-            currentCodes?.assessorCode ??
-            (await generateUniqueCourseCode(tx, savedCourseCode ? [savedCourseCode] : []));
+          // Backfill the checker code for courses created before this feature.
+          const savedCheckerCode =
+            currentCodes?.checkerCode ?? (await generateUniqueCourseCode(tx, savedCourseCode ? [savedCourseCode] : []));
 
           const updated = await tx.course.update({
             where: { id: existingCourse.id },
             data: {
               code: savedCourseCode,
-              assessorCode: savedAssessorCode,
+              checkerCode: savedCheckerCode,
               title,
               sectionCount,
               description,
@@ -262,13 +254,13 @@ export async function POST(req: NextRequest) {
             where: { courseId: savedCourseId },
             update: {
               allowCooldownOverride: body.settings?.allowCooldownOverride ?? false,
-              allowAssessorMessages: body.settings?.allowAssessorMessages ?? false,
+              allowCheckerMessages: body.settings?.allowCheckerMessages ?? false,
               allowCrossSectionView: body.settings?.allowCrossSectionView ?? false,
             },
             create: {
               courseId: savedCourseId,
               allowCooldownOverride: body.settings?.allowCooldownOverride ?? false,
-              allowAssessorMessages: body.settings?.allowAssessorMessages ?? false,
+              allowCheckerMessages: body.settings?.allowCheckerMessages ?? false,
               allowCrossSectionView: body.settings?.allowCrossSectionView ?? false,
             },
           });
@@ -299,12 +291,12 @@ export async function POST(req: NextRequest) {
           });
         } else {
           savedCourseCode = savedCourseCode ?? (await generateUniqueCourseCode(tx));
-          const savedAssessorCode = await generateUniqueCourseCode(tx, savedCourseCode ? [savedCourseCode] : []);
+          const savedCheckerCode = await generateUniqueCourseCode(tx, savedCourseCode ? [savedCourseCode] : []);
 
           const created = await tx.course.create({
             data: {
               code: savedCourseCode,
-              assessorCode: savedAssessorCode,
+              checkerCode: savedCheckerCode,
               title,
               sectionCount,
               description,
@@ -315,7 +307,7 @@ export async function POST(req: NextRequest) {
               settings: {
                 create: {
                   allowCooldownOverride: body.settings?.allowCooldownOverride ?? false,
-                  allowAssessorMessages: body.settings?.allowAssessorMessages ?? false,
+                  allowCheckerMessages: body.settings?.allowCheckerMessages ?? false,
                   allowCrossSectionView: body.settings?.allowCrossSectionView ?? false,
                 },
               },

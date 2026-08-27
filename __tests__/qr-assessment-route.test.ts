@@ -49,22 +49,22 @@ function requestFor(params = 'courseId=course-1&studentId=student-1&badgeId=badg
 }
 
 function courseWith({
-  assessorRole = 'INSTRUCTOR',
-  assessorStatus = 'ACTIVE',
+  checkerRole = 'INSTRUCTOR',
+  checkerStatus = 'ACTIVE',
   badgeStatus = 'READY_FOR_ASSESSMENT',
   allowCrossSectionView = false,
-  assessorSections = ['A1'],
+  checkerSections = ['A1'],
   studentSections = ['A1'],
 }: {
-  assessorRole?: 'INSTRUCTOR' | 'CHECKER' | 'STUDENT';
-  assessorStatus?: 'ACTIVE' | 'PENDING';
+  checkerRole?: 'INSTRUCTOR' | 'CHECKER' | 'STUDENT';
+  checkerStatus?: 'ACTIVE' | 'PENDING';
   badgeStatus?: string;
   allowCrossSectionView?: boolean;
-  assessorSections?: string[];
+  checkerSections?: string[];
   studentSections?: string[];
 } = {}) {
   return {
-    createdById: assessorRole === 'INSTRUCTOR' ? 'assessor-1' : 'creator-1',
+    createdById: checkerRole === 'INSTRUCTOR' ? 'checker-1' : 'creator-1',
     settings: { allowCrossSectionView },
     enrollments: [
       {
@@ -77,11 +77,11 @@ function courseWith({
         },
       },
       {
-        role: assessorRole,
-        status: assessorStatus,
-        sections: assessorSections.map((section) => ({ section })),
+        role: checkerRole,
+        status: checkerStatus,
+        sections: checkerSections.map((section) => ({ section })),
         student: {
-          id: 'assessor-1',
+          id: 'checker-1',
           badgeProgress: [],
         },
       },
@@ -94,10 +94,10 @@ describe('assessment QR resolver', () => {
     jest.clearAllMocks();
     clearPublicEnv();
     mockCurrentUser.mockResolvedValue({
-      id: 'clerk-assessor',
-      emailAddresses: [{ emailAddress: 'assessor@example.edu' }],
+      id: 'clerk-checker',
+      emailAddresses: [{ emailAddress: 'checker@example.edu' }],
     } as Awaited<ReturnType<typeof currentUser>>);
-    mockPrisma.user.findUnique.mockResolvedValue({ id: 'assessor-1' });
+    mockPrisma.user.findUnique.mockResolvedValue({ id: 'checker-1' });
     mockPrisma.course.findFirst.mockResolvedValue(courseWith());
   });
 
@@ -105,7 +105,7 @@ describe('assessment QR resolver', () => {
     restorePublicEnv();
   });
 
-  it('redirects an authorized assessor to the assessment page', async () => {
+  it('redirects an authorized checker to the assessment page', async () => {
     const res = await GET(requestFor());
 
     expect(res.status).toBe(307);
@@ -114,7 +114,7 @@ describe('assessment QR resolver', () => {
 
   it('rejects a checker outside the student section when cross-section view is disabled', async () => {
     mockPrisma.course.findFirst.mockResolvedValue(
-      courseWith({ assessorRole: 'CHECKER', assessorSections: ['B1'], studentSections: ['A1'] })
+      courseWith({ checkerRole: 'CHECKER', checkerSections: ['B1'], studentSections: ['A1'] })
     );
 
     const res = await GET(requestFor());
@@ -124,7 +124,7 @@ describe('assessment QR resolver', () => {
   });
 
   it('redirects a checker in the student section', async () => {
-    mockPrisma.course.findFirst.mockResolvedValue(courseWith({ assessorRole: 'CHECKER' }));
+    mockPrisma.course.findFirst.mockResolvedValue(courseWith({ checkerRole: 'CHECKER' }));
 
     const res = await GET(requestFor());
 
@@ -134,8 +134,8 @@ describe('assessment QR resolver', () => {
   it('allows a checker outside the student section when cross-section view is enabled', async () => {
     mockPrisma.course.findFirst.mockResolvedValue(
       courseWith({
-        assessorRole: 'CHECKER',
-        assessorSections: ['B1'],
+        checkerRole: 'CHECKER',
+        checkerSections: ['B1'],
         studentSections: ['A1'],
         allowCrossSectionView: true,
       })
@@ -147,8 +147,8 @@ describe('assessment QR resolver', () => {
     expect(res.headers.get('location')).toBe('http://localhost/assessments/course-1/students/student-1/badges/badge-1');
   });
 
-  it('rejects a checker whose assessor request is still pending', async () => {
-    mockPrisma.course.findFirst.mockResolvedValue(courseWith({ assessorRole: 'CHECKER', assessorStatus: 'PENDING' }));
+  it('rejects a checker whose checker request is still pending', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue(courseWith({ checkerRole: 'CHECKER', checkerStatus: 'PENDING' }));
 
     const res = await GET(requestFor());
 

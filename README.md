@@ -1,16 +1,16 @@
 # checkd
 
-**checkd** is a chemistry-lab micro-credential platform built with Next.js 15 (App Router). Instructors create and manage courses, students learn through checkpoint-gated lesson videos and submit badges, and assessors grade badges in person against rubrics. It is backed by Clerk for authentication and Prisma/PostgreSQL for data.
+**checkd** is a chemistry-lab micro-credential platform built with Next.js 15 (App Router). Instructors create and manage courses, students learn through checkpoint-gated lesson videos and submit badges, and checkers grade badges in person against rubrics. It is backed by Clerk for authentication and Prisma/PostgreSQL for data.
 
 > **Naming:** "checkd" is the product name used in the UI. The repository and some code/metadata still carry the earlier working name **ChemSkills** (and the `chem-skills` repo directory) — the two refer to the same app. Renaming the code is tracked as cleanup.
 
-> **Status:** actively evolving. The student and instructor/assessor journeys are largely wired end to end against real data; a few surfaces are stubbed or feature-flagged (see [Known Issues](#known-issues)). What began as a single-seeded, student-only demo is now a multi-role platform. The CHEM101 seed still exists as a reproducible demo world, but the app no longer depends on hand-seeded data — courses, badges, lessons, and enrollments are created through the UI.
+> **Status:** actively evolving. The student and instructor/checker journeys are largely wired end to end against real data; a few surfaces are stubbed or feature-flagged (see [Known Issues](#known-issues)). What began as a single-seeded, student-only demo is now a multi-role platform. The CHEM101 seed still exists as a reproducible demo world, but the app no longer depends on hand-seeded data — courses, badges, lessons, and enrollments are created through the UI.
 
 ## Overview
 
 - **Framework:** Next.js 15 with TypeScript, App Router, and CSS Modules. Turbopack dev server.
 - **Auth:** Clerk. `ClerkProvider` wraps the app in `app/layout.tsx`; `middleware.ts` enforces auth with `auth.protect()` for all non-public routes (public routes: `/`, `/splash`, `/sign-in`, `/sign-up`, `/qr/assessment`, `/api/health`).
-- **Roles:** There is **no global role field**. A user's role is derived from their `Enrollment.role` in a given course — `STUDENT`, `INSTRUCTOR`, or `CHECKER` (assessor). The same person can hold different roles in different courses.
+- **Roles:** There is **no global role field**. A user's role is derived from their `Enrollment.role` in a given course — `STUDENT`, `INSTRUCTOR`, or `CHECKER` (checker). The same person can hold different roles in different courses.
 - **Data:** Prisma + PostgreSQL (`prisma/schema.prisma`). Data is created through the app (course creation, badge creation, joins, enrollments, submissions, assessments). `useStudentData` / `useMyCourses` fetch the signed-in user's graph via API routes, cached with SWR.
 - **Data fetching:** SWR for client caching; route handlers under `app/api/**` back every flow.
 - **UI:** Marketing splash for signed-out visitors, an onboarding flow for new users, and a shared sidebar + global header layout for the authenticated app. Animations via framer-motion; icons via Iconify.
@@ -25,24 +25,24 @@
 - **App layer:** Next.js 15 App Router, mostly Client Components that render from the Clerk session and SWR-cached API data. The root layout is `force-dynamic` (every route is auth-gated and reads search params), so nothing is statically prerendered.
 - **Authentication:** Clerk. `middleware.ts` actively protects all non-public routes; individual pages additionally redirect to `/splash` when the session is missing. Sign-in/sign-up live under `app/(auth)`.
 - **Onboarding:** New Clerk sign-ups don't exist in the database yet (the Clerk webhook is stubbed). On completing onboarding (`/onboarding` → `POST /api/onboarding`), the user is upserted with name, demographics, chosen avatar base, and an analytics row. On subsequent requests, `ensureCurrentUser()` matches the Clerk email to the DB user.
-- **Data & APIs:** A broad route-handler surface under `app/api/**` covers courses (create/join/duplicate/enrollments/students/badges/import/reminders), badges, assessments and assessment access codes, checkpoints/attempts, lessons (start/grade/survey), progress, profile, messages, uploads, QR generation, and health.
+- **Data & APIs:** A broad route-handler surface under `app/api/**` covers courses (create/join/duplicate/enrollments/students/badges/import), badges, assessments and assessment access codes, checkpoints/attempts, lessons (start/grade/survey), progress, profile, messages, uploads, QR generation, and health.
 - **Video & QEV:** Lesson playback supports YouTube (via the YouTube Iframe API) and Mux playback IDs (schema field `muxPlaybackId`). The lesson player renders in-video checkpoints — a "Question Embedded Video" (QEV) experience — pausing to quiz the student and record responses. Direct Mux uploads are stubbed (see Known Issues).
-- **QR & assessment codes:** Badge assessment QR codes are generated **server-side** by `/api/qr` using the `qrcode` package (no external QR service). QR payloads plus short-lived `AssessmentAccessCode`s let an assessor validate a student's badge in person at `/qr/assessment`.
-- **Rubric assessment:** Badges can carry a `RubricGoal` with weighted `RubricSubgoal`s. Assessors submit pass/fail, score, points, feedback, and per-subgoal responses (`AssessmentAttempt` + `AssessmentSubgoalResponse`); a pass advances the badge to `READY_FOR_FINALIZATION`.
+- **QR & assessment codes:** Badge assessment QR codes are generated **server-side** by `/api/qr` using the `qrcode` package (no external QR service). QR payloads plus short-lived `AssessmentAccessCode`s let a checker validate a student's badge in person at `/qr/assessment`.
+- **Rubric assessment:** Badges can carry a `RubricGoal` with weighted `RubricSubgoal`s. Checkers submit pass/fail, score, points, feedback, and per-subgoal responses (`AssessmentAttempt` + `AssessmentSubgoalResponse`); a pass advances the badge to `READY_FOR_FINALIZATION`.
 
 ## Data Model (high level)
 
 Key Prisma models (`prisma/schema.prisma`):
 
 - **User** (`@@map("Student")`) — person; demographics, avatar, analytics; relations to enrollments, progress, created courses/badges, assessments, messages.
-- **Course / CourseSettings / CourseContact** — a course with join `code` and `assessorCode`, section metadata, an Iconify-based course image, contacts (instructor/checker), and feature settings (cooldown override, assessor messages, cross-section view).
+- **Course / CourseSettings / CourseContact** — a course with join `code` and `checkerCode`, section metadata, an Iconify-based course image, contacts (instructor/checker), and feature settings (cooldown override, checker messages, cross-section view).
 - **Enrollment / EnrollmentSection** — links a user to a course with a `role` (STUDENT/INSTRUCTOR/CHECKER) and `status` (PENDING/ACTIVE), optionally scoped to sections.
 - **Lesson / LessonSegment / LessonCheckpoint / CheckpointQuestion / LessonSkill** — lesson content, video segments, in-video checkpoints and their multiple-choice questions.
 - **Progress:** LessonProgress, SegmentProgress, CheckpointAttempt, CheckpointResponse.
 - **Badge / BadgeRequirement / StudentBadge / RubricGoal / RubricSubgoal** — badge definitions (with library import lineage via `sourceBadgeId`), per-student status (LEARNING → READY_FOR_ASSESSMENT → READY_FOR_FINALIZATION → COMPLETED), and rubrics.
 - **AssessmentAttempt / AssessmentSubgoalResponse / AssessmentAccessCode** — in-person grading records and short-lived access codes.
 - **SurveyPrompt / SurveyResponse** — lesson- and badge-context feedback surveys.
-- **Message** — in-app messaging (feature-flagged WIP).
+- **Message / MessageReceipt** — in-app messaging. One authored `Message` carries the body, sender, course/badge context, and an audience descriptor (`DIRECT`, `ALL_STUDENTS`, `BADGE_INCOMPLETE`); a `MessageReceipt` per person records who it reached and their own read state. The audience is frozen at send time, so later enrollees never see older mail and unenrolled students keep what they already received. Staff copied on a blast get an `isObserver` receipt and are excluded from the sender's read count.
 
 ## Getting Started
 
@@ -79,13 +79,10 @@ NEXT_PUBLIC_APP_URL="https://your-production-host"
 # Instructor account for the CHEM101 seed (optional; see below)
 SEEDED_DEMO_EMAIL="your-instructor-clerk-email@example.com"
 
-# Feature flag: show the WIP Messages tab (dev only). Omit/false in prod.
-NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV="true"
-
-# Feature flag for MVP -- to be removed after initial testing phase with clients. Flip to false to allow all users to create
-ALPHA_MODE="true"
-# List of allowed emails to create content during the MVP (locally make this just your email, in staging/prod use an actual list) -- This is needed in otherwise Alpha_Mode var will lock everyone out
-ALPHA_ADMIN_EMAILS="<comma separated list of emails that are valid>"
+# Dev-only: show the QEV skip/unlock controls on the lesson video page. These let a
+# student bypass the video requirement, so omit this outside local dev.
+# (Replaces NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV, still read as a fallback.)
+NEXT_PUBLIC_DEV_QEV_SKIP="true"
 ```
 
 Get Clerk keys by creating a project at https://clerk.com/ and copying the Publishable and Secret keys.
@@ -114,7 +111,7 @@ The seed is **additive for users** and **scoped for course content**: it upserts
 | ---------- | ------------------------------------------------------------------ | ------------------------------------- |
 | Instructor | `SEEDED_DEMO_EMAIL`, or `instructor+clerk_test@gmail.com` if unset | owns CHEM101                          |
 | Student    | `student+clerk_test@bu.edu`                                        | enrolled as student                   |
-| Assessor   | `checker+clerk_test@bu.edu`                                        | enrolled as active assessor (CHECKER) |
+| Checker   | `checker+clerk_test@bu.edu`                                        | enrolled as active checker (CHECKER) |
 
 There's also an additive single-user seed for quickly adding yourself without touching anything else:
 
@@ -144,7 +141,7 @@ npx prisma studio     # inspect the database
 
 ## Application Map
 
-Signed-out visitors see the marketing **splash** (`/splash`). Authenticated users get a shared sidebar (Home, Badges, Badge Wallet, Messages*, My Analytics, Profile — *Messages only when `NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV=true`) and a global header that hides on lesson-video routes.
+Signed-out visitors see the marketing **splash** (`/splash`). Authenticated users get a shared sidebar (Home, Badges, Badge Wallet, Messages, My Analytics, Profile) and a global header that hides on lesson-video routes.
 
 ### Onboarding & shared
 
@@ -154,9 +151,9 @@ Signed-out visitors see the marketing **splash** (`/splash`). Authenticated user
 
 ### Home & courses
 
-- **Home / Dashboard (`/`)** — Role-aware. Shows "My Courses" (instructor-created), "Assessor Courses", and "My Enrolled Courses" together — the client deliberately validated a combined view rather than role-gating sections. Supports creating a course, joining by code, duplicating a course, entering an assessment access code, and badge finalization surveys (with `?surveyBadge=slug` deep links).
+- **Home / Dashboard (`/`)** — Role-aware. Shows "My Courses" (instructor-created), "Checker Courses", and "My Enrolled Courses" together — the client deliberately validated a combined view rather than role-gating sections. Supports creating a course, joining by code, duplicating a course, entering an assessment access code, and badge finalization surveys (with `?surveyBadge=slug` deep links).
 - **Course list & creation (`/courses`, `/courses/new`)** — Browse and create courses (title, sections, description, Iconify course image).
-- **Course detail (`/courses/[courseId]`)** — Lessons, assigned badges, roster, contacts, and settings; assessor view via `?view=assessor`.
+- **Course detail (`/courses/[courseId]`)** — Lessons, assigned badges, roster, contacts, and settings; checker view via `?view=checker`.
 - **Course badge detail (`/courses/[courseId]/[badgeId]`)** — Class-wide progress for a badge; entry point for assessing a student's badge.
 - **Course dashboard (`/course_dashboard?courseId=...`)** — Student-facing per-course view.
 - **Roster (`/roster`, `/roster/[studentId]`)** — Student roster and per-student detail with per-badge settings (reassessment limit, cooldown).
@@ -174,14 +171,13 @@ Signed-out visitors see the marketing **splash** (`/splash`). Authenticated user
 - **Badge Wallet (`/badges`)** — Badges sectioned by status (Completed, Ready for assessment, Ready to be finalized, Still learning) with status-specific modal actions: show QR for in-person assessment, start finalization survey, review feedback, or export a completed badge to LinkedIn.
 - **Badge feedback (`/badges/[badgeSlug]/feedback`)** — Detailed badge review with status, cooldown messaging, lesson summary, checkpoints, and resources.
 - **Badge creation (`/badge_creation`, `/badges_creation`)** — Instructor badge authoring, including rubric goals/subgoals and badge-library imports.
-- **Assessments (`/assessments/[courseId]/students/[studentId]/badges/[badgeId]`)** — Assessor grading flow: pass/fail, score, points, feedback, and per-subgoal notes.
-- **QR assessment (`/qr/assessment`, `/qr/assessment-code`)** — In-person validation entry points (the first is public so an assessor's device can open it without a session).
+- **Assessments (`/assessments/[courseId]/students/[studentId]/badges/[badgeId]`)** — Checker grading flow: pass/fail, score, points, feedback, and per-subgoal notes.
+- **QR assessment (`/qr/assessment`, `/qr/assessment-code`)** — In-person validation entry points (the first is public so a checker's device can open it without a session).
 
 ### Other
 
-- **My Analytics (`/analytics`)** — Progress tiles (hours, badge counts, questions answered) and score gauges.
-- **Profile (`/profile`)** — Consolidated student controls: sensitive-field auto-hide with Clerk re-auth, demographics editor, language selector, course contacts, quick stats, and security actions.
-- **Messages (`/messages`)** — In-app messaging (WIP; nav entry only shown when the dev env flag is set).
+- **Profile (`/profile`)** — Consolidated student controls: sensitive-field auto-hide with Clerk re-auth, demographics editor, language selector, course contacts, quick stats, and security actions. Also carries the analytics panel (progress tiles and badge summary, via `app/components/AnalyticsPanel`) that used to live on a standalone `/analytics` route.
+- **Messages (`/messages`)** — Received and Sent tabs, both cross-course and role-agnostic, with a newest/oldest sort. Sent shows each message's read count over its student audience. The sidebar carries an unread badge.
 - **Report (`/report`)** — Reporting surface.
 - **Instructor QEV prototype (`/instructor/qev-demo`)** — Standalone cue-point authoring demo (predates the integrated in-lesson QEV player).
 - **Grades (`/grades`) & Settings (`/settings`)** — Placeholder "coming soon" pages retained for parity; functional controls live on Profile. Not currently in the sidebar nav.
@@ -190,7 +186,7 @@ Signed-out visitors see the marketing **splash** (`/splash`). Authenticated user
 
 Route handlers live under `app/api/**`. Highlights:
 
-- **Courses:** `courses` (list/create), `courses/mine`, `courses/created`, `courses/enrolled`, `courses/assessor`, `courses/join`, and per-course `courses/[courseId]` (detail, `duplicate`, `enrollments`, `students`, `badges`, `badges/import`, `badges/[badgeId]/reminders`).
+- **Courses:** `courses` (list/create), `courses/mine`, `courses/created`, `courses/enrolled`, `courses/checker`, `courses/join`, and per-course `courses/[courseId]` (detail, `duplicate`, `enrollments`, `students`, `badges`, `badges/import`).
 - **Badges & assessment:** `badges`, `badges/[badgeId]` (+ `assess`, `feedback`, `survey`), `badges/export/[id]`, `assessment-codes`, `attempts/[skillId]`.
 - **Lessons & progress:** `lessons/[lessonId]` (+ `start`, `grade`, `survey`), `checkpoints/[checkpointId]/attempt`, `checkpoint-snapshot`, `progress/[skillId]`.
 - **User:** `onboarding`, `profile/demographics`, `profile/display-name`, `profile/reverify`, `demo/student` (aggregate student graph), `messages`.
@@ -201,7 +197,7 @@ Route handlers live under `app/api/**`. Highlights:
 
 - **Unit/integration:** Jest + React Testing Library. Suites under `__tests__/` cover API routes (course create/join/duplicate, badge creation/import/feedback, assessment submit/codes, lesson grade, QR) and units (`badge-progress`, `video`), plus co-located component tests (`app/page.test.tsx`, `app/lessons/[lessonId]/video.test.tsx`). Run with `npm test` (or `test:watch`, `test:coverage`).
 - **Linting/formatting:** `npm run lint` (ESLint with Prettier integration; `lint:debug` for verbose output). Husky + lint-staged run ESLint/Prettier on staged files pre-commit.
-- **Suggested next coverage:** assessor grading end-to-end, QEV checkpoint pass/fail transitions, roster badge-settings edits, onboarding → first course, and auth-redirect guards. Consider running lint + test + build in CI on every PR.
+- **Suggested next coverage:** checker grading end-to-end, QEV checkpoint pass/fail transitions, roster badge-settings edits, onboarding → first course, and auth-redirect guards. Consider running lint + test + build in CI on every PR.
 
 ## Deployment
 
@@ -211,12 +207,12 @@ Configured for **Railway** (`railway.toml`, NIXPACKS builder):
 - **Start:** `npm run railway:start` → `prisma migrate deploy && next start` (migrations run on deploy).
 - **Health check:** `/api/health` (used by Railway; also a public route).
 
-Provide the same env vars as local (`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_APP_URL`), and set `NEXT_PUBLIC_APP_URL` to the public origin so assessment QR codes and short-code links resolve to the deployed host rather than an internal address. Leave `NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV` unset in production to keep the WIP Messages tab hidden. Any managed Next.js host (Railway/Vercel/Render) works with equivalent config.
+Provide the same env vars as local (`DATABASE_URL`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_APP_URL`), and set `NEXT_PUBLIC_APP_URL` to the public origin so assessment QR codes and short-code links resolve to the deployed host rather than an internal address. Leave `NEXT_PUBLIC_DEV_QEV_SKIP` (and the legacy `NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV`) unset in production — either one exposes controls that let a student skip the video requirement. Any managed Next.js host (Railway/Vercel/Render) works with equivalent config.
 
 ## Known Issues
 
 - **Stubbed integrations:** `uploads/video` (Mux upload), `webhooks/mux`, and `webhooks/clerk` return `202 "not yet implemented"`. New users are created via the onboarding endpoint rather than a Clerk webhook.
-- **Messages** is a work-in-progress; the nav entry is gated behind `NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV`.
+- **Messages** are instructor/checker → student only; students have no reply path. Sends go through `POST /api/messages`, which picks the audience from the payload: `recipientId` for a 1:1 (from a student's roster profile), `badgeId` for everyone who has not completed that badge (the badge's **Remind** button), or `allStudents` for the whole course (**Message students** on the course detail page). A CHECKER may send only while the course's `allowCheckerMessages` setting is on, and reaches only their own sections unless `allowCrossSectionView` is also on. The whole-course audience is instructor-only regardless of either setting.
 - **Checkpoint snapshots** rely on YouTube thumbnails rather than true timestamp stills (accurate stills would require processing the source video).
 - **Completion metrics** can be inaccurate in edge cases; percentage math needs reinforcement.
 - Some UI surfaces are not fully aligned with the intended Figma design (badge/skill-tracking screens), and the standalone `/instructor/qev-demo` prototype overlaps with the integrated in-lesson QEV player.

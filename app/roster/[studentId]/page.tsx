@@ -1,30 +1,28 @@
 'use client';
-
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useParams, usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { generateInitials, getNameForProfile } from '@/lib/text/name';
-import CollapsibleSection from '@/app/components/CollapsibleSection';
-import BadgeGrid from '@/app/components/BadgeGrid';
-import StudentProfileCard from '@/app/components/StudentProfileCard';
+import CollapsibleSection from '@/app/components/CollapsibleSection/CollapsibleSection';
+import BadgeGrid from '@/app/components/BadgeGrid/BadgeGrid';
+import StudentProfileCard from '@/app/components/StudentProfileCard/StudentProfileCard';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
 import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
+import { StudentActionsModal } from './StudentActionsModal';
 import { MessageComposeModal } from './MessageComposeModal';
 import styles from './page.module.css';
 import { EnrollmentRole } from '@/lib/enrollment/types';
-
-// Messaging is a work-in-progress feature gated behind the same dev flag as the
-// Messages inbox nav item (see Sidebar). Only show the compose action when on.
-const MESSAGING_ENABLED = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
 
 type Contact = {
   id: string;
   type: 'INSTRUCTOR' | 'CHECKER';
   name: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string;
   avatarUrl: string | null;
 };
@@ -34,6 +32,10 @@ type StudentProfileBadge = {
   slug: string;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
+  imagePositionX?: number | null;
+  imagePositionY?: number | null;
+  imageScale?: number | null;
 
   status?: string;
   awardedAt?: string | null;
@@ -43,9 +45,13 @@ type StudentProfileBadge = {
 
 type InstructorMemberProfileResponse = {
   memberRole: EnrollmentRole;
+  viewerRole?: EnrollmentRole;
+  canMessage?: boolean;
   member: {
     id: string;
     name: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     externalId: string | null;
     gender: string | null;
@@ -72,10 +78,9 @@ type InstructorMemberProfileResponse = {
   };
   contacts: Contact[];
   badges: {
-    inProgress: StudentProfileBadge[];
+    proficient: StudentProfileBadge[];
+    stillLearning: StudentProfileBadge[];
     notStarted: StudentProfileBadge[];
-    inReview: StudentProfileBadge[];
-    completed: StudentProfileBadge[];
   };
 };
 
@@ -89,7 +94,7 @@ function resolveParam(value: string | string[] | undefined) {
 
 function profileLabel(role?: EnrollmentRole | null) {
   if (role === 'CHECKER') {
-    return 'Assessor';
+    return 'Checker';
   }
 
   if (role === 'INSTRUCTOR') {
@@ -256,6 +261,7 @@ export default function InstructorStudentProfilePage() {
   const [isNotStartedOpen, setIsNotStartedOpen] = useState(false);
   const [isCompletedOpen, setIsCompletedOpen] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [isOverridingCooldown, setIsOverridingCooldown] = useState(false);
   const [overrideError, setOverrideError] = useState<string | null>(null);
@@ -269,14 +275,19 @@ export default function InstructorStudentProfilePage() {
   const currentProfileLabel = profileLabel(currentRole);
   const currentProfileLabelLower = currentProfileLabel.toLowerCase();
   const showBadgesSection = currentRole === 'STUDENT';
+  const canManageStudent = data?.viewerRole === 'INSTRUCTOR';
+  const canMessageStudent = data?.canMessage === true;
   const courseSectionsLabel = data?.course.sections.join(', ') ?? '';
 
   const selectedBadgeTone: BadgeDetailTone | null = useMemo(() => {
     if (!selectedBadgeId || !data) return null;
-    const { inProgress, completed, inReview } = data.badges;
-    const matches = (list: { id: string }[]) => list.some((badge) => badge.id === selectedBadgeId);
-    if (matches(completed) || matches(inReview)) return 'completed';
-    if (matches(inProgress)) return 'progress';
+    const { proficient, stillLearning } = data.badges;
+    // Tolerate a payload missing a cohort rather than white-screening the profile.
+    const matches = (list?: { id: string }[]) => (list ?? []).some((badge) => badge.id === selectedBadgeId);
+    if (matches(proficient)) return 'completed';
+    // Still-learning covers in-review too. A passed-but-unrated badge gets promoted
+    // back to the completed tone by selectedBadgeDisplayTone once its detail loads.
+    if (matches(stillLearning)) return 'progress';
     return null;
   }, [data, selectedBadgeId]);
 
@@ -295,7 +306,7 @@ export default function InstructorStudentProfilePage() {
     selectedBadgeDetail?.progress.assessmentComplete === true ? 'completed' : selectedBadgeTone;
 
   // A badge is in cooldown only after a failed in-person assessment: it sits at
-  // READY_FOR_ASSESSMENT with a future cooldownUntil. The assessor can clear that
+  // READY_FOR_ASSESSMENT with a future cooldownUntil. The checker can clear that
   // block with one click when the course allows cooldown overrides.
   const selectedCooldownUntil = selectedBadgeDetail?.badge.cooldownUntil ?? null;
   const isBadgeInCooldown =
@@ -403,7 +414,7 @@ export default function InstructorStudentProfilePage() {
 
   const sideContactTitle = currentRole === 'CHECKER' ? 'Instructor' : 'Checker';
   const emptyContactMessage = currentRole === 'CHECKER' ? 'No instructor assigned.' : 'No checker assigned.';
-  const memberDisplay = useMemo(() => getNameForProfile(data?.member.name), [data?.member.name]);
+  const memberDisplay = useMemo(() => getNameForProfile(data?.member), [data?.member]);
   const memberAvatarSrc = avatarAsset(data?.member.avatar?.base);
   const displayName = data?.course.createdBy?.name || '';
 
@@ -418,7 +429,13 @@ export default function InstructorStudentProfilePage() {
       <main className={styles.main}>
         <div className={styles.content}>
           <header className={styles.header}>
-            <h1 className={styles.pageTitle}>{currentProfileLabel} Profile</h1>
+            {courseId ? (
+              <Link href={`/courses/${courseId}`} className={styles.backLink}>
+                <span aria-hidden="true">←</span> Back to course
+              </Link>
+            ) : null}
+            <p className={styles.eyebrow}>{data?.course.title ?? 'Course roster'}</p>
+            <h1 className="page-heading">{currentProfileLabel} Profile</h1>
           </header>
 
           {!courseId && !isLoading ? (
@@ -443,7 +460,7 @@ export default function InstructorStudentProfilePage() {
                 externalId={data.member.externalId}
                 avatarSrc={data.member.avatar ? memberAvatarSrc : null}
                 avatarAlt={`${currentProfileLabel} avatar`}
-                avatarFallback={generateInitials(data.member.name)}
+                avatarFallback={generateInitials(data.member)}
                 courseTitle={data.course.title}
                 courseSectionsLabel={`${data.course.sections.length > 1 ? 'Sections' : 'Section'}: ${
                   courseSectionsLabel || 'Not provided'
@@ -452,15 +469,15 @@ export default function InstructorStudentProfilePage() {
                 contactName={
                   sideContact ? (
                     <>
-                      <p>{getNameForProfile(sideContact.name).headlineTop}</p>
-                      <p>{getNameForProfile(sideContact.name).headlineBottom}</p>
+                      <p>{getNameForProfile(sideContact).headlineTop}</p>
+                      <p>{getNameForProfile(sideContact).headlineBottom}</p>
                     </>
                   ) : null
                 }
                 contactEmail={sideContact?.email}
                 contactAvatarSrc={sideContact?.avatarUrl}
                 contactAvatarAlt={sideContact?.name}
-                contactFallback={sideContact ? generateInitials(sideContact.name) : ''}
+                contactFallback={sideContact ? generateInitials(sideContact) : ''}
                 emptyContactMessage={emptyContactMessage}
                 sideTop={
                   <CollapsibleSection
@@ -515,6 +532,15 @@ export default function InstructorStudentProfilePage() {
                           <button type="button" className={styles.assessmentLink} onClick={() => setIsConfigOpen(true)}>
                             Edit configurations
                           </button>
+                          {canManageStudent ? (
+                            <button
+                              type="button"
+                              className={styles.assessmentLink}
+                              onClick={() => setIsActionsOpen(true)}
+                            >
+                              Student actions
+                            </button>
+                          ) : null}
                           {canOverrideCooldown ? (
                             <button
                               type="button"
@@ -547,7 +573,7 @@ export default function InstructorStudentProfilePage() {
 
                       <div className={styles.badgesHeaderMeta}>
                         <span className={styles.badgesHint}>Select a badge to view details</span>
-                        {MESSAGING_ENABLED ? (
+                        {canMessageStudent ? (
                           <button
                             type="button"
                             className={styles.assessmentLink}
@@ -559,19 +585,41 @@ export default function InstructorStudentProfilePage() {
                       </div>
                     </div>
 
-                    <section className={styles.badgeSection}>
-                      <h3 className={styles.badgeSectionTitle}>In-progress</h3>
-                      <BadgeGrid badges={data.badges.inProgress} onSelectBadge={handleBadgeSelect} />
-                    </section>
+                    <div className={styles.badgeSummary} aria-label="Badge progress overview">
+                      <article className={`${styles.summaryCard} ${styles.proficientSummary}`}>
+                        <span className={styles.summaryDot} aria-hidden="true" />
+                        <div>
+                          <p>Proficient</p>
+                          <strong>{data.badges.proficient.length}</strong>
+                          <span>badges earned</span>
+                        </div>
+                      </article>
+                      <article className={`${styles.summaryCard} ${styles.learningSummary}`}>
+                        <span className={styles.summaryDot} aria-hidden="true" />
+                        <div>
+                          <p>Still Learning</p>
+                          <strong>{data.badges.stillLearning.length}</strong>
+                          <span>badges underway</span>
+                        </div>
+                      </article>
+                      <article className={`${styles.summaryCard} ${styles.pendingSummary}`}>
+                        <span className={styles.summaryDot} aria-hidden="true" />
+                        <div>
+                          <p>Not Started</p>
+                          <strong>{data.badges.notStarted.length}</strong>
+                          <span>badges remaining</span>
+                        </div>
+                      </article>
+                    </div>
 
                     <section className={styles.badgeSection}>
-                      <h3 className={styles.badgeSectionTitle}>In review</h3>
-                      <BadgeGrid badges={data.badges.inReview} tone="completed" onSelectBadge={handleBadgeSelect} />
+                      <h3 className={styles.badgeSectionTitle}>Still Learning</h3>
+                      <BadgeGrid badges={data.badges.stillLearning} onSelectBadge={handleBadgeSelect} />
                     </section>
 
                     <section className={styles.badgeSection}>
                       <CollapsibleSection
-                        title="Not yet started"
+                        title="Not Started"
                         isOpen={isNotStartedOpen}
                         onToggle={() => setIsNotStartedOpen((current) => !current)}
                         panelId="not-started-badges"
@@ -586,7 +634,7 @@ export default function InstructorStudentProfilePage() {
 
                     <section className={styles.badgeSection}>
                       <CollapsibleSection
-                        title="Completed"
+                        title="Proficient"
                         isOpen={isCompletedOpen}
                         onToggle={() => setIsCompletedOpen((current) => !current)}
                         panelId="completed-badges"
@@ -595,7 +643,7 @@ export default function InstructorStudentProfilePage() {
                         chevronClassName={styles.chevron}
                         chevronOpenClassName={styles.chevronOpen}
                       >
-                        <BadgeGrid badges={data.badges.completed} tone="completed" onSelectBadge={handleBadgeSelect} />
+                        <BadgeGrid badges={data.badges.proficient} tone="completed" onSelectBadge={handleBadgeSelect} />
                       </CollapsibleSection>
                     </section>
                   </section>
@@ -624,7 +672,27 @@ export default function InstructorStudentProfilePage() {
         />
       ) : null}
 
-      {MESSAGING_ENABLED && isMessageOpen && courseId && studentId ? (
+      {isActionsOpen && canManageStudent && selectedBadgeDetail && courseId && studentId && email ? (
+        <StudentActionsModal
+          studentName={data?.member.name ?? 'Student'}
+          courseId={courseId}
+          studentId={studentId}
+          email={email}
+          badge={{
+            ...selectedBadgeDetail.badge,
+            qevWaivedAt: selectedBadgeDetail.badge.qevWaivedAt ?? null,
+          }}
+          attemptCount={selectedBadgeDetail.assessment.attemptCount}
+          lessonTitles={selectedBadgeDetail.qevAttempts.map((attempt) => attempt.lessonTitle)}
+          onClose={() => setIsActionsOpen(false)}
+          onCompleted={() => {
+            setIsActionsOpen(false);
+            void refreshBadgeDetail();
+          }}
+        />
+      ) : null}
+
+      {isMessageOpen && canMessageStudent && courseId && studentId ? (
         <MessageComposeModal
           studentName={data?.member.name ?? 'Student'}
           courseId={courseId}

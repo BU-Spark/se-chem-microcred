@@ -44,29 +44,29 @@ type AssessmentQrCourse = {
   }>;
 };
 
-function canAssessQrCourse(course: AssessmentQrCourse, assessorId: string, studentId: string) {
+function canAssessQrCourse(course: AssessmentQrCourse, checkerId: string, studentId: string) {
   const targetEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === studentId);
-  const assessorEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === assessorId);
-  const isCourseCreator = course.createdById === assessorId;
-  const assessorRole =
-    isCourseCreator || assessorEnrollment?.status === EnrollmentStatus.ACTIVE ? assessorEnrollment?.role : undefined;
-  const effectiveAssessorRole = isCourseCreator ? CourseRole.INSTRUCTOR : assessorRole;
+  const checkerEnrollment = course.enrollments.find((enrollment) => enrollment.student.id === checkerId);
+  const isCourseCreator = course.createdById === checkerId;
+  const checkerRole =
+    isCourseCreator || checkerEnrollment?.status === EnrollmentStatus.ACTIVE ? checkerEnrollment?.role : undefined;
+  const effectiveCheckerRole = isCourseCreator ? CourseRole.INSTRUCTOR : checkerRole;
 
-  if (!targetEnrollment || targetEnrollment.role !== CourseRole.STUDENT || !effectiveAssessorRole) {
+  if (!targetEnrollment || targetEnrollment.role !== CourseRole.STUDENT || !effectiveCheckerRole) {
     return false;
   }
 
-  if (effectiveAssessorRole === CourseRole.STUDENT) {
+  if (effectiveCheckerRole === CourseRole.STUDENT) {
     return false;
   }
 
-  if (effectiveAssessorRole === CourseRole.CHECKER && !course.settings?.allowCrossSectionView) {
-    const assessorSections = new Set(assessorEnrollment?.sections.map((assignment) => assignment.section) ?? []);
+  if (effectiveCheckerRole === CourseRole.CHECKER && !course.settings?.allowCrossSectionView) {
+    const checkerSections = new Set(checkerEnrollment?.sections.map((assignment) => assignment.section) ?? []);
     const studentSections = targetEnrollment.sections.map((assignment) => assignment.section);
-    return studentSections.length === 0 || studentSections.some((section) => assessorSections.has(section));
+    return studentSections.length === 0 || studentSections.some((section) => checkerSections.has(section));
   }
 
-  return effectiveAssessorRole === CourseRole.INSTRUCTOR || effectiveAssessorRole === CourseRole.CHECKER;
+  return effectiveCheckerRole === CourseRole.INSTRUCTOR || effectiveCheckerRole === CourseRole.CHECKER;
 }
 
 export async function GET(request: Request) {
@@ -92,13 +92,13 @@ export async function GET(request: Request) {
     return NextResponse.redirect(signInUrl);
   }
 
-  const assessor = await prisma.user.findUnique({
+  const checker = await prisma.user.findUnique({
     where: { email },
     select: { id: true },
   });
 
-  if (!assessor) {
-    return redirectHomeWithAssessmentNotice(request, 'denied', 'We could not find an assessor account for you.');
+  if (!checker) {
+    return redirectHomeWithAssessmentNotice(request, 'denied', 'We could not find a checker account for you.');
   }
 
   const course = await prisma.course.findFirst({
@@ -115,11 +115,11 @@ export async function GET(request: Request) {
         some: { studentId },
       },
       OR: [
-        { createdById: assessor.id },
+        { createdById: checker.id },
         {
           enrollments: {
             some: {
-              studentId: assessor.id,
+              studentId: checker.id,
               role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
               status: EnrollmentStatus.ACTIVE,
             },
@@ -132,7 +132,7 @@ export async function GET(request: Request) {
       settings: { select: { allowCrossSectionView: true } },
       enrollments: {
         where: {
-          studentId: { in: Array.from(new Set([assessor.id, studentId])) },
+          studentId: { in: Array.from(new Set([checker.id, studentId])) },
         },
         select: {
           role: true,
@@ -156,7 +156,7 @@ export async function GET(request: Request) {
     },
   });
 
-  if (!course || !canAssessQrCourse(course, assessor.id, studentId)) {
+  if (!course || !canAssessQrCourse(course, checker.id, studentId)) {
     return redirectHomeWithAssessmentNotice(request, 'denied');
   }
 

@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 
-import SurveyModal, { type SurveyModalClassNames } from './index';
+import SurveyModal, { type SurveyModalClassNames } from './SurveyModal';
 
 const classNames: SurveyModalClassNames = {
   overlay: 'overlay',

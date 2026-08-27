@@ -5,6 +5,8 @@ import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
 import { youtubeUrlFromSummary } from '@/lib/video';
+import { classifyStudentBadgeCohort } from '@/lib/badgeCohorts';
+import { canSendCourseMessages } from '@/lib/messaging/audience';
 
 function normalizeId(value?: string | null) {
   const trimmed = value?.trim();
@@ -17,6 +19,10 @@ function formatBadge(
     slug: string;
     name: string;
     description: string | null;
+    imageUrl: string | null;
+    imagePositionX: number;
+    imagePositionY: number;
+    imageScale: number;
   },
   summary?: string | null
 ) {
@@ -25,6 +31,10 @@ function formatBadge(
     slug: badge.slug,
     name: badge.name,
     description: badge.description,
+    imageUrl: badge.imageUrl,
+    imagePositionX: badge.imagePositionX,
+    imagePositionY: badge.imagePositionY,
+    imageScale: badge.imageScale,
     youtubeUrl: youtubeUrlFromSummary(summary),
   };
 }
@@ -92,11 +102,18 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       }
     }
 
+    const canMessage =
+      enrollment.role === 'STUDENT' &&
+      canSendCourseMessages(
+        { isCreator: isCourseCreator, role: viewerRole ?? null },
+        course.settings?.allowCheckerMessages ?? false
+      );
+
     const member = enrollment.student;
 
     // Derive the instructor/checker contacts from enrollments (the section-aware source of
     // truth) rather than CourseContact, which has no section. This ensures a student's side
-    // "Checker" card shows the assessor assigned to *their* section, not a fixed first one.
+    // "Checker" card shows the checker assigned to *their* section, not a fixed first one.
     const memberSectionSet = new Set(enrollment.sections.map((assignment) => assignment.section));
     const courseStaff = await prisma.enrollment.findMany({
       where: {
@@ -106,7 +123,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       },
       include: {
         sections: { select: { section: true } },
-        student: { select: { id: true, name: true, email: true } },
+        student: { select: { id: true, name: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -123,93 +140,123 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         id: staff.id,
         type: staff.role === CourseRole.INSTRUCTOR ? CourseRole.INSTRUCTOR : CourseRole.CHECKER,
         name: staff.student.name ?? staff.student.email ?? 'Unknown',
+
+        firstName: staff.student.firstName,
+        lastName: staff.student.lastName,
         email: staff.student.email ?? '',
         avatarUrl: null,
       }));
 
     const courseBadges = new Map<string, ReturnType<typeof formatBadge>>();
-    const lessonStartedByBadgeId = new Map<string, boolean>();
+    // Requirement lessons per badge, plus this member's progress on each, so the
+    // cohort rule in lib/badgeCohorts.ts can run against the same inputs the
+    // course badge page uses.
+    const lessonIdsByBadgeId = new Map<string, string[]>();
+    const lessonProgressByBadgeId = new Map<
+      string,
+      Array<(typeof course.lessons)[number]['progress'][number] & { lessonId: string }>
+    >();
 
     for (const lesson of course.lessons) {
       const progress = lesson.progress[0] ?? null;
-      const lessonStarted =
-        Boolean(progress?.startedAt || progress?.completedAt) ||
-        progress?.status === 'IN_PROGRESS' ||
-        progress?.status === 'COMPLETED' ||
-        (progress?.percentComplete ?? 0) > 0;
 
       for (const requirement of lesson.badgeRequirements) {
-        if (!courseBadges.has(requirement.badge.id)) {
-          courseBadges.set(requirement.badge.id, formatBadge(requirement.badge, requirement.summary));
+        const badgeId = requirement.badge.id;
+
+        if (!courseBadges.has(badgeId)) {
+          courseBadges.set(badgeId, formatBadge(requirement.badge, requirement.summary));
         }
 
-        lessonStartedByBadgeId.set(
-          requirement.badge.id,
-          (lessonStartedByBadgeId.get(requirement.badge.id) ?? false) || lessonStarted
-        );
+        lessonIdsByBadgeId.set(badgeId, [...(lessonIdsByBadgeId.get(badgeId) ?? []), lesson.id]);
+
+        if (progress) {
+          lessonProgressByBadgeId.set(badgeId, [
+            ...(lessonProgressByBadgeId.get(badgeId) ?? []),
+            { ...progress, lessonId: lesson.id },
+          ]);
+        }
       }
+    }
+
+    // Attempts are the signal that separates "finished the video" from "assessed
+    // in person and hasn't passed". Scoped to this course so another course's
+    // assessment of the same source badge can't bleed in.
+    const badgeIds = [...courseBadges.keys()];
+    const attemptRows =
+      badgeIds.length > 0
+        ? await prisma.assessmentAttempt.findMany({
+            where: { courseId, studentId, badgeId: { in: badgeIds } },
+            select: { badgeId: true, passed: true },
+          })
+        : [];
+
+    const attemptsByBadgeId = new Map<string, Array<{ passed: boolean }>>();
+    for (const attempt of attemptRows) {
+      attemptsByBadgeId.set(attempt.badgeId, [
+        ...(attemptsByBadgeId.get(attempt.badgeId) ?? []),
+        { passed: attempt.passed },
+      ]);
     }
 
     const progressByBadgeId = new Map(
       member.badgeProgress.map((badgeProgress) => [badgeProgress.badgeId, badgeProgress])
     );
 
-    const inProgress: Array<
-      ReturnType<typeof formatBadge> & {
-        status: string;
-        awardedAt: string | null;
-        score: number | null;
-      }
-    > = [];
-    const notStarted: Array<ReturnType<typeof formatBadge>> = [];
-    const completed: Array<
-      ReturnType<typeof formatBadge> & {
-        status: string;
-        awardedAt: string | null;
-        score: number | null;
-      }
-    > = [];
-    const inReview: Array<
-      ReturnType<typeof formatBadge> & {
-        status: string;
-        awardedAt: string | null;
-        score: number | null;
-      }
-    > = [];
+    type BadgeWithCohort = ReturnType<typeof formatBadge> & {
+      status: string | null;
+      awardedAt: string | null;
+      score: number | null;
+      stage: string | null;
+      locked: boolean;
+      attemptCount: number;
+    };
+
+    // The same three cohorts the course badge page reports, so a student's row
+    // there and their profile here can never disagree.
+    const proficient: BadgeWithCohort[] = [];
+    const stillLearning: BadgeWithCohort[] = [];
+    const notStarted: BadgeWithCohort[] = [];
 
     for (const badge of courseBadges.values()) {
       const progress = progressByBadgeId.get(badge.id);
+      const attempts = attemptsByBadgeId.get(badge.id) ?? [];
+      const cohort = classifyStudentBadgeCohort({
+        badgeStatus: progress?.status ?? null,
+        awardedAt: progress?.awardedAt ?? null,
+        requirementLessonIds: lessonIdsByBadgeId.get(badge.id) ?? [],
+        lessonProgress: lessonProgressByBadgeId.get(badge.id) ?? [],
+        attempts,
+      });
 
-      if (!progress) {
-        notStarted.push(badge);
-        continue;
-      }
-
-      const badgeWithProgress = {
+      const entry: BadgeWithCohort = {
         ...badge,
-        status: progress.status,
-        awardedAt: progress.awardedAt?.toISOString() ?? null,
-        score: progress.score ?? null,
+        status: progress?.status ?? null,
+        awardedAt: progress?.awardedAt?.toISOString() ?? null,
+        score: progress?.score ?? null,
+        stage: cohort.stage,
+        locked: cohort.locked,
+        attemptCount: attempts.length,
       };
 
-      if (progress.status === 'COMPLETED') {
-        completed.push(badgeWithProgress);
-      } else if (progress.status === 'IN_REVIEW') {
-        inReview.push(badgeWithProgress);
-      } else if (progress.status === 'LEARNING' && !lessonStartedByBadgeId.get(badge.id)) {
-        notStarted.push(badge);
+      if (cohort.cohort === 'PROFICIENT') {
+        proficient.push(entry);
+      } else if (cohort.cohort === 'STILL_LEARNING') {
+        stillLearning.push(entry);
       } else {
-        // LEARNING (started), READY_FOR_ASSESSMENT, and the terminal LOCKED state.
-        inProgress.push(badgeWithProgress);
+        notStarted.push(entry);
       }
     }
 
     return NextResponse.json(
       {
         memberRole: enrollment.role,
+        viewerRole: effectiveViewerRole,
+        canMessage,
         member: {
           id: member.id,
           name: member.name,
+          firstName: member.firstName,
+          lastName: member.lastName,
           email: member.email,
           externalId: member.externalId,
           gender: member.gender,
@@ -240,10 +287,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         },
         contacts,
         badges: {
-          inProgress,
+          proficient,
+          stillLearning,
           notStarted,
-          inReview,
-          completed,
         },
       },
       { status: 200 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BadgeStatus } from '@prisma/client';
 import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
-import { splitName } from '@/lib/text/name';
+import { resolveName } from '@/lib/text/name';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
 
@@ -149,7 +149,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     const rows: Record<string, string>[] = [];
     for (const enrollment of students) {
       const { student } = enrollment;
-      const { first, last } = splitName(student.name);
+      const { first, last } = resolveName(student);
 
       const row: Record<string, string> = {
         'First Name': first,

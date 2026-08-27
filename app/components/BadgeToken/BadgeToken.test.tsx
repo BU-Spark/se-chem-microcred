@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react';
 
-import BadgeToken from './index';
+import BadgeToken from './BadgeToken';
 
 describe('BadgeToken', () => {
   it('renders badge content in a div by default', () => {

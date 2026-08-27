@@ -1,3 +1,4 @@
+// Issues: #258 multi-word last names
 import prisma from '@/lib/prisma';
 
 export async function fetchUserByEmail(email: string) {
@@ -35,13 +36,13 @@ export async function fetchCreatedCourses(userId: string) {
   });
 }
 
-export async function fetchAssessorCourseEnrollments(userId: string) {
+export async function fetchCheckerCourseEnrollments(userId: string) {
   return prisma.enrollment.findMany({
     where: {
       studentId: userId,
       role: { in: ['INSTRUCTOR', 'CHECKER'] },
-      // Pending assessor requests don't grant access yet — only active staff
-      // enrollments surface in the assessor's course list.
+      // Pending checker requests don't grant access yet — only active staff
+      // enrollments surface in the checker's course list.
       status: 'ACTIVE',
       course: { createdById: { not: userId } },
     },
@@ -66,6 +67,10 @@ export async function fetchAssessorCourseEnrollments(userId: string) {
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
             },
@@ -105,6 +110,10 @@ export async function fetchCreatedCourseDetail(userId: string, courseId: string)
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
             },
@@ -132,6 +141,10 @@ export async function fetchCreatedCourseDetail(userId: string, courseId: string)
                   slug: true,
                   name: true,
                   description: true,
+                  imageUrl: true,
+                  imagePositionX: true,
+                  imagePositionY: true,
+                  imageScale: true,
                 },
               },
             },
@@ -232,6 +245,10 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                 select: {
                   id: true,
                   description: true,
+                  imageUrl: true,
+                  imagePositionX: true,
+                  imagePositionY: true,
+                  imageScale: true,
                   slug: true,
 
                   name: true,
@@ -277,6 +294,10 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
               badgeProgress: {
@@ -291,12 +312,37 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                   updatedAt: true,
                 },
               },
+              assessmentAttempts: {
+                where: { courseId, badgeId },
+                orderBy: [{ completedAt: 'asc' }, { createdAt: 'asc' }],
+                select: {
+                  id: true,
+                  passed: true,
+                  completedAt: true,
+                  createdAt: true,
+                },
+              },
+              surveyResponses: {
+                where: {
+                  prompt: { badgeId, context: 'BADGE' },
+                },
+                orderBy: { submittedAt: 'desc' },
+                select: {
+                  id: true,
+                  rating: true,
+                  comment: true,
+                  submittedAt: true,
+                  prompt: { select: { id: true, question: true, context: true } },
+                },
+              },
               // Progress on the badge's requirement lessons, used to tell a
               // LEARNING row the student has actually worked on apart from one
-              // eagerly created at badge creation/import (still "not started").
+              // eagerly created at badge creation/import (still "not started"),
+              // and to split "still learning" by how far they got.
               lessonProgress: {
                 where: { lesson: { badgeRequirements: { some: { badgeId } } } },
                 select: {
+                  lessonId: true,
                   status: true,
                   startedAt: true,
                   completedAt: true,
@@ -349,6 +395,10 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
             },
@@ -381,6 +431,10 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
                   slug: true,
                   name: true,
                   description: true,
+                  imageUrl: true,
+                  imagePositionX: true,
+                  imagePositionY: true,
+                  imageScale: true,
                   availableOn: true,
                   closesOn: true,
                   neverCloses: true,
@@ -457,6 +511,10 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
                   slug: true,
                   name: true,
                   description: true,
+                  imageUrl: true,
+                  imagePositionX: true,
+                  imagePositionY: true,
+                  imageScale: true,
                 },
               },
             },
@@ -481,6 +539,10 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
               gender: true,
@@ -580,6 +642,10 @@ export async function fetchCreatedCourseMemberDetail(userId: string, courseId: s
                   slug: true,
                   name: true,
                   description: true,
+                  imageUrl: true,
+                  imagePositionX: true,
+                  imagePositionY: true,
+                  imageScale: true,
                 },
               },
             },
@@ -604,6 +670,10 @@ export async function fetchCreatedCourseMemberDetail(userId: string, courseId: s
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
               gender: true,
@@ -683,6 +753,10 @@ export async function fetchEnrolledCourses(userId: string) {
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
             },

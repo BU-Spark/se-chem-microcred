@@ -1,10 +1,3 @@
-.title {
-  margin: 0 0 1.25rem;
-  font-family: 'Lato', sans-serif;
-  font-size: 2rem;
-  font-weight: 700;
-  color: #111111;
-}
 
 .muted {
   font-family: 'Open Sans', sans-serif;
@@ -29,12 +22,12 @@
 .item {
   border: 2px solid #e2e2e2;
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 1rem 1.25rem;
 }
 
 .itemUnread {
-  border-color: #2e6aa9;
+  border-color: var(--checkd-blue);
   background: #f5f9ff;
 }
 
@@ -73,4 +66,66 @@
   line-height: 1.5;
   color: #1f2937;
   white-space: pre-wrap;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 0 1.25rem;
+  max-width: 760px;
+}
+
+.tab {
+  border: 2px solid #e2e2e2;
+  border-radius: 999px;
+  background: var(--checkd-white);
+  padding: 0.4rem 1.1rem;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+.tab:hover {
+  border-color: #c7d6e6;
+}
+
+.tabActive {
+  border-color: var(--checkd-blue);
+  background: #f5f9ff;
+  color: var(--checkd-blue);
+}
+
+.readCount {
+  display: inline-block;
+  border-radius: 999px;
+  background: #eef2f7;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.8rem;
+  color: #374151;
+}
+
+.orderControl {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.orderLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.82rem;
+  color: #6b7280;
+}
+
+.orderSelect {
+  border: 2px solid #e2e2e2;
+  border-radius: 999px;
+  background: var(--checkd-white);
+  padding: 0.35rem 0.75rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  color: #374151;
+  cursor: pointer;
 }

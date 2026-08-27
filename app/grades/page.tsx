@@ -7,6 +7,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../hooks/useStudentData';
 import shellStyles from '../page.module.css';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import PageHeading from '@/app/components/PageHeading/PageHeading';
 
 export default function GradesPage() {
   const router = useRouter();
@@ -46,8 +47,7 @@ export default function GradesPage() {
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={shellStyles.main}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Grades</h1>
-        <p style={{ color: '#4b5563' }}>Gradebook coming soon.</p>
+        <PageHeading title="Grades" subtitle="Gradebook coming soon." />
       </main>
     </div>
   );

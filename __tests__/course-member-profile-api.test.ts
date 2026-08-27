@@ -1,4 +1,5 @@
 /** @jest-environment node */
+// Issues: #247 badge image zoom, #258 multi-word last names
 
 import { NextRequest } from 'next/server';
 import { BadgeStatus, CourseRole, EnrollmentStatus, LessonStatus } from '@prisma/client';
@@ -17,6 +18,9 @@ jest.mock('../lib/prisma', () => {
     enrollment: {
       findMany: jest.fn(),
     },
+    assessmentAttempt: {
+      findMany: jest.fn(),
+    },
   };
 
   return { __esModule: true, default: prisma, prisma };
@@ -27,6 +31,9 @@ const mockFetchAccessibleCourseMemberDetail = fetchAccessibleCourseMemberDetail 
 >;
 const mockFetchUserByEmail = fetchUserByEmail as jest.MockedFunction<typeof fetchUserByEmail>;
 const mockFindManyEnrollments = prisma.enrollment.findMany as jest.MockedFunction<typeof prisma.enrollment.findMany>;
+const mockFindManyAttempts = prisma.assessmentAttempt.findMany as jest.MockedFunction<
+  typeof prisma.assessmentAttempt.findMany
+>;
 
 function profileRequest() {
   return new NextRequest('http://localhost/api/courses/course-1/students/student-1?email=prof%40example.edu');
@@ -44,6 +51,10 @@ function badge(id: string, name: string) {
     slug: id,
     name,
     description: null,
+    imageUrl: null,
+    imagePositionX: 50,
+    imagePositionY: 50,
+    imageScale: 115,
   };
 }
 
@@ -58,7 +69,7 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
     settings: {
       id: 'settings-1',
       courseId: 'course-1',
-      allowAssessorMessages: true,
+      allowCheckerMessages: true,
       allowCooldownOverride: false,
       allowCrossSectionView: true,
       createdAt,
@@ -111,6 +122,8 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
         student: {
           id: 'prof-1',
           name: 'Professor Demo',
+          firstName: 'Professor',
+          lastName: 'Demo',
           email: 'prof@example.edu',
           externalId: 'P111',
           gender: null,
@@ -130,6 +143,8 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
         student: {
           id: 'student-1',
           name: 'Jane Student',
+          firstName: 'Jane',
+          lastName: 'Student',
           email: 'student@example.edu',
           externalId: 'U11111111',
           gender: null,
@@ -166,6 +181,7 @@ describe('course member profile API badge grouping', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockFindManyEnrollments.mockResolvedValue([]);
+    mockFindManyAttempts.mockResolvedValue([]);
     mockFetchUserByEmail.mockResolvedValue({
       id: 'prof-1',
       email: 'prof@example.edu',
@@ -183,7 +199,7 @@ describe('course member profile API badge grouping', () => {
 
     expect(response.status).toBe(200);
     expect(body.badges.notStarted).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'badge-seeded' })]));
-    expect(body.badges.inProgress).not.toEqual(
+    expect(body.badges.stillLearning).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'badge-seeded' })])
     );
   });
@@ -195,9 +211,83 @@ describe('course member profile API badge grouping', () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.badges.inProgress).toEqual(expect.arrayContaining([expect.objectContaining({ id: 'badge-started' })]));
+    expect(body.badges.stillLearning).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'badge-started' })])
+    );
     expect(body.badges.notStarted).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ id: 'badge-started' })])
     );
+  });
+
+  // The profile groups badges with the same rule as the course badge page
+  // (lib/badgeCohorts.ts), so a failed in-person attempt outranks lesson progress.
+  it('moves a badge with a failed in-person attempt into still learning', async () => {
+    mockFetchAccessibleCourseMemberDetail.mockResolvedValue(courseFixture({ seededLearningBadgeStarted: false }));
+    mockFindManyAttempts.mockResolvedValue([{ badgeId: 'badge-seeded', passed: false }] as never);
+
+    const response = await GET(profileRequest(), routeContext());
+    const body = await response.json();
+
+    expect(body.badges.stillLearning).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: 'badge-seeded', stage: 'ATTEMPT_FAILED', attemptCount: 1 }),
+      ])
+    );
+    expect(body.badges.notStarted).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'badge-seeded' })])
+    );
+  });
+
+  // A student may be enrolled in several courses under different instructors, so
+  // attempts are read for this course only.
+  it('reads assessment attempts scoped to this course and student', async () => {
+    mockFetchAccessibleCourseMemberDetail.mockResolvedValue(courseFixture({ seededLearningBadgeStarted: true }));
+
+    await GET(profileRequest(), routeContext());
+
+    expect(mockFindManyAttempts).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ courseId: 'course-1', studentId: 'student-1' }),
+      })
+    );
+  });
+  // A student may be enrolled with several instructors. The profile is scoped to
+  // one course, so nothing from another course may appear — not in any cohort,
+  // even when the student carries progress rows for those badges.
+  describe('course scoping', () => {
+    it('never surfaces a badge that no lesson in this course requires', async () => {
+      const fixture = courseFixture({ seededLearningBadgeStarted: true });
+      // Simulate the query leaking a foreign progress row: the badge belongs to a
+      // different instructor's course and has no requirement here.
+      fixture.enrollments[1].student.badgeProgress.push({
+        id: 'student-badge-foreign',
+        badgeId: 'badge-from-other-course',
+        status: BadgeStatus.COMPLETED,
+        awardedAt: new Date('2026-05-01T00:00:00.000Z'),
+        score: 100,
+        badge: badge('badge-from-other-course', 'Other Course Badge'),
+      } as never);
+      mockFetchAccessibleCourseMemberDetail.mockResolvedValue(fixture);
+
+      const body = await (await GET(profileRequest(), routeContext())).json();
+
+      const everyBadgeId = [...body.badges.proficient, ...body.badges.stillLearning, ...body.badges.notStarted].map(
+        (entry: { id: string }) => entry.id
+      );
+
+      expect(everyBadgeId).not.toContain('badge-from-other-course');
+      // Only this course's two badges are reported.
+      expect(everyBadgeId.sort()).toEqual(['badge-seeded', 'badge-started']);
+    });
+
+    it('scopes the badge list to the lessons of the requested course', async () => {
+      mockFetchAccessibleCourseMemberDetail.mockResolvedValue(courseFixture({ seededLearningBadgeStarted: true }));
+
+      await GET(profileRequest(), routeContext());
+
+      // The course lookup itself carries both the course id and the member id, so
+      // a viewer cannot read a student who is not enrolled here.
+      expect(mockFetchAccessibleCourseMemberDetail).toHaveBeenCalledWith('prof-1', 'course-1', 'student-1');
+    });
   });
 });

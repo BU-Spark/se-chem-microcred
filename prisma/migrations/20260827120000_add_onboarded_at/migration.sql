@@ -1,0 +1,14 @@
+-- Onboarding gate — Stage 1 (additive).
+--
+-- Records when a user actually completed POST /api/onboarding. Until now nothing
+-- did: the only thing routing anyone to /onboarding was the client-side
+-- `forceRedirectUrl` prop on Clerk's <SignUp>, which fires only if sign-up
+-- completes inside that mounted component. Any other path to an active session --
+-- an email-code verification finished in a second tab, an interrupted
+-- password sign-up, a roster-imported student's first sign-in -- lands on "/"
+-- already signed in, and ensureCurrentUser() then provisions the row on the very
+-- next page load. The result was indistinguishable from a completed onboarding,
+-- so the user was never asked again.
+--
+-- NULL means "has not onboarded". Stage 2 backfills the rows that plainly did.
+ALTER TABLE "Student" ADD COLUMN "onboardedAt" TIMESTAMP(3);

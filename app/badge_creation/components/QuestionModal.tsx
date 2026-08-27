@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 
-import Modal from '../../components/Modal';
+import Modal from '../../components/Modal/Modal';
 import styles from './QuestionModal.module.css';
 
 // Focus-trapped modal shell for editing a checkpoint question. Content is

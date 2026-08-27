@@ -12,7 +12,7 @@
   font-size: 1rem;
   font-weight: 600;
   line-height: 1;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   text-decoration: none;
   cursor: pointer;
 }
@@ -23,7 +23,7 @@
 }
 
 .backButton:focus-visible {
-  outline: 2px solid #2e6aa9;
+  outline: 2px solid var(--checkd-blue);
   outline-offset: 3px;
   border-radius: 4px;
 }

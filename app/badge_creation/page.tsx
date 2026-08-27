@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
@@ -9,7 +9,8 @@ import BackButton from '@/app/components/BackButton/BackButton';
 import { useStudentData } from '../hooks/useStudentData';
 import styles from './page.module.css';
 
-import { DEFAULT_DRAFT, DRAFT_STORAGE_KEY, STEP_DEFINITIONS } from './types';
+import { DEFAULT_DRAFT, DRAFT_MAX_AGE_MS, STEP_DEFINITIONS, badgeDraftStorageKey } from './types';
+import type { StoredBadgeDraft } from './types';
 import type {
   BadgeDraft,
   BadgesResponse,
@@ -70,6 +71,7 @@ function makeDefaultCheckpointQuestion(id = `question-${Date.now()}`): Checkpoin
     unit: '',
     incorrectFeedback: '',
     incorrectFeedbackEnabled: false,
+    points: 1,
   };
 }
 
@@ -113,6 +115,9 @@ export default function BadgeCreationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingEditBadge, setIsLoadingEditBadge] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
+  const draftStorageKey = badgeDraftStorageKey(user?.primaryEmailAddress?.emailAddress);
+  const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+  const [didRestoreDraft, setDidRestoreDraft] = useState(false);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
@@ -121,13 +126,22 @@ export default function BadgeCreationPage() {
   }, [isLoaded, isSignedIn, isSigningOut, router]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || isEditMode) return;
+    if (typeof window === 'undefined' || isEditMode || !draftStorageKey) return;
 
-    const storedDraft = window.localStorage.getItem(DRAFT_STORAGE_KEY);
-    if (!storedDraft) return;
+    const storedDraft = window.localStorage.getItem(draftStorageKey);
+    if (!storedDraft) {
+      setHasRestoredDraft(true);
+      return;
+    }
 
     try {
-      const parsed = JSON.parse(storedDraft) as Partial<BadgeDraft>;
+      const stored = JSON.parse(storedDraft) as StoredBadgeDraft;
+      if (!stored?.draft || typeof stored.savedAt !== 'number' || Date.now() - stored.savedAt > DRAFT_MAX_AGE_MS) {
+        window.localStorage.removeItem(draftStorageKey);
+        return;
+      }
+
+      const parsed = stored.draft as Partial<BadgeDraft>;
       const parsedCheckpoints =
         parsed.checkpoints?.length === 1 && isLegacyEmptyCheckpointSeed(parsed.checkpoints[0])
           ? []
@@ -142,15 +156,31 @@ export default function BadgeCreationPage() {
         reassessmentResources: parsed.reassessmentResources ?? current.reassessmentResources,
         rubricGoal: parsed.rubricGoal ?? current.rubricGoal,
       }));
+      setDidRestoreDraft(true);
     } catch {
-      window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+      window.localStorage.removeItem(draftStorageKey);
+    } finally {
+      setHasRestoredDraft(true);
     }
-  }, [isEditMode]);
+  }, [isEditMode, draftStorageKey]);
 
   useEffect(() => {
-    if (typeof window === 'undefined' || isEditMode) return;
-    window.localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
-  }, [draft, isEditMode]);
+    if (typeof window === 'undefined' || isEditMode || !draftStorageKey || !hasRestoredDraft) return;
+
+    if (JSON.stringify(draft) === JSON.stringify(DEFAULT_DRAFT)) {
+      window.localStorage.removeItem(draftStorageKey);
+      return;
+    }
+    const stored: StoredBadgeDraft = { savedAt: Date.now(), draft };
+    window.localStorage.setItem(draftStorageKey, JSON.stringify(stored));
+  }, [draft, isEditMode, draftStorageKey, hasRestoredDraft]);
+
+  const discardRestoredDraft = useCallback(() => {
+    if (draftStorageKey) window.localStorage.removeItem(draftStorageKey);
+    setDraft(DEFAULT_DRAFT);
+    setCurrentStep(0);
+    setDidRestoreDraft(false);
+  }, [draftStorageKey]);
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn || !editBadgeId) return;
@@ -377,7 +407,6 @@ export default function BadgeCreationPage() {
             id,
             title: `Checkpoint ${nextCount}`,
             time,
-            points: 5,
             questions: [makeDefaultCheckpointQuestion('question-1')],
             segmentLabel: `Segment ${nextCount} Starts ${time}`,
           },
@@ -468,6 +497,24 @@ export default function BadgeCreationPage() {
     );
   };
 
+  const validateSubgoals = (subgoals: RubricSubgoalDraft[]) => {
+    for (const subgoal of subgoals) {
+      if (subgoal.text.trim().length < 1) {
+        setSubmitError('Subgoals can not be blank');
+        return true;
+      }
+      for (const task of subgoal.tasks) {
+        if (task.text.trim().length < 1) {
+          setSubmitError('Tasks must contain text');
+          return true;
+        }
+      }
+    }
+
+    setSubmitError('');
+    return false;
+  };
+
   const goToStep = (stepIndex: number) => {
     setCurrentStep(stepIndex);
     setSubmissionState(null);
@@ -541,6 +588,12 @@ export default function BadgeCreationPage() {
       return;
     }
 
+    // Require a rubric subgoal before leaving
+
+    if (currentStep === 3 && validateSubgoals(draft.rubricGoal.subgoals)) {
+      return;
+    }
+
     if (currentStep < STEP_DEFINITIONS.length - 1) {
       setCurrentStep((step) => step + 1);
       return;
@@ -552,7 +605,7 @@ export default function BadgeCreationPage() {
     try {
       await saveBadge();
       if (typeof window !== 'undefined') {
-        window.localStorage.removeItem(DRAFT_STORAGE_KEY);
+        if (draftStorageKey) window.localStorage.removeItem(draftStorageKey);
       }
       setSubmissionState(`Badge ${isEditMode ? 'updated' : 'created'} successfully.`);
       setIsSuccessModalOpen(true);
@@ -571,8 +624,17 @@ export default function BadgeCreationPage() {
       <main className={`main ${styles.main}`}>
         <div className={styles.pageShell}>
           <header className={styles.pageHeader}>
-            <h1 className={styles.pageTitle}>{isEditMode ? 'Edit Badge' : 'Create a Badge'}</h1>
+            <h1 className="page-heading">{isEditMode ? 'Edit Badge' : 'Create a Badge'}</h1>
           </header>
+
+          {didRestoreDraft ? (
+            <div className={styles.draftNotice} role="status">
+              <span>We brought back the badge you started earlier.</span>
+              <button type="button" className={styles.draftNoticeAction} onClick={discardRestoredDraft}>
+                Start a new badge
+              </button>
+            </div>
+          ) : null}
 
           <section className={styles.progressTrack} aria-label="Badge creation steps">
             {STEP_DEFINITIONS.map((step, index) => (
@@ -580,19 +642,23 @@ export default function BadgeCreationPage() {
             ))}
           </section>
 
-          <section className={styles.canvasCard}>
+          <section
+            className={`${styles.canvasCard} ${
+              activeStep.key === 'rubric' || activeStep.key === 'review' ? styles.canvasCardBare : ''
+            }`.trim()}
+          >
             <div className={styles.cardHeader}>
               <div>
                 <p className={styles.cardEyebrow}>{activeStep.label}</p>
-                <h2 className={styles.cardTitle}>
-                  {activeStep.key === 'checkpoints' ? 'Add Checkpoints for:' : draft.badgeName}
-                </h2>
-                {activeStep.key === 'checkpoints' && (
-                  <p className={styles.cardSubtitle}>
-                    Select where you want to add a checkpoint in the video timeline, and click the plus button to create
-                    the checkpoint.
-                  </p>
+                {/* The rubric step leads straight into its Goal field — repeating the
+                    badge name under the eyebrow duplicated the goal it seeds. */}
+                {activeStep.key !== 'rubric' && (
+                  <h2 className={styles.cardTitle}>
+                    {activeStep.key === 'checkpoints' ? 'Add Checkpoints for:' : draft.badgeName}
+                  </h2>
                 )}
+                {/* The checkpoints step owns its own subtitle so it can swap it
+                    out when the instructor switches to the student preview tab. */}
               </div>
             </div>
 
@@ -642,6 +708,7 @@ export default function BadgeCreationPage() {
             <div className={styles.navigationRow}>
               <BackButton
                 inline
+                className={styles.stepBackButton}
                 onClick={() => setCurrentStep((step) => Math.max(step - 1, 0))}
                 disabled={currentStep === 0}
               />
@@ -651,15 +718,24 @@ export default function BadgeCreationPage() {
                 onClick={handleNext}
                 disabled={isSubmitting || isLoadingEditBadge}
               >
-                {currentStep === STEP_DEFINITIONS.length - 1
-                  ? isSubmitting
-                    ? isEditMode
-                      ? 'Saving...'
-                      : 'Creating...'
-                    : isEditMode
-                      ? 'Save Badge'
-                      : 'Create Badge'
-                  : 'Next'}
+                {currentStep === STEP_DEFINITIONS.length - 1 ? (
+                  isSubmitting ? (
+                    isEditMode ? (
+                      'Saving...'
+                    ) : (
+                      'Creating...'
+                    )
+                  ) : isEditMode ? (
+                    'Save Badge'
+                  ) : (
+                    'Create Badge'
+                  )
+                ) : (
+                  <>
+                    Next
+                    <span aria-hidden="true">→</span>
+                  </>
+                )}
               </button>
             </div>
           </section>
@@ -671,6 +747,11 @@ export default function BadgeCreationPage() {
           isEditMode={isEditMode}
           courseId={courseId}
           badgeName={draft.badgeName}
+          imageUrl={draft.imageUrl}
+          imagePositionX={draft.imagePositionX}
+          imagePositionY={draft.imagePositionY}
+          imageScale={draft.imageScale}
+          youtubeUrl={draft.youtubeUrl}
           onClose={handleSuccessClose}
         />
       ) : null}

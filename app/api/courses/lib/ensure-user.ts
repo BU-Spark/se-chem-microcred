@@ -1,3 +1,4 @@
+// Issues: #258 multi-word last names
 import { currentUser } from '@clerk/nextjs/server';
 import { Prisma } from '@prisma/client';
 
@@ -7,6 +8,9 @@ const USER_SELECT = {
   id: true,
   email: true,
   name: true,
+  // Issue #258: callers render the name, so they need the discrete parts too.
+  firstName: true,
+  lastName: true,
   externalId: true,
   avatar: { select: { base: true } },
 } as const;
@@ -17,9 +21,13 @@ function isUniqueViolation(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002';
 }
 
-function clerkName(user: NonNullable<Awaited<ReturnType<typeof currentUser>>>): string | null {
-  const full = user.fullName?.trim() || [user.firstName, user.lastName].filter(Boolean).join(' ').trim();
-  return full || null;
+// Issue #258: Clerk already holds first and last separately, so carry both
+// through instead of collapsing them into a string the app would have to re-split.
+function clerkName(user: NonNullable<Awaited<ReturnType<typeof currentUser>>>) {
+  const firstName = user.firstName?.trim() || null;
+  const lastName = user.lastName?.trim() || null;
+  const full = user.fullName?.trim() || [firstName, lastName].filter(Boolean).join(' ').trim();
+  return { name: full || null, firstName, lastName };
 }
 
 /**
@@ -30,7 +38,7 @@ function clerkName(user: NonNullable<Awaited<ReturnType<typeof currentUser>>>): 
  *
  * Idempotent and non-destructive: it never overwrites profile data the user has
  * already set; it only fills in a missing name and guarantees an analytics row.
- * Safe under the concurrent calls the home page makes (created/enrolled/assessor
+ * Safe under the concurrent calls the home page makes (created/enrolled/checker
  * fire in parallel): a losing INSERT race throws P2002, which we treat as "already
  * exists" and read back. Returns null when there is no authenticated user.
  */
@@ -43,14 +51,14 @@ export async function ensureCurrentUser(): Promise<EnsuredUser | null> {
     return null;
   }
 
-  const name = clerkName(clerk);
+  const { name, firstName, lastName } = clerkName(clerk);
 
   let user: EnsuredUser;
   try {
     user = await prisma.user.upsert({
       where: { email },
       update: {},
-      create: { email, name },
+      create: { email, name, firstName, lastName },
       select: USER_SELECT,
     });
   } catch (error) {
@@ -63,11 +71,18 @@ export async function ensureCurrentUser(): Promise<EnsuredUser | null> {
   // user.id and don't depend on each other, so run them concurrently to save a
   // network round-trip on this hot auth path.
   const backfillName = !user.name && name;
+  // Issue #258: an existing row may have a name but no discrete parts (written
+  // before this migration, or by the roster CSV path). Fill those independently
+  // of the name backfill so a legacy row gets repaired on the owner's next request.
+  const backfillParts = !user.firstName && firstName;
 
   await Promise.all([
     // Backfill a missing name from Clerk without clobbering an existing one.
     // updateMany with name:null is a no-op for concurrent callers that already set it.
     backfillName ? prisma.user.updateMany({ where: { id: user.id, name: null }, data: { name } }) : Promise.resolve(),
+    backfillParts
+      ? prisma.user.updateMany({ where: { id: user.id, firstName: null }, data: { firstName, lastName } })
+      : Promise.resolve(),
     // Guarantee an analytics row exists (other queries assume one may be present).
     prisma.studentAnalytics
       .upsert({
@@ -82,6 +97,9 @@ export async function ensureCurrentUser(): Promise<EnsuredUser | null> {
 
   if (backfillName) {
     user = { ...user, name };
+  }
+  if (backfillParts) {
+    user = { ...user, firstName, lastName };
   }
 
   return user;

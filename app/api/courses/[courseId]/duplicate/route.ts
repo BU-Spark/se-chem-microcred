@@ -77,7 +77,7 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
             settings: {
               create: {
                 allowCooldownOverride: source.settings?.allowCooldownOverride ?? false,
-                allowAssessorMessages: source.settings?.allowAssessorMessages ?? false,
+                allowCheckerMessages: source.settings?.allowCheckerMessages ?? false,
                 allowCrossSectionView: source.settings?.allowCrossSectionView ?? false,
               },
             },

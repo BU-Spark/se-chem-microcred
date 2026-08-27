@@ -8,6 +8,7 @@ import prisma from '@/lib/prisma';
 import {
   normalizeCorrectIndices,
   normalizeOptions,
+  normalizePoints,
   normalizeRichText,
   normalizeString,
   buildQuestionOptions,
@@ -32,9 +33,11 @@ function buildCheckpointQuestionsWithSummary(checkpoint: CheckpointPayload) {
       const prompt = getQuestionPrompt(question);
       const questionType = question.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice';
       const options = questionType === 'multipleChoice' ? normalizeOptions(question.options) : [];
+      const points = normalizePoints(question.points, 1);
       return {
         sortOrder: questionIndex,
         prompt,
+        points,
         questionOptions: buildQuestionOptions(question),
         summary: {
           number: questionIndex + 1,
@@ -48,16 +51,11 @@ function buildCheckpointQuestionsWithSummary(checkpoint: CheckpointPayload) {
           unit: normalizeString(question.unit),
           incorrectFeedback: normalizeString(question.incorrectFeedback),
           incorrectFeedbackEnabled: Boolean(normalizeString(question.incorrectFeedback)),
+          points,
         },
       };
     })
     .filter((question) => Boolean(question.prompt));
-}
-
-function normalizePoints(value: number | string | null | undefined, fallback: number) {
-  const parsed = typeof value === 'string' ? Number(value) : value;
-  if (typeof parsed !== 'number' || !Number.isFinite(parsed)) return fallback;
-  return Math.max(0, Math.round(parsed));
 }
 
 // Lesson passing threshold: percent of checkpoint questions a student must get
@@ -235,7 +233,9 @@ function buildRequirementSummary({
           number: index + 1,
           title: normalizeString(checkpoint.title) ?? `Checkpoint ${index + 1}`,
           time: normalizeString(checkpoint.time),
-          points: Number(checkpoint.points) || 0,
+          // Sum of the checkpoint's own questions — points are authored per
+          // question (issue #248); this total is kept for display only.
+          points: questions.reduce((sum, question) => sum + (question.points ?? 0), 0),
           question: firstQuestion?.question ?? null,
           questionType: firstQuestion?.questionType ?? 'multipleChoice',
           segmentLabel: normalizeString(checkpoint.segmentLabel),
@@ -276,6 +276,10 @@ export async function executeFetchBadges(args: FetchBadgesArgs) {
       slug: true,
       name: true,
       description: true,
+      imageUrl: true,
+      imagePositionX: true,
+      imagePositionY: true,
+      imageScale: true,
       availableOn: true,
       closesOn: true,
       neverCloses: true,
@@ -354,6 +358,10 @@ export interface CreateBadgeArgs {
   courseId: string | null;
   badgeName: string;
   badgeDescription: string | null;
+  imageUrl: string | null;
+  imagePositionX: number;
+  imagePositionY: number;
+  imageScale: number;
   videoTitle: string | null;
   youtubeVideoUrl: string | null;
   checkpoints: CheckpointPayload[];
@@ -377,6 +385,10 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
     courseId,
     badgeName,
     badgeDescription,
+    imageUrl,
+    imagePositionX,
+    imagePositionY,
+    imageScale,
     videoTitle,
     youtubeVideoUrl,
     checkpoints,
@@ -429,6 +441,10 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
           slug: sourceBadgeSlug,
           name: badgeName,
           description: badgeDescription,
+          imageUrl,
+          imagePositionX,
+          imagePositionY,
+          imageScale,
           availableOn,
           closesOn,
           neverCloses,
@@ -458,6 +474,10 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
             slug: courseBadgeSlug,
             name: badgeName,
             description: badgeDescription,
+            imageUrl,
+            imagePositionX,
+            imagePositionY,
+            imageScale,
             availableOn,
             closesOn,
             neverCloses,
@@ -537,6 +557,7 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
               prompt: question.prompt!,
               options: question.questionOptions.options,
               correctIndex: question.questionOptions.correctIndex,
+              points: question.points,
             }))
           );
           if (questionData.length > 0) await tx.checkpointQuestion.createMany({ data: questionData });
@@ -589,6 +610,10 @@ interface PatchBadgeArgs {
   badgeId: string;
   badgeName: string;
   badgeDescription: string | null;
+  imageUrl: string | null;
+  imagePositionX: number;
+  imagePositionY: number;
+  imageScale: number;
   editorId: string;
   skills: string[];
   rubricGoal: NormalizedRubricGoal;
@@ -603,7 +628,6 @@ interface PatchBadgeArgs {
   videoSeconds: number | null;
   thumbnailUrl?: string | null;
   passingPercentage: number | null;
-  // Authored assessment policy that flows to students via inheritance.
   badgePolicy?: BadgePolicy;
 }
 
@@ -613,6 +637,10 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
     badgeId,
     badgeName,
     badgeDescription,
+    imageUrl,
+    imagePositionX,
+    imagePositionY,
+    imageScale,
     skills,
     rubricGoal,
     checkpoints,
@@ -633,14 +661,36 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
   return await prisma.$transaction(async (tx) => {
     const badge = await tx.badge.update({
       where: { id: badgeId, createdById: editorId },
-      data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses, ...badgePolicy },
+      data: {
+        name: badgeName,
+        description: badgeDescription,
+        imageUrl,
+        imagePositionX,
+        imagePositionY,
+        imageScale,
+        availableOn,
+        closesOn,
+        neverCloses,
+        ...badgePolicy,
+      },
       select: { id: true, slug: true, name: true, description: true, sourceBadgeId: true },
     });
 
     const familyRootId = badge.sourceBadgeId ?? badge.id;
     await tx.badge.updateMany({
       where: { OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }], NOT: { id: badge.id } },
-      data: { name: badgeName, description: badgeDescription, availableOn, closesOn, neverCloses, ...badgePolicy },
+      data: {
+        name: badgeName,
+        description: badgeDescription,
+        imageUrl,
+        imagePositionX,
+        imagePositionY,
+        imageScale,
+        availableOn,
+        closesOn,
+        neverCloses,
+        ...badgePolicy,
+      },
     });
 
     const firstRequirement = await tx.badgeRequirement.findFirst({
@@ -697,6 +747,7 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
           where: { id: { in: lessonIds } },
           data: {
             title: badgeName,
+            dueDate: neverCloses === true ? null : closesOn,
             passingPercent: passingPercentage ?? undefined,
             estimatedMinutes: videoSeconds ? Math.max(1, Math.round(videoSeconds / 60)) : undefined,
           },
@@ -775,11 +826,13 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
                     prompt: question.prompt!,
                     options: question.questionOptions.options,
                     correctIndex: question.questionOptions.correctIndex,
+                    points: question.points,
                   },
                   update: {
                     prompt: question.prompt!,
                     options: question.questionOptions.options,
                     correctIndex: question.questionOptions.correctIndex,
+                    points: question.points,
                   },
                 });
               }

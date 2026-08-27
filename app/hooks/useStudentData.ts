@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import useSWR from 'swr';
+import useSWR, { useSWRConfig } from 'swr';
 
 import { fetcher } from './lib/fetcher';
 
@@ -11,6 +11,8 @@ export interface StudentData {
   student: {
     id: string;
     name: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string;
     externalId: string | null;
     gender: string | null;
@@ -82,6 +84,9 @@ export interface StudentData {
     pendingBadge: Array<{
       promptId: string;
       badgeId: string;
+      // The badge's course, so course-scoped surfaces can filter these the same
+      // way they filter badges.inReview. Null when no requirement is lesson-backed.
+      courseId: string | null;
       badgeSlug: string | null;
       badgeName: string | null;
       question: string;
@@ -137,6 +142,8 @@ export interface LessonRecord {
       expectedAnswer: number | null;
       tolerancePercent: number;
       acceptedRange: { min: number; max: number } | null;
+      // Weights this question in lesson (QEV) grading (issue #248).
+      points: number;
     }>;
   }>;
   badgeRequirements: Array<{
@@ -157,6 +164,10 @@ export interface BadgeRecord {
   slug: string;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
+  imagePositionX?: number | null;
+  imagePositionY?: number | null;
+  imageScale?: number | null;
   status: BadgeStatus;
   awardedAt: string | null;
   score: number | null;
@@ -164,6 +175,9 @@ export interface BadgeRecord {
   latestAttemptPassed: boolean | null;
   // Reassessment cooldown end; assessment is blocked while now < cooldownUntil.
   cooldownUntil: string | null;
+  // Set when an instructor waived the video-lesson requirement for this student,
+  // which is why the assessment unlocked with the lesson still unfinished.
+  qevWaivedAt?: string | null;
   youtubeUrl: string | null;
   requirements: Array<{
     summary: string | null;
@@ -199,12 +213,24 @@ async function fetchStudentData(url: string): Promise<StudentApiResponse> {
   }
 }
 
+export const STUDENT_DATA_KEY_PREFIX = '/api/demo/student';
+
+export function useRefreshAllStudentData() {
+  const { mutate } = useSWRConfig();
+
+  return useCallback(() => {
+    void mutate((key) => typeof key === 'string' && key.startsWith(STUDENT_DATA_KEY_PREFIX), undefined, {
+      revalidate: true,
+    });
+  }, [mutate]);
+}
+
 export function useStudentData(email?: string | null, courseId?: string | null) {
   const key = useMemo(() => {
     if (!email) return null;
     const params = new URLSearchParams({ email });
     if (courseId) params.set('courseId', courseId);
-    return `/api/demo/student?${params.toString()}`;
+    return `${STUDENT_DATA_KEY_PREFIX}?${params.toString()}`;
   }, [courseId, email]);
 
   const {

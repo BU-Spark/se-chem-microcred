@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-import Modal from './index';
+import Modal from './Modal';
 
 describe('Modal', () => {
   it('exposes accessible dialog semantics', () => {

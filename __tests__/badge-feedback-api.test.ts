@@ -5,18 +5,9 @@ import { BadgeStatus } from '@prisma/client';
 
 import { GET, POST } from '../app/api/badges/[badgeId]/feedback/route';
 import prisma from '../lib/prisma';
-import { isAlphaMode } from '../lib/adminAccess';
 
 jest.mock('@clerk/nextjs/server', () => ({
   currentUser: jest.fn(),
-}));
-
-// The route consults isAlphaMode() to suppress the LOCKED transition during alpha.
-// Mock it so these tests control the flag explicitly rather than depend on the
-// ambient ALPHA_MODE env value (.env sets it true).
-jest.mock('../lib/adminAccess', () => ({
-  __esModule: true,
-  isAlphaMode: jest.fn(),
 }));
 
 jest.mock('../lib/prisma', () => ({
@@ -37,7 +28,6 @@ jest.mock('../lib/prisma', () => ({
 }));
 
 const mockCurrentUser = currentUser as jest.MockedFunction<typeof currentUser>;
-const mockIsAlphaMode = isAlphaMode as jest.MockedFunction<typeof isAlphaMode>;
 const mockPrisma = prisma as unknown as {
   user: { findUnique: jest.Mock };
   studentBadge: { findUnique: jest.Mock; update: jest.Mock };
@@ -57,8 +47,8 @@ const studentBadge = {
   awardedAt: null,
   cooldownUntil: null,
   feedbackReviewedAt: null,
-  // Per-student override that allows retries so a single fail routes back to
-  // READY_FOR_ASSESSMENT rather than immediately LOCKED (systemDefault limit is 0).
+  // Per-student override, deliberately tighter than the system default of 3 so the
+  // lock-out case below is reachable with a small attempt count.
   reassessmentLimit: 2,
   cooldownDays: 0,
   reassessmentRequired: false,
@@ -88,9 +78,9 @@ const failedAttempt = {
   pointsPossible: 5,
   feedback: 'Review PPE expectations.',
   completedAt: new Date('2026-07-02T12:00:00.000Z'),
-  assessor: {
-    name: 'Assessor Demo',
-    email: 'assessor@example.edu',
+  checker: {
+    name: 'Checker Demo',
+    email: 'checker@example.edu',
   },
   responses: [
     {
@@ -108,9 +98,6 @@ const failedAttempt = {
 describe('/api/badges/[badgeId]/feedback', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    // Default to alpha off so these tests exercise the real locking logic; the
-    // alpha-suppression case sets it true explicitly.
-    mockIsAlphaMode.mockReturnValue(false);
     mockCurrentUser.mockResolvedValue({
       emailAddresses: [{ emailAddress: 'student@example.edu' }],
     } as Awaited<ReturnType<typeof currentUser>>);
@@ -124,7 +111,7 @@ describe('/api/badges/[badgeId]/feedback', () => {
     });
   });
 
-  it('returns the latest assessor rubric feedback for the signed-in student', async () => {
+  it('returns the latest checker rubric feedback for the signed-in student', async () => {
     const response = await GET(new Request('http://localhost/api/badges/badge-1/feedback'), routeContext());
     const body = await response.json();
 
@@ -195,25 +182,41 @@ describe('/api/badges/[badgeId]/feedback', () => {
     );
   });
 
-  it('suppresses the lock and stays retryable when alpha mode is on', async () => {
-    mockIsAlphaMode.mockReturnValue(true);
-    // Budget exhausted (count 3 > limit 2): without alpha this would LOCK.
-    mockPrisma.assessmentAttempt.count.mockResolvedValue(3);
-    mockPrisma.studentBadge.update.mockResolvedValue({
-      status: BadgeStatus.READY_FOR_ASSESSMENT,
-      cooldownUntil: null,
+  // A checker override downgrades a passing result to "still learning" and records a
+  // failing attempt. That is a real assessment outcome, not a clerical correction, so
+  // it spends an attempt like any other fail. Do NOT add an isOverride exclusion to
+  // the count below: the checker override and the instructor's roster-level grade
+  // override both write isOverride rows, so exempting them here would silently hand
+  // the student unlimited retries.
+  it('spends a reassessment attempt when the fail came from a checker override', async () => {
+    mockPrisma.assessmentAttempt.findFirst.mockResolvedValue({
+      ...failedAttempt,
+      responses: [
+        {
+          id: 'response-override',
+          subgoalText: 'Checker override',
+          points: 0,
+          passed: false,
+          feedback: 'Spilled acid and did not report it.',
+          isOverride: true,
+          sortOrder: 1,
+        },
+      ],
     });
+    // reassessmentLimit 2 => total allowed 3; this override is the 3rd fail.
+    mockPrisma.assessmentAttempt.count.mockResolvedValue(3);
+    mockPrisma.studentBadge.update.mockResolvedValue({ status: BadgeStatus.LOCKED, cooldownUntil: null });
 
     const response = await POST(new Request('http://localhost/api/badges/badge-1/feedback'), routeContext());
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.status).toBe(BadgeStatus.READY_FOR_ASSESSMENT);
-    expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ status: BadgeStatus.READY_FOR_ASSESSMENT }),
-      })
-    );
+    expect(body.status).toBe(BadgeStatus.LOCKED);
+
+    // The budget counts every failed attempt; overrides are not filtered out.
+    expect(mockPrisma.assessmentAttempt.count).toHaveBeenCalledWith({
+      where: { studentId: 'student-1', badgeId: 'badge-1', passed: false },
+    });
   });
 
   it('does not acknowledge a badge with no failed assessment feedback', async () => {

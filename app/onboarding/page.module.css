@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  background: #ffffff;
+  background: var(--checkd-white);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -20,7 +20,7 @@
   font-family: 'Lato', sans-serif;
   font-size: 1.65rem;
   font-weight: 700;
-  color: #000000;
+  color: var(--checkd-black);
   text-align: center;
 }
 
@@ -28,7 +28,7 @@
   position: relative;
   width: min(560px, 94%);
   min-height: 320px;
-  background: #ffffff;
+  background: var(--checkd-white);
   border: 4px solid #d9d9d9;
   border-radius: 40px;
   padding: 36px 44px 32px;
@@ -41,7 +41,7 @@
   font-family: 'Lato', sans-serif;
   font-size: 1.6rem;
   font-weight: 700;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .cardSubtitle {
@@ -59,17 +59,17 @@
 
 .underlineInput {
   border: none;
-  border-bottom: 1px solid #000000;
+  border-bottom: 1px solid var(--checkd-black);
   background: transparent;
   outline: none;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
   padding: 0 0 8px;
 }
 
 .underlineInput::placeholder {
-  color: #000000;
+  color: var(--checkd-black);
   opacity: 0.85;
   font-style: italic;
 }
@@ -89,7 +89,7 @@
   margin: 0;
   font-size: 16px;
   line-height: 1.35;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .checkList {
@@ -110,7 +110,7 @@
 .checkRow input {
   width: 16px;
   height: 16px;
-  accent-color: #2e6aa9;
+  accent-color: var(--checkd-blue);
 }
 
 .select {
@@ -119,7 +119,7 @@
   padding: 8px 12px;
   border: 1px solid #c9ced6;
   border-radius: 10px;
-  background: #ffffff;
+  background: var(--checkd-white);
   font-family: 'Open Sans', sans-serif;
   font-size: 0.95rem;
   color: #1a1a1a;
@@ -139,13 +139,15 @@
   width: 116px;
   height: 116px;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--checkd-white);
   border: 2px solid #e3e6ea;
   display: grid;
   place-items: center;
   cursor: pointer;
   overflow: hidden;
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .avatarOption:hover {
@@ -153,8 +155,8 @@
 }
 
 .avatarOptionSelected {
-  border-color: #2e6aa9;
-  box-shadow: 0 0 0 3px rgba(46, 106, 169, 0.25);
+  border-color: var(--checkd-blue);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-rgb) / 0.25);
 }
 
 .avatarImage {
@@ -178,14 +180,14 @@
   font-family: 'Lato', sans-serif;
   font-size: 1.5rem;
   font-weight: 700;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .allSetAvatar {
   width: 200px;
   height: 200px;
   border-radius: 50%;
-  border: 1px solid #2e6aa9;
+  border: 1px solid var(--checkd-blue);
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -202,8 +204,8 @@
   padding: 10px 22px;
   border: none;
   border-radius: 16px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font-family: 'Lato', sans-serif;
   font-size: 1rem;
   cursor: pointer;
@@ -211,7 +213,7 @@
 }
 
 .letsGo:hover {
-  filter: brightness(1.05);
+  background: var(--checkd-blue-low);
 }
 
 .letsGo:disabled {
@@ -232,8 +234,8 @@
 .backButton {
   background: transparent;
   border: none;
-  border-bottom: 1px solid #000000;
-  color: #000000;
+  border-bottom: 1px solid var(--checkd-black);
+  color: var(--checkd-black);
   font-family: 'Lato', sans-serif;
   font-size: 1rem;
   padding: 0 0 2px;
@@ -248,8 +250,8 @@
   padding: 10px 26px;
   border: none;
   border-radius: 19px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font-family: 'Lato', sans-serif;
   font-size: 1.05rem;
   cursor: pointer;
@@ -257,7 +259,7 @@
 }
 
 .nextButton:hover {
-  filter: brightness(1.05);
+  background: var(--checkd-blue-low);
 }
 
 .nextButton:disabled {

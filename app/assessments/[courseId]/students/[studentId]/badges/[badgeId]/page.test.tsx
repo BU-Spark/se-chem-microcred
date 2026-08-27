@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import AssessmentReadinessPage from './page';
 
@@ -69,6 +69,10 @@ function createBadgePayload() {
       percentComplete: 100,
       precheckComplete: true,
       assessmentComplete: false,
+      // The server-owned assess gate: true only while the badge sits at
+      // READY_FOR_ASSESSMENT.
+      canAssess: true,
+      awaitingStudentReview: false,
       currentCheckpoint: null,
       totalCheckpoints: 2,
       completedCheckpoints: 2,
@@ -115,6 +119,116 @@ describe('Assessment readiness page', () => {
     global.fetch = mockFetch as unknown as typeof fetch;
   });
 
+  it('previews the rubric read-only before the assessment starts', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        const payload = createBadgePayload();
+        return {
+          ok: true,
+          json: async () => ({
+            ...payload,
+            assessment: {
+              rubric: {
+                ...payload.assessment.rubric,
+                instructions: '<p>Have the student demonstrate the flame independently.</p>',
+              },
+            },
+          }),
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    await screen.findByRole('button', { name: 'Confirm and Start' });
+
+    const overview = screen.getByLabelText('Assessment rubric overview');
+    expect(within(overview).getByText(/Adjust the burner to get a tight and blue flame\./)).toBeInTheDocument();
+    expect(within(overview).getByText(/Produce a tight blue flame/)).toBeInTheDocument();
+    expect(within(overview).getByText(/Close the gas valve/)).toBeInTheDocument();
+    expect(within(overview).getByText('Pass at 3 of 3 points')).toBeInTheDocument();
+    expect(within(overview).getByText('3 pts')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'How this assessment works' })).toBeInTheDocument();
+
+    // The preview orients the checker; it never grades.
+    expect(screen.queryAllByRole('switch')).toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Feedback (optional)' })).not.toBeInTheDocument();
+    // Checkers read the instructions before starting, not just while grading.
+    expect(screen.getByRole('heading', { name: 'Instructions for the checker' })).toBeInTheDocument();
+    expect(screen.getByText('Have the student demonstrate the flame independently.')).toBeInTheDocument();
+  });
+
+  it('moves from the rubric preview into grading on Confirm and Start', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createBadgePayload() } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+
+    expect(screen.getByRole('switch', { name: 'Task 1.1 failed' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Assessment rubric overview')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'How this assessment works' })).not.toBeInTheDocument();
+  });
+
+  it('shows the recorded task results and feedback on the review step', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createBadgePayload() } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+    fireEvent.click(screen.getByRole('switch', { name: 'Task 1.1 failed' }));
+    // Feedback boxes stay collapsed until opened (issue #179), so expand task 1.1's first.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Feedback (optional)' })[0]);
+    fireEvent.change(screen.getByLabelText('Feedback for task 1.1 (optional)'), {
+      target: { value: 'Great flame control.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
+
+    const results = screen.getByLabelText('Results by task');
+    expect(within(results).getByText('3 / 3 pts · pass at 3 · Passed')).toBeInTheDocument();
+    expect(within(results).getByText('0 / 2 pts · pass at 2 · Not passed')).toBeInTheDocument();
+    expect(within(results).getByText('Passed')).toBeInTheDocument();
+    expect(within(results).getByText('Not passed')).toBeInTheDocument();
+    expect(within(results).getByText('Feedback: Great flame control.')).toBeInTheDocument();
+
+    // The outcome message still follows the breakdown.
+    expect(
+      screen.getByText('This student has failed the assessment and will be placed into still learning.')
+    ).toBeInTheDocument();
+  });
+
   it('starts and submits an assessment attempt', async () => {
     mockFetch.mockImplementation(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
@@ -156,7 +270,8 @@ describe('Assessment readiness page', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
 
-    expect(screen.getByRole('heading', { name: 'Safe burner operation' })).toBeInTheDocument();
+    // The grading step shows the rubric's goal and subgoals in the authored layout.
+    expect(screen.getByText('Safe burner operation')).toBeInTheDocument();
     expect(screen.getByText(/Adjust the burner to get a tight and blue flame\./)).toBeInTheDocument();
 
     // Tasks default to red/failed.
@@ -197,7 +312,7 @@ describe('Assessment readiness page', () => {
     });
 
     expect(await screen.findByText('Assessment recorded. Badge is ready for finalization.')).toBeInTheDocument();
-    expect(mockPush).toHaveBeenCalledWith('/courses/course-1?view=assessor');
+    expect(mockPush).toHaveBeenCalledWith('/courses/course-1?view=checker');
   });
 
   it('downgrades a passing student to still learning with override feedback', async () => {
@@ -286,7 +401,44 @@ describe('Assessment readiness page', () => {
     expect(screen.queryByLabelText('Override to still learning (optional)')).not.toBeInTheDocument();
   });
 
-  it('hides the assessor instructions once the assessor moves to the review step', async () => {
+  it('keeps each task feedback box collapsed until its toggle is clicked', async () => {
+    mockFetch.mockImplementation(async (input: string | URL | Request) => {
+      const url = String(input);
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createBadgePayload() } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+
+    const toggles = screen.getAllByRole('button', { name: 'Feedback (optional)' });
+    expect(toggles).toHaveLength(2);
+    expect(toggles[0]).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+
+    fireEvent.click(toggles[0]);
+    expect(toggles[0]).toHaveAttribute('aria-expanded', 'true');
+    // Only the opened task exposes its textarea; the other stays collapsed.
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(toggles[1]).toHaveAttribute('aria-expanded', 'false');
+
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Watch the flame color.' } });
+    expect(screen.getByRole('textbox')).toHaveValue('Watch the flame color.');
+
+    fireEvent.click(toggles[0]);
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+  });
+
+  it('hides the checker instructions once the checker moves to the review step', async () => {
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
 
@@ -315,14 +467,19 @@ describe('Assessment readiness page', () => {
 
     render(<AssessmentReadinessPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and Start' }));
+    const start = await screen.findByRole('button', { name: 'Confirm and Start' });
 
-    // Instructions guide grading and are visible during the grading phase.
-    expect(screen.getByRole('heading', { name: 'Instructions for the assessor' })).toBeInTheDocument();
+    // Instructions are available before the assessment starts...
+    expect(screen.getByRole('heading', { name: 'Instructions for the checker' })).toBeInTheDocument();
 
-    // Once the assessor advances to the review step, the instructions are hidden.
+    fireEvent.click(start);
+
+    // ...and stay visible during the grading phase.
+    expect(screen.getByRole('heading', { name: 'Instructions for the checker' })).toBeInTheDocument();
+
+    // Once the checker advances to the review step, the instructions are hidden.
     fireEvent.click(screen.getByRole('button', { name: 'Continue to review' }));
-    expect(screen.queryByRole('heading', { name: 'Instructions for the assessor' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Instructions for the checker' })).not.toBeInTheDocument();
   });
 
   it('disables the assessment action once the badge has already been assessed', async () => {
@@ -348,6 +505,8 @@ describe('Assessment readiness page', () => {
             progress: {
               ...createBadgePayload().progress,
               assessmentComplete: true,
+              canAssess: false,
+              awaitingStudentReview: true,
             },
           }),
         } as Response;
@@ -360,6 +519,49 @@ describe('Assessment readiness page', () => {
 
     const action = await screen.findByRole('button', { name: 'Assessment complete' });
     expect(action).toBeDisabled();
-    expect(screen.queryByRole('heading', { name: 'Safe burner operation' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Safe burner operation')).not.toBeInTheDocument();
+  });
+
+  // A checker override downgrades a passing result to still learning, which records
+  // a FAILING attempt. assessmentComplete only tracks whether a PASSING attempt
+  // exists, so it stays false here — and gating grading on it alone is what let a
+  // checker re-open the rubric and reassess immediately after overriding, before the
+  // student had seen the feedback. The gate is the badge status, via canAssess.
+  it('does not re-open grading straight after a checker override', async () => {
+    mockFetch.mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+
+      if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
+        return { ok: true, json: async () => createProfilePayload() } as Response;
+      }
+
+      if (url === '/api/courses/course-1/students/student-1/badges/badge-1?email=prof%40example.edu') {
+        return {
+          ok: true,
+          json: async () => ({
+            ...createBadgePayload(),
+            badge: { ...createBadgePayload().badge, status: 'IN_REVIEW' },
+            progress: {
+              ...createBadgePayload().progress,
+              // No passing attempt on record — the override failed the student.
+              assessmentComplete: false,
+              canAssess: false,
+              awaitingStudentReview: true,
+            },
+          }),
+        } as Response;
+      }
+
+      throw new Error(`Unexpected fetch: ${url}`);
+    });
+
+    render(<AssessmentReadinessPage />);
+
+    // The checker is told why, rather than being shown an empty screen.
+    expect(await screen.findByRole('heading', { name: 'Waiting on the student' })).toBeInTheDocument();
+
+    // The rubric never re-opens and the action is dead.
+    expect(screen.queryByText('Safe burner operation')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Confirm and Start' })).toBeDisabled();
   });
 });

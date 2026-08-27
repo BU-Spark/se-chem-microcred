@@ -4,7 +4,7 @@
  *
  * Creates a self-contained "CHEM101" course with three users — one per role —
  * so you can sign in to Clerk and walk every flow (instructor / student /
- * assessor) end to end. It does NOT wipe the database: it only ever touches
+ * checker) end to end. It does NOT wipe the database: it only ever touches
  * the CHEM101 course, seeded badges/lessons, and the three
  * test users below. Everything else in the (shared) DB is left untouched.
  *
@@ -15,7 +15,7 @@
  * Run with: npm run db:seed
  *
  * The instructor email comes from SEEDED_DEMO_EMAIL when provided. The student
- * and assessor use Clerk test emails.
+ * and checker use Clerk test emails.
  * instance you can sign each of them up with the fixed OTP 424242 — no real
  */
 
@@ -43,7 +43,7 @@ const prisma = new PrismaClient();
 // be the instructor under an existing Clerk account.
 // ---------------------------------------------------------------------------
 const COURSE_CODE = 'CHEM101';
-const ASSESSOR_CODE = 'CHECK101';
+const CHECKER_CODE = 'CHECK101';
 const COURSE_SECTION = 'K1';
 const LEGACY_PLAYTEST_CODE = 'PLAYTEST';
 const LEGACY_SLUG_PREFIX = 'pt-';
@@ -554,7 +554,7 @@ const badgeSeeds = [
     description: 'Set up and maintain a compliant lab notebook.',
 
     lessonSlug: 'lab-notebook',
-    // Ready for the assessor to grade — this is the assessor's queue. QEV is
+    // Ready for the checker to grade — this is the checker's queue. QEV is
     // cleared, so qevPassedAt is stamped.
     studentStatus: { status: BadgeStatus.READY_FOR_ASSESSMENT, qevPassedAt: new Date('2025-02-18T15:00:00.000Z') },
   },
@@ -663,7 +663,7 @@ async function ensureCourse(instructor) {
     course = await prisma.course.create({
       data: {
         code: COURSE_CODE,
-        assessorCode: ASSESSOR_CODE,
+        checkerCode: CHECKER_CODE,
         section: COURSE_SECTION,
         title: 'Chem 101: Safety Foundations',
         sectionCount: 2,
@@ -673,7 +673,7 @@ async function ensureCourse(instructor) {
         settings: {
           create: {
             allowCooldownOverride: true,
-            allowAssessorMessages: true,
+            allowCheckerMessages: true,
             allowCrossSectionView: true,
           },
         },
@@ -683,7 +683,7 @@ async function ensureCourse(instructor) {
     course = await prisma.course.update({
       where: { id: course.id },
       data: {
-        assessorCode: ASSESSOR_CODE,
+        checkerCode: CHECKER_CODE,
         section: COURSE_SECTION,
         title: 'Chem 101: Safety Foundations',
         sectionCount: 2,
@@ -697,13 +697,13 @@ async function ensureCourse(instructor) {
       where: { courseId: course.id },
       update: {
         allowCooldownOverride: true,
-        allowAssessorMessages: true,
+        allowCheckerMessages: true,
         allowCrossSectionView: true,
       },
       create: {
         courseId: course.id,
         allowCooldownOverride: true,
-        allowAssessorMessages: true,
+        allowCheckerMessages: true,
         allowCrossSectionView: true,
       },
     });
@@ -986,7 +986,7 @@ async function buildLessonProgress(student, lessonBySlug) {
   }
 }
 
-async function buildBadges(student, lessonBySlug, { course, assessor }) {
+async function buildBadges(student, lessonBySlug, { course, checker }) {
   const badgeBySlug = new Map();
 
   for (const badgeSeed of badgeSeeds) {
@@ -1020,7 +1020,7 @@ async function buildBadges(student, lessonBySlug, { course, assessor }) {
           courseId: course.id,
           badgeId: badge.id,
           studentId: student.id,
-          assessorId: assessor.id,
+          checkerId: checker.id,
           passed: seededStatus.attempt.passed,
           score: seededStatus.attempt.score ?? seededStatus.score ?? null,
           completedAt: seededStatus.attempt.completedAt ?? new Date(),
@@ -1131,7 +1131,7 @@ async function main() {
 
   const lessonBySlug = await buildLessons(course);
   await buildLessonProgress(people.student, lessonBySlug);
-  const badgeBySlug = await buildBadges(people.student, lessonBySlug, { course, assessor: people.checker });
+  const badgeBySlug = await buildBadges(people.student, lessonBySlug, { course, checker: people.checker });
   await buildCourseContacts(course);
   await buildSurveys(people.student, badgeBySlug);
   await ensureAnalytics(people);
@@ -1142,7 +1142,7 @@ async function main() {
   console.log('  Sign in to Clerk with these emails (dev OTP 424242):');
   console.log(`    INSTRUCTOR  ${people.instructor.email}  id=${people.instructor.id}`);
   console.log(`    STUDENT     ${people.student.email}  id=${people.student.id}`);
-  console.log(`    ASSESSOR    ${people.checker.email}  id=${people.checker.id}`);
+  console.log(`    CHECKER    ${people.checker.email}  id=${people.checker.id}`);
 }
 
 main()

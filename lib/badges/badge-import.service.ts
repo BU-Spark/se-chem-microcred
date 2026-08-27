@@ -3,7 +3,7 @@ import { randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 import { parseTimeToSeconds, slugify, formatQuestionCount } from '@/lib/utils';
 import { CheckpointPayload, CheckpointQuestionPayload } from '@/lib/checkpoints/types';
-import { buildQuestionOptions, normalizeString, normalizeSkills } from '../checkpoints/normalizeWrite';
+import { buildQuestionOptions, normalizePoints, normalizeString, normalizeSkills } from '../checkpoints/normalizeWrite';
 import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
 import { buildYoutubeThumbnail } from '@/lib/video';
 
@@ -19,6 +19,7 @@ function buildCheckpointQuestionsForImport(checkpoint: CheckpointPayload) {
     .map((question, questionIndex) => ({
       sortOrder: questionIndex,
       prompt: getQuestionPrompt(question),
+      points: normalizePoints(question.points, 1),
       questionOptions: buildQuestionOptions(question),
     }))
     .filter((question) => Boolean(question.prompt));
@@ -72,7 +73,10 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
           slug: true,
           name: true,
           description: true,
-          // Carry the authored assessment policy onto the course copy.
+          imageUrl: true,
+          imagePositionX: true,
+          imagePositionY: true,
+          imageScale: true,
           reassessmentLimit: true,
           cooldownDays: true,
           reassessmentRequired: true,
@@ -148,6 +152,7 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
                           prompt: true,
                           options: true,
                           correctIndex: true,
+                          points: true,
                         },
                       },
                     },
@@ -179,6 +184,9 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
           slug: badgeSlug,
           name: sourceBadge.name,
           description: sourceBadge.description,
+          imageUrl: sourceBadge.imageUrl,
+          imagePositionX: sourceBadge.imagePositionX,
+          imagePositionY: sourceBadge.imagePositionY,
           createdById: creatorId,
           sourceBadgeId: rootSourceBadgeId,
           availableOn: availableOn,
@@ -305,6 +313,7 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
             prompt: question.prompt,
             options: question.options as Prisma.InputJsonValue,
             correctIndex: question.correctIndex,
+            points: question.points,
           }));
         });
 
@@ -353,6 +362,7 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
               prompt: question.prompt!,
               options: question.questionOptions.options,
               correctIndex: question.questionOptions.correctIndex,
+              points: question.points,
             }))
           );
 

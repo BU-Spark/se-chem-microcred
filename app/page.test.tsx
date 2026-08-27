@@ -1,6 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import type { ImgHTMLAttributes } from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SWRConfig } from 'swr';
 import CoursesPage from './page';
 
@@ -22,6 +22,21 @@ const mockUseAuth = jest.fn();
 const mockUseStudentData = jest.fn();
 const mockUseSearchParams = jest.fn();
 const mockFetch = jest.fn();
+
+// The app shell (sidebar) fetches ambient per-user data on every page. Answer
+// those here so they never consume this suite's queued page responses.
+function withShellFetch(pageFetch: jest.Mock) {
+  return ((url: RequestInfo | URL, init?: RequestInit) => {
+    const href = String(url);
+    if (href.includes('/api/messages/unread')) {
+      return Promise.resolve({
+        ok: true,
+        json: async () => ({ count: 0 }),
+      });
+    }
+    return pageFetch(url, init);
+  }) as unknown as typeof fetch;
+}
 
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mockReplace, push: mockPush }),
@@ -48,12 +63,6 @@ jest.mock('./hooks/useStudentData', () => ({
   useStudentData: () => mockUseStudentData(),
 }));
 
-// Treat the test user as an allowlisted admin so the alpha lock doesn't hide the
-// Create UI or add a /api/me/access fetch. Lock behavior is covered in the API tests.
-jest.mock('./hooks/useCanCreateContent', () => ({
-  useCanCreateContent: () => ({ canCreateContent: true, isAdmin: true, isLoading: false }),
-}));
-
 function createClerkState(overrides = {}) {
   return {
     isLoaded: true,
@@ -78,6 +87,7 @@ function createAuthState(overrides = {}) {
 
 describe('Courses Page', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     mockReplace.mockClear();
     mockUsePathname.mockReset();
     mockUsePathname.mockReturnValue('/');
@@ -105,6 +115,15 @@ describe('Courses Page', () => {
           learning: [],
           locked: [],
         },
+        analytics: {
+          hoursLearning: 12,
+          badgesCompleted: 4,
+          badgesReadyForAssessment: 2,
+          badgesNotAttempted: 1,
+          questionsAnswered: 30,
+          averageAssessmentScore: 88,
+          highestAssessmentScore: 96,
+        },
         surveys: {
           lesson: [],
           badge: [],
@@ -119,6 +138,50 @@ describe('Courses Page', () => {
     mockFetch.mockReset();
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
+
+      if (url === '/api/dashboard/analytics') {
+        return {
+          ok: true,
+          json: async () => ({
+            instructor: {
+              readyForAssessment: 7,
+              awaitingStudentReview: 3,
+              pendingCheckerRequests: 1,
+              upcomingDeadlines: 2,
+            },
+            student: {
+              lessonsNotStarted: 5,
+              lessonsInProgress: 2,
+              lessonsCompleted: 2,
+              readyForAssessment: 1,
+              upcomingDeadlines: 3,
+              overdueLessons: 1,
+            },
+            checker: { readyForAssessment: 4, awaitingStudentReview: 2, upcomingDeadlines: 1 },
+            byCourse: {
+              instructor: {
+                'created-course-1': { students: 18, checkers: 3, activeBadges: 4 },
+                'created-course-2': { students: 0, checkers: 0, activeBadges: 1 },
+              },
+              student: {
+                'course-1': { lessonsNotStarted: 2, lessonsInProgress: 1, lessonsCompleted: 3 },
+                'course-2': { lessonsNotStarted: 3, lessonsInProgress: 1, lessonsCompleted: 2 },
+              },
+              checker: {
+                'checker-course-1': {
+                  sections: 1,
+                  studentsToAssess: 3,
+                  activeBadges: 2,
+                  readyForAssessment: 4,
+                  awaitingStudentReview: 2,
+                  upcomingDeadlines: 1,
+                },
+              },
+            },
+            windowDays: 14,
+          }),
+        };
+      }
 
       if (url === '/api/courses/mine') {
         return {
@@ -195,7 +258,7 @@ describe('Courses Page', () => {
                 },
               ],
             },
-            assessor: {
+            checker: {
               count: 1,
               enrollments: [
                 {
@@ -203,8 +266,8 @@ describe('Courses Page', () => {
                   role: 'CHECKER',
                   sections: ['K1'],
                   course: {
-                    id: 'assessor-course-1',
-                    title: 'Assessor Course 1',
+                    id: 'checker-course-1',
+                    title: 'Checker Course 1',
                     description: null,
                     section: null,
                     sectionCount: 1,
@@ -234,18 +297,23 @@ describe('Courses Page', () => {
       throw new Error(`Unexpected fetch: ${url}`);
     });
 
-    global.fetch = mockFetch as unknown as typeof fetch;
+    global.fetch = withShellFetch(mockFetch);
   });
 
-  it('renders courses page with instructors, student, and assessor courses', async () => {
+  it('separates instructor, enrolled, and checker courses into tabs', async () => {
     renderCourses();
 
     expect(screen.getByText('Student Demo')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Instructor Courses' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Assessor Courses' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'My Enrolled Courses' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Dashboard' })).toBeInTheDocument();
+    const courseTabs = screen.getAllByRole('tab');
+    expect(courseTabs[0]).toHaveTextContent('Student');
+    expect(courseTabs[1]).toHaveTextContent('Checker');
+    expect(courseTabs[2]).toHaveTextContent('Instructor');
+    expect(screen.getByRole('tab', { name: /Instructor/ })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByRole('tab', { name: /Student/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /Checker/ })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByRole('button', { name: 'Sign off' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Courses' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Dashboard' })).toBeInTheDocument();
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/mine', {
@@ -255,11 +323,14 @@ describe('Courses Page', () => {
     });
 
     // The three per-role fetches are consolidated into a single request.
-    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledTimes(2);
 
+    expect(await screen.findByText('General Chemistry')).toBeInTheDocument();
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual(['Student2', 'Checker1', 'Instructor2']);
+    fireEvent.click(screen.getByRole('tab', { name: /Instructor/ }));
     expect(await screen.findByText('Created Course 1')).toBeInTheDocument();
     expect(screen.getByText('Created Course 2')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Create a course' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Create course' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open Created Course 1' })).toHaveAttribute(
       'href',
       '/courses/created-course-1'
@@ -268,12 +339,25 @@ describe('Courses Page', () => {
       'href',
       '/courses/created-course-2'
     );
-    expect(screen.getByText('Assessor Course 1')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Open Assessor Course 1' })).toHaveAttribute(
-      'href',
-      '/courses/assessor-course-1?view=assessor'
+    expect(screen.queryByText('Checker Course 1')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Created Course 1 analytics')).toHaveTextContent(
+      '18Students enrolled3Checkers enrolled4Badges active03/30/26Date created'
     );
 
+    fireEvent.click(screen.getByRole('tab', { name: /Checker/ }));
+    expect(screen.getByLabelText('Checker Course 1 analytics')).toHaveTextContent(
+      '1Assigned sections3Students to assess2Badges active'
+    );
+    expect(screen.getByText('Checker Course 1')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Open Checker Course 1' })).toHaveAttribute(
+      'href',
+      '/courses/checker-course-1?view=checker'
+    );
+
+    fireEvent.click(screen.getByRole('tab', { name: /Student/ }));
+    expect(screen.getByLabelText('General Chemistry analytics')).toHaveTextContent(
+      '2Not started1In progress3Completed'
+    );
     expect(screen.getByText('General Chemistry')).toBeInTheDocument();
     expect(screen.getByText('Organic Chemistry')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Open General Chemistry' })).toHaveAttribute(
@@ -285,27 +369,41 @@ describe('Courses Page', () => {
       '/course_dashboard?courseId=course-2'
     );
 
-    const createdGrid = screen.getByTestId('created-courses-grid');
-    expect(createdGrid.firstElementChild).toHaveAttribute('data-testid', 'add-course-card');
-    expect(screen.getAllByTestId('course-card')).toHaveLength(3);
     expect(screen.getAllByTestId('enrolled-course-card')).toHaveLength(2);
 
-    // #17: the Duplicate Course action renders inline in the Instructor Courses header.
-    expect(screen.getByRole('button', { name: 'Duplicate course' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Join course' })).toBeInTheDocument();
 
-    // #19: sections render in order Instructor Courses -> My Enrolled Courses -> Assessor Courses.
-    const instructorCoursesHeading = screen.getByRole('heading', { name: 'Instructor Courses' });
-    const enrolledHeading = screen.getByRole('heading', { name: 'My Enrolled Courses' });
-    const assessorHeading = screen.getByRole('heading', { name: 'Assessor Courses' });
-    expect(
-      instructorCoursesHeading.compareDocumentPosition(enrolledHeading) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBeTruthy();
-    expect(enrolledHeading.compareDocumentPosition(assessorHeading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    fireEvent.click(screen.getByRole('tab', { name: /Instructor/ }));
+    expect(screen.getByRole('button', { name: 'Duplicate' })).toBeInTheDocument();
+    expect(screen.getAllByTestId('course-card')).toHaveLength(2);
   });
 
   it('does not show a create-course modal when the user has no courses', async () => {
     mockFetch.mockImplementation(async (input: string | URL | Request) => {
       const url = String(input);
+
+      if (url === '/api/dashboard/analytics') {
+        return {
+          ok: true,
+          json: async () => ({
+            instructor: {
+              readyForAssessment: 0,
+              awaitingStudentReview: 0,
+              pendingCheckerRequests: 0,
+              upcomingDeadlines: 0,
+            },
+            student: {
+              lessonsNotStarted: 0,
+              lessonsInProgress: 0,
+              readyForAssessment: 0,
+              upcomingDeadlines: 0,
+              overdueLessons: 0,
+            },
+            checker: { readyForAssessment: 0, awaitingStudentReview: 0, upcomingDeadlines: 0 },
+            windowDays: 14,
+          }),
+        };
+      }
 
       if (url === '/api/courses/mine') {
         return {
@@ -314,7 +412,7 @@ describe('Courses Page', () => {
             user: { name: 'Student Demo', email: 'student@example.edu' },
             created: { count: 0, courses: [] },
             enrolled: { count: 0, enrollments: [] },
-            assessor: { count: 0, enrollments: [] },
+            checker: { count: 0, enrollments: [] },
           }),
         };
       }
@@ -331,7 +429,8 @@ describe('Courses Page', () => {
       });
     });
 
-    expect(screen.getByRole('link', { name: 'Create a course' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('tab', { name: /Instructor/ }));
+    expect(screen.getByRole('link', { name: 'Create course' })).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: 'Welcome' })).not.toBeInTheDocument();
     expect(screen.queryByText('Create Course')).not.toBeInTheDocument();
   });
@@ -341,10 +440,10 @@ describe('Courses Page', () => {
 
     renderCourses();
 
-    await screen.findByText('Created Course 1');
+    await screen.findByText('General Chemistry');
 
     const profileLink = screen.getByRole('link', { name: 'My Profile' });
-    const coursesLink = screen.getByRole('link', { name: 'Courses' });
+    const coursesLink = screen.getByRole('link', { name: 'Dashboard' });
 
     expect(profileLink.className).toContain('navItemActive');
     expect(coursesLink.className).not.toContain('navItemActive');
@@ -357,9 +456,9 @@ describe('Courses Page', () => {
 
       renderCourses();
 
-      await screen.findByText('Created Course 1');
+      await screen.findByText('General Chemistry');
 
-      const coursesLink = screen.getByRole('link', { name: 'Courses' });
+      const coursesLink = screen.getByRole('link', { name: 'Dashboard' });
 
       expect(coursesLink.className).toContain('navItemActive');
     }
@@ -396,7 +495,7 @@ describe('Courses Page', () => {
 
     renderCourses();
 
-    await screen.findByText('Created Course 1');
+    await screen.findByText('General Chemistry');
 
     const button = screen.getByRole('button', { name: 'Sign off' });
     fireEvent.click(button);
@@ -410,18 +509,32 @@ describe('Courses Page', () => {
     });
   });
 
+  it('reopens on the course tab last selected, across a remount', async () => {
+    const { unmount } = renderCourses();
+    await screen.findByText('General Chemistry');
+
+    fireEvent.click(screen.getByRole('tab', { name: /Instructor/ }));
+    expect(screen.getByRole('tab', { name: /Instructor/ })).toHaveAttribute('aria-selected', 'true');
+    unmount();
+
+    renderCourses();
+
+    expect(await screen.findByRole('tab', { name: /Instructor/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /Student/ })).toHaveAttribute('aria-selected', 'false');
+  });
+
   it('joins a course by course code and refreshes the course list', async () => {
     renderCourses();
 
-    await screen.findByText('Created Course 1');
+    await screen.findByText('General Chemistry');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Join a course as a student' }));
+    fireEvent.click(screen.getByTestId('join-course-card'));
     expect(await screen.findByRole('heading', { name: 'Join a course' })).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Course code'), {
       target: { value: 'chem-202' },
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Join' }));
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Join course' }));
 
     await waitFor(() => {
       expect(mockFetch).toHaveBeenCalledWith('/api/courses/join', {

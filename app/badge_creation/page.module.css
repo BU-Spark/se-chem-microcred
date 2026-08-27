@@ -23,38 +23,29 @@
   gap: 1.5rem;
 }
 
-.pageTitle {
-  margin: 0;
-  font-family: Lato, sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  line-height: 1.05;
-  color: #000000;
-}
-
 .progressTrack {
   position: relative;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin: 18px 60px 34px;
+  margin: 2px 40px 16px;
 }
 
 .progressTrack::before {
   content: '';
   position: absolute;
-  top: 14px;
-  left: 95px;
-  right: 95px;
+  top: 9px;
+  left: 75px;
+  right: 75px;
   height: 2px;
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   z-index: 0;
 }
 
 .progressStep {
   position: relative;
   z-index: 1;
-  width: 190px;
+  width: 150px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -63,17 +54,17 @@
 
 .progressDot {
   position: relative;
-  width: 28px;
-  height: 28px;
+  width: 20px;
+  height: 20px;
   border-radius: 999px;
-  background: #ffffff;
-  border: 2px solid #2e6aa9;
-  margin-bottom: 10px;
+  background: var(--checkd-white);
+  border: 2px solid var(--checkd-blue);
+  margin-bottom: 6px;
 }
 
 .progressDot[data-active='true'],
 .progressDot[data-complete='true'] {
-  background: #c7d63c;
+  background: var(--checkd-green);
 }
 
 .progressDotFill {
@@ -82,13 +73,12 @@
 
 .progressLabel {
   font-family: Lato, sans-serif;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: #222222;
 }
 
 .canvasCard,
 .editorCard,
-.reviewCard,
 .timelineRail {
   background: #f7f7f7;
   border: 3px solid #d0d0d0;
@@ -101,6 +91,16 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+}
+
+/* Steps that render their own panel chrome (Create Rubric) drop the outer card
+   so the eyebrow leads straight into the step content. */
+.canvasCardBare {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  gap: 14px;
 }
 
 .cardHeader {
@@ -121,7 +121,7 @@
   font-family: Lato, sans-serif;
   font-size: 24px;
   font-weight: 400;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .cardTitle {
@@ -142,19 +142,94 @@
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   font-weight: 400;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .noticeBanner {
-  border: 2px solid #2e6aa9;
+  border: 2px solid var(--checkd-blue);
   border-radius: 19px;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 14px 18px;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 .errorText {
   color: #b91c1c;
+}
+
+/* ===== Create / Preview tabs (Create Checkpoints step) ===== */
+
+.previewShell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.previewShell > .cardSubtitle {
+  margin: 0;
+}
+
+.modeTabs {
+  display: inline-flex;
+  align-self: flex-start;
+  gap: 4px;
+  padding: 4px;
+  border: 2px solid #d0d0d0;
+  border-radius: 999px;
+  background: var(--checkd-white);
+}
+
+.modeTab {
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  padding: 8px 22px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #4b5563;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.modeTab:hover:not(:disabled) {
+  background: #eaf2fb;
+  color: var(--checkd-blue);
+}
+
+.modeTab:disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+}
+
+.modeTabActive,
+.modeTabActive:hover:not(:disabled) {
+  background: var(--checkd-blue-low);
+  color: var(--checkd-white);
+}
+
+.modeTab:focus-visible {
+  outline: 2px solid var(--checkd-blue);
+  outline-offset: 2px;
+}
+
+.previewPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.previewNotice {
+  margin: 0;
+  border: 2px solid var(--checkd-blue);
+  border-radius: 19px;
+  background: #eaf2fb;
+  padding: 12px 18px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: var(--checkd-blue);
 }
 
 .fieldError {
@@ -242,7 +317,7 @@
 }
 
 .videoLengthInput:focus {
-  border-bottom-color: #2e6aa9;
+  border-bottom-color: var(--checkd-blue-high);
 }
 
 .videoPosterLarge {
@@ -274,7 +349,7 @@
 }
 
 .rubricLineInput:focus {
-  border-bottom-color: #2e6aa9;
+  border-bottom-color: var(--checkd-blue-high);
 }
 
 .rubricLineInput::placeholder {
@@ -302,9 +377,7 @@
 .videoInputPanel,
 .videoPreviewPanel,
 .checkpointMain,
-.reviewStack,
 .rubricList,
-.reviewCard,
 .editorCard,
 .rubricCriterionCard {
   display: flex;
@@ -314,6 +387,100 @@
 
 .badgeInfoLayout {
   max-width: 920px;
+}
+
+.badgeImageUploadRow {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+.badgeImagePreview {
+  position: relative;
+  width: 112px;
+  height: 112px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #e7eef9;
+}
+.badgeImagePreview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.badgeImagePositionActions {
+  margin-top: 10px;
+}
+.imagePositionDialogBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(15, 28, 48, 0.62);
+}
+.imagePositionDialog {
+  width: min(92vw, 460px);
+  padding: 28px;
+  border-radius: 24px;
+  background: var(--checkd-white);
+  box-shadow: 0 24px 70px rgba(10, 28, 54, 0.3);
+}
+.imagePositionDialog h2 {
+  margin: 0 0 8px;
+  color: var(--checkd-blue);
+}
+.imagePositionDialog p {
+  margin: 0 0 20px;
+  color: #53647d;
+}
+.imagePositionCanvas {
+  position: relative;
+  width: min(280px, 70vw);
+  aspect-ratio: 1;
+  margin: 0 auto;
+  overflow: hidden;
+  border: 4px solid #d9e4f3;
+  border-radius: 50%;
+  background: #e7eef9;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+.imagePositionCanvas:active {
+  cursor: grabbing;
+}
+.imagePositionCanvas img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+.imagePositionDialogActions {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 24px;
+}
+.imagePositionDoneButton {
+  min-width: 100px;
+  padding: 10px 20px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
+  font-weight: 700;
+  cursor: pointer;
+}
+.imageRemoveButton {
+  display: block;
+  margin-top: 10px;
+  border: 0;
+  background: transparent;
+  color: #8b1e2d;
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 .badgeInfoField,
@@ -331,7 +498,7 @@
 .dateField {
   font-family: Lato, sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 /* Inline checkbox + label pairing (e.g. "Re-assessment Required"). */
@@ -352,18 +519,18 @@
   width: 486px;
   max-width: 100%;
   border: none;
-  border-bottom: 1px solid #000000;
+  border-bottom: 1px solid var(--checkd-black);
   background: transparent;
   outline: none;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   font-weight: 400;
   padding: 0 0 8px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .underlineInput::placeholder {
-  color: #000000;
+  color: var(--checkd-black);
   opacity: 1;
   font-family: 'Open Sans', sans-serif;
   font-style: italic;
@@ -373,23 +540,45 @@
 .textField,
 .textAreaCompact,
 .longTextArea,
+.optionField,
 .selectField,
 .dateField input {
   width: 100%;
   border: 2px solid #d0d0d0;
   border-radius: 19px;
-  background: #ffffff;
-  color: #000000;
+  background: var(--checkd-white);
+  color: var(--checkd-black);
   font: inherit;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   padding: 12px 14px;
 }
 
+/* Wrap long content instead of letting it overflow the field. Chemistry
+   answers often contain long unbroken formulas, which wrap only with
+   overflow-wrap; 80ch keeps lines at a readable measure. */
+.descriptionInput,
+.textAreaCompact,
+.longTextArea,
+.optionField {
+  max-width: 80ch;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
 .descriptionInput,
 .textAreaCompact {
   min-height: 96px;
   resize: vertical;
+}
+
+/* Answer choices grow with their content (see AutoGrowTextarea), so they must
+   not scroll or be resized to a height that hides text. */
+.optionField {
+  display: block;
+  overflow: hidden;
+  resize: none;
+  line-height: 1.4;
 }
 
 .longTextArea {
@@ -403,13 +592,14 @@
 
 .descriptionInput:focus,
 .textField:focus,
+.optionField:focus,
 .textAreaCompact:focus,
 .longTextArea:focus,
 .selectField:focus,
 .dateField input:focus,
 .underlineInput:focus {
   outline: none;
-  border-color: #2e6aa9;
+  border-color: var(--checkd-blue-high);
 }
 
 .availabilityRow,
@@ -432,8 +622,8 @@
 .availabilityPill {
   min-width: 194px;
   border-radius: 19px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   padding: 10px 14px;
   display: flex;
   flex-direction: column;
@@ -479,12 +669,12 @@
   width: 26px;
   height: 26px;
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--checkd-white);
   transition: left 0.2s ease;
 }
 
 .toggleButton[data-active='true'] {
-  background: #2e6aa9;
+  background: var(--checkd-blue);
 }
 
 .toggleButton[data-active='true'] span {
@@ -521,7 +711,6 @@
 
 .fieldBlock,
 .editorCard,
-.reviewCard,
 .timelineRail,
 .rubricCriterionCard,
 .reviewListItem {
@@ -541,7 +730,7 @@
   position: relative;
   border: 3px solid #d0d0d0;
   border-radius: 30px;
-  background: #ffffff;
+  background: var(--checkd-white);
   min-height: 320px;
   overflow: hidden;
 }
@@ -586,7 +775,7 @@
   justify-content: space-between;
   font-family: Lato, sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .timelineList,
@@ -607,7 +796,7 @@
   padding: 14px;
   border: 1px solid #d9e2ea;
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 .questionEditorHeader {
@@ -621,7 +810,7 @@
   margin: 0;
   font-family: Lato, sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .timelineList {
@@ -641,7 +830,7 @@
 
 .timelineSegment,
 .timelineCheckpointCopy {
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .timelineCheckpointMarker {
@@ -651,7 +840,7 @@
   width: 11px;
   height: 11px;
   border-radius: 999px;
-  background: #c7d63c;
+  background: var(--checkd-green);
 }
 
 .timelineConnector {
@@ -660,7 +849,7 @@
   left: 5px;
   width: 2px;
   height: calc(100% + 8px);
-  background: #2e6aa9;
+  background: var(--checkd-blue);
 }
 
 /* Create Checkpoints — Figma 379-656 timeline rail (segment thumbnails +
@@ -679,7 +868,7 @@
   bottom: 52px;
   right: 43px;
   width: 2px;
-  background: #2e6aa9;
+  background: var(--checkd-blue);
   z-index: 0;
 }
 
@@ -706,14 +895,14 @@
   text-align: right;
   font-family: 'Open Sans', sans-serif;
   font-size: 14px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .cpSegmentThumb {
   justify-self: center;
   width: 84px;
   height: 84px;
-  border: 2px solid #2e6aa9;
+  border: 2px solid var(--checkd-blue);
   border-radius: 6px;
   background-color: #1f2937;
   background-position: center;
@@ -726,16 +915,16 @@
   width: 24px;
   height: 24px;
   padding: 0;
-  border: 2px solid #2e6aa9;
+  border: 2px solid var(--checkd-blue);
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--checkd-white);
   cursor: pointer;
   transition: background 0.15s ease;
 }
 
 .cpCheckpointNode:hover,
 .cpCheckpointNode:focus-visible {
-  background: #c7d63c;
+  background: var(--checkd-green);
   outline: none;
 }
 
@@ -743,9 +932,9 @@
   margin-top: 14px;
   align-self: center;
   background: transparent;
-  border: 1px dashed #2e6aa9;
+  border: 1px dashed var(--checkd-blue);
   border-radius: 12px;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font-family: Lato, sans-serif;
   font-size: 14px;
   padding: 8px 14px;
@@ -753,16 +942,16 @@
 }
 
 .cpRailAdd:hover {
-  background: rgba(46, 106, 169, 0.08);
+  background: rgb(var(--checkd-blue-rgb) / 0.08);
 }
 
 .cpNodeStatic {
   justify-self: center;
   width: 24px;
   height: 24px;
-  border: 2px solid #2e6aa9;
+  border: 2px solid var(--checkd-blue);
   border-radius: 999px;
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 /* Review — Figma 529-1708: read-only mirror of every step. */
@@ -774,13 +963,13 @@
 
 .reviewCardHeader .reviewEdit {
   border: none;
-  color: #000000;
+  color: var(--checkd-black);
   font-style: italic;
   font-size: 18px;
 }
 
 .reviewCardHeader .reviewEdit span {
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font-style: normal;
 }
 
@@ -797,13 +986,13 @@
   max-width: 360px;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewFieldLabel {
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewMuted {
@@ -814,13 +1003,13 @@
 }
 
 .reviewDescriptionBox {
-  border: 1px solid #000000;
+  border: 1px solid var(--checkd-black);
   border-radius: 15px;
   padding: 16px 18px;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   line-height: 1.5;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewSkillsRow {
@@ -837,8 +1026,8 @@
 }
 
 .reviewChip {
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   border-radius: 23px;
   padding: 10px 20px;
   font-family: 'Open Sans', sans-serif;
@@ -857,14 +1046,14 @@
   font-family: Lato, sans-serif;
   font-size: 24px;
   font-weight: 400;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewSkillCount span {
   font-family: 'Open Sans', sans-serif;
   font-style: italic;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewDates {
@@ -876,13 +1065,13 @@
 .reviewDate {
   font-family: Lato, sans-serif;
   font-size: 24px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewDatesTo {
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewVideoTitle {
@@ -890,14 +1079,14 @@
   font-family: Lato, sans-serif;
   font-size: 24px;
   font-weight: 400;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewMeta {
   margin: 0;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewMeta strong {
@@ -910,13 +1099,36 @@
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   font-weight: 700;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
-.reviewVideoPreview {
-  width: 100%;
+/* Lesson Video + Checkpoints side by side — same lesson, same timeline. */
+.reviewLessonAssessmentGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 32px;
+}
+
+.reviewRubricSection {
+  margin-top: 24px;
+  padding-top: 22px;
+  border-top: 1px solid var(--card-border);
+}
+
+.reviewCheckpointLayout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* ~1/3 of the old full-bleed preview's width — the review step only needs a
+   glance at the lesson video, not a full player-sized frame. */
+.reviewCheckpointVideo {
+  width: 55%;
+  max-width: 220px;
   aspect-ratio: 16 / 11;
-  border-radius: 18px;
+  border-radius: 12px;
   background-color: #d9d9d9;
   background-position: center;
   background-repeat: no-repeat;
@@ -926,7 +1138,31 @@
   justify-content: center;
   color: #6b7280;
   font-family: 'Open Sans', sans-serif;
-  font-size: 0.95rem;
+  font-size: 0.8rem;
+}
+
+.reviewCheckpointList {
+  display: flex;
+  flex-direction: column;
+}
+
+.reviewCheckpointItem {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.reviewCheckpointItem:last-child {
+  border-bottom: none;
+}
+
+.reviewCheckpointItemTitle {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--checkd-black);
 }
 
 .reviewOrderedList {
@@ -938,7 +1174,7 @@
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
   line-height: 1.5;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewTaskList {
@@ -965,7 +1201,7 @@
   font-family: Lato, sans-serif;
   font-size: 24px;
   font-weight: 400;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewGradingCriterion {
@@ -978,7 +1214,7 @@
   margin: 0;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewGradingGrid {
@@ -1001,7 +1237,7 @@
   gap: 10px;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .reviewFeedbackText {
@@ -1010,144 +1246,587 @@
   flex: 1;
 }
 
+/* ---- Checkpoint modal ---------------------------------------------------
+   Body sits between the modal's own header/footer rules: a timestamp/points
+   meta row, then one prompt-plus-settings pair per question. */
 .checkpointEditor {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+  padding: 22px 26px 26px;
 }
 
-/* Create Rubric — Figma 425-2278: two stacked full-width cards. */
-.rubricStack {
+.cpMetaGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+
+.cpMetaGrid > .cpField {
+  width: 300px;
+  max-width: 100%;
+}
+
+.cpField {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.cpFieldLabel {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  color: #4b5563;
+}
+
+.cpInput,
+.cpSelect {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: var(--checkd-white);
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #111418;
+}
+
+.cpInput:focus,
+.cpSelect:focus {
+  outline: none;
+  border-color: var(--checkd-blue-high);
+}
+
+.cpSelect {
+  appearance: none;
+  cursor: pointer;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%236b7280' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 7.5 10 12.5 15 7.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px 18px;
+}
+
+.cpQuestionList {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Prompt editor on the left, answer settings in a matching card on the right.
+   Split evenly (issue #248) so the answer side — question type, points, and
+   choices — has as much room to work in as the prompt. */
+.cpQuestionRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.cpCard {
+  border: 1px solid #e3e7ec;
+  border-radius: 12px;
+  padding: 18px 20px;
+  background: var(--checkd-white);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.cpCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cpQuestionTitle {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.cpRemoveQuestion {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #c0392b;
+  cursor: pointer;
+}
+
+.cpRemoveQuestion:hover {
+  text-decoration: underline;
+}
+
+.cpPrompt :global(.rte-container) {
+  border-color: #e3e7ec;
+  border-radius: 10px;
+}
+
+.cpPrompt :global(.rte-container--compact) :global(.rte-content-editable) {
+  min-height: 230px;
+}
+
+/* Question type + points sit side by side atop the answer card. */
+.cpAnswerMetaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.cpAnswerMetaRow > .cpField {
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.cpComputedValue {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #4b5563;
+}
+
+/* Answer choices share the same rich-text editor as the question prompt
+   (issue #248), sized for a single short line instead of a full paragraph. */
+.cpChoiceEditor {
+  min-width: 0;
+}
+
+.cpChoiceEditor :global(.rte-container) {
+  border-color: #e3e7ec;
+  border-radius: 8px;
+}
+
+.cpChoiceEditor :global(.rte-container--compact) :global(.rte-content-editable) {
+  min-height: 44px;
+}
+
+.cpDivider {
+  height: 1px;
+  background: #e3e7ec;
+  margin: 4px 0;
+}
+
+.cpChoiceList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cpChoiceRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 12px;
+}
+
+.cpCheckbox {
+  width: 18px;
+  height: 18px;
+  margin-top: 12px;
+  accent-color: var(--checkd-blue);
+  cursor: pointer;
+}
+
+.cpRemoveChoice {
+  border: none;
+  background: transparent;
+  padding: 0 2px;
+  margin-top: 8px;
+  font-size: 18px;
+  line-height: 1;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.cpRemoveChoice:hover {
+  color: #c0392b;
+}
+
+/* Outlined blue pill with a circled plus, matching the rubric step's add
+   controls. */
+.cpAddChoiceButton {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px;
+  border: 1px solid var(--checkd-blue);
+  border-radius: 8px;
+  background: var(--checkd-white);
+  color: var(--checkd-blue);
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cpAddChoiceButton:hover:not(:disabled) {
+  background: #eef4fd;
+}
+
+.cpAddChoiceButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cpAddIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.cpShortAnswerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.cpModalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 26px;
+  border-top: 1px solid #e3e7ec;
+}
+
+.cpFooterActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cpRemoveCheckpoint {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #c0392b;
+  cursor: pointer;
+}
+
+.cpRemoveCheckpoint:hover {
+  text-decoration: underline;
+}
+
+.cpSecondaryAction {
+  padding: 11px 22px;
+  border: 1px solid var(--checkd-blue);
+  border-radius: 8px;
+  background: var(--checkd-white);
+  color: var(--checkd-blue);
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cpSecondaryAction:hover {
+  background: #eef4fd;
+}
+
+.cpPrimaryAction {
+  padding: 12px 30px;
+  border: none;
+  border-radius: 8px;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cpPrimaryAction:hover {
+  filter: brightness(0.93);
+}
+
+@media (max-width: 900px) {
+  .cpQuestionRow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .cpMetaGrid > .cpField {
+    width: 100%;
+  }
+
+  .reviewLessonAssessmentGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+  }
+
+  .reviewCheckpointVideo {
+    width: 40%;
+  }
+}
+
+/* Review — one coherent panel (matching .rubricPanel below) instead of four
+   separately bordered cards stacked on top of each other: each summary
+   section is told apart by a hairline, not its own box. */
+.reviewStack {
+  background: var(--checkd-white);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.reviewCard {
+  padding: 22px 24px 24px;
+  border-bottom: 1px solid var(--card-border);
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-.rubricOrderedList {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+.reviewCard:last-child {
+  border-bottom: none;
+}
+
+/* Create Rubric — goal header over a two-column body: subgoals & tasks on the
+   left, assessor instructions in a tinted rail on the right. */
+.rubricPanel {
+  background: var(--checkd-white);
+  border: 1px solid #e3e7ec;
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.rubricGoalSection {
+  padding: 20px 24px 22px;
+  border-bottom: 1px solid #e3e7ec;
+}
+
+.rubricSectionHeading {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.rubricOrderedItem {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
-  gap: 12px;
-  align-items: start;
-}
-
-.rubricPointsInput {
-  width: 64px;
-  padding: 6px 8px;
-  border: 1px solid #d7dbe1;
-  border-radius: 6px;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 15px;
-  color: #000000;
-  text-align: center;
-}
-
-.rubricPointsInput:focus {
-  outline: none;
-  border-color: #4f7396;
-}
-
-.rubricPointsLabel {
-  align-self: center;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 14px;
-  color: #61758a;
-}
-
-.rubricThresholdRow {
-  display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 10px;
-  margin-top: 14px;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 15px;
-  color: #000000;
+  flex-wrap: wrap;
 }
 
-.rubricThresholdWarning {
-  margin: 8px 0 0;
+.rubricSectionTitle {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: #111418;
+}
+
+.rubricSectionHint,
+.rubricColumnHint {
   font-family: 'Open Sans', sans-serif;
   font-size: 13px;
-  color: #b91c1c;
+  font-weight: 400;
+  color: #6b7280;
 }
 
-.rubricTotalRow {
+.rubricColumnHint {
+  display: block;
+  margin: 6px 0 18px;
+  max-width: 62ch;
+  line-height: 1.5;
+}
+
+.rubricGoalInput {
+  width: 100%;
+  max-width: 720px;
   margin-top: 12px;
+  padding: 11px 14px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: var(--checkd-white);
   font-family: 'Open Sans', sans-serif;
   font-size: 15px;
-  font-weight: 600;
-  color: #000000;
+  color: #111418;
 }
 
-.rubricOrderedNumber {
-  padding-top: 8px;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  color: #000000;
+.rubricGoalInput:focus {
+  outline: none;
+  border-color: var(--checkd-blue-high);
 }
 
-.rubricGhostRemove {
-  align-self: center;
-  background: transparent;
-  border: none;
-  color: #9aa1ab;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 14px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 2px 4px;
+.rubricBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.62fr);
+  align-items: stretch;
 }
 
-.rubricGhostRemove:hover {
-  color: #b91c1c;
-  text-decoration: underline;
+.rubricSubgoalColumn {
+  padding: 22px 24px 26px;
+  min-width: 0;
+}
+
+.rubricInstructionsColumn {
+  padding: 22px 24px 26px;
+  border-left: 1px solid #e3e7ec;
+  background: #f7f8fa;
+  min-width: 0;
 }
 
 .rubricSubgoalList {
   display: flex;
   flex-direction: column;
-  gap: 16px;
 }
 
+/* Subgoals are separated by hairlines rather than cards, per the layout spec. */
 .rubricSubgoalBlock {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 16px;
-  border: 1px solid #e3e7ec;
-  border-radius: 10px;
-  background: #fbfcfd;
+  padding: 18px 0;
+  border-bottom: 1px solid #eceff3;
+}
+
+.rubricSubgoalBlock:first-child {
+  padding-top: 0;
 }
 
 .rubricSubgoalHeader {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
+  grid-template-columns: 28px minmax(0, 1fr) auto 28px;
+  gap: 8px;
   align-items: center;
+}
+
+.rubricSubgoalNumber {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  color: #111418;
 }
 
 .rubricSubgoalTitleInput {
   width: 100%;
-  padding: 8px 10px;
+  padding: 9px 12px;
   border: 1px solid #d7dbe1;
-  border-radius: 6px;
+  border-radius: 8px;
   font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  font-weight: 600;
-  color: #000000;
+  font-size: 15px;
+  color: #111418;
+  background: var(--checkd-white);
 }
 
 .rubricSubgoalTitleInput:focus {
   outline: none;
-  border-color: #4f7396;
+  border-color: var(--checkd-blue-high);
+}
+
+.rubricThresholdRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.rubricThresholdLabel,
+.rubricThresholdTotal {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #4b5563;
+}
+
+.rubricSelect {
+  padding: 8px 10px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: var(--checkd-white);
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #111418;
+  cursor: pointer;
+}
+
+.rubricSelect:focus {
+  outline: none;
+  border-color: var(--checkd-blue-high);
+}
+
+.rubricTaskList {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rubricTaskRow {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) 92px 28px;
+  gap: 8px;
+  align-items: center;
+}
+
+.rubricTaskNumber {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.rubricTaskInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: var(--checkd-white);
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  color: #111418;
+  resize: vertical;
+  min-height: 38px;
+}
+
+.rubricTaskInput:focus {
+  outline: none;
+  border-color: var(--checkd-blue-high);
+}
+
+.rubricTaskInput::placeholder {
+  color: #9aa1ab;
+}
+
+.rubricRemoveButton {
+  width: 28px;
+  height: 28px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: #6b7280;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rubricRemoveButton:hover {
+  background: #f1f3f6;
+  color: #b91c1c;
+}
+
+.rubricRemoveSpacer {
+  display: block;
+  width: 28px;
+}
+
+.rubricThresholdWarning {
+  margin: 0 0 0 28px;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 13px;
+  color: #b91c1c;
 }
 
 /* LEGACY-RUBRIC: remove .gradingList through .gradingAddItem (except
@@ -1181,18 +1860,18 @@
   outline: none;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
   padding: 4px 2px;
 }
 
 .gradingPromptInput:focus {
-  border-bottom-color: #2e6aa9;
+  border-bottom-color: var(--checkd-blue-high);
 }
 
 .gradingPencil {
   flex-shrink: 0;
   cursor: pointer;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
   font-size: 18px;
   line-height: 1;
   user-select: none;
@@ -1229,8 +1908,8 @@
 }
 
 .gradingCheckboxFilled {
-  background: #2e6aa9;
-  border-color: #2e6aa9;
+  background: var(--checkd-blue);
+  border-color: var(--checkd-blue);
 }
 
 .gradingUnderlineInput {
@@ -1241,12 +1920,12 @@
   outline: none;
   font-family: 'Open Sans', sans-serif;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
   padding: 4px 2px;
 }
 
 .gradingUnderlineInput:focus {
-  border-bottom-color: #2e6aa9;
+  border-bottom-color: var(--checkd-blue-high);
 }
 
 .gradingUnderlineInput::placeholder {
@@ -1275,7 +1954,7 @@
   font-family: 'Open Sans', sans-serif;
   font-style: italic;
   font-size: 16px;
-  color: #000000;
+  color: var(--checkd-black);
   padding: 0;
 }
 
@@ -1285,8 +1964,8 @@
   height: 44px;
   border: none;
   border-radius: 14px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font-family: Lato, sans-serif;
   font-size: 30px;
   font-weight: 700;
@@ -1295,56 +1974,58 @@
 }
 
 .addCriterionButton:hover {
-  filter: brightness(1.08);
+  background: var(--checkd-blue-low);
 }
 
 .addSubgoalButton {
-  align-self: flex-start;
-  margin-top: 6px;
-  padding: 10px 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 0;
   border: none;
-  border-radius: 10px;
-  background: #2e6aa9;
-  color: #ffffff;
-  font-family: Lato, sans-serif;
+  background: transparent;
+  color: var(--checkd-blue);
+  font-family: 'Open Sans', sans-serif;
   font-size: 15px;
   font-weight: 700;
   line-height: 1;
   cursor: pointer;
 }
 
-.addSubgoalButton:hover {
-  filter: brightness(1.08);
+.addSubgoalIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 1.5px solid var(--checkd-blue);
+  border-radius: 50%;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.addSubgoalButton:hover,
+.addTaskButton:hover {
+  text-decoration: underline;
 }
 
 .addTaskButton {
   align-self: flex-start;
-  margin-top: 2px;
-  padding: 7px 14px;
-  border: 1px solid #2e6aa9;
-  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 28px;
+  padding: 0;
+  border: none;
   background: transparent;
-  color: #2e6aa9;
-  font-family: Lato, sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  line-height: 1;
-  cursor: pointer;
-}
-
-.addTaskButton:hover {
-  background: #eaf1f9;
-}
-
-.rubricFieldLabel {
+  color: var(--checkd-blue);
   font-family: 'Open Sans', sans-serif;
   font-size: 14px;
   font-weight: 600;
-  color: #2b2f36;
-}
-
-.rubricRequiredMark {
-  color: #b91c1c;
+  line-height: 1;
+  cursor: pointer;
 }
 
 .removeTextButton,
@@ -1352,8 +2033,8 @@
 .backButton {
   background: transparent;
   border: none;
-  border-bottom: 1px solid #000000;
-  color: #000000;
+  border-bottom: 1px solid var(--checkd-black);
+  color: var(--checkd-black);
   font-family: Lato, sans-serif;
   font-size: 16px;
   padding: 0 0 2px;
@@ -1364,6 +2045,14 @@
 .optionRow {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
+  /* The choice field grows with its text, so pin the controls to the first
+     line instead of letting them drift to the vertical middle. */
+  align-items: start;
+}
+
+.optionRow > input[type='checkbox'],
+.optionRow > .removeTextButton {
+  margin-top: 14px;
 }
 
 .numberedRubricItem {
@@ -1377,7 +2066,7 @@
   padding-top: 12px;
   font-family: Lato, sans-serif;
   font-size: 20px;
-  color: #000000;
+  color: var(--checkd-black);
 }
 
 .inlineActions {
@@ -1398,23 +2087,24 @@
 .reviewListItem {
   border: 2px solid #d0d0d0;
   border-radius: 19px;
-  background: #ffffff;
+  background: var(--checkd-white);
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
 .navigationRow {
-  justify-content: flex-end;
+  justify-content: space-between;
   margin-top: 4px;
+  padding-top: 16px;
+  border-top: 1px solid #e3e7ec;
 }
 
-.nextButton,
 .plusButton,
 .secondaryButton {
   display: inline-block;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   border: none;
   border-radius: 19px;
   font-family: Lato, sans-serif;
@@ -1426,7 +2116,42 @@
 }
 
 .nextButton {
-  padding: 14px 35px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border: none;
+  border-radius: 8px;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  width: fit-content;
+}
+
+.nextButton:hover:not(:disabled) {
+  background: var(--checkd-blue-low);
+}
+
+/* Outlined counterpart to .nextButton for the step footer's Back control. */
+.stepBackButton {
+  padding: 10px 20px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: var(--checkd-white);
+  color: #111418;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.stepBackButton:hover:not(:disabled) {
+  background: #f1f3f6;
+  text-decoration: none;
 }
 
 .secondaryButton {
@@ -1464,9 +2189,9 @@
   position: relative;
   width: min(520px, 100%);
   border-radius: 30px;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 40px 44px 36px;
-  color: #000000;
+  color: var(--checkd-black);
   box-shadow: 0 16px 42px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
@@ -1480,7 +2205,7 @@
   right: 20px;
   border: none;
   background: transparent;
-  color: #000000;
+  color: var(--checkd-black);
   cursor: pointer;
   font-family: Lato, sans-serif;
   font-size: 24px;
@@ -1495,11 +2220,13 @@
 }
 
 .successBadgeCircle {
+  position: relative;
   width: 190px;
   height: 190px;
   border-radius: 999px;
   background: #d9d9d9;
   margin: 26px 0 22px;
+  overflow: hidden;
 }
 
 .successBadgeName {
@@ -1522,8 +2249,8 @@
   margin-top: 26px;
   padding: 12px 26px;
   border-radius: 19px;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
   font-family: Lato, sans-serif;
   font-size: 17px;
   font-weight: 600;
@@ -1531,7 +2258,7 @@
 }
 
 .successButton:hover {
-  filter: brightness(1.05);
+  filter: brightness(0.93);
 }
 
 @media (max-width: 1200px) {
@@ -1546,10 +2273,17 @@
   .videoStepLayout,
   .checkpointLayout,
   .rubricLayout,
+  .rubricBody,
   .feedbackGrid,
   .editorGrid,
   .shortAnswerGrid {
     grid-template-columns: 1fr;
+  }
+
+  /* Stacked: the instructions rail becomes a full-width section below. */
+  .rubricInstructionsColumn {
+    border-left: none;
+    border-top: 1px solid #e3e7ec;
   }
 }
 
@@ -1558,13 +2292,9 @@
     padding: 24px 20px 32px;
   }
 
-  .pageTitle {
-    font-size: 38px;
-  }
 
   .canvasCard,
   .editorCard,
-  .reviewCard,
   .timelineRail {
     border-radius: 24px;
     padding: 18px;
@@ -1585,8 +2315,147 @@
     flex-direction: column;
   }
 
+  .rubricGoalSection,
+  .rubricSubgoalColumn,
+  .rubricInstructionsColumn,
+  .reviewCard {
+    padding: 18px;
+  }
+
+  .rubricSubgoalHeader {
+    grid-template-columns: 24px minmax(0, 1fr) 28px;
+  }
+
+  /* Drop the threshold controls onto their own line under the title. */
+  .rubricThresholdRow {
+    grid-column: 2 / 4;
+  }
+
   .numberedRubricItem,
   .optionRow {
     grid-template-columns: 1fr;
   }
+
+  /* Stacked single column: no first-line to align the controls to. */
+  .optionRow > input[type='checkbox'],
+  .optionRow > .removeTextButton {
+    margin-top: 0;
+  }
+}
+
+.draftNotice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--checkd-blue-high);
+  border-radius: 12px;
+  background: rgb(var(--checkd-blue-rgb) / 0.08);
+  color: var(--checkd-blue-low);
+  font-size: 0.9375rem;
+}
+
+.draftNoticeAction {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--checkd-blue);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.draftNoticeAction:hover {
+  color: var(--checkd-blue-low);
+}
+
+.badgeImageDropActive {
+  outline: 2px dashed var(--checkd-blue);
+  outline-offset: 6px;
+  background: rgb(var(--checkd-blue-rgb) / 0.06);
+  border-radius: 12px;
+}
+
+.badgeImageUrlRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.badgeImageUrlInput {
+  flex: 1 1 16rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--checkd-blue-high);
+  border-radius: 8px;
+  font: inherit;
+  font-size: 0.9375rem;
+}
+
+.badgeImageUrlInput:focus-visible {
+  outline: none;
+  border-color: var(--checkd-blue);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-rgb) / 0.15);
+}
+
+.badgeImageUrlButton {
+  flex: 0 0 auto;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 999px;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.badgeImageUrlButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.imageZoomRow {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  margin-top: 1rem;
+}
+
+.imageZoomLabel {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--checkd-blue-low);
+}
+
+.imageZoomSlider {
+  flex: 1 1 auto;
+  min-width: 0;
+  accent-color: var(--checkd-blue);
+}
+
+.imageZoomValue {
+  flex: 0 0 3.5rem;
+  text-align: right;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--checkd-blue-low);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }

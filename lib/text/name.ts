@@ -1,5 +1,30 @@
 // Functions for manipulating names, such as converting to title case or generating initials.
 
+// This type is to resolve the users that have multi word last names as a single name column was not able to resolve the combination.
+export type NamedPerson = {
+  name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+};
+
+export function resolveName(person?: NamedPerson | null): {
+  first: string;
+  last: string;
+  isFallback?: boolean;
+} {
+  const first = person?.firstName?.trim();
+  const last = person?.lastName?.trim();
+
+  if (first) return { first, last: last ?? '', isFallback: false };
+
+  return splitName(person?.name);
+}
+
+export function formatFullName(person?: NamedPerson | null): string {
+  const { first, last } = resolveName(person);
+  return [first, last].filter(Boolean).join(' ');
+}
+
 export function splitName(fullName?: string | null): {
   first: string;
   last: string;
@@ -28,12 +53,12 @@ export function splitName(fullName?: string | null): {
   };
 }
 
-export function getNameForProfile(fullname?: string | null): {
+export function getNameForProfile(person?: NamedPerson | string | null): {
   headlineTop: string;
   headlineBottom: string;
   initials: string;
 } {
-  const { first, last, isFallback } = splitName(fullname);
+  const { first, last, isFallback } = resolveName(typeof person === 'string' ? { name: person } : person);
 
   if (isFallback) {
     return { headlineTop: 'Student,', headlineBottom: 'Profile', initials: 'ST' };
@@ -46,8 +71,8 @@ export function getNameForProfile(fullname?: string | null): {
   };
 }
 
-export function generateInitials(fullName: string | null): string {
-  const { first, last, isFallback } = splitName(fullName);
+export function generateInitials(person?: NamedPerson | string | null): string {
+  const { first, last, isFallback } = resolveName(typeof person === 'string' ? { name: person } : person);
   if (isFallback) return 'ST';
 
   const firstInitial = first.charAt(0).toUpperCase();

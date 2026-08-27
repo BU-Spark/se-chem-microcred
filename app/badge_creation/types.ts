@@ -19,12 +19,15 @@ export type CheckpointQuestionDraft = {
   // Optional feedback shown when a learner answers incorrectly.
   incorrectFeedback: string;
   incorrectFeedbackEnabled: boolean;
+  // Point value for this question; weights lesson (QEV) grading (issue #248).
+  // Authored per question rather than per checkpoint, since a checkpoint can
+  // hold several questions worth different amounts.
+  points: number;
 };
 
 export type CheckpointDraft = CheckpointQuestionDraft & {
   title: string;
   time: string;
-  points: number;
   segmentLabel: string;
   questions: CheckpointQuestionDraft[];
 };
@@ -54,6 +57,10 @@ export type RubricGoalDraft = {
 export type BadgeDraft = {
   badgeName: string;
   badgeDescription: string;
+  imageUrl: string;
+  imagePositionX: number;
+  imagePositionY: number;
+  imageScale: number;
   // LinkedIn-style skill tags (max 5). Persisted in BadgeRequirement.summary JSON.
   skills: string[];
   availableOn: string;
@@ -62,7 +69,7 @@ export type BadgeDraft = {
   youtubeUrl: string;
   videoTitle: string;
   videoLength: string;
-  // Percent of checkpoint questions a student must answer correctly to pass the lesson.
+  // Percent of total points from checkpoint questions a student must answer correctly to pass the lesson. i.e 70% = 7/10 points
   passingPercent: number;
   checkpoints: CheckpointDraft[];
   reassessmentLimit: number;
@@ -76,6 +83,10 @@ export type BadgeCatalogItem = {
   id: string;
   name: string;
   description: string | null;
+  imageUrl?: string | null;
+  imagePositionX?: number | null;
+  imagePositionY?: number | null;
+  imageScale?: number | null;
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
@@ -131,7 +142,20 @@ export type BadgesResponse = {
   badges: BadgeCatalogItem[];
 };
 
-export const DRAFT_STORAGE_KEY = 'badge_creation_draft_v4';
+const DRAFT_STORAGE_PREFIX = 'badge_creation_draft_v5';
+
+/** Drafts older than this are discarded on load rather than silently restored. */
+export const DRAFT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+export type StoredBadgeDraft = {
+  savedAt: number;
+  draft: BadgeDraft;
+};
+
+export function badgeDraftStorageKey(email?: string | null) {
+  const normalized = email?.trim().toLowerCase();
+  return normalized ? `${DRAFT_STORAGE_PREFIX}:${normalized}` : null;
+}
 export const DEFAULT_VIDEO_FALLBACK = 'Lesson video';
 
 export const STEP_DEFINITIONS: StepDefinition[] = [
@@ -145,6 +169,10 @@ export const STEP_DEFINITIONS: StepDefinition[] = [
 export const DEFAULT_DRAFT: BadgeDraft = {
   badgeName: '',
   badgeDescription: '',
+  imageUrl: '',
+  imagePositionX: 50,
+  imagePositionY: 50,
+  imageScale: 115,
   skills: [],
   availableOn: '',
   closesOn: '',
@@ -154,7 +182,7 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   videoLength: '',
   passingPercent: 70,
   checkpoints: [],
-  reassessmentLimit: 0,
+  reassessmentLimit: 3,
   cooldownDays: 0,
   reassessmentRequired: false,
   reassessmentResources: [],

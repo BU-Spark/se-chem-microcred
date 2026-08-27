@@ -4,8 +4,9 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Icon } from '@iconify/react';
+import { useUnreadMessages } from '@/app/hooks/useUnreadMessages';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
-import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import sapphire from '@/public/edit_avatar/sapphire.svg';
 import ruby from '@/public/edit_avatar/ruby.svg';
 import emerald from '@/public/edit_avatar/emerald.svg';
@@ -31,18 +32,19 @@ interface SidebarProps {
   isSigningOut: boolean;
 }
 
-// Messages is a work-in-progress feature: show it only when explicitly enabled
-// via env (set NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV=true in .env.local for dev).
-// Unset in prod, so it stays hidden there. Must be NEXT_PUBLIC_* to be readable
-// in this client component.
-const CUR_ENV = (process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() === 'true';
+const NAV_ICONS: Record<string, string> = {
+  '/': 'lucide:layout-dashboard',
+  '/my_badges': 'lucide:badge-check',
+  '/badges': 'lucide:wallet-cards',
+  '/messages': 'lucide:message-circle',
+  '/profile': 'lucide:user-round',
+};
 
 export const SIDEBAR_NAV: NavItem[] = [
-  { label: 'Courses', href: '/' },
+  { label: 'Dashboard', href: '/' },
   { label: 'Created Badges', href: '/my_badges' },
   { label: 'Badge Passport', href: '/badges' },
-  ...(CUR_ENV ? [{ label: 'My Messages', href: '/messages' }] : []),
-  { label: 'My Analytics', href: '/analytics' },
+  { label: 'My Messages', href: '/messages' },
   { label: 'My Profile', href: '/profile' }, // In this combine the setting and profile features.
 ];
 
@@ -63,13 +65,7 @@ const COLLAPSED_STORAGE_KEY = 'sidebarCollapsed';
 
 export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut }: SidebarProps) {
   const pathname = usePathname();
-  const { isAdmin } = useCanCreateContent();
-  // Default to closed so the sidebar renders collapsed on every page load
-  // (server render matches, avoiding a hydration mismatch). Only open if a
-  // prior preference explicitly said so.
   const [collapsed, setCollapsed] = useState(true);
-  // Transitions stay disabled until after the first paint so applying the saved
-  // state on mount/navigation doesn't animate — it just appears in place.
   const [ready, setReady] = useState(false);
   useEffect(() => {
     const stored = window.localStorage.getItem(COLLAPSED_STORAGE_KEY);
@@ -84,16 +80,12 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
       return next;
     });
   };
-  // My Badges is an admin-only surface (independent of ALPHA_MODE): hide it from
-  // non-admins. Hidden by default while access loads.
-  const visibleNavItems = isAdmin ? navItems : navItems.filter((item) => item.href !== '/my_badges');
   const { displayName: contextDisplayName, avatarBase } = useDatabaseDisplayNameContext();
+  const unreadCount = useUnreadMessages();
   const resolvedDisplayName =
     contextDisplayName !== undefined ? (contextDisplayName?.trim() ?? '') : displayName.trim();
   const avatarSrc = (avatarBase && AVATAR_SRC[avatarBase]) || sapphire;
 
-  // A single DOM tree that animates between widths (rather than swapping trees)
-  // so the collapse/expand is a smooth transition.
   const sidebarClass = `sidebar ${styles.sidebar} ${ready ? styles.ready : ''} ${
     collapsed ? styles.sidebarCollapsed : ''
   }`
@@ -102,7 +94,6 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
 
   return (
     <aside className={sidebarClass}>
-      {/* Collapse toggle: a chevron tab on the sidebar's edge. */}
       <button
         type="button"
         onClick={toggleCollapsed}
@@ -128,14 +119,19 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
             aria-hidden={!collapsed}
             tabIndex={collapsed ? 0 : -1}
           >
-            <Image src={avatarSrc} alt="" className={styles.avatarImage} width={140} height={140} priority />
+            <span className={styles.avatarFrame}>
+              <Image src={avatarSrc} alt="" className={styles.avatarImage} width={88} height={88} priority />
+            </span>
           </button>
-          <div className={styles.name}>{resolvedDisplayName}</div>
+          <div className={styles.profileCopy}>
+            <span className={styles.profileLabel}>Signed in as</span>
+            <div className={styles.name}>{resolvedDisplayName || 'Student'}</div>
+          </div>
         </div>
 
         {/* Nav Links */}
         <nav className={styles.navList}>
-          {visibleNavItems.map((item) => {
+          {navItems.map((item) => {
             const isCourseWorkspace =
               pathname === '/course_dashboard' ||
               pathname === '/courses' ||
@@ -148,7 +144,13 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
             const navItemClass = `${styles.navItem} ${isActive ? styles.navItemActive : ''}`.trim();
             return (
               <Link key={item.href} href={item.href} className={navItemClass}>
-                {item.label}
+                <Icon icon={NAV_ICONS[item.href] ?? 'lucide:circle'} className={styles.navIcon} aria-hidden="true" />
+                <span>{item.label}</span>
+                {item.href === '/messages' && unreadCount > 0 ? (
+                  <span className={styles.navBadge} aria-label={`${unreadCount} unread`}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                ) : null}
               </Link>
             );
           })}
@@ -157,6 +159,7 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
         {/* Footer */}
         <div className={styles.sidebarFooter}>
           <button type="button" onClick={onSignOut} className={styles.signOffButton} disabled={isSigningOut}>
+            <Icon icon="lucide:log-out" className={styles.signOffIcon} aria-hidden="true" />
             {isSigningOut ? 'Signing off…' : 'Sign off'}
           </button>
         </div>

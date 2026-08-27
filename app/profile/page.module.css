@@ -1,3 +1,4 @@
+/* Issues: #242 standardize headings */
 /* DO NOT redefine .sidebar or .main here */
 
 /* Optional: tiny sidebar tweaks without breaking the shell */
@@ -12,7 +13,7 @@
   padding: 2.5rem 2.5rem 3rem;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 0;
 }
 
 .headerRow {
@@ -20,15 +21,6 @@
   justify-content: space-between;
   align-items: baseline;
   gap: 1.5rem;
-}
-
-.pageTitle {
-  margin: 0;
-  font-family: 'Lato', sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  color: #000000;
-  line-height: 1.05;
 }
 
 .greeting {
@@ -39,89 +31,139 @@
   color: #4b5563;
 }
 
-/* ===========================
-   Main Profile Card
-   =========================== */
-.profileCard {
-  background: #ffffff;
-  border-radius: 40px;
-  border: 4px solid #d9d9d9;
-  padding: 2.5rem 3rem;
+/* Heavy rule directly under the page header */
+.headerRule {
+  height: 3px;
+  background: var(--checkd-blue-low);
+  margin-top: 0.9rem;
+}
 
+/* Hairline rule between the identity block and the analytics section */
+.sectionRule {
+  height: 1px;
+  background: #d9d9d9;
+  margin: 2.25rem 0 2rem;
+}
+
+/* ===========================
+   Identity row: info (left) + avatar/demographics (right)
+   =========================== */
+.identityRow {
+  margin-top: 2rem;
   display: grid;
-  grid-template-columns: minmax(280px, 1fr) auto minmax(280px, 1fr);
-  column-gap: 2.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 3.5rem;
   align-items: start;
 }
 
-/* ===========================
-   Left column (Student Info)
-   =========================== */
 .infoColumn {
   display: flex;
   flex-direction: column;
-  color: #000000;
+  color: var(--checkd-black);
+  min-width: 0;
 }
 
-.sectionTitle {
+/* Small letterspaced section label, e.g. "My Info:" */
+.eyebrow {
+  margin: 0;
   font-family: 'Lato', sans-serif;
-  font-size: 24px;
-  font-weight: 400;
-  color: #000000;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6b7280;
 }
 
 .primaryName {
-  margin-top: 1.25rem;
+  margin-top: 1rem;
   font-family: 'Lato', sans-serif;
-  font-size: 48px;
+  font-size: 64px;
   font-weight: 700;
-  line-height: 1.05;
-  color: #000000;
+  line-height: 1.02;
+  color: var(--checkd-black);
+  overflow-wrap: anywhere;
 }
 
-.roleLabel {
-  margin-top: 1.25rem;
-  font-family: 'Lato', sans-serif;
-  font-weight: 400;
-  font-size: 24px;
-  color: #000000;
+/* Rule under the name — spans the info column only, not the avatar */
+.infoRule {
+  height: 1px;
+  background: #d9d9d9;
+  margin: 2rem 0 1.25rem;
 }
 
-.metaLine {
-  margin-top: 0.25rem;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  color: #000000;
-}
-
-/* Email / BUID row */
+/* Date Created / Email / ID */
 .detailGridTop {
-  margin-top: 2.5rem;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem 1.5rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem 2rem;
+}
+
+.detailLabel {
+  font-family: 'Lato', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 0.35rem;
+}
+
+.detailValue {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--checkd-black);
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Inline links under the detail row ---------- */
+.inlineActionsRow {
+  margin-top: 1.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  align-items: center;
+}
+
+.inlineLink {
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--checkd-blue);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+
+.inlineLink:hover {
+  color: var(--checkd-blue-low);
 }
 
 /* ===========================
-   Center column (Avatar)
+   Right column: avatar + demographic dropdown
    =========================== */
 .avatarColumn {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 0.75rem;
+  width: 300px;
+  max-width: 100%;
 }
 
 .avatarFrame {
   position: relative;
-  width: 320px;
-  height: 320px;
+  width: 280px;
+  height: 280px;
   max-width: 100%;
   border-radius: 50%;
   border: 4px solid #d9d9d9;
   display: grid;
   place-items: center;
-  background: #ffffff;
+  background: var(--checkd-white);
   overflow: hidden;
 }
 
@@ -133,65 +175,31 @@
   display: block;
 }
 
-.editAvatarLink {
-  font-family: 'Open Sans', sans-serif;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 16px;
-  color: #000000;
-  font-weight: 400;
-  cursor: pointer;
-  text-decoration: none;
-  background: none;
-  border: none;
-}
-
-.editAvatarText {
-  border-bottom: 1px solid #000000;
-  padding-bottom: 1px;
-}
-
-.editAvatarIcon {
-  width: 16px;
-  height: 16px;
-}
-
-/* ===========================
-   Right column (Demographic Info)
-   =========================== */
-.rightColumn {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-  border-left: 2px solid #d9d9d9;
-  padding-left: 2.5rem;
-  position: relative;
-}
-
-/* ---------- Demographic dropdown ---------- */
 .demographicSection {
+  width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
 }
 
 .demographicHeader {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.4rem;
   background: none;
   border: none;
   padding: 0;
   cursor: pointer;
-  color: #000000;
+  color: var(--checkd-blue-low);
 }
 
 .demographicTitle {
   font-family: 'Lato', sans-serif;
-  font-size: 24px;
-  font-weight: 400;
-  color: #000000;
+  font-size: 20px;
+  font-weight: 700;
+  color: inherit;
 }
 
 .caret {
@@ -199,177 +207,60 @@
   font-size: 18px;
   line-height: 1;
   transition: transform 0.2s ease;
-  color: #000000;
+  color: inherit;
 }
 
 .caretOpen {
   transform: rotate(180deg);
 }
 
+/* "Edit" link under the Demographic Info toggle */
+.editPencil {
+  align-self: flex-end;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  font-style: italic;
+  font-weight: 400;
+  color: var(--checkd-blue);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.editPencil:hover {
+  color: var(--checkd-blue-low);
+}
+
 .detailGrid {
+  margin-top: 0.75rem;
   display: grid;
   grid-template-columns: 1fr;
   row-gap: 0.9rem;
 }
 
-.detailLabel {
-  font-size: 20px;
-  font-weight: 400;
-  color: #000000;
-  font-family: 'Lato', sans-serif;
-}
-
-.detailValue {
-  font-size: 16px;
-  font-weight: 400;
-  color: #0f172a;
-  font-family: 'Open Sans', sans-serif;
-}
-
-.emptyState {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 14px;
-  color: #6b7280;
-}
-
-/* Edit pencil link */
-.editPencil {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 20px;
-  font-style: italic;
-  font-weight: 300;
-  color: #000000;
-  padding: 0;
-}
-
-.rightColumn .editPencil {
-  align-self: flex-end;
-  margin-top: auto;
-}
-
-.editPencilIcon {
-  width: 20px;
-  height: 20px;
-}
-
-/* ===========================
-   Badges card
-   =========================== */
-.badgesCard {
-  background: #ffffff;
-  border-radius: 40px;
-  border: 4px solid #d9d9d9;
-  padding: 2rem 3rem 2.5rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-}
-
-.badgesHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.badgesTitle {
-  font-family: 'Lato', sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  color: #000000;
-}
-
-.badgeSectionLabel {
-  font-family: 'Lato', sans-serif;
-  font-size: 24px;
-  font-weight: 400;
-  color: #000000;
-}
-
-.badgeRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem 2.5rem;
-  padding: 0.5rem 0 1rem;
-}
-
-.badgeToken {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.6rem;
-  width: 176px;
-}
-
-.badgeCircle {
-  position: relative;
-  overflow: hidden;
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  background: #2e6aa9;
-  flex-shrink: 0;
-}
-
-.badgeCircleImage {
-  object-fit: cover;
-}
-
-.badgeName {
-  font-family: 'Open Sans', sans-serif;
-  font-size: 16px;
-  color: #000000;
-  text-align: center;
-}
-
-.badgeDropdownSection {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.badgeDropdownHeader {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  align-self: flex-start;
-}
-
-.badgeDropdownHeader .caret {
-  color: #2e6aa9;
-  font-size: 22px;
+/* ---------- Sensitive info ---------- */
+.sensitiveValueMasked {
+  letter-spacing: 0.12em;
 }
 
 /* ===========================
    Responsive
    =========================== */
 @media (max-width: 1100px) {
-  .profileCard {
+  .identityRow {
     grid-template-columns: 1fr;
-    row-gap: 2rem;
-    justify-items: center;
-    text-align: left;
+    row-gap: 2.5rem;
+    justify-items: start;
   }
+}
 
-  .rightColumn {
-    border-left: none;
-    padding-left: 0;
-    width: 100%;
-    max-width: 480px;
-  }
-
-  .infoColumn {
-    width: 100%;
-    max-width: 480px;
+@media (max-width: 860px) {
+  .detailGridTop {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
   }
 }
 
@@ -378,46 +269,10 @@
     padding: 2rem 1.25rem 2.5rem;
   }
 
-  .pageTitle {
-    font-size: 38px;
+
+  .primaryName {
+    font-size: 40px;
   }
-
-  .badgesTitle {
-    font-size: 2rem;
-  }
-
-  .badgeCircle {
-    width: 120px;
-    height: 120px;
-  }
-}
-
-/* ---------- Sensitive info controls ---------- */
-
-.sensitiveValueMasked {
-  letter-spacing: 0.12em;
-}
-
-/* ---------- Inline links under Student Info ---------- */
-
-.inlineActionsRow {
-  margin-top: 1.5rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  align-items: center;
-}
-
-.inlineLink {
-  border: none;
-  background: none;
-  padding: 0;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 0.95rem;
-  font-weight: 400;
-  color: #000000;
-  cursor: pointer;
-  text-decoration: underline;
 }
 
 /* ---------- Demographic edit modal ---------- */
@@ -435,7 +290,7 @@
 .demographicModal {
   width: min(520px, 95%);
   border-radius: 1.5rem;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 1.75rem 2rem 1.75rem;
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.4);
   display: flex;
@@ -477,8 +332,8 @@
 .demographicModalField input:focus,
 .demographicModalField select:focus {
   outline: none;
-  border-color: #2e6aa9;
-  box-shadow: 0 0 0 3px rgba(46, 106, 169, 0.15);
+  border-color: var(--checkd-blue-high);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-high-rgb) / 0.15);
 }
 
 .demographicModalLabel {
@@ -499,7 +354,7 @@
   font-family: 'Lato', sans-serif;
   border-radius: 999px;
   border: 1px solid #d1d5db;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 0.5rem 1.3rem;
   font-size: 0.95rem;
   font-weight: 600;
@@ -515,8 +370,8 @@
   font-family: 'Lato', sans-serif;
   border-radius: 999px;
   border: none;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
   padding: 0.5rem 1.6rem;
   font-size: 0.95rem;
   font-weight: 600;
@@ -524,7 +379,7 @@
 }
 
 .demographicModalSave:hover {
-  background: #285d94;
+  filter: brightness(0.93);
 }
 
 .demographicModalSave:disabled,
@@ -548,7 +403,7 @@
 .languageModal {
   width: min(520px, 95%);
   border-radius: 1.5rem;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 1.75rem 2rem 1.75rem;
   box-shadow: 0 30px 60px rgba(15, 23, 42, 0.4);
   display: flex;
@@ -609,7 +464,7 @@
 
 .languageTag {
   font-size: 0.75rem;
-  color: #2e6aa9;
+  color: var(--checkd-blue);
 }
 
 /* actions at bottom of language modal */
@@ -624,7 +479,7 @@
 .languageModalCancel {
   border-radius: 999px;
   border: 1px solid #d1d5db;
-  background: #ffffff;
+  background: var(--checkd-white);
   padding: 0.5rem 1.1rem;
   font-size: 0.9rem;
   cursor: pointer;
@@ -633,8 +488,8 @@
 .languageModalSave {
   border-radius: 999px;
   border: none;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
   padding: 0.5rem 1.4rem;
   font-size: 0.9rem;
   font-weight: 600;

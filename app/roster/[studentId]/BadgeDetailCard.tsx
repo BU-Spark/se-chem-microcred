@@ -20,6 +20,8 @@ export type BadgeDetailResponse = {
     cooldownDays?: number | null;
     reassessmentRequired?: boolean | null;
     allowCooldownOverride?: boolean;
+    qevWaivedAt?: string | null;
+    qevWaivedByName?: string | null;
   };
   progress: {
     percentComplete: number;
@@ -75,7 +77,7 @@ export type BadgeDetailResponse = {
       completedAt: string | null;
       passed?: boolean;
       feedback?: string | null;
-      assessorName?: string | null;
+      checkerName?: string | null;
       responses?: Array<{
         id: string;
         title: string;
@@ -120,6 +122,22 @@ function formatDateTime(value?: string | null) {
 
   const time = parsed.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   return `${time} · ${parsed.toLocaleDateString()}`;
+}
+
+export function richTextToPlainText(value?: string | null) {
+  if (!value) return '';
+  return value
+    .replace(/<br\s*\/?\s*>/gi, ' ')
+    .replace(/<\/p\s*>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#0?39;/gi, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function Chevron({ isOpen }: { isOpen: boolean }) {
@@ -214,6 +232,10 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
       ? `${ordinal(detail.assessment.attemptCount)} attempt: ${latestAssessment?.passed ? 'proficient' : 'still learning'}`
       : 'Not yet assessed'
     : detail.progress.currentCheckpoint || '--';
+  const isQevWaived = Boolean(detail.badge.qevWaivedAt);
+  const waivedByLabel = detail.badge.qevWaivedByName
+    ? `QEV waived by ${detail.badge.qevWaivedByName}`
+    : 'QEV waived by instructor';
 
   return (
     <section className={styles.detailCard}>
@@ -226,20 +248,31 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
       <div className={styles.detailSummary}>
         <div className={styles.progressSummaryColumn}>
           <ProgressRing percent={detail.progress.percentComplete} />
-          <p className={styles.progressSummaryCaption}>Complete with precheck</p>
+          <p className={styles.progressSummaryCaption}>
+            {isQevWaived ? 'Video lesson progress (QEV waived)' : 'Video lesson progress'}
+          </p>
         </div>
 
         <div className={styles.progressStatusColumn}>
           <p className={styles.progressStatusLine}>
-            <span className={styles.progressStatusLabel}>Precheck status:</span>{' '}
+            <span className={styles.progressStatusLabel}>Video lesson status:</span>{' '}
             <span className={styles.progressStatusValue}>
-              {detail.progress.precheckComplete ? 'Complete' : 'Incomplete'}
+              {detail.progress.precheckComplete
+                ? 'Completed'
+                : detail.progress.percentComplete > 0
+                  ? 'In Progress'
+                  : 'Not Started'}
+              {isQevWaived ? ` — ${waivedByLabel} on ${formatDate(detail.badge.qevWaivedAt)}` : ''}
             </span>
           </p>
           <p className={styles.progressStatusLine}>
             <span className={styles.progressStatusLabel}>Assessment status:</span>{' '}
             <span className={styles.progressStatusValue}>
-              {detail.progress.assessmentComplete ? 'Complete' : 'Incomplete'}
+              {detail.progress.assessmentComplete
+                ? 'Proficient'
+                : detail.assessment.attemptCount > 0
+                  ? `${detail.assessment.attemptCount} Attempt${detail.assessment.attemptCount === 1 ? '' : 's'}`
+                  : 'Not Attempted'}
             </span>
           </p>
           <p className={styles.progressStatusLine}>
@@ -259,7 +292,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
           className={[styles.detailTab, activeTab === 'assessment' ? styles.detailTabActive : ''].join(' ')}
           onClick={() => setActiveTab('assessment')}
         >
-          Assessment history
+          In-person assessment
         </button>
         <button
           type="button"
@@ -268,7 +301,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
           className={[styles.detailTab, activeTab === 'precheck' ? styles.detailTabActive : ''].join(' ')}
           onClick={() => setActiveTab('precheck')}
         >
-          Precheck answer history
+          Video lesson results
         </button>
       </div>
 
@@ -301,9 +334,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
                     {isOpen ? (
                       <div className={styles.assessmentAttemptPanel}>
                         <p className={styles.assessmentAttemptLine}>Time: {formatDateTime(attempt.completedAt)}</p>
-                        <p className={styles.assessmentAttemptLine}>
-                          Checker: {attempt.assessorName || 'Not recorded'}
-                        </p>
+                        <p className={styles.assessmentAttemptLine}>Checker: {attempt.checkerName || 'Not recorded'}</p>
                         <p className={styles.assessmentAttemptLine}>
                           Assessment result:{' '}
                           <strong>{attempt.passed === false ? 'still learning' : 'proficient'}</strong>
@@ -344,7 +375,7 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
         </section>
       ) : (
         <section className={styles.detailSection}>
-          <h3 className={styles.detailSectionTitle}>Precheck answer history</h3>
+          <h3 className={styles.detailSectionTitle}>Video lesson results</h3>
 
           {detail.qevAttempts.length === 0 ? (
             <p className={styles.emptyState}>No precheck attempts recorded yet.</p>
@@ -410,7 +441,9 @@ export function BadgeDetailCard({ detail, tone }: { detail: BadgeDetailResponse;
                                       ) : null}
                                       {checkpoint.questions.map((question) => (
                                         <div key={question.id} className={styles.questionBlock}>
-                                          <p className={styles.questionPrompt}>{question.prompt || question.title}</p>
+                                          <p className={styles.questionPrompt}>
+                                            {richTextToPlainText(question.prompt) || question.title}
+                                          </p>
                                           <div className={styles.answerCard}>
                                             {question.answers.map((answer, answerIndex) => (
                                               <div key={answerIndex} className={styles.answerRow}>

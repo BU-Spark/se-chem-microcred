@@ -1,25 +1,17 @@
 'use client';
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import Image, { type StaticImageData } from 'next/image';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import SurveyModal from '@/app/components/SurveyModal';
-import { useStudentData, type LessonRecord } from '../hooks/useStudentData';
+import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
+import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
+import { useStudentData, useRefreshAllStudentData, type BadgeRecord, type LessonRecord } from '../hooks/useStudentData';
+import { BADGE_STATUS_LABEL } from '@/lib/badgeStatusLabels';
 import styles from './page.module.css';
-import veryUnhappy from '../../public/assets/survey_faces/very_unhappy.svg';
-import slightlyUnhappy from '../../public/assets/survey_faces/slightly_unhappy.svg';
-import neutral from '../../public/assets/survey_faces/neutral.svg';
-import slightlyHappy from '../../public/assets/survey_faces/slightly_happy.svg';
-import veryHappy from '../../public/assets/survey_faces/very_happy.svg';
-import veryUnhappySelected from '../../public/assets/survey_faces/very_unhappy_selected.svg';
-import slightlyUnhappySelected from '../../public/assets/survey_faces/slightly_unhappy_selected.svg';
-import neutralSelected from '../../public/assets/survey_faces/neutral_selected.svg';
-import slightlyHappySelected from '../../public/assets/survey_faces/slightly_happy_selected.svg';
-import veryHappySelected from '../../public/assets/survey_faces/very_happy_selected.svg';
 
 interface LessonCard {
   id: string;
@@ -30,6 +22,59 @@ interface LessonCard {
   variant?: 'start' | 'continue' | 'completed';
   image?: string;
   href?: string;
+  section: 'upNext' | 'inProgress' | 'completed';
+  // Set when an instructor waived the QEV requirement of a badge this lesson
+  // backs. The waiver deliberately leaves lesson progress alone, so without this
+  // the card sits in "Pick up where you left off" while the badge reports itself
+  // ready to assess — two true statements that read as a contradiction.
+  waivedNote?: string;
+}
+
+/**
+ * Keep lesson cards in their three broad progress groups while explaining the
+ * badge step that follows the video. The badge is the richer state machine:
+ * lesson progress alone cannot distinguish assessment, feedback, cooldown, and
+ * award states after a lesson has been completed.
+ */
+function describeLessonState(record: LessonRecord, badgesById?: Map<string, BadgeRecord>) {
+  if (record.status !== 'COMPLETED') {
+    if (record.status === 'IN_PROGRESS') {
+      return 'Video lesson in progress';
+    }
+    return 'Lesson not started';
+  }
+
+  const badge = record.badgeRequirements
+    ?.map((requirement) => badgesById?.get(requirement.badgeId))
+    .find((candidate): candidate is BadgeRecord => Boolean(candidate));
+
+  if (!badge || badge.status === 'COMPLETED' || badge.status === 'NOT_STARTED') return 'Completed';
+
+  if (badge.status === 'LEARNING' || badge.status === 'LOCKED') return 'Video lesson in progress';
+
+  // IN_REVIEW and READY_FOR_ASSESSMENT are distinct states and must not share a
+  // label: IN_REVIEW means the assessment is graded and waiting on the student,
+  // and collapsing it into "Assessment in progress" is what made this card
+  // contradict the feedback tab. Take the in-review wording from the shared map so
+  // the two surfaces stay in step.
+  if (badge.status === 'IN_REVIEW') return BADGE_STATUS_LABEL.IN_REVIEW;
+
+  if (badge.status === 'READY_FOR_ASSESSMENT') return 'Assessment in progress';
+
+  return 'Completed';
+}
+
+function resolveLessonSection(record: LessonRecord, badgesById?: Map<string, BadgeRecord>): LessonCard['section'] {
+  if (record.status === 'NOT_STARTED') return 'upNext';
+  if (record.status === 'IN_PROGRESS') return 'inProgress';
+
+  const badge = record.badgeRequirements
+    ?.map((requirement) => badgesById?.get(requirement.badgeId))
+    .find((candidate): candidate is BadgeRecord => Boolean(candidate));
+
+  if (badge?.status === 'LEARNING' || badge?.status === 'LOCKED') return 'inProgress';
+  if (badge?.status === 'IN_REVIEW' || badge?.status === 'READY_FOR_ASSESSMENT') return 'inProgress';
+  return 'completed';
 }
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
@@ -146,7 +191,12 @@ function resolveLessonImage(record: LessonRecord) {
   return DEFAULT_LESSON_IMAGE;
 }
 
-function lessonRecordToCard(record: LessonRecord): LessonCard {
+function lessonRecordToCard(
+  record: LessonRecord,
+  startedBadgeSlugs?: Set<string>,
+  waivedBadgeNamesById?: Map<string, string>,
+  badgesById?: Map<string, BadgeRecord>
+): LessonCard {
   const due = formatDueDate(record.dueDate);
   const metaParts: string[] = [];
   if (due) {
@@ -156,22 +206,35 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
     metaParts.push(`${record.estimatedMinutes} min`);
   }
 
-  // Progress reads as a checkpoint count ("1 of 2 checkpoints") rather than a percent.
-  const totalCheckpoints = record.checkpoints?.length ?? 0;
-  const passedCheckpoints = record.completedCheckpointIds?.length ?? 0;
-  const statusLabel =
-    record.status === 'COMPLETED'
-      ? 'Completed'
-      : record.status === 'IN_PROGRESS'
-        ? totalCheckpoints > 0
-          ? `${passedCheckpoints} of ${totalCheckpoints} checkpoint${totalCheckpoints === 1 ? '' : 's'}`
-          : 'In progress'
-        : 'Not started';
+  const statusLabel = describeLessonState(record, badgesById);
 
   const actionLabel = record.status === 'COMPLETED' ? 'Review' : record.status === 'IN_PROGRESS' ? 'Continue' : 'Start';
 
   const variant: LessonCard['variant'] =
     record.status === 'COMPLETED' ? 'completed' : record.status === 'IN_PROGRESS' ? 'continue' : 'start';
+
+  // Where the card's action button goes (issue #194). Neither destination is the
+  // lesson preview page at /lessons/<slug> — the dashboard never wants that.
+  //
+  // Completed: the badge feedback page, which holds the review material and any
+  // assessment results. This holds regardless of assessment state; see
+  // startedBadgeSlugs for why only started badges qualify.
+  //
+  // Start/Continue: straight into the QEV route — the video plus its checkpoint
+  // questions — rather than the preview. A completed lesson whose badge isn't
+  // resolvable falls back here too; the QEV route re-enters it in review mode.
+  const badgeSlug = record.badgeRequirements?.[0]?.badgeSlug ?? null;
+  const badgeStarted = badgeSlug ? (startedBadgeSlugs?.has(badgeSlug) ?? false) : false;
+  const href =
+    record.status === 'COMPLETED' && badgeSlug && badgeStarted
+      ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
+      : `/lessons/${record.slug}/video`;
+
+  // Name the badge rather than the lesson: the student's question is "why can I be
+  // assessed when I haven't finished this?", and the badge is the thing that moved.
+  const waivedBadgeName = record.badgeRequirements
+    ?.map((requirement) => waivedBadgeNamesById?.get(requirement.badgeId))
+    .find((name): name is string => Boolean(name));
 
   return {
     id: record.id,
@@ -181,7 +244,11 @@ function lessonRecordToCard(record: LessonRecord): LessonCard {
     actionLabel,
     variant,
     image: resolveLessonImage(record),
-    href: `/lessons/${record.slug}`,
+    href,
+    section: resolveLessonSection(record, badgesById),
+    waivedNote: waivedBadgeName
+      ? `Your instructor cleared this requirement for ${waivedBadgeName} — you can be assessed without finishing it.`
+      : undefined,
   };
 }
 
@@ -192,6 +259,7 @@ function HomePageContent() {
   const signOut = useSignOut();
   const courseId = searchParams.get('courseId');
   const { data: studentData, isLoading, refresh } = useStudentData(user?.primaryEmailAddress?.emailAddress, courseId);
+  const refreshAllStudentData = useRefreshAllStudentData();
   const pathname = usePathname();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [activeSurvey, setActiveSurvey] = useState<{
@@ -202,29 +270,13 @@ function HomePageContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
-
-  const FACE_IMAGES: Record<number, StaticImageData> = {
-    1: veryUnhappy,
-    2: slightlyUnhappy,
-    3: neutral,
-    4: slightlyHappy,
-    5: veryHappy,
-  };
-  const FACE_IMAGES_SELECTED: Record<number, StaticImageData> = {
-    1: veryUnhappySelected,
-    2: slightlyUnhappySelected,
-    3: neutralSelected,
-    4: slightlyHappySelected,
-    5: veryHappySelected,
-  };
-
-  const FACE_ALTS: Record<number, string> = {
-    1: 'Very unhappy',
-    2: 'Slightly unhappy',
-    3: 'Neutral',
-    4: 'Slightly happy',
-    5: 'Very happy',
-  };
+  // The submit button stayed live for the whole request plus the refresh that
+  // follows it, so a student on a slow connection saw nothing happen and clicked
+  // again. SurveyResponse has no unique key on (promptId, studentId) and the route
+  // does find-then-write, so two overlapping submits each insert a row and the
+  // student's rating counts twice. The badge route's IN_REVIEW → COMPLETED guard
+  // already covers sequential clicks; this covers the concurrent ones.
+  const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false);
 
   const displayName = studentData?.student?.name || user?.fullName || 'Student';
   const courseTitle = studentData?.course?.title ?? '';
@@ -232,13 +284,28 @@ function HomePageContent() {
   const courseSection = studentData?.course?.section ?? null;
   const courseDescription = studentData?.course?.description ?? '';
   const courseContacts = studentData?.course?.contacts ?? [];
-  const pendingSurveyBadges = useMemo(() => studentData?.surveys?.pendingBadge ?? [], [studentData]);
+  // Defence in depth behind the API's course scoping: this dashboard is one course,
+  // so a badge earned in another one must never reach the finalize list. A badge with
+  // no derivable course (no lesson-backed requirement) is kept — it belongs to no
+  // other course either, and dropping it would strand the student.
+  const belongsToThisCourse = useCallback(
+    (badgeCourseId: string | null | undefined) => !courseId || !badgeCourseId || badgeCourseId === courseId,
+    [courseId]
+  );
+
+  const pendingSurveyBadges = useMemo(
+    () => (studentData?.surveys?.pendingBadge ?? []).filter((entry) => belongsToThisCourse(entry.courseId)),
+    [studentData, belongsToThisCourse]
+  );
   // Finalization is the pass-path of IN_REVIEW: a passing attempt awaiting the
   // student's acknowledge + rating. Fail-path IN_REVIEW badges are handled on the
   // feedback page, not here.
   const readyForFinalization = useMemo(
-    () => (studentData?.badges?.inReview ?? []).filter((badge) => badge.latestAttemptPassed === true),
-    [studentData]
+    () =>
+      (studentData?.badges?.inReview ?? []).filter(
+        (badge) => badge.latestAttemptPassed === true && belongsToThisCourse(badge.courseId)
+      ),
+    [studentData, belongsToThisCourse]
   );
 
   // Merge both "ready" sources so neither hides the other, deduping by badgeId.
@@ -255,6 +322,7 @@ function HomePageContent() {
       merged.push({
         promptId: `auto-${badge.id}`,
         badgeId: badge.id,
+        courseId: badge.courseId,
         badgeSlug: badge.slug,
         badgeName: badge.name,
         question: `Complete the final survey for ${badge.name}`,
@@ -282,17 +350,97 @@ function HomePageContent() {
     }
   }, [pendingSurveyBadges]);
 
+  // Slugs of every badge the student has started. A completed lesson's "Review" routes
+  // to the badge feedback page — that page is where the review material lives, whether
+  // or not an assessment has happened yet — so this deliberately does NOT filter on
+  // badge status or attempt history. Status would be the wrong signal regardless: a
+  // failed badge only sits at IN_REVIEW until the student acknowledges the feedback,
+  // then drops to READY_FOR_ASSESSMENT or LOCKED, and the state-machine backfill landed
+  // every pre-existing failed badge at READY_FOR_ASSESSMENT.
+  //
+  // These are the same five buckets the feedback page resolves its badge from, so a
+  // slug in this set is guaranteed to render there rather than bounce to /badges. A
+  // badge with no StudentBadge row (NOT_STARTED) is excluded for exactly that reason.
+  const startedBadgeSlugs = useMemo(() => {
+    const slugs = new Set<string>();
+    const badges = studentData?.badges;
+    if (badges) {
+      const started = [
+        ...(badges.completed ?? []),
+        ...(badges.inReview ?? []),
+        ...(badges.locked ?? []),
+        ...(badges.readyForAssessment ?? []),
+        ...(badges.learning ?? []),
+      ];
+      for (const badge of started) {
+        if (badge.slug) slugs.add(badge.slug);
+      }
+    }
+    return slugs;
+  }, [studentData]);
+
+  // Badges whose QEV requirement an instructor waived, so the lesson cards backing
+  // them can say why they became assessable while still unfinished.
+  const waivedBadgeNamesById = useMemo(() => {
+    const names = new Map<string, string>();
+    const badges = studentData?.badges;
+    if (badges) {
+      const all = [
+        ...(badges.completed ?? []),
+        ...(badges.inReview ?? []),
+        ...(badges.locked ?? []),
+        ...(badges.readyForAssessment ?? []),
+        ...(badges.learning ?? []),
+      ];
+      for (const badge of all) {
+        if (badge.qevWaivedAt) {
+          names.set(badge.id, badge.name);
+        }
+      }
+    }
+    return names;
+  }, [studentData]);
+
+  const badgesById = useMemo(() => {
+    const result = new Map<string, BadgeRecord>();
+    const badges = studentData?.badges;
+    if (!badges) return result;
+
+    const allBadges = [
+      ...(badges.completed ?? []),
+      ...(badges.inReview ?? []),
+      ...(badges.locked ?? []),
+      ...(badges.readyForAssessment ?? []),
+      ...(badges.learning ?? []),
+      ...(badges.notStarted ?? []),
+    ];
+    for (const badge of allBadges) result.set(badge.id, badge);
+    return result;
+  }, [studentData]);
+
   const upNextLessons = useMemo(() => {
-    return studentData?.lessons.upNext.map(lessonRecordToCard) ?? [];
-  }, [studentData]);
+    return (
+      studentData?.lessons.upNext.map((record) =>
+        lessonRecordToCard(record, undefined, waivedBadgeNamesById, badgesById)
+      ) ?? []
+    );
+  }, [badgesById, studentData, waivedBadgeNamesById]);
 
-  const continueLessons = useMemo(() => {
-    return studentData?.lessons.inProgress.map(lessonRecordToCard) ?? [];
-  }, [studentData]);
+  const { continueLessons, completedLessons } = useMemo(() => {
+    const activeCards =
+      studentData?.lessons.inProgress.map((record) =>
+        lessonRecordToCard(record, undefined, waivedBadgeNamesById, badgesById)
+      ) ?? [];
+    const resolvedCompletedCards =
+      studentData?.lessons.completed?.map((record) =>
+        lessonRecordToCard(record, startedBadgeSlugs, waivedBadgeNamesById, badgesById)
+      ) ?? [];
 
-  const completedLessons = useMemo(() => {
-    return studentData?.lessons.completed?.map(lessonRecordToCard) ?? [];
-  }, [studentData]);
+    return {
+      continueLessons: [...activeCards, ...resolvedCompletedCards.filter((card) => card.section === 'inProgress')],
+      completedLessons: resolvedCompletedCards.filter((card) => card.section === 'completed'),
+    };
+  }, [badgesById, startedBadgeSlugs, studentData, waivedBadgeNamesById]);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
@@ -347,9 +495,13 @@ function HomePageContent() {
   );
 
   const handleSubmitSurvey = useCallback(async () => {
-    if (!activeSurvey || !studentData?.student.email) {
+    // Belt and braces with the disabled button: a keyboard activation can still
+    // land before React re-renders with the disabled attribute.
+    if (!activeSurvey || !studentData?.student.email || isSubmittingSurvey) {
       return;
     }
+
+    setIsSubmittingSurvey(true);
 
     try {
       const response = await fetch(`/api/badges/${activeSurvey.badgeId}/survey`, {
@@ -366,11 +518,18 @@ function HomePageContent() {
       }
 
       await refresh();
+      // Rating a badge finalizes it to COMPLETED, which the badge feedback tab
+      // reads from its own cache entry. Invalidate those too.
+      refreshAllStudentData();
       closeSurveyModal();
     } catch (error) {
       console.error('Failed to submit survey', error);
+    } finally {
+      // Reset on the failure path too, so a student whose submit genuinely failed
+      // is not left with a permanently dead button.
+      setIsSubmittingSurvey(false);
     }
-  }, [activeSurvey, surveyRating, studentData, refresh, closeSurveyModal]);
+  }, [activeSurvey, surveyRating, studentData, refresh, refreshAllStudentData, closeSurveyModal, isSubmittingSurvey]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -404,6 +563,7 @@ function HomePageContent() {
           <div className={styles.cardTitle}>{lesson.title}</div>
           <div className={styles.cardStatus}>{lesson.status}</div>
           <div className={styles.cardMeta}>{lesson.meta}</div>
+          {lesson.waivedNote ? <p className={styles.cardWaivedNote}>{lesson.waivedNote}</p> : null}
         </div>
 
         {lessonHref ? (
@@ -445,7 +605,9 @@ function HomePageContent() {
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
-        <section className={styles.hero}>
+        <section
+          className={`${styles.hero} ${courseDescription || courseContacts.length > 0 ? styles.heroWithDetails : styles.heroWithoutDetails}`}
+        >
           <div className={styles.heroText}>
             <p className={styles.heroEyebrow}>Welcome back, {displayName}</p>
             <h1 className={styles.heroTitle}>{courseTitle || 'Your course'}</h1>
@@ -457,6 +619,22 @@ function HomePageContent() {
               </p>
             ) : null}
           </div>
+          {courseDescription || courseContacts.length > 0 ? (
+            <div className={styles.heroDetails}>
+              <h2 className={styles.heroDetailsTitle}>About this course</h2>
+              {courseDescription ? <p className={styles.heroDetailsText}>{courseDescription}</p> : null}
+              {courseContacts.length > 0 ? (
+                <ul className={styles.heroContacts}>
+                  {courseContacts.map((contact) => (
+                    <li key={contact.id} className={styles.heroContactItem}>
+                      <span className={styles.contactName}>{contact.name}</span>
+                      <span className={styles.contactMeta}>{contact.type}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
         </section>
 
         <div className={styles.statRow}>
@@ -521,23 +699,6 @@ function HomePageContent() {
                 <ul className={styles.badgeList}>{readyBadgeAlerts.map(renderBadgeListItem)}</ul>
               )}
             </section>
-
-            {courseDescription || courseContacts.length > 0 ? (
-              <section className={styles.panel}>
-                <h2 className={styles.panelTitle}>About this course</h2>
-                {courseDescription ? <p className={styles.panelText}>{courseDescription}</p> : null}
-                {courseContacts.length > 0 ? (
-                  <ul className={styles.contactList}>
-                    {courseContacts.map((contact) => (
-                      <li key={contact.id} className={styles.contactItem}>
-                        <span className={styles.contactName}>{contact.name}</span>
-                        <span className={styles.contactMeta}>{contact.type}</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </section>
-            ) : null}
           </aside>
         </div>
       </main>
@@ -546,16 +707,12 @@ function HomePageContent() {
         <SurveyModal
           title="Tell us about your experience."
           question={activeSurvey.question}
-          options={[1, 2, 3, 4, 5].map((value) => ({
-            value,
-            label: FACE_ALTS[value],
-            icon: FACE_IMAGES[value],
-            selectedIcon: FACE_IMAGES_SELECTED[value],
-          }))}
+          options={surveyFaceOptions()}
           value={surveyRating}
           onChange={setSurveyRating}
           onSubmit={handleSubmitSurvey}
           onClose={closeSurveyModal}
+          isSubmitting={isSubmittingSurvey}
           classNames={{
             overlay: styles.surveyOverlay,
             modal: styles.surveyModal,

@@ -1,4 +1,5 @@
 /** @jest-environment node */
+// Issues: #258 multi-word last names
 
 import { GET, HEAD } from '../app/api/qr/route';
 import { ensureCurrentUser } from '../app/api/courses/lib/ensure-user';
@@ -88,6 +89,8 @@ describe('QR API', () => {
       email: 'student@example.edu',
       name: 'Student Example',
       externalId: null,
+      firstName: null,
+      lastName: null,
       avatar: null,
     });
     mockSyncLessonBadgesForStudent.mockResolvedValue({ readyForAssessment: false });
@@ -192,6 +195,8 @@ describe('QR API', () => {
       email: 'other@example.edu',
       name: 'Other Student',
       externalId: null,
+      firstName: null,
+      lastName: null,
       avatar: null,
     });
     const res = expectResponse(await GET(requestLike(`data=${encodeURIComponent(payload)}`)));

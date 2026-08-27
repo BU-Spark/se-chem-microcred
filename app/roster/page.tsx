@@ -1,10 +1,9 @@
 'use client';
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import { splitName } from '@/lib/text/name';
+import { resolveName } from '@/lib/text/name';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
@@ -102,6 +101,7 @@ export default function StudentRosterPage() {
 
   const courseId = searchParams.get('courseId');
   const rosterRole = resolveRosterRole(searchParams.get('role'));
+  const returnToCheckerView = searchParams.get('view') === 'checker';
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
   const { data, isLoading, error, refresh } = useCourseRoster(courseId, email);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
@@ -120,11 +120,11 @@ export default function StudentRosterPage() {
   const [isSavingSection, setIsSavingSection] = useState(false);
   const csvInputRef = useRef<HTMLInputElement | null>(null);
   const isCheckerRoster = rosterRole === 'CHECKER';
-  const rosterLabel = isCheckerRoster ? 'Assessor' : 'Student';
-  const rosterPluralLabel = isCheckerRoster ? 'assessors' : 'students';
-  const searchAriaLabel = isCheckerRoster ? 'Search assessors' : 'Search students';
+  const rosterLabel = isCheckerRoster ? 'Checker' : 'Student';
+  const rosterPluralLabel = isCheckerRoster ? 'checkers' : 'students';
+  const searchAriaLabel = isCheckerRoster ? 'Search checkers' : 'Search students';
   const emptyResultsMessage = isCheckerRoster
-    ? 'No assessors match the current search or filters.'
+    ? 'No checkers match the current search or filters.'
     : 'No students match the current search or filters.';
 
   useEffect(() => {
@@ -163,13 +163,13 @@ export default function StudentRosterPage() {
   const canManageSections = isInstructorFlag;
   const displayName = course?.createdBy?.name || '';
 
-  // Pending assessor requests an instructor can approve/decline (CHECKER roster only).
-  const pendingAssessors = useMemo(() => {
+  // Pending checker requests an instructor can approve/decline (CHECKER roster only).
+  const pendingCheckers = useMemo(() => {
     if (!course || !isCheckerRoster || !isInstructorFlag) return [];
     return course.enrollments
       .filter((enrollment) => enrollment.role === 'CHECKER' && enrollment.status === 'PENDING')
       .map((enrollment) => {
-        const { first, last } = splitName(enrollment.student.name);
+        const { first, last } = resolveName(enrollment.student);
         return {
           enrollmentId: enrollment.id,
           name: [first, last].filter(Boolean).join(' ') || enrollment.student.email || 'Unknown',
@@ -178,7 +178,7 @@ export default function StudentRosterPage() {
       });
   }, [course, isCheckerRoster, isInstructorFlag]);
 
-  const handleAssessorDecision = useCallback(
+  const handleCheckerDecision = useCallback(
     async (enrollmentId: string, action: 'approve' | 'decline') => {
       if (!courseId || pendingActionId) return;
       setPendingActionId(enrollmentId);
@@ -190,7 +190,7 @@ export default function StudentRosterPage() {
         if (!response.ok) throw new Error('Request failed');
         await refresh();
       } catch (err) {
-        console.error(`Failed to ${action} assessor:`, err);
+        console.error(`Failed to ${action} checker:`, err);
       } finally {
         setPendingActionId(null);
       }
@@ -262,7 +262,7 @@ export default function StudentRosterPage() {
       return;
     }
     try {
-      const members = parseRosterCsv(await selectedCsv.text());
+      const members = parseRosterCsv(await selectedCsv.text(), { requireId: !isCheckerRoster });
       if (members.some((member) => !member.email.trim() && !member.externalId.trim())) {
         throw new Error('Every CSV row must include an email or ID.');
       }
@@ -278,7 +278,7 @@ export default function StudentRosterPage() {
     setRemoveError(null);
     try {
       const response = await fetch(
-        `/api/courses/${encodeURIComponent(courseId)}/${isCheckerRoster ? 'assessors' : 'students'}/${encodeURIComponent(memberToRemove.memberId)}`,
+        `/api/courses/${encodeURIComponent(courseId)}/${isCheckerRoster ? 'checkers' : 'students'}/${encodeURIComponent(memberToRemove.memberId)}`,
         { method: 'DELETE', headers: { Accept: 'application/json' } }
       );
       if (!response.ok) {
@@ -345,7 +345,7 @@ export default function StudentRosterPage() {
     return course.enrollments
       .filter((enrollment) => enrollment.role === rosterRole && enrollment.status !== 'PENDING')
       .map((enrollment) => {
-        const { first, last } = splitName(enrollment.student.name);
+        const { first, last } = resolveName(enrollment.student);
 
         return {
           enrollmentId: enrollment.id,
@@ -470,10 +470,10 @@ export default function StudentRosterPage() {
 
       <main className={styles.main}>
         <div className={styles.content}>
-          {courseId ? <BackButton href={`/courses/${courseId}`} /> : null}
+          {courseId ? <BackButton href={`/courses/${courseId}${returnToCheckerView ? '?view=checker' : ''}`} /> : null}
 
           <header className={styles.header}>
-            <h1 className={styles.pageTitle}>{rosterLabel} Roster</h1>
+            <h1 className="page-heading">{rosterLabel} Roster</h1>
             <p className={styles.pageSubtitle}>
               {course ? (
                 <>
@@ -521,7 +521,7 @@ export default function StudentRosterPage() {
 
                 {canAddMembers ? (
                   <button type="button" className={styles.addMembersButton} onClick={openAddModal}>
-                    + Add {isCheckerRoster ? 'assessors' : 'students'}
+                    + Add {isCheckerRoster ? 'checkers' : 'students'}
                   </button>
                 ) : null}
 
@@ -608,20 +608,22 @@ export default function StudentRosterPage() {
                       />
                     </label>
 
-                    <label className={styles.filterField}>
-                      <span className={styles.filterFieldLabel}>ID Number</span>
-                      <input
-                        type="text"
-                        value={draftFilters.externalId}
-                        onChange={(event) =>
-                          setDraftFilters((current) => ({
-                            ...current,
-                            externalId: event.target.value,
-                          }))
-                        }
-                        className={styles.filterInput}
-                      />
-                    </label>
+                    {!isCheckerRoster ? (
+                      <label className={styles.filterField}>
+                        <span className={styles.filterFieldLabel}>ID Number</span>
+                        <input
+                          type="text"
+                          value={draftFilters.externalId}
+                          onChange={(event) =>
+                            setDraftFilters((current) => ({
+                              ...current,
+                              externalId: event.target.value,
+                            }))
+                          }
+                          className={styles.filterInput}
+                        />
+                      </label>
+                    ) : null}
 
                     <label className={styles.filterField}>
                       <span className={styles.filterFieldLabel}>Email</span>
@@ -673,11 +675,13 @@ export default function StudentRosterPage() {
                 </section>
               ) : null}
 
-              {pendingAssessors.length > 0 ? (
+              {pendingCheckers.length > 0 ? (
                 <section className={styles.pendingCard}>
-                  <h2 className={styles.pendingTitle}>Pending Assessor Requests</h2>
+                  <h2 className={styles.pendingTitle}>
+                    Pending join requests <span className={styles.pendingCount}>{pendingCheckers.length}</span>
+                  </h2>
                   <ul className={styles.pendingList}>
-                    {pendingAssessors.map((request) => (
+                    {pendingCheckers.map((request) => (
                       <li key={request.enrollmentId} className={styles.pendingItem}>
                         <div className={styles.pendingInfo}>
                           <span className={styles.pendingName}>{request.name}</span>
@@ -688,7 +692,7 @@ export default function StudentRosterPage() {
                             type="button"
                             className={styles.approveButton}
                             disabled={pendingActionId === request.enrollmentId}
-                            onClick={() => handleAssessorDecision(request.enrollmentId, 'approve')}
+                            onClick={() => handleCheckerDecision(request.enrollmentId, 'approve')}
                           >
                             {pendingActionId === request.enrollmentId ? 'Working…' : 'Accept'}
                           </button>
@@ -696,7 +700,7 @@ export default function StudentRosterPage() {
                             type="button"
                             className={styles.declineButton}
                             disabled={pendingActionId === request.enrollmentId}
-                            onClick={() => handleAssessorDecision(request.enrollmentId, 'decline')}
+                            onClick={() => handleCheckerDecision(request.enrollmentId, 'decline')}
                           >
                             Decline
                           </button>
@@ -714,7 +718,7 @@ export default function StudentRosterPage() {
                       <tr>
                         <th>Last Name</th>
                         <th>First Name</th>
-                        <th>ID Number</th>
+                        {!isCheckerRoster ? <th>ID Number</th> : null}
                         <th>Email</th>
                         <th>Section</th>
                         {canRemoveMembers ? <th className={styles.actionsHeader}>Actions</th> : null}
@@ -738,7 +742,7 @@ export default function StudentRosterPage() {
                           >
                             <td>{member.lastName || '—'}</td>
                             <td>{member.firstName || '—'}</td>
-                            <td>{member.externalId || '—'}</td>
+                            {!isCheckerRoster ? <td>{member.externalId || '—'}</td> : null}
                             <td>{member.email || '—'}</td>
                             <td>
                               {canManageSections ? (
@@ -781,7 +785,10 @@ export default function StudentRosterPage() {
                         ))
                       ) : (
                         <tr>
-                          <td className={styles.emptyCell} colSpan={canRemoveMembers ? 6 : 5}>
+                          <td
+                            className={styles.emptyCell}
+                            colSpan={(isCheckerRoster ? 4 : 5) + (canRemoveMembers ? 1 : 0)}
+                          >
                             {emptyResultsMessage}
                           </td>
                         </tr>
@@ -804,7 +811,7 @@ export default function StudentRosterPage() {
                 onMouseDown={(event) => event.stopPropagation()}
               >
                 <h2 id="add-members-title" className={styles.modalTitle}>
-                  Add {isCheckerRoster ? 'assessors' : 'students'}
+                  Add {isCheckerRoster ? 'checkers' : 'students'}
                 </h2>
                 <div className={styles.addModeTabs} role="tablist" aria-label="Add roster members">
                   <button
@@ -860,7 +867,7 @@ export default function StudentRosterPage() {
                     })}
                     {isCheckerRoster ? (
                       <p className={styles.addHint}>
-                        Email or ID is required. Separate multiple assessor sections with |.
+                        Email is required (ID optional). Separate multiple checker sections with |.
                       </p>
                     ) : (
                       <p className={styles.addHint}>
@@ -871,8 +878,9 @@ export default function StudentRosterPage() {
                 ) : (
                   <div className={styles.csvPanel}>
                     <p className={styles.modalBody}>
-                      Upload a CSV with headers: lastName, firstName, an ID column (e.g. BUID or Student ID), email,
-                      sections.
+                      {isCheckerRoster
+                        ? 'Upload a CSV with headers: lastName, firstName, email, sections.'
+                        : 'Upload a CSV with headers: lastName, firstName, an ID column (e.g. BUID or Student ID), email, sections.'}
                     </p>
                     <input
                       ref={csvInputRef}
@@ -920,7 +928,7 @@ export default function StudentRosterPage() {
               >
                 <h2 id="section-modal-title" className={styles.modalTitle}>
                   {sectionMember.sectionLabel ? 'Change' : 'Assign'}{' '}
-                  {isCheckerRoster ? 'assessor sections' : 'student section'}
+                  {isCheckerRoster ? 'checker sections' : 'student section'}
                 </h2>
                 <label className={styles.filterField}>
                   <span className={styles.filterFieldLabel}>{isCheckerRoster ? 'Sections' : 'Section'}</span>
@@ -973,14 +981,14 @@ export default function StudentRosterPage() {
             onClick={(event) => event.stopPropagation()}
           >
             <h2 id="remove-member-title" className={styles.modalTitle}>
-              Remove {isCheckerRoster ? 'assessor' : 'student'}?
+              Remove {isCheckerRoster ? 'checker' : 'student'}?
             </h2>
             <p className={styles.modalBody}>
               Remove{' '}
               <strong>
                 {[memberToRemove.firstName, memberToRemove.lastName].filter(Boolean).join(' ') ||
                   memberToRemove.email ||
-                  `this ${isCheckerRoster ? 'assessor' : 'student'}`}
+                  `this ${isCheckerRoster ? 'checker' : 'student'}`}
               </strong>{' '}
               from <strong>{course?.title}</strong>? They will lose access to this course. This cannot be undone.
             </p>
@@ -1000,7 +1008,7 @@ export default function StudentRosterPage() {
                 disabled={Boolean(removingId)}
                 onClick={handleRemoveStudent}
               >
-                {removingId ? 'Removing…' : `Remove ${isCheckerRoster ? 'assessor' : 'student'}`}
+                {removingId ? 'Removing…' : `Remove ${isCheckerRoster ? 'checker' : 'student'}`}
               </button>
             </div>
           </div>

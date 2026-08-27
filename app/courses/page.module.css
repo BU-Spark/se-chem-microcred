@@ -1,7 +1,8 @@
+/* Issues: #242 standardize headings */
 .page {
   display: flex;
   min-height: calc(100vh - 80px);
-  background: #ffffff;
+  background: var(--checkd-white);
   font-family: 'Open Sans', sans-serif;
 }
 
@@ -19,20 +20,6 @@
   margin-bottom: 2rem;
 }
 
-.pageTitle {
-  margin: 0;
-  font-family: Lato, sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  line-height: 1.05;
-  color: #000000;
-}
-
-@media (max-width: 640px) {
-  .pageTitle {
-    font-size: 38px;
-  }
-}
 
 .pageSubtitle {
   margin: 0.45rem 0 0;
@@ -73,27 +60,46 @@
 .addCourseCard {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
+  gap: 0;
   color: inherit;
   text-decoration: none;
+}
+
+.courseCard {
+  border-radius: 16px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.courseCard:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px rgb(var(--checkd-blue-rgb) / 0.16);
+}
+
+.courseCard:focus-visible {
+  outline: 3px solid rgb(var(--checkd-blue-rgb) / 0.32);
+  outline-offset: 4px;
 }
 
 .courseMedia,
 .addCourseMedia {
   position: relative;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 4 / 3;
   overflow: hidden;
-  border: 4px solid #2e6aa9;
+  border: none;
   background: #d9d9d9;
+  border-radius: 16px;
 }
 
 .courseMedia {
-  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.05);
+  isolation: isolate;
+  box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.04);
 }
 
 .addCourseMedia {
-  border: 4px solid #2E6AA9;
+  border: 4px solid var(--checkd-blue);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -101,6 +107,11 @@
 
 .courseImage {
   object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.courseCard:hover .courseImage {
+  transform: scale(1.035);
 }
 
 .coursePlaceholder {
@@ -109,12 +120,54 @@
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 45%), #d9d9d9;
 }
 
+.courseCardOverlay {
+  position: absolute;
+  z-index: 2;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 46%;
+  padding: 2.6rem 1.15rem 1rem;
+  background: linear-gradient(to top, rgba(12, 28, 47, 0.86), rgba(12, 28, 47, 0));
+  color: var(--checkd-white);
+  pointer-events: none;
+}
+
+.courseCardTitle {
+  margin: 0;
+  font-family: 'Lato', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-wrap: balance;
+}
+
+.courseCardArrow {
+  width: 19px;
+  height: 19px;
+  flex: 0 0 19px;
+  margin-bottom: 0.1rem;
+  opacity: 0.82;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.courseCard:hover .courseCardArrow {
+  opacity: 1;
+  transform: translate(2px, -2px);
+}
+
 .addCoursePlus {
   font-family: 'Lato', sans-serif;
   font-size: clamp(4rem, 10vw, 5.75rem);
   font-weight: 300;
   line-height: 1;
-  color: #ffffff;
+  color: var(--checkd-white);
 }
 
 .courseText {

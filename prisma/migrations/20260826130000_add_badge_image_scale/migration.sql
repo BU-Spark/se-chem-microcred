@@ -1,0 +1,12 @@
+-- Issues: #247 badge image zoom
+-- Issue #247: let a badge's artwork be zoomed, not just panned.
+--
+-- The renderer previously applied a fixed scale(1.15) to every badge image, which
+-- is a crop buffer rather than a design choice -- it guarantees the cover-cropped
+-- image overflows on both axes so panning has somewhere to go. Making it editable
+-- turns it into a real zoom control.
+--
+-- The default is that same 1.15, expressed as a percentage to match how
+-- imagePositionX/Y already store percentages, so every existing badge renders
+-- byte-identically after this runs.
+ALTER TABLE "Badge" ADD COLUMN "imageScale" INTEGER NOT NULL DEFAULT 115;

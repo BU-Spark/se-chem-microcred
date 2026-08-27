@@ -5,11 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import { useCanCreateContent } from '@/app/hooks/useCanCreateContent';
 import { useBadgesCatalog, type BadgeCatalogItem } from '@/app/hooks/useBadgesCatalog';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
-import BadgeToken from '@/app/components/BadgeToken';
+import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
+import BadgeToken from '@/app/components/BadgeToken/BadgeToken';
 import styles from './page.module.css';
 
 // A badge's "main page" lives at /courses/[courseId]/[badgeId], so we need the course it's
@@ -26,7 +25,6 @@ export default function MyBadgesPage() {
   const signOut = useSignOut();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const { data, isLoading, error, refresh } = useBadgesCatalog(isLoaded && Boolean(isSignedIn));
-  const { canCreateContent } = useCanCreateContent(isLoaded && Boolean(isSignedIn));
   const [badgePendingDelete, setBadgePendingDelete] = useState<{ id: string; name: string } | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -93,13 +91,11 @@ export default function MyBadgesPage() {
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
-        <h1 className={styles.pageTitle}>Badges</h1>
+        <h1 className="page-heading">Badges</h1>
 
-        {canCreateContent ? (
-          <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
-            Create New Badge
-          </button>
-        ) : null}
+        <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
+          Create New Badge
+        </button>
 
         {isLoading ? <p className={styles.statusMessage}>Loading badges...</p> : null}
 
@@ -127,7 +123,11 @@ export default function MyBadgesPage() {
                 <div key={badge.id} className={styles.badgeCardItem}>
                   <Link href={resolveBadgeHref(badge)} className={styles.badgeCard}>
                     <BadgeToken as="span" className={styles.badgeToken}>
-                      <YoutubeThumbnail
+                      <BadgeImage
+                        imageUrl={badge.imageUrl}
+                        imagePositionX={badge.imagePositionX}
+                        imagePositionY={badge.imagePositionY}
+                        imageScale={badge.imageScale}
                         videoUrl={videoUrl}
                         alt={`${badge.name} thumbnail`}
                         className={styles.badgeTokenImage}
@@ -135,17 +135,15 @@ export default function MyBadgesPage() {
                     </BadgeToken>
                     <span className={styles.badgeName}>{badge.name}</span>
                   </Link>
-                  {canCreateContent ? (
-                    <button
-                      type="button"
-                      className={styles.badgeDeleteButton}
-                      onClick={() => requestDeleteBadge({ id: badge.id, name: badge.name })}
-                      disabled={isDeleting}
-                      aria-label={`Delete ${badge.name}`}
-                    >
-                      Delete
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    className={styles.badgeDeleteButton}
+                    onClick={() => requestDeleteBadge({ id: badge.id, name: badge.name })}
+                    disabled={isDeleting}
+                    aria-label={`Delete ${badge.name}`}
+                  >
+                    Delete
+                  </button>
                 </div>
               );
             })}

@@ -99,8 +99,8 @@
 .actionButton {
   padding: 0.5rem 0.9rem;
   border-radius: 0.75rem;
-  background: rgba(0, 96, 199, 0.15);
-  color: #003f88;
+  background: rgb(var(--checkd-blue-rgb) / 0.15);
+  color: var(--checkd-blue);
   border: none;
   cursor: pointer;
   font-family: 'Lato', sans-serif;
@@ -127,6 +127,6 @@ html.dark .table tbody tr:nth-child(even) {
 }
 
 html.dark .actionButton {
-  background: rgba(162, 70, 248, 0.2);
-  color: #f5e7ff;
+  background: rgb(var(--checkd-blue-high-rgb) / 0.2);
+  color: var(--checkd-blue-high);
 }

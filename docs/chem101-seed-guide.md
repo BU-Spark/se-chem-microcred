@@ -1,4 +1,4 @@
-# CHEM101 Seed Guide - Student / Assessor / Instructor flows
+# CHEM101 Seed Guide - Student / Checker / Instructor flows
 
 This guide sets up three real signed-in users against one self-contained
 CHEM101 course. The seed is additive for users and scoped for course content:
@@ -12,10 +12,10 @@ comes from the `Enrollment.role` they hold in a course:
 
 - `STUDENT`
 - `INSTRUCTOR`
-- `CHECKER`, which is the assessor role
+- `CHECKER`, which is the checker role
 
 The seed creates CHEM101 and enrolls all three accounts up front. The student
-and assessor do not need to join the course after signing in.
+and checker do not need to join the course after signing in.
 
 ## Setup
 
@@ -26,16 +26,16 @@ npm run dev
 
 Set `SEEDED_DEMO_EMAIL` in `.env.local` to use your own Clerk account as the
 instructor. If it is not set, the instructor falls back to
-`jacksoncg730+clerk_test@gmail.com`. The student and assessor use Clerk test
+`jacksoncg730+clerk_test@gmail.com`. The student and checker use Clerk test
 emails.
 
 | Role | Email | Course access |
 |------|-------|---------------|
 | Instructor | `SEEDED_DEMO_EMAIL`, or `jacksoncg730+clerk_test@gmail.com` if unset | owns CHEM101 |
 | Student | `student+clerk_test@bu.edu` | enrolled as student |
-| Assessor | `checker+clerk_test@bu.edu` | enrolled as active assessor |
+| Checker | `checker+clerk_test@bu.edu` | enrolled as active checker |
 
-For the student and assessor test emails, create Clerk accounts once through
+For the student and checker test emails, create Clerk accounts once through
 `/sign-up` and use Clerk's development verification code `424242`.
 
 On the first authenticated request, `ensureCurrentUser()` matches the Clerk
@@ -51,7 +51,7 @@ The student starts with progress across 7 CHEM101 badges:
 
 | Badge | Status | Who acts on it |
 |-------|--------|----------------|
-| `lab-notebook-badge` | `READY_FOR_ASSESSMENT` | assessor grades it |
+| `lab-notebook-badge` | `READY_FOR_ASSESSMENT` | checker grades it |
 | `volumetric-stock-badge` | `READY_FOR_FINALIZATION` with score 92 | student completes survey |
 | `general-waste-badge` | `COMPLETED` with score 96 | already earned |
 | 4 others | `LEARNING` | student works toward submitting |
@@ -83,27 +83,27 @@ Home shows a "My Enrolled Courses" section. CHEM101 is already there.
 4. Complete the finalization survey for `volumetric-stock-badge`.
 5. Review profile, avatar, and analytics pages.
 
-## Assessor Flow
+## Checker Flow
 
 Sign in as `checker+clerk_test@bu.edu`.
 
-Home shows an "Assessor Courses" section. CHEM101 is already there and the
-assessor enrollment is already active.
+Home shows an "Checker Courses" section. CHEM101 is already there and the
+checker enrollment is already active.
 
-1. Open the course as assessor. The card links to
-   `/courses/[courseId]?view=assessor`.
+1. Open the course as checker. The card links to
+   `/courses/[courseId]?view=checker`.
 2. Click Assess Student, enter the assessment code displayed under the student's
    QR code, and continue to the assessment page.
 3. Or open the ready badge directly from `/courses/[courseId]/[badgeId]` and
    select Jane Student's row for `lab-notebook-badge`.
 4. Submit pass/fail, score, feedback, and per-criterion notes via the assessment
    form. A pass advances the badge to `READY_FOR_FINALIZATION`.
-5. Confirm the assessor can also view `/roster` and the student detail page.
+5. Confirm the checker can also view `/roster` and the student detail page.
 
 ## End-To-End Loop
 
 1. Student submits a `LEARNING` badge for assessment.
-2. Assessor grades it as passing.
+2. Checker grades it as passing.
 3. Student sees it under Ready to Finalize and completes the survey.
 4. Instructor sees the updated counts on the course badge detail page.
 

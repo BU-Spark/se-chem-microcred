@@ -5,14 +5,19 @@ import {
   CourseRole,
   EnrollmentStatus,
   LessonStatus,
+  type Prisma,
   SegmentStatus,
   SurveyContext,
 } from '@prisma/client';
 import prisma from '../../../../lib/prisma';
+import { resolveBadgeCourseId, studentBadgeScope } from '../../../../lib/students/badgeScope';
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
 import { isLessonReleased, lessonReleaseDate } from '../../../../lib/lessonVisibility';
+import { lessonDeadline } from '../../../../lib/badgeAvailability';
+import { deriveCatalogLessonStatus } from '../../../../lib/lessonStatus';
+import { resolveName, type NamedPerson } from '../../../../lib/text/name';
 
 function avatarPathForBase(base?: string | null): string {
   switch (base) {
@@ -28,19 +33,25 @@ function avatarPathForBase(base?: string | null): string {
   }
 }
 
-// Converts a stored "First Last" name into the "Last, First" display format the designs use.
-// Names already containing a comma are assumed to be in the desired format and left as-is.
-function formatLastFirst(fullName?: string | null) {
-  if (!fullName) return null;
-  const trimmed = fullName.trim();
-  if (!trimmed) return null;
-  if (trimmed.includes(',')) return trimmed;
-  const parts = trimmed.split(/\s+/);
-  if (parts.length === 1) return parts[0];
-  const last = parts[parts.length - 1];
-  const first = parts.slice(0, -1).join(' ');
-  return `${last}, ${first}`;
+function formatLastFirst(person?: NamedPerson | null) {
+  const { first, last, isFallback } = resolveName(person);
+  if (isFallback) return null;
+  return last ? `${last}, ${first}` : first || null;
 }
+
+const STUDENT_BADGE_INCLUDE = {
+  badge: {
+    include: {
+      requirements: {
+        include: {
+          lesson: {
+            select: { courseId: true, slug: true, title: true },
+          },
+        },
+      },
+    },
+  },
+} satisfies Prisma.StudentBadgeInclude;
 
 function groupBadgesByStatus(badges: Array<ReturnType<typeof formatBadge>>) {
   return badges.reduce(
@@ -65,11 +76,16 @@ function formatBadge(
     score: number | null;
     awardedAt: Date | null;
     cooldownUntil?: Date | null;
+    qevWaivedAt?: Date | null;
     badge: {
       id: string;
       slug: string;
       name: string;
       description: string | null;
+      imageUrl: string | null;
+      imagePositionX: number;
+      imagePositionY: number;
+      imageScale: number;
       requirements: Array<{
         lessonId: string | null;
         summary: string | null;
@@ -81,8 +97,7 @@ function formatBadge(
   // status into its two sub-states (pass → rate to finalize, fail → review feedback).
   latestAttemptPassed: boolean | null = null
 ) {
-  const courseId = studentBadge.badge.requirements.find((requirement) => requirement.lesson?.courseId)?.lesson
-    ?.courseId;
+  const courseId = resolveBadgeCourseId(studentBadge.badge.requirements);
 
   const youtubeUrl = studentBadge.badge.requirements
     .map((requirement) => parseRequirementYoutubeUrl(requirement.summary))
@@ -94,11 +109,19 @@ function formatBadge(
     slug: studentBadge.badge.slug,
     name: studentBadge.badge.name,
     description: studentBadge.badge.description,
+    imageUrl: studentBadge.badge.imageUrl,
+    imagePositionX: studentBadge.badge.imagePositionX,
+    imagePositionY: studentBadge.badge.imagePositionY,
+    imageScale: studentBadge.badge.imageScale,
     status: studentBadge.status,
     awardedAt: studentBadge.awardedAt?.toISOString() ?? null,
     score: studentBadge.score ?? null,
     latestAttemptPassed,
     cooldownUntil: studentBadge.cooldownUntil?.toISOString() ?? null,
+    // An instructor cleared the lesson requirement for this student. Their lesson
+    // progress is untouched, so without this the assessment would appear to have
+    // unlocked itself.
+    qevWaivedAt: studentBadge.qevWaivedAt?.toISOString() ?? null,
     youtubeUrl: youtubeUrl ?? null,
     requirements: studentBadge.badge.requirements.map((requirement) => ({
       summary: requirement.summary,
@@ -168,7 +191,11 @@ function formatLesson({
     description: lesson.description,
     thumbnailUrl: lesson.thumbnailUrl,
     estimatedMinutes: lesson.estimatedMinutes,
-    dueDate: lesson.dueDate?.toISOString() ?? null,
+    dueDate:
+      lessonDeadline(
+        lesson.dueDate,
+        lesson.badgeRequirements.map((requirement) => requirement.badge)
+      )?.toISOString() ?? null,
     availableOn: lessonReleaseDate(lesson.badgeRequirements.map((req) => req.badge.availableOn))?.toISOString() ?? null,
     sortOrder: lesson.sortOrder,
     passingPercent: lesson.passingPercent,
@@ -248,7 +275,14 @@ async function fetchLessons(courseId: string) {
       badgeRequirements: {
         include: {
           badge: {
-            select: { id: true, name: true, slug: true, availableOn: true },
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              availableOn: true,
+              closesOn: true,
+              neverCloses: true,
+            },
           },
         },
       },
@@ -307,6 +341,16 @@ export async function GET(req: Request) {
   const studentSections = new Set((enrollment?.sections ?? []).map((s) => s.section));
   const primarySection = enrollment?.sections[0]?.section ?? enrollment?.course.section ?? null;
 
+  // Badges are only course-scoped when the caller asked for a course. /badges (the
+  // Badge Passport) and Home read this same endpoint with no courseId and are
+  // cross-course by design; the course dashboard passes one and must not see badges
+  // the student earned elsewhere.
+  const badgeScope = studentBadgeScope({
+    studentId: student.id,
+    courseId: enrollment?.courseId ?? null,
+    courseRequested: Boolean(requestedCourseId),
+  });
+
   // Build the instructor + checker contact list from enrollments (the section-aware source
   // of truth) rather than CourseContact (which has no section). The query is folded into the
   // Promise.all below so it runs in parallel with the other reads instead of adding a serial
@@ -327,12 +371,21 @@ export async function GET(req: Request) {
           where: {
             courseId: enrollment.courseId,
             role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
-            // Exclude pending assessor requests — they aren't staff until approved.
+            // Exclude pending checker requests — they aren't staff until approved.
             status: EnrollmentStatus.ACTIVE,
           },
           include: {
             sections: true,
-            student: { select: { id: true, name: true, email: true, avatar: { select: { base: true } } } },
+            student: {
+              select: {
+                id: true,
+                name: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                avatar: { select: { base: true } },
+              },
+            },
           },
         })
       : Promise.resolve([]),
@@ -341,26 +394,23 @@ export async function GET(req: Request) {
     enrollment
       ? prisma.badge.findMany({
           where: { requirements: { some: { lesson: { courseId: enrollment.courseId } } } },
-          select: { id: true, slug: true, name: true, description: true },
+          select: {
+            id: true,
+            slug: true,
+            name: true,
+            description: true,
+            imageUrl: true,
+            imagePositionX: true,
+            imagePositionY: true,
+            imageScale: true,
+          },
         })
       : Promise.resolve([]),
     fetchLessonProgress(student.id),
     enrollment ? fetchLessons(enrollment.courseId) : Promise.resolve([]),
     prisma.studentBadge.findMany({
-      where: { studentId: student.id },
-      include: {
-        badge: {
-          include: {
-            requirements: {
-              include: {
-                lesson: {
-                  select: { courseId: true, slug: true, title: true },
-                },
-              },
-            },
-          },
-        },
-      },
+      where: badgeScope,
+      include: STUDENT_BADGE_INCLUDE,
     }),
     prisma.checkpointAttempt.findMany({
       // archivedAt: null excludes sealed failed-run answers so the student's
@@ -430,20 +480,8 @@ export async function GET(req: Request) {
     });
 
     studentBadges = await prisma.studentBadge.findMany({
-      where: { studentId: student.id },
-      include: {
-        badge: {
-          include: {
-            requirements: {
-              include: {
-                lesson: {
-                  select: { courseId: true, slug: true, title: true },
-                },
-              },
-            },
-          },
-        },
-      },
+      where: badgeScope,
+      include: STUDENT_BADGE_INCLUDE,
     });
   }
 
@@ -459,7 +497,7 @@ export async function GET(req: Request) {
     .map((staff) => ({
       id: staff.id,
       type: staff.role === CourseRole.INSTRUCTOR ? CourseContactType.INSTRUCTOR : CourseContactType.CHECKER,
-      name: formatLastFirst(staff.student.name) ?? staff.student.email ?? 'Unknown',
+      name: formatLastFirst(staff.student) ?? staff.student.email ?? 'Unknown',
       email: staff.student.email ?? '',
       avatarUrl: avatarPathForBase(staff.student.avatar?.base),
     }));
@@ -533,12 +571,13 @@ export async function GET(req: Request) {
       progress: lessonProgress
         ? {
             ...lessonProgress,
-            status:
-              gradedPassed || allCheckpointsPassed
-                ? LessonStatus.COMPLETED
-                : answeredCount > 0
-                  ? LessonStatus.IN_PROGRESS
-                  : LessonStatus.NOT_STARTED,
+            status: deriveCatalogLessonStatus({
+              storedStatus: lessonProgress.status,
+              gradedPassed,
+              allCheckpointsPassed,
+              answeredCount,
+              checkpointCount: lesson.checkpoints.length,
+            }),
           }
         : undefined,
       completedCheckpointIds,
@@ -691,6 +730,7 @@ export async function GET(req: Request) {
       score: null,
       latestAttemptPassed: null,
       cooldownUntil: null,
+      qevWaivedAt: null,
       requirements: [] as Array<{ summary: string | null; lessonSlug: string | null; lessonTitle: string | null }>,
     }));
   const notStartedBadges = [...neverAttemptedBadges, ...unstartedLearningBadges];
@@ -719,6 +759,13 @@ export async function GET(req: Request) {
       .map((badge) => badge.badgeId)
   );
 
+  // Entries carry their badge's course so the client can filter them the same way it
+  // filters badges.inReview. Without it a client could only course-check half of the
+  // two "ready to finalize" sources.
+  const badgeCourseIdByBadgeId = new Map(
+    studentBadges.map((entry) => [entry.badgeId, resolveBadgeCourseId(entry.badge.requirements)] as const)
+  );
+
   const pendingBadgeSurveys = badgeSurveyPrompts
     .filter(
       (prompt) =>
@@ -727,6 +774,7 @@ export async function GET(req: Request) {
     .map((prompt) => ({
       promptId: prompt.id,
       badgeId: prompt.badgeId as string,
+      courseId: badgeCourseIdByBadgeId.get(prompt.badgeId as string) ?? null,
       badgeSlug: prompt.badgeSlug,
       badgeName: prompt.badgeName,
       question: prompt.question,
@@ -736,6 +784,8 @@ export async function GET(req: Request) {
     student: {
       id: student.id,
       name: student.name,
+      firstName: student.firstName,
+      lastName: student.lastName,
       email: student.email,
       externalId: student.externalId,
       gender: student.gender,

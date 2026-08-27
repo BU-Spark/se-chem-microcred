@@ -6,48 +6,14 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import { useStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
+import { useStudentData, useRefreshAllStudentData, type BadgeRecord } from '../../../hooks/useStudentData';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import SurveyModal from '@/app/components/SurveyModal';
+import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
+import AssessmentCodeModal from '@/app/components/AssessmentCodeModal/AssessmentCodeModal';
+import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import styles from './page.module.css';
 import { toTitleCase } from '@/lib/utils';
-
-import veryUnhappy from '../../../../public/assets/survey_faces/very_unhappy.svg';
-import slightlyUnhappy from '../../../../public/assets/survey_faces/slightly_unhappy.svg';
-import neutral from '../../../../public/assets/survey_faces/neutral.svg';
-import slightlyHappy from '../../../../public/assets/survey_faces/slightly_happy.svg';
-import veryHappy from '../../../../public/assets/survey_faces/very_happy.svg';
-import veryUnhappySelected from '../../../../public/assets/survey_faces/very_unhappy_selected.svg';
-import slightlyUnhappySelected from '../../../../public/assets/survey_faces/slightly_unhappy_selected.svg';
-import neutralSelected from '../../../../public/assets/survey_faces/neutral_selected.svg';
-import slightlyHappySelected from '../../../../public/assets/survey_faces/slightly_happy_selected.svg';
-import veryHappySelected from '../../../../public/assets/survey_faces/very_happy_selected.svg';
-
-const SURVEY_FACES = {
-  icons: { 1: veryUnhappy, 2: slightlyUnhappy, 3: neutral, 4: slightlyHappy, 5: veryHappy } as Record<number, unknown>,
-  selectedIcons: {
-    1: veryUnhappySelected,
-    2: slightlyUnhappySelected,
-    3: neutralSelected,
-    4: slightlyHappySelected,
-    5: veryHappySelected,
-  } as Record<number, unknown>,
-  alts: {
-    1: 'Very unhappy',
-    2: 'Slightly unhappy',
-    3: 'Neutral',
-    4: 'Slightly happy',
-    5: 'Very happy',
-  } as Record<number, string>,
-};
-
-const BADGE_STATUS_LABEL: Record<string, string> = {
-  LEARNING: 'Still learning',
-  READY_FOR_ASSESSMENT: 'Ready for assessment',
-  IN_REVIEW: 'In review',
-  COMPLETED: 'Completed',
-  LOCKED: 'Locked',
-};
+import { BADGE_STATUS_LABEL } from '@/lib/badgeStatusLabels';
 
 function formatDate(iso: string | null) {
   if (!iso) return null;
@@ -128,7 +94,7 @@ type FeedbackDetail = {
     pointsPossible: number | null;
     feedback: string | null;
     completedAt: string | null;
-    assessorName: string | null;
+    checkerName: string | null;
     responses: Array<{
       id: string;
       subgoalText: string;
@@ -162,10 +128,9 @@ export default function BadgeFeedbackPage() {
   const [surveyRating, setSurveyRating] = useState(3);
   const [finalizeState, setFinalizeState] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
   const [finalizeError, setFinalizeError] = useState<string | null>(null);
-  const { data: studentData, refresh: refreshStudentData } = useStudentData(
-    user?.primaryEmailAddress?.emailAddress,
-    requestedCourseId
-  );
+  const [isAssessmentCodeOpen, setIsAssessmentCodeOpen] = useState(false);
+  const refreshAllStudentData = useRefreshAllStudentData();
+  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress, requestedCourseId);
 
   const allBadges = useMemo<BadgeRecord[]>(() => {
     if (!studentData) {
@@ -268,6 +233,10 @@ export default function BadgeFeedbackPage() {
           setReviewedStatus(payload.status as BadgeRecord['status']);
           setReviewedCooldownUntil((payload.cooldownUntil as string | null) ?? null);
           setReviewRequestState('done');
+          // The badge just changed status server-side. Local state alone would leave
+          // the course dashboard rendering the pre-transition status from its own
+          // cache entry, so invalidate every student-data key, not just this one.
+          refreshAllStudentData();
         }
       })
       .catch((error) => {
@@ -280,7 +249,7 @@ export default function BadgeFeedbackPage() {
     return () => {
       isCancelled = true;
     };
-  }, [badge, feedbackDetail, reviewRequestState]);
+  }, [badge, feedbackDetail, reviewRequestState, refreshAllStudentData]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -335,7 +304,7 @@ export default function BadgeFeedbackPage() {
       setReviewedStatus('COMPLETED');
       setFinalizeState('done');
       setIsSurveyOpen(false);
-      void refreshStudentData();
+      refreshAllStudentData();
     } catch (error) {
       setFinalizeError(error instanceof Error ? error.message : 'Unable to finalize this badge.');
       setFinalizeState('error');
@@ -448,6 +417,12 @@ export default function BadgeFeedbackPage() {
               <p>This badge is finalized and added to your completed list. Great work!</p>
             ) : null}
             {finalizeError && !isSurveyOpen ? <p>{finalizeError}</p> : null}
+
+            {displayedStatus === 'READY_FOR_ASSESSMENT' && !cooldown.active ? (
+              <button type="button" className={styles.primaryButton} onClick={() => setIsAssessmentCodeOpen(true)}>
+                View code
+              </button>
+            ) : null}
           </div>
 
           <div className={styles.section}>
@@ -455,7 +430,7 @@ export default function BadgeFeedbackPage() {
             {latestAttempt ? (
               <div className={styles.assessmentSummary}>
                 <span>Outcome: {latestAttempt.passed ? 'Passed' : 'Needs reassessment'}</span>
-                {latestAttempt.assessorName ? <span>Assessor: {latestAttempt.assessorName}</span> : null}
+                {latestAttempt.checkerName ? <span>Checker: {latestAttempt.checkerName}</span> : null}
               </div>
             ) : null}
             {rubric ? (
@@ -490,7 +465,7 @@ export default function BadgeFeedbackPage() {
                     <div key={response.id} className={styles.rubricRow}>
                       <div>
                         <strong>{response.subgoalText}</strong>
-                        <p>Assessor decision</p>
+                        <p>Checker decision</p>
                       </div>
                       <div>
                         <span className={response.passed ? styles.rubricPassed : styles.rubricNeedsWork}>
@@ -566,12 +541,7 @@ export default function BadgeFeedbackPage() {
         <SurveyModal
           title="Tell us about your experience."
           question={`Rate your experience earning the ${content.title} badge.`}
-          options={[1, 2, 3, 4, 5].map((value) => ({
-            value,
-            label: SURVEY_FACES.alts[value],
-            icon: SURVEY_FACES.icons[value] as never,
-            selectedIcon: SURVEY_FACES.selectedIcons[value] as never,
-          }))}
+          options={surveyFaceOptions()}
           value={surveyRating}
           onChange={setSurveyRating}
           onSubmit={handleSubmitFinalize}
@@ -595,6 +565,16 @@ export default function BadgeFeedbackPage() {
             selectedOptionImage: styles.surveyFaceImageSelected,
             submit: styles.surveySubmit,
           }}
+        />
+      ) : null}
+
+      {isAssessmentCodeOpen ? (
+        <AssessmentCodeModal
+          badgeId={badge.id}
+          badgeName={badge.name}
+          courseId={lessonCourseId}
+          studentId={studentData?.student.id}
+          onClose={() => setIsAssessmentCodeOpen(false)}
         />
       ) : null}
     </div>

@@ -1,4 +1,5 @@
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 
 import BadgeFeedbackPage from './page';
 
@@ -24,15 +25,15 @@ jest.mock('@clerk/nextjs', () => ({
 }));
 
 const mockUseStudentData = jest.fn();
-jest.mock('../../../hooks/useStudentData', () => ({
-  useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
-}));
-
-// The Sidebar rendered by this page reads content-access; stub it so it doesn't add
-// a /api/me/access fetch that would perturb the fetch expectations.
-jest.mock('../../../hooks/useCanCreateContent', () => ({
-  useCanCreateContent: () => ({ canCreateContent: true, isAdmin: true, isLoading: false }),
-}));
+jest.mock('../../../hooks/useStudentData', () => {
+  // Stable identity: the component lists this in effect/callback dependency
+  // arrays, so a fresh jest.fn() per render would re-fire them every commit.
+  const refreshAllStudentData = jest.fn();
+  return {
+    useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
+    useRefreshAllStudentData: () => refreshAllStudentData,
+  };
+});
 
 type MockImageProps = {
   src: string | { src: string };
@@ -83,6 +84,8 @@ function studentData() {
 }
 
 describe('Badge feedback page', () => {
+  let pageFetch: jest.Mock;
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseUser.mockReturnValue({
@@ -95,7 +98,7 @@ describe('Badge feedback page', () => {
     });
     mockUseAuth.mockReturnValue({ signOut: jest.fn() });
     mockUseStudentData.mockReturnValue({ data: studentData(), isLoading: false, error: null, refresh: jest.fn() });
-    global.fetch = jest
+    pageFetch = jest
       .fn()
       .mockResolvedValueOnce({
         ok: true,
@@ -130,9 +133,9 @@ describe('Badge feedback page', () => {
             score: 40,
             pointsEarned: 2,
             pointsPossible: 5,
-            feedback: 'Assessor override: unsafe flame control.',
+            feedback: 'Checker override: unsafe flame control.',
             completedAt: '2026-07-02T12:00:00.000Z',
-            assessorName: 'Assessor Demo',
+            checkerName: 'Checker Demo',
             responses: [
               {
                 id: 'response-1',
@@ -146,11 +149,11 @@ describe('Badge feedback page', () => {
               },
               {
                 id: 'response-override',
-                subgoalText: 'Assessor override',
-                taskText: 'Assessor override',
+                subgoalText: 'Checker override',
+                taskText: 'Checker override',
                 points: 0,
                 passed: false,
-                feedback: 'Assessor override: unsafe flame control.',
+                feedback: 'Checker override: unsafe flame control.',
                 isOverride: true,
                 sortOrder: 1,
               },
@@ -161,19 +164,32 @@ describe('Badge feedback page', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ status: 'READY_FOR_ASSESSMENT', cooldownUntil: '2099-01-05T00:00:00.000Z' }),
-      }) as unknown as typeof fetch;
+      });
+
+    // The app shell (sidebar) fetches ambient per-user data on every page.
+    // Answer those here so they never consume the queued page responses above.
+    global.fetch = ((url: RequestInfo | URL, init?: RequestInit) => {
+      const href = String(url);
+      if (href.includes('/api/messages/unread')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ count: 0 }),
+        });
+      }
+      return pageFetch(url, init);
+    }) as unknown as typeof fetch;
   });
 
-  it('renders assessor rubric feedback read-only and acknowledges failed feedback review', async () => {
+  it('renders checker rubric feedback read-only and acknowledges failed feedback review', async () => {
     render(<BadgeFeedbackPage />);
 
     expect(await screen.findByRole('heading', { name: 'Assessment Rubric' })).toBeInTheDocument();
     expect(await screen.findByText('Operate safely')).toBeInTheDocument();
     expect(screen.getByText('Wear PPE')).toBeInTheDocument();
     expect(screen.getByText('Goggles were missing.')).toBeInTheDocument();
-    expect(screen.getByText('Assessor override')).toBeInTheDocument();
-    expect(screen.getByText('Assessor override: unsafe flame control.')).toBeInTheDocument();
-    expect(document.querySelector('.badgeCard')).not.toHaveTextContent('Assessor override: unsafe flame control.');
+    expect(screen.getByText('Checker override')).toBeInTheDocument();
+    expect(screen.getByText('Checker override: unsafe flame control.')).toBeInTheDocument();
+    expect(document.querySelector('.badgeCard')).not.toHaveTextContent('Checker override: unsafe flame control.');
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /submit/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Review Lesson/i })).toHaveAttribute(
@@ -183,7 +199,7 @@ describe('Badge feedback page', () => {
     expect(mockUseStudentData).toHaveBeenCalledWith('student@example.edu', 'course-1');
 
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith('/api/badges/badge-1/feedback', { method: 'POST' });
+      expect(pageFetch).toHaveBeenCalledWith('/api/badges/badge-1/feedback', { method: 'POST' });
     });
     expect(await screen.findByText(/ready for reassessment/i)).toBeInTheDocument();
 
@@ -194,5 +210,55 @@ describe('Badge feedback page', () => {
     // Next-attempt window = the returned cooldownUntil (Jan 5, 2099).
     expect(screen.getByText(/2099/)).toBeInTheDocument();
     expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+  });
+
+  it('lets a student who is ready for assessment view the QR and short code', async () => {
+    const readyStudentData = studentData();
+    const readyBadge = {
+      ...readyStudentData.badges.inReview[0],
+      status: 'READY_FOR_ASSESSMENT' as const,
+      description: 'Ready for the skill check',
+      latestAttemptPassed: null,
+    };
+    readyStudentData.badges.inReview = [];
+    (readyStudentData.badges.readyForAssessment as unknown as Array<typeof readyBadge>).push(readyBadge);
+    mockUseStudentData.mockReturnValue({ data: readyStudentData, isLoading: false, error: null, refresh: jest.fn() });
+
+    pageFetch = jest.fn(async (url: RequestInfo | URL) => {
+      const href = String(url);
+      if (href === '/api/badges/badge-1/feedback') {
+        return {
+          ok: true,
+          json: async () => ({
+            badge: {
+              id: 'badge-1',
+              slug: 'learning-badge',
+              name: 'Learning Badge',
+              description: 'Ready for the skill check',
+              status: 'READY_FOR_ASSESSMENT',
+              score: null,
+              awardedAt: null,
+              cooldownUntil: null,
+              cooldownDays: 0,
+            },
+            rubric: null,
+            latestAttempt: null,
+          }),
+        };
+      }
+      if (href === '/api/assessment-codes') {
+        return { ok: true, json: async () => ({ code: 'ABCD-2345' }) };
+      }
+      return { ok: false, json: async () => ({ error: 'Unexpected request' }) };
+    });
+
+    const user = userEvent.setup();
+    render(<BadgeFeedbackPage />);
+
+    await user.click(await screen.findByRole('button', { name: 'View code' }));
+
+    expect(await screen.findByAltText('Learning Badge QR code')).toBeInTheDocument();
+    expect(await screen.findByText('ABCD-2345')).toBeInTheDocument();
+    expect(pageFetch).toHaveBeenCalledWith('/api/assessment-codes', expect.objectContaining({ method: 'POST' }));
   });
 });

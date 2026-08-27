@@ -7,14 +7,12 @@ import { useUser, useReverification } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../hooks/useStudentData';
 import { useFocusTrap } from '../hooks/useFocusTrap';
-import BadgeToken from '@/app/components/BadgeToken';
 import styles from './page.module.css';
-import editIcon from '../../public/assets/profile/edit.png';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
-import { splitName } from '@/lib/text/name';
+import { resolveName, splitName } from '@/lib/text/name';
+import { AnalyticsPanel } from '@/app/components/AnalyticsPanel/AnalyticsPanel';
 
 function avatarAsset(base?: string | null) {
   switch (base) {
@@ -73,10 +71,6 @@ export default function ProfilePage() {
 
   // ---------- Demographic dropdown (expand/collapse) ----------
   const [demographicOpen, setDemographicOpen] = useState(false);
-
-  // ---------- Badge section dropdowns ----------
-  const [notStartedOpen, setNotStartedOpen] = useState(false);
-  const [completedOpen, setCompletedOpen] = useState(false);
 
   // ---------- 2. Language picker ----------
   // language settings (ready for future languages)
@@ -275,7 +269,7 @@ export default function ProfilePage() {
     first: firstName,
     last: lastName,
     isFallback,
-  } = splitName(studentData?.student.name ?? user?.fullName ?? null);
+  } = studentData?.student ? resolveName(studentData.student) : splitName(user?.fullName ?? null);
 
   const greetingName = isFallback ? 'Student' : firstName;
   const studentEmail = studentData?.student.email ?? user?.primaryEmailAddress?.emailAddress ?? 'Not provided';
@@ -296,10 +290,6 @@ export default function ProfilePage() {
 
   const avatarSrc = avatarAsset(optimisticAvatarBase ?? studentData?.student.avatar?.base ?? cachedAvatarBase);
 
-  const learningBadges = studentData?.badges.learning ?? [];
-  const completedBadges = studentData?.badges.completed ?? [];
-  const notStartedBadges = studentData?.badges.notStarted ?? [];
-
   return (
     <div className="page">
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
@@ -307,15 +297,16 @@ export default function ProfilePage() {
       <main className="main">
         <div className={styles.pageContent}>
           <header className={styles.headerRow}>
-            <h1 className={styles.pageTitle}>My Profile</h1>
+            <h1 className="page-heading">My Profile</h1>
             <span className={styles.greeting}>Hello, {greetingName}</span>
           </header>
+          <div className={styles.headerRule} aria-hidden="true" />
 
-          {/* ===================== Profile card ===================== */}
-          <section className={styles.profileCard}>
-            {/* LEFT: student info */}
+          {/* ===================== Identity ===================== */}
+          <section className={styles.identityRow}>
+            {/* LEFT: name, details, inline actions */}
             <div className={styles.infoColumn}>
-              <h2 className={styles.sectionTitle}>My Info:</h2>
+              <h2 className={styles.eyebrow}>My Info:</h2>
 
               <div className={styles.primaryName}>
                 {lastName ? (
@@ -329,9 +320,13 @@ export default function ProfilePage() {
                 )}
               </div>
 
-              <div className={styles.metaLine}>Date Created: {createdAt}</div>
+              <div className={styles.infoRule} aria-hidden="true" />
 
               <div className={styles.detailGridTop}>
+                <div>
+                  <div className={styles.detailLabel}>Date Created:</div>
+                  <div className={styles.detailValue}>{createdAt}</div>
+                </div>
                 <div>
                   <div className={styles.detailLabel}>Email:</div>
                   <div className={styles.detailValue}>{studentEmail}</div>
@@ -348,24 +343,18 @@ export default function ProfilePage() {
                 <button type="button" className={styles.inlineLink} onClick={handleOpenLanguageModal}>
                   Change Language
                 </button>
+                <button type="button" className={styles.inlineLink} onClick={() => setIsEditAvatarOpen(true)}>
+                  Edit avatar
+                </button>
               </div>
             </div>
 
-            {/* CENTER: avatar */}
-            <div className={styles.avatarColumn}>
+            {/* RIGHT: avatar, then demographic dropdown + edit */}
+            <aside className={styles.avatarColumn}>
               <div className={styles.avatarFrame}>
                 <Image src={avatarSrc} alt="Student avatar" width={280} height={280} className={styles.avatarImage} />
               </div>
 
-              <button type="button" className={styles.editAvatarLink} onClick={() => setIsEditAvatarOpen(true)}>
-                <span className={styles.editAvatarText}>Edit avatar</span>
-                <Image src={editIcon} alt="Edit avatar" width={16} height={16} className={styles.editAvatarIcon} />
-              </button>
-            </div>
-
-            {/* RIGHT: demographic dropdown */}
-            <aside className={styles.rightColumn}>
-              {/* Demographic Info dropdown */}
               <div className={styles.demographicSection}>
                 <button
                   type="button"
@@ -377,6 +366,10 @@ export default function ProfilePage() {
                   <span className={`${styles.caret} ${demographicOpen ? styles.caretOpen : ''}`} aria-hidden="true">
                     ⌄
                   </span>
+                </button>
+
+                <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
+                  Edit
                 </button>
 
                 {demographicOpen && (
@@ -392,116 +385,13 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
-
-              {/* Edit pencil for demographic area -> demographic/edit handler */}
-              <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
-                <span className={styles.editPencilText}>Edit</span>
-                <Image src={editIcon} alt="" width={20} height={20} className={styles.editPencilIcon} />
-              </button>
             </aside>
           </section>
 
-          {/* ===================== Badges card ===================== */}
-          <section className={styles.badgesCard}>
-            <div className={styles.badgesHeader}>
-              <h2 className={styles.badgesTitle}>Student Badges</h2>
-              <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
-                <span className={styles.editPencilText}>Edit</span>
-                <Image src={editIcon} alt="" width={20} height={20} className={styles.editPencilIcon} />
-              </button>
-            </div>
+          <div className={styles.sectionRule} aria-hidden="true" />
 
-            {/* In-progress */}
-            <h3 className={styles.badgeSectionLabel}>In-progress</h3>
-            <div className={styles.badgeRow}>
-              {learningBadges.length === 0 ? (
-                <div className={styles.emptyState}>No badges in progress.</div>
-              ) : (
-                learningBadges.map((badge) => (
-                  <BadgeToken key={badge.id} className={styles.badgeToken}>
-                    <div className={styles.badgeCircle}>
-                      <YoutubeThumbnail
-                        videoUrl={badge.youtubeUrl}
-                        alt={`${badge.name} thumbnail`}
-                        className={styles.badgeCircleImage}
-                      />
-                    </div>
-                    <div className={styles.badgeName}>{badge.name}</div>
-                  </BadgeToken>
-                ))
-              )}
-            </div>
-
-            {/* Not yet started */}
-            <div className={styles.badgeDropdownSection}>
-              <button
-                type="button"
-                className={styles.badgeDropdownHeader}
-                onClick={() => setNotStartedOpen((open) => !open)}
-                aria-expanded={notStartedOpen}
-              >
-                <span className={styles.badgeSectionLabel}>Not yet started</span>
-                <span className={`${styles.caret} ${notStartedOpen ? styles.caretOpen : ''}`} aria-hidden="true">
-                  ⌄
-                </span>
-              </button>
-              {notStartedOpen && (
-                <div className={styles.badgeRow}>
-                  {notStartedBadges.length === 0 ? (
-                    <div className={styles.emptyState}>No badges to show.</div>
-                  ) : (
-                    notStartedBadges.map((badge) => (
-                      <BadgeToken key={badge.id} className={styles.badgeToken}>
-                        <div className={styles.badgeCircle}>
-                          <YoutubeThumbnail
-                            videoUrl={badge.youtubeUrl}
-                            alt={`${badge.name} thumbnail`}
-                            className={styles.badgeCircleImage}
-                          />
-                        </div>
-                        <div className={styles.badgeName}>{badge.name}</div>
-                      </BadgeToken>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Completed */}
-            <div className={styles.badgeDropdownSection}>
-              <button
-                type="button"
-                className={styles.badgeDropdownHeader}
-                onClick={() => setCompletedOpen((open) => !open)}
-                aria-expanded={completedOpen}
-              >
-                <span className={styles.badgeSectionLabel}>Completed</span>
-                <span className={`${styles.caret} ${completedOpen ? styles.caretOpen : ''}`} aria-hidden="true">
-                  ⌄
-                </span>
-              </button>
-              {completedOpen && (
-                <div className={styles.badgeRow}>
-                  {completedBadges.length === 0 ? (
-                    <div className={styles.emptyState}>No completed badges yet.</div>
-                  ) : (
-                    completedBadges.map((badge) => (
-                      <BadgeToken key={badge.id} className={styles.badgeToken}>
-                        <div className={styles.badgeCircle}>
-                          <YoutubeThumbnail
-                            videoUrl={badge.youtubeUrl}
-                            alt={`${badge.name} thumbnail`}
-                            className={styles.badgeCircleImage}
-                          />
-                        </div>
-                        <div className={styles.badgeName}>{badge.name}</div>
-                      </BadgeToken>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
+          {/* ===================== Analytics ===================== */}
+          <AnalyticsPanel />
         </div>
       </main>
 

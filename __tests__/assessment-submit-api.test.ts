@@ -35,6 +35,9 @@ jest.mock('../lib/prisma', () => ({
     lessonAttempt: {
       findMany: jest.fn(),
     },
+    lessonProgress: {
+      findMany: jest.fn(),
+    },
     studentBadge: {
       update: jest.fn(),
     },
@@ -49,13 +52,14 @@ const mockPrisma = prisma as unknown as {
   rubricGoal: { findUnique: jest.Mock };
   assessmentAttempt: { findMany: jest.Mock };
   lessonAttempt: { findMany: jest.Mock };
+  lessonProgress: { findMany: jest.Mock };
   studentBadge: { update: jest.Mock };
   $transaction: jest.Mock;
 };
 
 function assessmentRequest(body: unknown) {
   return new NextRequest(
-    'http://localhost/api/courses/course-1/students/student-1/badges/badge-1?email=assessor@example.edu',
+    'http://localhost/api/courses/course-1/students/student-1/badges/badge-1?email=checker@example.edu',
     {
       method: 'POST',
       body: JSON.stringify(body),
@@ -74,7 +78,7 @@ function courseFixture(badgeStatus: string) {
         role: 'CHECKER',
         status: 'ACTIVE',
         sections: [{ section: 'A1' }],
-        student: { id: 'assessor-1', badgeProgress: [] },
+        student: { id: 'checker-1', badgeProgress: [] },
       },
       {
         role: 'STUDENT',
@@ -143,9 +147,9 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
   beforeEach(() => {
     jest.clearAllMocks();
     mockCurrentUser.mockResolvedValue({
-      emailAddresses: [{ emailAddress: 'assessor@example.edu' }],
+      emailAddresses: [{ emailAddress: 'checker@example.edu' }],
     } as Awaited<ReturnType<typeof currentUser>>);
-    mockFetchUserByEmail.mockResolvedValue({ id: 'assessor-1' } as Awaited<ReturnType<typeof fetchUserByEmail>>);
+    mockFetchUserByEmail.mockResolvedValue({ id: 'checker-1' } as Awaited<ReturnType<typeof fetchUserByEmail>>);
     mockPrisma.rubricGoal.findUnique.mockResolvedValue(rubricGoalFixture);
     mockPrisma.$transaction.mockImplementation((callback) => callback(mockTx));
     mockTx.assessmentAttempt.create.mockImplementation(({ data }) =>
@@ -298,7 +302,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(mockPrisma.$transaction).not.toHaveBeenCalled();
   });
 
-  it('records an override row when the assessor downgrades a passing student with justification', async () => {
+  it('records an override row when the checker downgrades a passing student with justification', async () => {
     mockPrisma.course.findFirst.mockResolvedValue(courseFixture('READY_FOR_ASSESSMENT'));
 
     const response = await POST(
@@ -321,8 +325,8 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
     expect(createCall.data.responses.create).toContainEqual(
       expect.objectContaining({
         taskId: null,
-        subgoalText: 'Assessor override',
-        taskText: 'Assessor override',
+        subgoalText: 'Checker override',
+        taskText: 'Checker override',
         points: 0,
         passed: false,
         feedback: 'Spilled acid and did not report it.',
@@ -333,7 +337,7 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
   });
 
   it('allows assessing a READY_FOR_ASSESSMENT student who passed the lesson below 100%', async () => {
-    // Regression: the assessor route used to require every checkpoint to have a
+    // Regression: the checker route used to require every checkpoint to have a
     // passing (all-correct) attempt, blocking any pass under 100%. Readiness is
     // now owned by the badge status, so a sub-100% pass is assessable.
     mockPrisma.course.findFirst.mockResolvedValue(subHundredCourseFixture('READY_FOR_ASSESSMENT'));
@@ -375,13 +379,13 @@ describe('POST /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', (
   });
 });
 
-// Regression for #96: the assessor's Answer History must show what the student
+// Regression for #96: the checker's Answer History must show what the student
 // actually answered — option text for multiple choice (including the newer
 // object-shaped options JSON) and the persisted numeric value for short answers.
 describe('GET /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', () => {
   function answerHistoryCourseFixture() {
     return {
-      createdById: 'assessor-1',
+      createdById: 'checker-1',
       settings: { allowCrossSectionView: true },
       lessons: [
         {
@@ -505,18 +509,19 @@ describe('GET /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', ()
   beforeEach(() => {
     jest.clearAllMocks();
     mockCurrentUser.mockResolvedValue({
-      emailAddresses: [{ emailAddress: 'assessor@example.edu' }],
+      emailAddresses: [{ emailAddress: 'checker@example.edu' }],
     } as Awaited<ReturnType<typeof currentUser>>);
-    mockFetchUserByEmail.mockResolvedValue({ id: 'assessor-1' } as Awaited<ReturnType<typeof fetchUserByEmail>>);
+    mockFetchUserByEmail.mockResolvedValue({ id: 'checker-1' } as Awaited<ReturnType<typeof fetchUserByEmail>>);
     mockPrisma.course.findFirst.mockResolvedValue(answerHistoryCourseFixture());
     mockPrisma.rubricGoal.findUnique.mockResolvedValue(rubricGoalFixture);
     mockPrisma.assessmentAttempt.findMany.mockResolvedValue([]);
     mockPrisma.lessonAttempt.findMany.mockResolvedValue([]);
+    mockPrisma.lessonProgress.findMany.mockResolvedValue([]);
   });
 
   it('renders answered text from option labels and persisted numeric answers', async () => {
     const request = new NextRequest(
-      'http://localhost/api/courses/course-1/students/student-1/badges/badge-1?email=assessor%40example.edu'
+      'http://localhost/api/courses/course-1/students/student-1/badges/badge-1?email=checker%40example.edu'
     );
 
     const response = (await GET(request, submitParams())) as Response;
@@ -540,11 +545,11 @@ describe('GET /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', ()
 });
 
 // Per-student config edits (reassessment count, cooldown, whether reassessment is
-// mandatory). The cooldown override is the assessor feature gated by the course's
+// mandatory). The cooldown override is the checker feature gated by the course's
 // allowCooldownOverride setting.
 function configRequest(body: unknown) {
   return new NextRequest(
-    'http://localhost/api/courses/course-1/students/student-1/badges/badge-1?email=assessor@example.edu',
+    'http://localhost/api/courses/course-1/students/student-1/badges/badge-1?email=checker@example.edu',
     {
       method: 'PATCH',
       body: JSON.stringify(body),
@@ -553,7 +558,7 @@ function configRequest(body: unknown) {
   );
 }
 
-// Course whose viewer (assessor-1) is an active CHECKER who may edit the student's
+// Course whose viewer (checker-1) is an active CHECKER who may edit the student's
 // badge config. `allowCooldownOverride` toggles the cooldown-override gate.
 function configCourseFixture(allowCooldownOverride: boolean) {
   return {
@@ -565,7 +570,7 @@ function configCourseFixture(allowCooldownOverride: boolean) {
         role: 'CHECKER',
         status: 'ACTIVE',
         sections: [{ section: 'A1' }],
-        student: { id: 'assessor-1', badgeProgress: [] },
+        student: { id: 'checker-1', badgeProgress: [] },
       },
       {
         role: 'STUDENT',
@@ -581,9 +586,9 @@ describe('PATCH /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', 
   beforeEach(() => {
     jest.clearAllMocks();
     mockCurrentUser.mockResolvedValue({
-      emailAddresses: [{ emailAddress: 'assessor@example.edu' }],
+      emailAddresses: [{ emailAddress: 'checker@example.edu' }],
     } as Awaited<ReturnType<typeof currentUser>>);
-    mockFetchUserByEmail.mockResolvedValue({ id: 'assessor-1' } as Awaited<ReturnType<typeof fetchUserByEmail>>);
+    mockFetchUserByEmail.mockResolvedValue({ id: 'checker-1' } as Awaited<ReturnType<typeof fetchUserByEmail>>);
     mockPrisma.studentBadge.update.mockImplementation(({ data }) => Promise.resolve(data));
   });
 

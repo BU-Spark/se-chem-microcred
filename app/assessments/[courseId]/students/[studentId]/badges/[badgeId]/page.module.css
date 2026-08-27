@@ -1,7 +1,8 @@
+/* Issues: #242 standardize headings */
 .page {
   display: flex;
   min-height: calc(100vh - 80px);
-  background: #ffffff;
+  background: var(--checkd-white);
   font-family: 'Open Sans', sans-serif;
 }
 
@@ -9,7 +10,7 @@
   flex: 1;
   min-height: 100vh;
   padding: 1.5rem 1.65rem 1.85rem;
-  background: #ffffff;
+  background: var(--checkd-white);
 }
 
 .content {
@@ -18,61 +19,107 @@
 .header {
   margin-bottom: 0.9rem;
 }
-.pageTitle {
-  margin: 0;
-  font-family: Lato, sans-serif;
-  font-size: 48px;
-  line-height: 1.05;
-  font-weight: 700;
-  color: #111111;
-}
 .statusMessage {
   margin: 0;
   font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
   color: #5b6470;
 }
-.detailCard {
-  border: 3px solid #d9d9d9;
-  border-radius: 1.85rem;
-  background: #ffffff;
-  padding: 1rem 1.45rem 1.25rem;
+/* The assessment owns the page; student context sits in a narrow rail beside it. */
+.assessmentLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 2.5rem;
+  align-items: start;
 }
-.detailCardHeader {
+
+.assessmentColumn {
+  min-width: 0;
+}
+
+.studentRail {
+  display: grid;
+  gap: 1.15rem;
+  padding-top: 0.25rem;
+  border-left: 1px solid var(--card-border);
+  padding-left: 1.5rem;
+}
+
+.studentIdentity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.studentAvatar {
+  flex-shrink: 0;
   display: inline-flex;
   align-items: center;
-  gap: 0.28rem;
-  color: #1b1b1b;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #eef1f5;
 }
-.detailCardKicker,
-.detailCardHeading {
+
+.studentAvatarFallback {
   font-family: Lato, sans-serif;
-  font-size: 1.12rem;
-}
-.detailCardKicker {
-  font-weight: 400;
-}
-.detailCardHeading {
+  font-size: 1.1rem;
   font-weight: 700;
+  color: #4b5563;
 }
-.progressStatusColumn {
+
+.studentName {
+  margin: 0 0 0.15rem;
+  font-family: Lato, sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #111418;
+}
+
+.railSection {
   display: grid;
-  gap: 0.55rem;
-  align-content: center;
+  gap: 0.3rem;
 }
-.progressStatusLine {
+
+.railTitle {
   margin: 0;
   font-family: 'Open Sans', sans-serif;
-  font-size: 0.98rem;
-  color: #252525;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #111418;
 }
-.progressStatusLabel {
-  font-family: Lato, sans-serif;
+
+.railMeta {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  line-height: 1.55;
+  color: #5b6470;
+  overflow-wrap: anywhere;
+}
+
+.railLabel {
+  color: #111418;
   font-weight: 600;
 }
-.progressStatusValue {
-  font-family: Lato, sans-serif;
+
+.railClearanceOk,
+.railClearanceBlocked {
+  margin: 0.15rem 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
   font-weight: 700;
+}
+
+.railClearanceOk {
+  color: var(--checkd-blue-low);
+}
+
+.railClearanceBlocked {
+  color: #a33d38;
 }
 
 @media (max-width: 900px) {
@@ -83,16 +130,19 @@
     min-height: auto;
     padding: 1rem;
   }
-  .detailCard {
-    padding: 1rem;
+  /* Stacked: the rail becomes a section under the assessment. */
+  .assessmentLayout {
+    grid-template-columns: 1fr;
+    gap: 1.75rem;
+  }
+  .studentRail {
+    border-left: none;
+    border-top: 1px solid var(--card-border);
+    padding-left: 0;
+    padding-top: 1.25rem;
   }
 }
 
-@media (max-width: 640px) {
-  .pageTitle {
-    font-size: 38px;
-  }
-}
 
 .readinessBody {
   display: grid;
@@ -101,57 +151,8 @@
   font-family: 'Open Sans', sans-serif;
 }
 
-.topBackLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  width: fit-content;
-  border: none;
-  padding: 0;
-  margin: 0 0 1.25rem;
-  background: transparent;
-  color: #161616;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 0.98rem;
-  text-decoration: underline;
-  text-underline-offset: 0.35rem;
-  cursor: pointer;
-}
-
-.clearanceRow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.8rem;
-  font-size: 1.1rem;
-  color: #161616;
-}
-
-.clearanceSuccess,
-.clearanceBlocked {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 1.35rem;
-  height: 1.35rem;
-  font-size: 1.85rem;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.clearanceSuccess {
-  color: #bccb47;
-}
-
-.clearanceBlocked {
-  color: #c9605b;
-}
-
 .unablePanel {
   max-width: 58rem;
-  border: 3px solid #d9d9d9;
-  border-radius: 1.85rem;
-  padding: 1.25rem 1.55rem;
-  background: #ffffff;
 }
 
 .unablePanel h2 {
@@ -174,61 +175,23 @@
   margin-top: 0.75rem;
 }
 
-.assessmentPanel {
+/* The overview's rubric brings its own panel chrome, so this wrapper only
+   stacks it under the "How this assessment works" steps. */
+.overviewStack {
   display: grid;
   gap: 1rem;
   max-width: 64rem;
-  border: 3px solid #d9d9d9;
-  border-radius: 1.25rem;
-  padding: 1.25rem;
-  background: #ffffff;
 }
 
-.assessmentPanelHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.assessmentPanelHeader h2,
-.criterionHeader h3 {
-  margin: 0;
-  font-family: 'Lato', sans-serif;
-  color: #111111;
-}
-
-.assessmentPanelHeader h2 {
-  font-size: 1.35rem;
-}
-
-.passToggle {
-  display: inline-flex;
-  gap: 0.35rem;
-  border: 2px solid #d9d9d9;
-  border-radius: 0.85rem;
-  padding: 0.2rem;
-  background: #f8fafc;
-}
-
-.toggleButton,
-.toggleButtonActive {
+.toggleButton {
   border: none;
   border-radius: 0.65rem;
   padding: 0.55rem 0.8rem;
   font: inherit;
   font-family: 'Lato', sans-serif;
-  cursor: pointer;
-}
-
-.toggleButton {
   background: transparent;
   color: #1f2937;
-}
-
-.toggleButtonActive {
-  background: #2e6aa9;
-  color: #ffffff;
+  cursor: pointer;
 }
 
 .criteriaField {
@@ -239,57 +202,29 @@
   color: #111111;
 }
 
-.scoreSummary {
-  margin: 0;
-  font-family: 'Lato', sans-serif;
-  font-weight: 700;
-  font-size: 1.05rem;
-  color: #111111;
-}
-
 .taInstructions {
-  padding: 0.9rem 1.1rem;
-  border: 1px solid #e5e7eb;
-  border-left: 4px solid #1f5fab;
-  border-radius: 10px;
-  background: #f7f8fb;
+  display: grid;
+  gap: 0.35rem;
 }
 
+/* Matches the rubric panel's section titles now that the callout box is gone. */
 .taInstructionsTitle {
-  margin: 0 0 0.5rem;
-  font-family: 'Lato', sans-serif;
-  font-size: 0.95rem;
+  margin: 0 0 0.35rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 15px;
   font-weight: 700;
-  color: #1f5fab;
+  color: #111418;
 }
 
-.taInstructionsBody {
-  font-family: 'Lato', sans-serif;
-  font-size: 0.95rem;
-  line-height: 1.55;
-  color: #111111;
-}
-
-.thresholdMet {
-  color: #2f7d45;
-}
-
-.thresholdUnmet {
-  color: #a33d38;
-}
-
-.subgoalControl {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
-  white-space: nowrap;
-}
-
-.subgoalPoints {
-  font-family: 'Lato', sans-serif;
-  font-weight: 700;
+.processSteps {
+  margin: 0;
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.25rem;
+  font-family: 'Open Sans', sans-serif;
   font-size: 0.9rem;
-  color: #61758a;
+  line-height: 1.55;
+  color: #4b5563;
 }
 
 /* Green/red pass slider: a switch whose track color carries the verdict. */
@@ -310,7 +245,7 @@
 }
 
 .subgoalSliderOn {
-  background: #2f7d45;
+  background: var(--checkd-green);
 }
 
 .subgoalSliderKnob {
@@ -320,7 +255,7 @@
   width: 1.2rem;
   height: 1.2rem;
   border-radius: 50%;
-  background: #ffffff;
+  background: var(--checkd-white);
   transition: transform 0.15s ease;
 }
 
@@ -331,42 +266,14 @@
 .criteriaField select,
 .criteriaField textarea {
   width: 100%;
-  border: 2px solid #d9d9d9;
+  border: 1px solid var(--card-border);
   border-radius: 0.75rem;
   padding: 0.7rem 0.85rem;
   font: inherit;
   font-family: 'Open Sans', sans-serif;
   font-weight: 500;
   color: #111111;
-  background: #ffffff;
-}
-
-.criteriaList {
-  display: grid;
-  gap: 0.9rem;
-}
-
-.subgoalGroup {
-  display: grid;
-  gap: 0.75rem;
-  border: 2px solid #d9dee5;
-  border-radius: 1.1rem;
-  padding: 1rem 1.1rem 1.1rem;
-  background: #ffffff;
-}
-
-.subgoalGroupHeader {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.subgoalGroupHeader h3 {
-  font-size: 1.1rem;
-  font-family: Lato, sans-serif;
-  font-weight: 700;
+  background: var(--checkd-white);
 }
 
 .subgoalGroupPass,
@@ -378,11 +285,36 @@
 }
 
 .subgoalGroupPass {
-  color: #15803d;
+  color: var(--checkd-black);
 }
 
 .subgoalGroupFail {
   color: #a33d38;
+}
+
+/* Read-only verdicts on the review step's task breakdown. */
+.taskResultPass,
+.taskResultFail {
+  white-space: nowrap;
+  font-family: 'Lato', sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.taskResultPass {
+  color: var(--checkd-black);
+}
+
+.taskResultFail {
+  color: #a33d38;
+}
+
+.taskResultFeedback {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #374151;
 }
 
 .confirmPanel {
@@ -400,40 +332,60 @@
 }
 
 .confirmMessagePass {
-  color: #15803d;
+  color: var(--checkd-blue-low);
 }
 
 .confirmMessageFail {
   color: #a33d38;
 }
 
-.criterionCard {
-  display: grid;
-  gap: 0.85rem;
-  border: 2px solid #ececec;
-  border-radius: 1rem;
-  padding: 1rem;
-  background: #fbfbfb;
-}
-
-.criterionHeader {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 1rem;
-}
-
-.criterionHeader h3 {
-  font-size: 1.05rem;
-}
-
-.criterionPass {
+/* Collapsed-by-default feedback box (issue #179). */
+.feedbackToggle {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
-  white-space: nowrap;
+  gap: 0.5rem;
+  justify-self: start;
+  border: none;
+  padding: 0;
+  background: transparent;
+  color: var(--checkd-blue);
   font-family: 'Lato', sans-serif;
   font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.feedbackToggle:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.3rem;
+}
+
+.feedbackChevron,
+.feedbackChevronOpen {
+  display: inline-block;
+  font-size: 1.15rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+
+.feedbackChevron {
+  transform: rotate(0deg);
+}
+
+.feedbackChevronOpen {
+  transform: rotate(90deg);
+}
+
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 .errorText,
@@ -448,7 +400,7 @@
 }
 
 .successText {
-  color: #2f7d45;
+  color: var(--checkd-black);
 }
 
 .actionRow {
@@ -459,24 +411,12 @@
   margin-top: 1.4rem;
 }
 
-.backLink {
-  border: none;
-  padding: 0;
-  background: transparent;
-  color: #161616;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 0.98rem;
-  text-decoration: underline;
-  text-underline-offset: 0.35rem;
-  cursor: pointer;
-}
-
 .primaryButton {
   border: none;
   border-radius: 0.9rem;
   padding: 0.85rem 1.35rem;
-  background: #2e6aa9;
-  color: #ffffff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   font: inherit;
   font-family: 'Lato', sans-serif;
   font-size: 1rem;
@@ -492,11 +432,5 @@
   .actionRow {
     justify-content: flex-start;
     flex-wrap: wrap;
-  }
-
-  .assessmentPanelHeader,
-  .criterionHeader {
-    align-items: stretch;
-    flex-direction: column;
   }
 }

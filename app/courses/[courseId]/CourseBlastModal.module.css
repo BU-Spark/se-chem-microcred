@@ -1,0 +1,296 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.modal {
+  position: relative;
+  width: min(720px, 100%);
+  max-height: calc(100vh - 3rem);
+  overflow: auto;
+  background: var(--checkd-white);
+  border-radius: 28px;
+  padding: 2.25rem 2.5rem 2rem;
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.25);
+}
+
+.closeButton {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.75rem;
+  border: none;
+  background: transparent;
+  font-size: 1.9rem;
+  line-height: 1;
+  color: #111111;
+  cursor: pointer;
+}
+
+.title {
+  margin: 0;
+  text-align: center;
+  font-family: 'Lato', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: #111111;
+}
+
+.subtitle {
+  margin: 0.5rem 0 1.75rem;
+  text-align: center;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1.05rem;
+  color: #222222;
+}
+
+.fieldLabel {
+  margin: 0 0 0.75rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  color: #222222;
+}
+
+.bodyInput {
+  width: 100%;
+  border: 1px solid #b9b9b9;
+  border-radius: 18px;
+  background: var(--checkd-white);
+  padding: 1.1rem 1.25rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #1b1b1b;
+  resize: vertical;
+  outline: none;
+}
+
+.bodyInput:focus {
+  border-color: var(--checkd-blue-high);
+}
+
+.error {
+  margin: 0.75rem 0 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.95rem;
+  color: #b91c1c;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.sendButton {
+  border: none;
+  border-radius: 16px;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
+  font-family: 'Lato', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 0.85rem 2.4rem;
+  cursor: pointer;
+}
+
+.sendButton:hover {
+  filter: brightness(0.93);
+}
+
+.sendButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.resultBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.resultText {
+  margin: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  color: #1b1b1b;
+}
+
+/* Modern course modal system */
+.overlay {
+  z-index: 120;
+  padding: 1.25rem;
+  background: rgba(8, 20, 40, 0.58);
+  backdrop-filter: blur(3px);
+}
+
+.modal {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 2.5rem);
+  padding: 1.75rem;
+  border: 1px solid #dce3ec;
+  border-radius: 18px;
+  color: #0b1833;
+  box-shadow: 0 24px 64px rgba(8, 20, 40, 0.28);
+}
+
+.closeButton {
+  top: 0.9rem;
+  right: 0.9rem;
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 8px;
+  color: #536078;
+  font-size: 1.35rem;
+}
+
+.closeButton:hover {
+  background: #eef3f9;
+  color: #0b1833;
+}
+
+.header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding-right: 2.5rem;
+  margin-bottom: 1.4rem;
+}
+
+.headerIcon {
+  display: grid;
+  place-items: center;
+  width: 2.65rem;
+  height: 2.65rem;
+  flex: 0 0 2.65rem;
+  border-radius: 10px;
+  background: #eaf1fa;
+  color: var(--brand-color);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.title {
+  color: #0b1833;
+  text-align: left;
+  font-size: 1.3rem;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.subtitle {
+  margin: 0.35rem 0 0;
+  color: #657188;
+  text-align: left;
+  font-size: 0.84rem;
+}
+
+.fieldLabel {
+  margin-bottom: 0.55rem;
+  color: #344158;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.bodyInput {
+  min-height: 13rem;
+  border-color: #bfcbd9;
+  border-radius: 10px;
+  padding: 1rem;
+  color: #0b1833;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.bodyInput:focus {
+  border-color: var(--brand-color);
+  box-shadow: 0 0 0 3px rgb(var(--checkd-blue-high-rgb) / 0.16);
+}
+
+.actions {
+  gap: 0.65rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5eaf1;
+}
+
+.sendButton,
+.cancelButton {
+  min-height: 2.75rem;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  font-family: 'Open Sans', system-ui, sans-serif;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.sendButton {
+  background: var(--checkd-green);
+}
+
+.cancelButton {
+  border: 1px solid #c9d3e1;
+  background: var(--checkd-white);
+  color: #0b1833;
+  cursor: pointer;
+}
+
+.cancelButton:hover {
+  background: #f5f7fa;
+}
+
+.resultBlock {
+  align-items: center;
+  min-height: 14rem;
+  justify-content: center;
+  text-align: center;
+}
+
+.resultIcon {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  margin-bottom: 0.5rem;
+  border-radius: 50%;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
+  font-size: 1.5rem;
+  box-shadow: 0 0 0 1px var(--checkd-green);
+}
+
+.resultText {
+  max-width: 30rem;
+  color: #344158;
+  font-size: 0.9rem;
+}
+
+.subjectInput {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px solid #e2e2e2;
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.35rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  color: #1f2937;
+}
+
+.subjectInput:focus {
+  outline: none;
+  border-color: var(--checkd-blue-high);
+}
+
+/* The labels are <label> elements here; keep them on their own line. */
+.fieldLabel {
+  display: block;
+}

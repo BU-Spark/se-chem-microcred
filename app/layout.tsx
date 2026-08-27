@@ -3,8 +3,9 @@ import { ClerkProvider } from '@clerk/nextjs';
 import type { Metadata } from 'next';
 import './globals.css';
 import { DatabaseDisplayNameProvider } from '@/app/components/Profile/DatabaseDisplayNameProvider';
-import { ErrorBoundary } from './components/ErrorBoundary';
+import { ErrorBoundary } from './components/ErrorBoundary/ErrorBoundary';
 import { GlobalHeader } from './components/GlobalHeader'; // 👈 NEW
+import OnboardingGate from './components/OnboardingGate';
 
 const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY;
 
@@ -13,8 +14,8 @@ if (!clerkPublishableKey) {
 }
 
 export const metadata: Metadata = {
-  title: 'Checkd - Microcredentials for you',
-  description: 'Checkd app',
+  title: 'checkd',
+  description: 'checkd app - Micro-credential platform',
   keywords: ['Chemistry', 'Micro-credential', 'Student Experience', 'Student', 'Instructor'],
 };
 
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <body>
           <ErrorBoundary>
+            <OnboardingGate />
             <DatabaseDisplayNameProvider>
               <GlobalHeader />
               <div className="main-content-container">{children}</div>

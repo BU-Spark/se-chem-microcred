@@ -2,41 +2,12 @@
 
 import { useState } from 'react';
 
+import { buildCsv, downloadCsv } from '@/lib/csv';
+
 interface ExportCsvDataProps {
   courseId: string;
   email: string;
   className?: string;
-}
-
-/** Wrap a value in quotes and escape embedded quotes per RFC 4180. */
-function toCsvCell(value: string) {
-  return `"${value.replace(/"/g, '""')}"`;
-}
-
-function buildCsv(rows: Record<string, string>[]) {
-  if (rows.length === 0) return '';
-
-  const headers = Object.keys(rows[0]);
-  const headerLine = headers.map(toCsvCell).join(',');
-  const dataLines = rows.map((row) => headers.map((header) => toCsvCell(row[header] ?? '')).join(','));
-
-  return [headerLine, ...dataLines].join('\n');
-}
-
-function downloadCsv(csvContent: string, filename: string) {
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-
-  link.setAttribute('href', url);
-  link.setAttribute('download', filename);
-  link.style.visibility = 'hidden';
-
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
-
-  URL.revokeObjectURL(url);
 }
 
 export default function ExportCsvDataButton({ courseId, email, className }: ExportCsvDataProps) {

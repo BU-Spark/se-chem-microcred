@@ -18,7 +18,7 @@
   align-items: center;
   gap: 1.25rem;
   overflow-y: auto;
-  background: #fff;
+  background: var(--checkd-white);
   box-shadow: 0 40px 70px rgba(0, 0, 0, 0.45);
   text-align: center;
 }
@@ -62,7 +62,7 @@
   overflow: hidden;
   border: 1px solid rgba(15, 23, 42, 0.1);
   border-radius: 16px;
-  background: #fff;
+  background: var(--checkd-white);
 }
 .qrCanvas {
   position: relative;
@@ -71,7 +71,7 @@
   height: 100%;
   align-items: center;
   justify-content: center;
-  background: #fff;
+  background: var(--checkd-white);
 }
 .qrImage {
   display: block;
@@ -90,7 +90,7 @@
   transform: translate(-50%, -50%);
   place-items: center;
   border-radius: 16px;
-  background: #fff;
+  background: var(--checkd-white);
   pointer-events: none;
 }
 .qrLogoImage {

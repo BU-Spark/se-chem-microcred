@@ -1,0 +1,191 @@
+.outline {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.heading {
+  margin: 0;
+  color: #64748b;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.subheading {
+  margin: 0;
+  color: #94a3b8;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.partCard,
+.endCard {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 1.1rem;
+  align-items: center;
+  padding: 0.75rem;
+  border: 1px solid var(--card-border);
+  border-radius: 16px;
+  background: var(--card-bg);
+}
+
+.endCard {
+  grid-template-columns: 72px minmax(0, 1fr);
+  padding: 0.85rem 1rem;
+  border-color: rgb(var(--checkd-blue-rgb) / 0.2);
+  background: #f3f7fd;
+}
+
+/* 16:9 matches the video frame itself, so a cover crop takes nothing off a
+   YouTube still; other sources (checkpoint snapshots, uploaded segment art)
+   crop from their centre. */
+.thumb {
+  width: 168px;
+  aspect-ratio: 16 / 9;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 10px;
+  background: var(--card-bg-alt);
+}
+
+.thumbImg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.thumbPlaceholder {
+  color: #94a3b8;
+  font-size: 1.1rem;
+}
+
+.endArt {
+  width: 72px;
+  height: 72px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: var(--checkd-white);
+}
+
+.endArtImg {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.partText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.partTitle {
+  color: var(--text-color);
+  font-family: 'Lato', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.partDuration {
+  color: #64748b;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+}
+
+.checkpointRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 0.9rem;
+  color: var(--text-color);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+}
+
+.checkpointDot {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 15px;
+  border: 3px solid var(--checkd-blue);
+  border-radius: 50%;
+  background: var(--checkd-white);
+}
+
+.checkpointLabel {
+  font-weight: 800;
+}
+
+.checkpointMeta {
+  color: #64748b;
+}
+
+.checkpointMeta::before {
+  content: '· ';
+}
+
+@media (max-width: 760px) {
+  .partCard {
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 0.85rem;
+  }
+
+  .thumb {
+    width: 120px;
+  }
+
+  .endCard {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .endArt {
+    width: 56px;
+    height: 56px;
+  }
+}
+
+@media (max-width: 560px) {
+  .partCard {
+    grid-template-columns: 96px minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .thumb {
+    width: 96px;
+  }
+
+  .partTitle {
+    font-size: 1.05rem;
+  }
+}

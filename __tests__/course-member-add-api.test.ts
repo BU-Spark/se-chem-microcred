@@ -1,11 +1,12 @@
 /** @jest-environment node */
+// Issues: #258 multi-word last names
 
 import { NextRequest } from 'next/server';
 
 const mockEnsureCurrentUser = jest.fn();
 
 const tx = {
-  user: { findMany: jest.fn(), createMany: jest.fn() },
+  user: { findMany: jest.fn(), createMany: jest.fn(), updateMany: jest.fn() },
   enrollment: { findMany: jest.fn(), createMany: jest.fn() },
   enrollmentSection: { createMany: jest.fn() },
   badgeRequirement: { findMany: jest.fn() },
@@ -53,6 +54,111 @@ describe('add course roster members API', () => {
     tx.enrollmentSection.createMany.mockResolvedValue({ count: 1 });
     tx.badgeRequirement.findMany.mockResolvedValue([]);
     tx.studentAnalytics.createMany.mockResolvedValue({ count: 1 });
+  });
+
+  // Adding someone to an existing roster resolves them to their existing User row
+  // rather than creating one, and only createMany ever wrote externalId -- so the
+  // BUID in the CSV was silently dropped for anyone who had already signed in.
+  describe('capturing a BUID for someone who already has a User row', () => {
+    function existingUser(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'student-1',
+        name: 'Ada Lovelace',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        email: 'ada@bu.edu',
+        externalId: null,
+        ...overrides,
+      };
+    }
+
+    beforeEach(() => {
+      jest.clearAllMocks();
+      // clearAllMocks only clears recorded calls -- the enclosing beforeEach queues
+      // its findMany results with mockResolvedValueOnce, and that queue survives and
+      // would shadow the rows these tests set up. Reset the queued implementations.
+      tx.user.findMany.mockReset();
+      tx.enrollment.findMany.mockReset();
+      mockEnsureCurrentUser.mockResolvedValue({ id: 'instructor-1' });
+      mockPrisma.course.findUnique.mockResolvedValue({ createdById: 'instructor-1' });
+      tx.user.createMany.mockResolvedValue({ count: 0 });
+      // First call is the role-conflict check (none), second returns the ids.
+      tx.enrollment.findMany
+        .mockResolvedValueOnce([])
+        .mockResolvedValue([{ id: 'enrollment-1', studentId: 'student-1' }]);
+      tx.enrollment.createMany.mockResolvedValue({ count: 1 });
+      tx.enrollmentSection.createMany.mockResolvedValue({ count: 1 });
+      tx.badgeRequirement.findMany.mockResolvedValue([]);
+      tx.studentAnalytics.createMany.mockResolvedValue({ count: 1 });
+      tx.user.updateMany.mockResolvedValue({ count: 1 });
+    });
+
+    it('writes the externalId onto a row matched by email', async () => {
+      tx.user.findMany.mockResolvedValue([existingUser()]);
+
+      const response = await addMembers({
+        role: 'STUDENT',
+        members: [
+          { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@bu.edu', externalId: 'U1234567', sections: 'A1' },
+        ],
+      });
+
+      expect(response.status).toBe(200);
+      expect(tx.user.createMany).not.toHaveBeenCalled();
+      expect(tx.user.updateMany).toHaveBeenCalledWith({
+        where: { id: 'student-1', externalId: null },
+        data: { externalId: 'U1234567' },
+      });
+    });
+
+    it('never overwrites an externalId the person already has', async () => {
+      tx.user.findMany.mockResolvedValue([existingUser({ externalId: 'U0000001' })]);
+
+      const response = await addMembers({
+        role: 'STUDENT',
+        members: [
+          { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@bu.edu', externalId: 'U9999999', sections: 'A1' },
+        ],
+      });
+
+      expect(response.status).toBe(200);
+      const externalIdWrites = tx.user.updateMany.mock.calls.filter(
+        ([args]) => (args as { data: Record<string, unknown> }).data.externalId !== undefined
+      );
+      expect(externalIdWrites).toHaveLength(0);
+    });
+
+    it('writes the externalId even when the name is already on file', async () => {
+      tx.user.findMany.mockResolvedValue([existingUser()]);
+
+      await addMembers({
+        role: 'STUDENT',
+        members: [
+          { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@bu.edu', externalId: 'U1234567', sections: 'A1' },
+        ],
+      });
+
+      // The name half is already populated, so only the externalId update fires.
+      expect(tx.user.updateMany).toHaveBeenCalledTimes(1);
+      expect(tx.user.updateMany).toHaveBeenCalledWith({
+        where: { id: 'student-1', externalId: null },
+        data: { externalId: 'U1234567' },
+      });
+    });
+
+    it('updates a given person once even when the CSV lists them on several rows', async () => {
+      tx.user.findMany.mockResolvedValue([existingUser()]);
+
+      await addMembers({
+        role: 'CHECKER',
+        members: [
+          { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@bu.edu', externalId: 'U1234567', sections: 'A1' },
+          { firstName: 'Ada', lastName: 'Lovelace', email: 'ada@bu.edu', externalId: 'U1234567', sections: 'A2' },
+        ],
+      });
+
+      expect(tx.user.updateMany).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('adds a student without replacing existing enrollments', async () => {

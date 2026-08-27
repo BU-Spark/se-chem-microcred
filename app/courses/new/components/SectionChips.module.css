@@ -1,0 +1,39 @@
+/* Mirrors the section filter pills on the roster page (app/roster/page.module.css)
+   so toggling a checker's sections looks like the filters elsewhere in the app. */
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.chip {
+  min-height: 2.15rem;
+  padding: 0.35rem 0.95rem;
+  border-radius: 999px;
+  border: 2px solid #d7d7d7;
+  background: var(--checkd-white);
+  color: #3b3b3b;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--checkd-blue-low);
+  color: var(--checkd-blue);
+}
+
+.chipSelected,
+.chipSelected:hover {
+  background: var(--checkd-blue-low);
+  border-color: var(--checkd-blue-low);
+  color: var(--checkd-white);
+}
+
+.placeholder {
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  color: #6b7280;
+}

@@ -40,7 +40,7 @@ test suite serving as the review gate. Canonical shared-components home:
 **UI layer** — everything is client-side. All ~27 pages are `'use client'`;
 there are zero Server Components and the root layout is `force-dynamic`. All
 data fetching is client-side `useEffect`+`fetch` against `/api/*`. Two hooks
-use SWR (`app/hooks/useMyCourses.ts`, `useCanCreateContent.ts`); the
+use SWR (`app/hooks/useMyCourses.ts`); the
 canonical `app/hooks/useStudentData.ts` and 5 page-inline hooks are
 hand-rolled with the same `{data, isLoading, error, refresh}` shape.
 Server/Client separation is a green-field addition, not a refactor of
@@ -85,8 +85,7 @@ existing splits.
   `fetchAccessible*` functions baking in the creator-or-staff access
   filter) — used by 11 routes, bypassed by the biggest ones
 - `lib/badgeProgress.ts` `syncLessonBadgesForStudent` (11 call sites),
-  `lib/checkpointQuestions.ts` (read-side serializer),
-  `lib/adminAccess.ts` (`ALPHA_MODE` gate)
+  `lib/checkpointQuestions.ts` (read-side serializer)
 
 **Safety net (leverage):** CI on every push/PR to dev/main runs lint + full
 jest suite (37 test files) + production build; husky pre-commit runs
@@ -502,8 +501,7 @@ pages server-hydrated.
   revertable commits are the rollback mechanism. Reserve parallel-file/flag
   treatment for exactly: SWR hook conversions (old hook kept ~1 week as a
   parallel file, then deleted), the `?email=` auth convergence (2.8), and
-  any future `force-dynamic` or options-padding unification. Don't
-  overload `ALPHA_MODE`.
+  any future `force-dynamic` or options-padding unification.
 - **Hook cost:** husky runs the full suite pre-commit AND pre-push — keep
   new tests fast (fake timers, SWR test provider with zero deduping). If
   suite time becomes painful mid-refactor, `git commit -n` is a trap to

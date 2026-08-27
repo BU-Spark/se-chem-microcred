@@ -3,6 +3,10 @@ import type { PrismaClient } from '@prisma/client';
 export type LessonGradeResult = {
   totalQuestions: number;
   correctAnswers: number;
+  // Point-weighted tally (issue #248): drives `percent`/pass-fail. Counts above
+  // stay unweighted so "X of Y correct" displays are unaffected.
+  pointsEarned: number;
+  pointsPossible: number;
   percent: number;
 };
 
@@ -33,27 +37,37 @@ export async function computeLessonGrade(
     },
   });
 
-  const { totalQuestions, correctAnswers } = checkpoints.reduce(
+  const { totalQuestions, correctAnswers, pointsEarned, pointsPossible } = checkpoints.reduce(
     (acc, checkpoint) => {
       const latestAttempt = checkpoint.attempts[0];
-      const checkpointQuestions = checkpoint.questions.length;
-      const checkpointCorrect = latestAttempt
-        ? latestAttempt.responses.filter((response) => response.isCorrect === true).length
-        : 0;
+      const correctResponses = latestAttempt
+        ? latestAttempt.responses.filter((response) => response.isCorrect === true)
+        : [];
+      const pointsByQuestionId = new Map(checkpoint.questions.map((question) => [question.id, question.points]));
+      const checkpointPointsPossible = checkpoint.questions.reduce((sum, question) => sum + question.points, 0);
+      const checkpointPointsEarned = correctResponses.reduce(
+        (sum, response) => sum + (response.questionId ? (pointsByQuestionId.get(response.questionId) ?? 0) : 0),
+        0
+      );
 
       return {
-        totalQuestions: acc.totalQuestions + checkpointQuestions,
-        correctAnswers: acc.correctAnswers + checkpointCorrect,
+        totalQuestions: acc.totalQuestions + checkpoint.questions.length,
+        correctAnswers: acc.correctAnswers + correctResponses.length,
+        pointsEarned: acc.pointsEarned + checkpointPointsEarned,
+        pointsPossible: acc.pointsPossible + checkpointPointsPossible,
       };
     },
-    { totalQuestions: 0, correctAnswers: 0 }
+    { totalQuestions: 0, correctAnswers: 0, pointsEarned: 0, pointsPossible: 0 }
   );
 
-  const percent = totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0;
+  // Point-weighted, mirroring the in-person assessment's pointsEarned/pointsPossible.
+  const percent = pointsPossible > 0 ? (pointsEarned / pointsPossible) * 100 : 0;
 
   return {
     totalQuestions,
     correctAnswers,
+    pointsEarned,
+    pointsPossible,
     percent,
   };
 }

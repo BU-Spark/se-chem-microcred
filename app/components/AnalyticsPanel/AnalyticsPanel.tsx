@@ -1,0 +1,290 @@
+'use client';
+
+import { useMemo } from 'react';
+import { useUser } from '@clerk/nextjs';
+
+import { useStudentData, type BadgeRecord } from '@/app/hooks/useStudentData';
+import styles from './AnalyticsPanel.module.css';
+
+// Set this to true if and when we decide to push back into the UI, since it worked
+// and we track the data — not worth gutting, but hidden from the user.
+const SHOW_CIRCULAR_SCORES = false;
+
+type ProgressItem = {
+  id: string;
+  value: string;
+  label: string;
+};
+
+type ScoreItem = {
+  id: string;
+  value: number;
+  label: string;
+};
+
+function BadgeSummaryDial({ completed, available }: { completed: number; available: number }) {
+  // Two stroked SVG arcs (lime = completed, red = available) with rounded caps and
+  // a small gap between segments, matching the Figma badge-summary donut. A
+  // conic-gradient can't produce rounded caps or inter-segment gaps, so we draw arcs.
+  const SIZE = 220;
+  const STROKE = 18;
+  const radius = (SIZE - STROKE) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const center = SIZE / 2;
+  const GAP = 12; // px of arc kept blank on each side of a segment
+  const completedLen = Math.max(0, (Math.min(100, Math.max(0, completed)) / 100) * circumference - GAP);
+  const availableLen = Math.max(0, (Math.min(100, Math.max(0, available)) / 100) * circumference - GAP);
+
+  return (
+    <svg
+      className={styles.badgeDial}
+      width={SIZE}
+      height={SIZE}
+      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      role="img"
+      aria-label={`Badges completed ${completed}%, badges available ${available}%`}
+    >
+      <circle
+        cx={center}
+        cy={center}
+        r={radius}
+        fill="none"
+        strokeWidth={STROKE}
+        strokeLinecap="round"
+        style={{ stroke: 'var(--c-lime)' }}
+        strokeDasharray={`${completedLen} ${circumference - completedLen}`}
+        transform={`rotate(-90 ${center} ${center})`}
+      />
+      <circle
+        cx={center}
+        cy={center}
+        r={radius}
+        fill="none"
+        strokeWidth={STROKE}
+        strokeLinecap="round"
+        style={{ stroke: 'var(--c-red)' }}
+        strokeDasharray={`${availableLen} ${circumference - availableLen}`}
+        strokeDashoffset={-(completedLen + GAP)}
+        transform={`rotate(-90 ${center} ${center})`}
+      />
+      {/* Centered check mark */}
+      <path
+        d="M84 112l16 18 36-44"
+        fill="none"
+        strokeWidth={9}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{ stroke: 'var(--c-lime)' }}
+      />
+    </svg>
+  );
+}
+
+function CircularScore({ value, label }: ScoreItem) {
+  const radius = 60;
+  const strokeWidth = 12;
+  const normalizedRadius = radius - strokeWidth / 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset = useMemo(() => circumference - (value / 100) * circumference, [circumference, value]);
+
+  return (
+    <div className={styles.scoreCard}>
+      <div className={styles.circularStat}>
+        <svg width={radius * 2} height={radius * 2}>
+          <circle
+            className={styles.circularTrack}
+            cx={radius}
+            cy={radius}
+            r={normalizedRadius}
+            strokeWidth={strokeWidth}
+            fill="transparent"
+          />
+          <circle
+            className={styles.circularProgress}
+            cx={radius}
+            cy={radius}
+            r={normalizedRadius}
+            strokeWidth={strokeWidth}
+            fill="transparent"
+            strokeLinecap="round"
+            strokeDasharray={`${circumference} ${circumference}`}
+            strokeDashoffset={strokeDashoffset}
+            transform={`rotate(-90 ${radius} ${radius})`}
+          />
+        </svg>
+        <div className={styles.circularStatValue}>
+          <span className={styles.circularStatNumber}>{value}</span>
+          <span className={styles.circularStatPercent}>%</span>
+        </div>
+      </div>
+      <div className={styles.scoreLabel}>{label}</div>
+    </div>
+  );
+}
+
+/**
+ * The two analytics cards (Total Progress + Badge Summary), with no page chrome of
+ * their own — no sidebar, no <main>, no auth redirect — so a host page can drop them
+ * into an existing layout. Rendered by `/profile`; the standalone `/analytics` route
+ * it was extracted from has been removed.
+ *
+ * Reads its own data via `useStudentData`, which is SWR-backed: a host page that
+ * already calls the hook with the same email shares one request rather than
+ * refetching. `className` is merged onto the root so a host can adjust spacing.
+ */
+export function AnalyticsPanel({ className }: { className?: string } = {}) {
+  const { user } = useUser();
+  const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
+
+  const totalBadges =
+    (studentData?.badges.completed.length ?? 0) +
+    (studentData?.badges.readyForAssessment.length ?? 0) +
+    (studentData?.badges.learning.length ?? 0);
+  const completedPercent =
+    totalBadges > 0 ? Math.round(((studentData?.badges.completed.length ?? 0) / totalBadges) * 100) : 0;
+  const availablePercent = Math.max(0, 100 - completedPercent);
+  const analytics = studentData?.analytics;
+
+  const { averageScorePercent, highestScorePercent, lowestScorePercent } = useMemo(() => {
+    const completedBadges = studentData?.badges.completed ?? [];
+    const scoredBadges = completedBadges.filter((badge) => typeof badge.score === 'number') as Array<
+      Required<BadgeRecord>
+    >;
+
+    if (scoredBadges.length > 0) {
+      const total = scoredBadges.reduce((sum, badge) => sum + (badge.score ?? 0), 0);
+      const avg = Math.round(total / scoredBadges.length);
+      const top = scoredBadges.reduce(
+        (acc, badge) =>
+          badge.score != null && badge.score > acc.score ? { score: badge.score, name: badge.name } : acc,
+        { score: -Infinity, name: '' }
+      );
+      const bottom = scoredBadges.reduce(
+        (acc, badge) =>
+          badge.score != null && badge.score < acc.score ? { score: badge.score, name: badge.name } : acc,
+        { score: Infinity, name: '' }
+      );
+      return {
+        averageScorePercent: avg,
+        highestScorePercent: Math.max(0, top.score),
+        lowestScorePercent: Math.max(0, Math.min(100, bottom.score === Infinity ? 0 : bottom.score)),
+      };
+    }
+
+    return {
+      averageScorePercent: analytics?.averageAssessmentScore ?? 0,
+      highestScorePercent: analytics?.highestAssessmentScore ?? 0,
+      lowestScorePercent: 0,
+    };
+  }, [analytics, studentData?.badges.completed]);
+
+  const progressItems: ProgressItem[] = [
+    {
+      id: 'badges-completed',
+      value: String(studentData?.badges.completed.length ?? 0),
+      label: 'badges completed',
+    },
+    {
+      id: 'badges-reassess',
+      value: String(studentData?.badges.readyForAssessment.length ?? analytics?.badgesReadyForAssessment ?? 0),
+      label: 'badges ready to be reassessed',
+    },
+    {
+      id: 'badges-not-attempted',
+      value: String(analytics?.badgesNotAttempted ?? 0),
+      label: 'badges not yet attempted',
+    },
+  ];
+
+  const scoreItems: ScoreItem[] = [
+    {
+      id: 'avg-score',
+      value: averageScorePercent,
+      label: 'Average assessment score',
+    },
+    {
+      id: 'highest-badge',
+      value: highestScorePercent,
+      label: 'Highest scoring badge',
+    },
+    {
+      id: 'lowest-badge',
+      value: lowestScorePercent,
+      label: 'Lowest scoring badge',
+    },
+  ];
+
+  return (
+    <section className={[styles.panel, styles.analyticsGrid, className].filter(Boolean).join(' ')}>
+      <article className={`${styles.card} ${styles.progressCard}`}>
+        <h2 className={`${styles.cardTitle} ${styles.progressTitle}`}>Student&apos;s Total Progress</h2>
+        <div className={styles.progressList}>
+          {progressItems.map((item) => (
+            <div key={item.id} className={styles.progressItem}>
+              {/* A zero reads as "nothing here" — mute it so a real count is what draws the eye. */}
+              <span className={`${styles.progressValue} ${item.value === '0' ? styles.progressValueZero : ''}`}>
+                {item.value}
+              </span>
+              <span className={styles.progressLabel}>{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </article>
+
+      <article className={styles.card}>
+        <div className={styles.badgeSummary}>
+          <h2 className={`${styles.cardTitle} ${styles.badgeSummaryTitle}`}>Student&apos;s Badge Summary</h2>
+
+          <div className={styles.badgeTop}>
+            <BadgeSummaryDial completed={completedPercent} available={availablePercent} />
+            <div className={styles.badgeRows}>
+              <div className={styles.badgeRow}>
+                <div className={styles.badgeRowHead}>
+                  <span className={styles.badgeLabel}>Badges Completed</span>
+                  <span
+                    className={`${styles.badgePercentage} ${completedPercent === 0 ? styles.badgePercentageZero : ''}`}
+                  >
+                    {completedPercent}%
+                  </span>
+                </div>
+                <div className={styles.badgeBar}>
+                  <div
+                    className={`${styles.badgeFill} ${styles.badgeFillCompleted}`}
+                    style={{ width: `${completedPercent}%` }}
+                  />
+                </div>
+              </div>
+              <div className={styles.badgeRow}>
+                <div className={styles.badgeRowHead}>
+                  <span className={styles.badgeLabel}>Badges Available</span>
+                  <span
+                    className={`${styles.badgePercentage} ${availablePercent === 0 ? styles.badgePercentageZero : ''}`}
+                  >
+                    {availablePercent}%
+                  </span>
+                </div>
+                <div className={styles.badgeBar}>
+                  <div
+                    className={`${styles.badgeFill} ${styles.badgeFillAvailable}`}
+                    style={{ width: `${availablePercent}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {SHOW_CIRCULAR_SCORES && <div className={styles.badgeScoreDivider} />}
+          {SHOW_CIRCULAR_SCORES && (
+            <div className={styles.badgeScoreRow}>
+              {scoreItems.map((item) => (
+                <CircularScore key={item.id} {...item} />
+              ))}
+            </div>
+          )}
+        </div>
+      </article>
+    </section>
+  );
+}
+
+export default AnalyticsPanel;

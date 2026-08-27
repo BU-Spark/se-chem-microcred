@@ -32,16 +32,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Course code is required.' }, { status: 400 });
     }
 
-    // A course has two separate join codes: `code` (students) and `assessorCode`
-    // (assessors / CHECKER role). Codes are unique across both columns, so the
+    // A course has two separate join codes: `code` (students) and `checkerCode`
+    // (checkers / CHECKER role). Codes are unique across both columns, so the
     // matched column tells us which role this code grants.
     const course = await prisma.course.findFirst({
-      where: { OR: [{ code }, { assessorCode: code }] },
+      where: { OR: [{ code }, { checkerCode: code }] },
       select: {
         id: true,
         title: true,
         code: true,
-        assessorCode: true,
+        checkerCode: true,
         createdById: true,
         enrollments: {
           where: { studentId: user.id },
@@ -59,20 +59,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'You already own this course.' }, { status: 409 });
     }
 
-    const joinRole = course.assessorCode === code ? CourseRole.CHECKER : CourseRole.STUDENT;
-    const roleLabel = joinRole === CourseRole.CHECKER ? 'an assessor' : 'a student';
-    const isAssessorJoin = joinRole === CourseRole.CHECKER;
+    const joinRole = course.checkerCode === code ? CourseRole.CHECKER : CourseRole.STUDENT;
+    const roleLabel = joinRole === CourseRole.CHECKER ? 'a checker' : 'a student';
+    const isCheckerJoin = joinRole === CourseRole.CHECKER;
     const courseSummary = { id: course.id, title: course.title, code: course.code };
 
     const existingEnrollment = course.enrollments[0] ?? null;
 
     if (existingEnrollment?.role === joinRole) {
-      // Same role already on record — distinguish a still-pending assessor request
+      // Same role already on record — distinguish a still-pending checker request
       // from an active membership.
-      if (isAssessorJoin && existingEnrollment.status === EnrollmentStatus.PENDING) {
+      if (isCheckerJoin && existingEnrollment.status === EnrollmentStatus.PENDING) {
         return NextResponse.json(
           {
-            message: 'Your assessor request is already pending the instructor’s approval.',
+            message: 'Your checker request is already pending the instructor’s approval.',
             course: courseSummary,
             enrollment: existingEnrollment,
             pending: true,
@@ -84,8 +84,8 @@ export async function POST(req: NextRequest) {
 
       return NextResponse.json(
         {
-          message: isAssessorJoin
-            ? 'You are already an assessor for this course.'
+          message: isCheckerJoin
+            ? 'You are already a checker for this course.'
             : 'You are already enrolled in this course.',
           course: courseSummary,
           enrollment: existingEnrollment,
@@ -102,14 +102,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Assessors don't join immediately — they create a pending request the
-    // instructor approves on their assessor roster. Students still join directly.
+    // Checkers don't join immediately — they create a pending request the
+    // instructor approves on their checker roster. Students still join directly.
     const enrollment = await prisma.enrollment.create({
       data: {
         studentId: user.id,
         courseId: course.id,
         role: joinRole,
-        status: isAssessorJoin ? EnrollmentStatus.PENDING : EnrollmentStatus.ACTIVE,
+        status: isCheckerJoin ? EnrollmentStatus.PENDING : EnrollmentStatus.ACTIVE,
       },
       select: {
         id: true,
@@ -118,10 +118,10 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (isAssessorJoin) {
+    if (isCheckerJoin) {
       return NextResponse.json(
         {
-          message: `Request sent to ${course.title} — waiting for the instructor to approve you as an assessor.`,
+          message: `Request sent to ${course.title} — waiting for the instructor to approve you as a checker.`,
           course: courseSummary,
           enrollment,
           pending: true,

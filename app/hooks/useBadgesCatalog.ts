@@ -10,6 +10,10 @@ export type BadgeCatalogItem = {
   slug: string;
   name: string;
   description: string | null;
+  imageUrl: string | null;
+  imagePositionX: number;
+  imagePositionY: number;
+  imageScale: number;
   createdAt: string;
   assignedStudentCount: number;
   requirements: Array<{

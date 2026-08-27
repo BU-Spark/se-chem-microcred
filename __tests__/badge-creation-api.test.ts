@@ -81,20 +81,8 @@ async function getBadges() {
 }
 
 describe('badge creation API', () => {
-  const originalAlphaMode = process.env.ALPHA_MODE;
-  const originalAdminEmails = process.env.ALPHA_ADMIN_EMAILS;
-
-  afterAll(() => {
-    process.env.ALPHA_MODE = originalAlphaMode;
-    process.env.ALPHA_ADMIN_EMAILS = originalAdminEmails;
-  });
-
   beforeEach(() => {
     jest.clearAllMocks();
-    // These tests exercise creation logic, not the alpha lock — keep the lock off
-    // so they are independent of the ambient .env value. Lock behavior is covered
-    // separately below.
-    process.env.ALPHA_MODE = 'false';
     mockCurrentUser.mockResolvedValue({
       id: 'clerk-1',
       emailAddresses: [{ emailAddress: 'prof@example.edu' }],
@@ -335,7 +323,7 @@ describe('badge creation API', () => {
           prompt: '<p>What should you check first?</p>',
           options: {
             type: 'multipleChoice',
-            options: ['Gas off', 'Gas on'],
+            options: ['<p>Gas off</p>', '<p>Gas on</p>'],
             correctIndices: [0, 1],
           },
           correctIndex: 0,
@@ -346,7 +334,7 @@ describe('badge creation API', () => {
           prompt: '<p>What color should a steady flame be?</p>',
           options: {
             type: 'multipleChoice',
-            options: ['Orange', 'Blue', 'Yellow'],
+            options: ['<p>Orange</p>', '<p>Blue</p>', '<p>Yellow</p>'],
             correctIndices: [1],
           },
           correctIndex: 1,
@@ -841,35 +829,12 @@ describe('badge creation API', () => {
           prompt: '<p>Second question?</p>',
           options: {
             type: 'multipleChoice',
-            options: ['Red', 'Blue'],
+            options: ['<p>Red</p>', '<p>Blue</p>'],
             correctIndices: [1],
           },
           correctIndex: 1,
         }),
       })
     );
-  });
-
-  describe('alpha lock', () => {
-    it('rejects creation with 403 when alpha mode is on and the user is not allowlisted', async () => {
-      process.env.ALPHA_MODE = 'true';
-      process.env.ALPHA_ADMIN_EMAILS = 'admin@example.edu';
-
-      const response = await postBadge({ badgeName: 'Bunsen Burner' });
-
-      expect(response.status).toBe(403);
-      expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
-      expect(mockPrisma.$transaction).not.toHaveBeenCalled();
-    });
-
-    it('allows an allowlisted admin to create when alpha mode is on', async () => {
-      process.env.ALPHA_MODE = 'true';
-      process.env.ALPHA_ADMIN_EMAILS = 'prof@example.edu';
-
-      const response = await postBadge({ badgeName: 'Bunsen Burner' });
-
-      expect(response.status).not.toBe(403);
-      expect(mockPrisma.user.findUnique).toHaveBeenCalled();
-    });
   });
 });

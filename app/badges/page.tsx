@@ -1,72 +1,74 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
+import { useMyCourses } from '../hooks/useMyCourses';
+import { derivePassportNumber, formatPassportDate } from '@/lib/students/passport';
 import styles from './page.module.css';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
-import YoutubeThumbnail from '@/app/components/Video/Youtube/YoutubeThumbnail';
-import AssessmentCodeModal from '@/app/components/AssessmentCodeModal';
+import PageHeading from '@/app/components/PageHeading/PageHeading';
+import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
+import Modal from '@/app/components/Modal/Modal';
+import EarnedBeforePicker from './EarnedBeforePicker';
 
-type BadgeStatus = 'completed' | 'assessment' | 'inReview' | 'learning' | 'locked';
+// Completed badges whose course can't be resolved (no lesson-backed requirement,
+// or a course the student is no longer enrolled in) collect under one option.
+// Real options are course ids, so a non-uuid sentinel can never collide with one.
+const OTHER_FILTER = 'other';
 
-type SectionConfig = {
-  status: BadgeStatus;
+type CourseMeta = {
+  id: string;
   title: string;
-  subtitle: string;
-  collapsedByDefault?: boolean;
+  code: string | null;
 };
 
-const SECTION_CONFIG: SectionConfig[] = [
-  {
-    status: 'completed',
-    title: 'Completed Badges',
-    subtitle: "You've completed these skills!",
-  },
-  {
-    status: 'inReview',
-    title: 'In Review',
-    subtitle: 'Review your assessment result — rate to finalize, or read feedback before reassessing.',
-  },
-  {
-    status: 'assessment',
-    title: 'Ready to be Assessed',
-    subtitle: "You'll earn these badges after an in-person assessment.",
-    collapsedByDefault: true,
-  },
-  {
-    status: 'learning',
-    title: 'Still Learning',
-    subtitle: "You'll earn these badges after you finish the lesson and pass an in-person assessment.",
-  },
-  {
-    status: 'locked',
-    title: 'Locked',
-    subtitle: "You've used every assessment attempt for these badges.",
-    collapsedByDefault: true,
-  },
-];
-
-const BADGE_STATUS_LABEL: Record<BadgeRecord['status'], string> = {
-  COMPLETED: 'Completed',
-  READY_FOR_ASSESSMENT: 'Ready for assessment',
-  IN_REVIEW: 'In review',
-  LEARNING: 'Still learning',
-  LOCKED: 'Locked',
-  NOT_STARTED: 'Not yet started',
+type PassportEntry = {
+  badge: BadgeRecord;
+  course: CourseMeta | null;
+  awardedAtMs: number | null;
 };
 
-// Material-style keyboard_arrow_down chevron (rotates 180deg when open via CSS)
-function ChevronIcon() {
+/**
+ * End of the local day for a `YYYY-MM-DD` input value, so "earned on or before"
+ * includes everything awarded during that day. Parsed field-by-field because
+ * `new Date('2026-03-04')` is UTC midnight, which drops the whole day for
+ * viewers behind UTC.
+ */
+function endOfLocalDay(value: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day), 23, 59, 59, 999);
+  return Number.isNaN(date.getTime()) ? null : date.getTime();
+}
+
+function avatarAsset(base?: string | null) {
+  switch (base) {
+    case 'RUBY':
+      return '/edit_avatar/ruby.svg';
+    case 'EMERALD':
+      return '/edit_avatar/emerald.svg';
+    case 'AMETHYST':
+      return '/edit_avatar/amethyst.svg';
+    case 'SAPPHIRE':
+    default:
+      return '/edit_avatar/sapphire.svg';
+  }
+}
+
+// Fallback mark for a badge with no uploaded art: the screenshot's check-square.
+function VerifiedCheck() {
   return (
-    <svg viewBox="0 0 24 24" width="34" height="34" aria-hidden="true" focusable="false">
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
       <path
-        d="M7 10l5 5 5-5"
+        d="M5 12.5l4.5 4.5L19 7.5"
         fill="none"
         stroke="currentColor"
-        strokeWidth="2.5"
+        strokeWidth="2.4"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -74,70 +76,29 @@ function ChevronIcon() {
   );
 }
 
-function formatBadgeStatus(status: BadgeRecord['status']) {
-  return BADGE_STATUS_LABEL[status];
-}
-
-type PopoverAnchor = {
-  // position relative to the card the badge lives in
-  top: number;
-  left: number;
-  below: boolean; // true => bubble sits below the circle (tail points up)
-};
-
-export default function BadgeWalletPage() {
+export default function BadgePassportPage() {
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useUser();
   const signOut = useSignOut();
+  // No courseId: the passport is cross-course by design (see lib/students/badgeScope).
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
+  const { enrolled } = useMyCourses(isLoaded && isSignedIn);
 
   const [isSigningOut, setIsSigningOut] = useState(false);
+  // Empty = every course. Storing the selection rather than an "all" sentinel keeps
+  // "none checked" and "all checked" the same view, which is what students expect
+  // from a checkbox list.
+  const [selectedCourseIds, setSelectedCourseIds] = useState<string[]>([]);
+  const [isCourseFilterOpen, setIsCourseFilterOpen] = useState(false);
+  // `YYYY-MM-DD` from a native date input; '' = no upper bound.
+  const [earnedBefore, setEarnedBefore] = useState('');
   const [activeBadgeId, setActiveBadgeId] = useState<string | null>(null);
-  const [popoverAnchor, setPopoverAnchor] = useState<PopoverAnchor | null>(null);
-  const [qrBadge, setQrBadge] = useState<BadgeRecord | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
-
-  const initialOpenSection = useMemo<BadgeStatus | null>(
-    () => SECTION_CONFIG.find((section) => !section.collapsedByDefault)?.status ?? null,
-    []
-  );
-  // openSection drives expand/collapse (badge grid + chevron + aria-expanded)
-  const [openSection, setOpenSection] = useState<BadgeStatus | null>(initialOpenSection);
-  // frontSection drives which card sits at the front of the z-stack
-  const [frontSection, setFrontSection] = useState<BadgeStatus | null>(initialOpenSection);
-
-  const popoverRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) router.replace('/sign-in');
   }, [isLoaded, isSignedIn, isSigningOut, router]);
-
-  useEffect(() => {
-    if (!activeBadgeId) return;
-
-    const handleClickAway = (event: MouseEvent) => {
-      if (!popoverRef.current) {
-        setActiveBadgeId(null);
-        return;
-      }
-      if (event.target instanceof Node && popoverRef.current.contains(event.target)) {
-        return;
-      }
-      setActiveBadgeId(null);
-    };
-
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setActiveBadgeId(null);
-    };
-
-    window.addEventListener('mousedown', handleClickAway);
-    window.addEventListener('keydown', handleKey);
-    return () => {
-      window.removeEventListener('mousedown', handleClickAway);
-      window.removeEventListener('keydown', handleKey);
-    };
-  }, [activeBadgeId]);
 
   useEffect(() => {
     setExportStatus(null);
@@ -145,30 +106,123 @@ export default function BadgeWalletPage() {
 
   const displayName = studentData?.student.name || '';
 
-  const badgesByStatus = useMemo(
-    () =>
-      ({
-        completed: studentData?.badges?.completed ?? [],
-        assessment: studentData?.badges?.readyForAssessment ?? [],
-        inReview: studentData?.badges?.inReview ?? [],
-        learning: studentData?.badges?.learning ?? [],
-        locked: studentData?.badges?.locked ?? [],
-      }) satisfies Record<BadgeStatus, BadgeRecord[]>,
-    [studentData]
-  );
+  // courseId -> title/code, from the student's own enrollments. The badge payload
+  // carries only a courseId, so course labels have to come from this side.
+  const courseById = useMemo(() => {
+    const map = new Map<string, CourseMeta>();
+    for (const enrollment of enrolled?.enrollments ?? []) {
+      const course = enrollment?.course;
+      if (!course?.id) continue;
+      map.set(course.id, { id: course.id, title: course.title ?? 'Course', code: course.code ?? null });
+    }
+    // The single course on studentData is a cheap backstop for the very common
+    // one-course student while /api/courses/mine is still in flight.
+    const current = studentData?.course;
+    if (current?.id && !map.has(current.id)) {
+      map.set(current.id, { id: current.id, title: current.title, code: current.code ?? null });
+    }
+    return map;
+  }, [enrolled, studentData?.course]);
 
-  const allBadges: BadgeRecord[] = useMemo(
-    () => [
-      ...badgesByStatus.completed,
-      ...badgesByStatus.assessment,
-      ...badgesByStatus.inReview,
-      ...badgesByStatus.learning,
-      ...badgesByStatus.locked,
-    ],
-    [badgesByStatus]
-  );
+  // The passport is a record of finished work only — no locked/in-review/learning
+  // states. Those still live on the course dashboard, which owns the QR and
+  // finalize flows.
+  const entries = useMemo<PassportEntry[]>(() => {
+    const completed = studentData?.badges?.completed ?? [];
 
-  const activeBadge = allBadges.find((b) => b.id === activeBadgeId) ?? null;
+    return completed
+      .map((badge) => {
+        const awarded = badge.awardedAt ? new Date(badge.awardedAt).getTime() : Number.NaN;
+        return {
+          badge,
+          course: badge.courseId ? (courseById.get(badge.courseId) ?? null) : null,
+          awardedAtMs: Number.isNaN(awarded) ? null : awarded,
+        };
+      })
+      .sort((a, b) => {
+        // Chronological, oldest first — it reads as a transcript. Undated badges
+        // sink to the bottom rather than pretending to be the earliest entries.
+        if (a.awardedAtMs === null && b.awardedAtMs === null) return a.badge.name.localeCompare(b.badge.name);
+        if (a.awardedAtMs === null) return 1;
+        if (b.awardedAtMs === null) return -1;
+        return a.awardedAtMs - b.awardedAtMs;
+      });
+  }, [courseById, studentData?.badges?.completed]);
+
+  // Only courses that actually contributed a completed badge get an option — an
+  // option that filters to an empty list is just a dead end.
+  const courseOptions = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const entry of entries) {
+      const key = entry.course?.id ?? OTHER_FILTER;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+
+    const options = [...counts.entries()]
+      .filter(([id]) => id !== OTHER_FILTER)
+      .map(([id, count]) => ({ id, label: courseById.get(id)?.title ?? 'Course', count }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+
+    const otherCount = counts.get(OTHER_FILTER) ?? 0;
+    // "Other" sorts last: it's a catch-all, not a course.
+    return otherCount ? [...options, { id: OTHER_FILTER, label: 'Other', count: otherCount }] : options;
+  }, [courseById, entries]);
+
+  // A course can disappear under the user (badge data revalidates, enrollment
+  // ends). Drop stale ids so the record never filters against something the
+  // student can no longer see or uncheck.
+  useEffect(() => {
+    setSelectedCourseIds((current) => {
+      if (!current.length) return current;
+      const available = new Set(courseOptions.map((option) => option.id));
+      const next = current.filter((id) => available.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [courseOptions]);
+
+  const earnedBeforeMs = useMemo(() => (earnedBefore ? endOfLocalDay(earnedBefore) : null), [earnedBefore]);
+
+  const visibleEntries = useMemo(() => {
+    const courseFilter = new Set(selectedCourseIds);
+
+    return entries.filter((entry) => {
+      if (courseFilter.size && !courseFilter.has(entry.course?.id ?? OTHER_FILTER)) return false;
+      // A badge with no award date can't be shown to fall on or before a chosen
+      // day, so a date filter excludes it rather than guessing.
+      if (earnedBeforeMs !== null && (entry.awardedAtMs === null || entry.awardedAtMs > earnedBeforeMs)) return false;
+      return true;
+    });
+  }, [earnedBeforeMs, entries, selectedCourseIds]);
+
+  const isFiltered = selectedCourseIds.length > 0 || Boolean(earnedBefore);
+
+  const courseFilterLabel = useMemo(() => {
+    if (!selectedCourseIds.length) return 'All courses';
+    if (selectedCourseIds.length === 1) {
+      return courseOptions.find((option) => option.id === selectedCourseIds[0])?.label ?? '1 course';
+    }
+    return `${selectedCourseIds.length} courses`;
+  }, [courseOptions, selectedCourseIds]);
+
+  const toggleCourse = (id: string) => {
+    setSelectedCourseIds((current) =>
+      current.includes(id) ? current.filter((value) => value !== id) : [...current, id]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedCourseIds([]);
+    setEarnedBefore('');
+  };
+
+  const courseCount = useMemo(() => new Set(entries.map((entry) => entry.course?.id).filter(Boolean)).size, [entries]);
+
+  const activeEntry = entries.find((entry) => entry.badge.id === activeBadgeId) ?? null;
+
+  const passportNumber = derivePassportNumber(studentData?.student.id);
+  const issuedOn = formatPassportDate(studentData?.student.createdAt);
+  const avatarSrc = avatarAsset(studentData?.student.avatar?.base);
+  const studentEmail = studentData?.student?.email || user?.primaryEmailAddress?.emailAddress || null;
 
   if (!isLoaded || !isSignedIn) return null;
 
@@ -183,23 +237,6 @@ export default function BadgeWalletPage() {
       setIsSigningOut(false);
     }
   };
-
-  // Credit-card-wallet behaviour: clicking a card raises it to the front AND
-  // opens its badge grid (chevron rotates down). The chevron still toggles closed.
-  const handleCardActivate = (status: BadgeStatus) => {
-    setFrontSection(status);
-    setOpenSection(status);
-    setActiveBadgeId(null);
-  };
-
-  // Toggle expand/collapse AND bring the card to the front.
-  const handleToggleExpand = (status: BadgeStatus) => {
-    setFrontSection(status);
-    setOpenSection((prev) => (prev === status ? null : status));
-    setActiveBadgeId(null);
-  };
-
-  const studentEmail = studentData?.student?.email || user?.primaryEmailAddress?.emailAddress || null;
 
   const reviewFeedback = (badge: BadgeRecord) => {
     setActiveBadgeId(null);
@@ -242,305 +279,255 @@ export default function BadgeWalletPage() {
     }
   };
 
-  // Compute popover anchor relative to the badge's card container.
-  const openBadgePopover = (badge: BadgeRecord, buttonEl: HTMLButtonElement) => {
-    const card = buttonEl.closest(`.${styles.walletSection}`) as HTMLElement | null;
-    const cardRect = card?.getBoundingClientRect();
-    const btnRect = buttonEl.getBoundingClientRect();
-    const cardLeft = cardRect?.left ?? 0;
-    const cardTop = cardRect?.top ?? 0;
-    const circleCenterX = btnRect.left - cardLeft + btnRect.width / 2;
-    const circleTop = btnRect.top - cardTop;
-    const circleBottom = circleTop + btnRect.height;
-    // Flip below the circle if there isn't enough room above for the bubble.
-    const estimatedBubbleHeight = 320;
-    const below = circleTop < estimatedBubbleHeight;
-    setPopoverAnchor({
-      top: below ? circleBottom : circleTop,
-      left: circleCenterX,
-      below,
-    });
-    setActiveBadgeId(badge.id);
-  };
+  const summaryLine = [
+    `${entries.length} ${entries.length === 1 ? 'badge' : 'badges'}`,
+    courseCount ? `across ${courseCount} ${courseCount === 1 ? 'course' : 'courses'}` : null,
+  ]
+    .filter(Boolean)
+    .join(' ');
 
-  const renderBadgeTokens = (badges: BadgeRecord[], status: BadgeStatus) => {
-    if (!badges.length) {
-      return <div className={styles.emptyState}>No badges in this section yet.</div>;
-    }
-    const tokenVariant = status === 'completed' ? styles.badgeTokenWhite : styles.badgeTokenBlue;
-    const realBadges = badges.map((badge) => {
-      const isActive = activeBadgeId === badge.id;
-      const tokenClassName = [styles.badgeToken, tokenVariant, isActive ? styles.badgeTokenActive : '']
-        .filter(Boolean)
-        .join(' ');
+  const renderEntry = (entry: PassportEntry) => {
+    const { badge, course } = entry;
+    const hasArt = Boolean(badge.imageUrl || badge.youtubeUrl);
 
-      return (
-        <button
-          type="button"
-          key={badge.id}
-          className={tokenClassName}
-          onClick={(e) => openBadgePopover(badge, e.currentTarget)}
-          aria-pressed={isActive}
-        >
-          <span className={styles.srOnly}>{badge.name.replace(/ Badge$/i, '')}</span>
-          {badge.youtubeUrl ? (
-            <YoutubeThumbnail videoUrl={badge.youtubeUrl} alt="" className={styles.badgeTokenImage} />
-          ) : (
-            <div
-              className={styles.badgeTokenImage}
-              style={{ width: '100%', height: '100%', background: 'currentColor' }}
-            />
-          )}
+    return (
+      <li key={badge.id} className={styles.entry}>
+        <button type="button" className={styles.entryButton} onClick={() => setActiveBadgeId(badge.id)}>
+          <span className={styles.entryMark}>
+            {hasArt ? (
+              <BadgeImage
+                imageUrl={badge.imageUrl}
+                imagePositionX={badge.imagePositionX}
+                imagePositionY={badge.imagePositionY}
+                imageScale={badge.imageScale}
+                videoUrl={badge.youtubeUrl}
+                alt=""
+                className={styles.entryImage}
+              />
+            ) : (
+              <span className={styles.entryCheck}>
+                <VerifiedCheck />
+              </span>
+            )}
+            <span className={styles.entryDot} aria-hidden="true" />
+          </span>
+
+          <span className={styles.entryText}>
+            <span className={styles.entryName}>{badge.name}</span>
+            <span className={styles.entryCourse}>{course?.title ?? 'Independent badge'}</span>
+          </span>
+
+          <span className={styles.entryMeta}>
+            <span className={styles.entryDate}>{formatPassportDate(badge.awardedAt) ?? '—'}</span>
+            {course?.code ? <span className={styles.entryCode}>{course.code}</span> : null}
+          </span>
         </button>
-      );
-    });
-
-    // Pure-CSS empty-slot placeholders to fill out the last row (never buttons).
-    const perRow = 3;
-    const remainder = badges.length % perRow;
-    const emptyCount = remainder === 0 ? 0 : perRow - remainder;
-    const emptySlots = Array.from({ length: emptyCount }, (_, i) => (
-      <span key={`empty-${i}`} aria-hidden="true" className={styles.emptySlot} />
-    ));
-
-    return [...realBadges, ...emptySlots];
+      </li>
+    );
   };
 
   return (
     <div className="page">
-      {/* Global sidebar with global classes only */}
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
-      {/* Main area: local wrapper for wallet spacing */}
       <main className="main">
-        <div className={styles.walletRoot}>
-          <header className={styles.headerRow}>
-            <h1 className={styles.pageTitle}>Badge Wallet</h1>
+        <div className={styles.passportRoot}>
+          <PageHeading title="Badge Passport" eyebrow="Skills passport · Verified record" />
+
+          <header className={styles.identityCard}>
+            <div className={styles.identityLeft}>
+              <div className={styles.avatarFrame}>
+                <Image src={avatarSrc} alt="" width={72} height={72} className={styles.avatarImage} />
+              </div>
+              <div>
+                <p className={styles.identityName}>{displayName || 'Your passport'}</p>
+                <p className={styles.identityMeta}>{summaryLine}</p>
+              </div>
+            </div>
+
+            {passportNumber || issuedOn ? (
+              <div className={styles.identityRight}>
+                {passportNumber ? (
+                  <>
+                    <span className={styles.identityLabel}>Passport no.</span>
+                    <span className={styles.identityNumber}>{passportNumber}</span>
+                  </>
+                ) : null}
+                {issuedOn ? <span className={styles.identityIssued}>Issued {issuedOn}</span> : null}
+              </div>
+            ) : null}
           </header>
 
-          <div className={styles.walletSections}>
-            {SECTION_CONFIG.map((section, index) => {
-              const badges = badgesByStatus[section.status];
-              const isExpanded = openSection === section.status;
-              const isFront = frontSection === section.status;
+          <div className={styles.filterRow}>
+            {courseOptions.length > 1 ? (
+              <button
+                type="button"
+                className={[styles.filterControl, selectedCourseIds.length ? styles.filterControlActive : '']
+                  .filter(Boolean)
+                  .join(' ')}
+                onClick={() => setIsCourseFilterOpen(true)}
+                aria-haspopup="dialog"
+                aria-expanded={isCourseFilterOpen}
+              >
+                <span className={styles.filterControlLabel}>Courses</span>
+                <span className={styles.filterControlValue}>{courseFilterLabel}</span>
+              </button>
+            ) : null}
 
-              // Selected card sits on top; z decreases with distance on BOTH sides
-              // so the stack cascades outward from the selected card (… n-1, n, n+1 …).
-              const frontIndex = SECTION_CONFIG.findIndex((s) => s.status === frontSection);
-              const zIndex = SECTION_CONFIG.length - Math.abs(index - (frontIndex < 0 ? index : frontIndex));
+            <EarnedBeforePicker value={earnedBefore} onChange={setEarnedBefore} />
 
-              const sectionClassName = [
-                styles.walletSection,
-                !isExpanded ? styles.walletSectionCollapsed : '',
-                isFront ? styles.walletSectionFront : styles.walletSectionResting,
-                index === 0 ? styles.walletSectionFirst : '',
-              ]
-                .filter(Boolean)
-                .join(' ');
+            {isFiltered ? (
+              <button type="button" className={styles.filterClear} onClick={clearFilters}>
+                Clear filters
+              </button>
+            ) : null}
 
-              return (
-                <section
-                  key={section.status}
-                  className={sectionClassName}
-                  style={{ zIndex }}
-                  data-open={isExpanded ? 'true' : 'false'}
-                  data-front={isFront ? 'true' : 'false'}
-                  onClick={(event) => {
-                    // Bring the card to front when clicking the card chrome
-                    // (not a badge circle, the chevron, or the popover itself).
-                    const target = event.target as HTMLElement;
-                    if (
-                      target.closest(`.${styles.badgeToken}`) ||
-                      target.closest(`.${styles.toggleButton}`) ||
-                      target.closest(`.${styles.badgePopover}`)
-                    ) {
-                      return;
-                    }
-                    // Raise + open on any card-chrome click (reopens a front card
-                    // the user had collapsed via the chevron).
-                    handleCardActivate(section.status);
-                  }}
-                >
-                  <div className={styles.sectionHeader}>
-                    <div className={styles.sectionTitle}>
-                      <h2>{section.title}</h2>
-                      <p>{section.subtitle}</p>
-                    </div>
-                    <button
-                      type="button"
-                      className={[styles.toggleButton, isExpanded ? styles.toggleButtonOpen : '']
-                        .filter(Boolean)
-                        .join(' ')}
-                      onClick={() => handleToggleExpand(section.status)}
-                      aria-expanded={isExpanded}
-                      aria-controls={`${section.status}-badges`}
-                      aria-label={isExpanded ? 'Collapse section' : 'Expand section'}
-                    >
-                      <ChevronIcon />
-                    </button>
-                  </div>
-
-                  <div
-                    id={`${section.status}-badges`}
-                    className={[styles.badgeGrid, isExpanded ? styles.badgeGridVisible : styles.badgeGridHidden]
-                      .filter(Boolean)
-                      .join(' ')}
-                    aria-hidden={!isExpanded}
-                  >
-                    {renderBadgeTokens(badges, section.status)}
-                  </div>
-
-                  {/* Anchored speech-bubble popover lives inside the badge's card */}
-                  {activeBadge && badges.some((b) => b.id === activeBadge.id) && popoverAnchor ? (
-                    <div
-                      ref={popoverRef}
-                      className={[styles.badgePopover, popoverAnchor.below ? styles.badgePopoverBelow : '']
-                        .filter(Boolean)
-                        .join(' ')}
-                      role="dialog"
-                      aria-modal="false"
-                      aria-label={`${activeBadge.name} details`}
-                      style={{
-                        top: popoverAnchor.top,
-                        left: popoverAnchor.left,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        className={styles.modalClose}
-                        onClick={() => setActiveBadgeId(null)}
-                        aria-label="Close"
-                      >
-                        ×
-                      </button>
-                      <h3>{activeBadge.name}</h3>
-                      <div className={styles.popoverStatus}>
-                        <span className={styles.badgeStatus}>Status: </span>
-                        <span>{formatBadgeStatus(activeBadge.status)}</span>
-                      </div>
-                      <p>{activeBadge.description}</p>
-
-                      {activeBadge.status === 'READY_FOR_ASSESSMENT' && (
-                        <p className={styles.popoverHelperText}>
-                          Show your assessor this QR code during the in-person skill check.
-                        </p>
-                      )}
-                      {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed === true && (
-                        <p className={styles.popoverHelperText}>
-                          You passed! Review your assessment, then finalize this badge to add it to your completed list.
-                        </p>
-                      )}
-                      {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed !== true && (
-                        <p className={styles.popoverHelperText}>
-                          Review your assessor&apos;s feedback to unlock your next attempt.
-                        </p>
-                      )}
-                      {activeBadge.status === 'LEARNING' && (
-                        <p className={styles.popoverHelperText}>
-                          Keep working through lesson checkpoints to unlock your assessment.
-                        </p>
-                      )}
-                      {activeBadge.status === 'LOCKED' && (
-                        <p className={styles.popoverHelperText}>
-                          You&apos;ve used every assessment attempt for this badge. Review your feedback to see where to
-                          improve.
-                        </p>
-                      )}
-                      {activeBadge.status === 'COMPLETED' && (
-                        <p className={styles.popoverHelperText}>Badge finalized. Great work!</p>
-                      )}
-
-                      <div className={styles.popoverActions}>
-                        {activeBadge.status === 'READY_FOR_ASSESSMENT' && (
-                          <>
-                            <button
-                              type="button"
-                              className={styles.popoverActionPrimary}
-                              onClick={() => setQrBadge(activeBadge)}
-                            >
-                              Show Code
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.popoverActionLink}
-                              onClick={() => reviewFeedback(activeBadge)}
-                            >
-                              Review Skill
-                            </button>
-                          </>
-                        )}
-
-                        {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed === true && (
-                          <button
-                            type="button"
-                            className={styles.popoverActionPrimary}
-                            onClick={() => reviewFeedback(activeBadge)}
-                          >
-                            Review &amp; Finalize
-                          </button>
-                        )}
-
-                        {activeBadge.status === 'IN_REVIEW' && activeBadge.latestAttemptPassed !== true && (
-                          <button
-                            type="button"
-                            className={styles.popoverActionPrimary}
-                            onClick={() => reviewFeedback(activeBadge)}
-                          >
-                            Review Feedback
-                          </button>
-                        )}
-
-                        {activeBadge.status === 'LOCKED' && (
-                          <button
-                            type="button"
-                            className={styles.popoverActionPrimary}
-                            onClick={() => reviewFeedback(activeBadge)}
-                          >
-                            Review Feedback
-                          </button>
-                        )}
-
-                        {activeBadge.status === 'COMPLETED' && (
-                          <>
-                            <button
-                              type="button"
-                              className={styles.popoverActionPrimary}
-                              onClick={() => exportBadgeToLinkedIn(activeBadge)}
-                              disabled={isExporting}
-                            >
-                              {isExporting ? 'Preparing LinkedIn package…' : 'Export to LinkedIn'}
-                            </button>
-                            <button
-                              type="button"
-                              className={styles.popoverActionLink}
-                              onClick={() => reviewFeedback(activeBadge)}
-                            >
-                              Review Feedback
-                            </button>
-                          </>
-                        )}
-                      </div>
-
-                      {activeBadge.status === 'COMPLETED' && exportStatus ? (
-                        <p className={styles.popoverHelperText}>{exportStatus}</p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </section>
-              );
-            })}
+            {/* Only while filtered: unfiltered, this would just repeat the count
+                already in the identity strip. */}
+            {isFiltered ? (
+              <span className={styles.filterSummary} role="status">
+                Showing {visibleEntries.length} of {entries.length}
+              </span>
+            ) : null}
           </div>
 
-          {qrBadge ? (
-            <AssessmentCodeModal
-              badgeId={qrBadge.id}
-              badgeName={qrBadge.name}
-              courseId={qrBadge.courseId ?? studentData?.course?.id}
-              studentId={studentData?.student.id}
-              onClose={() => setQrBadge(null)}
-            />
-          ) : null}
+          <section className={styles.recordCard} aria-label="Completed badges">
+            {visibleEntries.length ? (
+              <ul className={styles.entryGrid}>{visibleEntries.map(renderEntry)}</ul>
+            ) : (
+              <p className={styles.emptyState}>
+                {entries.length
+                  ? 'No completed badges match these filters.'
+                  : "You haven't completed any badges yet. Finish a lesson and pass its assessment to add your first entry."}
+              </p>
+            )}
+
+            <p className={styles.recordFootnote}>
+              <span className={styles.footnoteDot} aria-hidden="true" />
+              Every entry is a passed assessment. Nothing here is self-reported.
+            </p>
+          </section>
         </div>
+
+        {isCourseFilterOpen ? (
+          <Modal
+            onClose={() => setIsCourseFilterOpen(false)}
+            overlayClassName={styles.detailOverlay}
+            className={styles.filterModal}
+            ariaLabel="Filter badges by course"
+          >
+            <div className={styles.filterModalHeader}>
+              <h2 className={styles.detailTitle}>Courses</h2>
+              <button
+                type="button"
+                className={styles.detailClose}
+                onClick={() => setIsCourseFilterOpen(false)}
+                aria-label="Close"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className={styles.filterModalHint}>
+              {selectedCourseIds.length ? 'Showing the checked courses.' : 'Nothing checked shows every course.'}
+            </p>
+
+            <ul className={styles.filterOptionList}>
+              {courseOptions.map((option) => (
+                <li key={option.id}>
+                  <label className={styles.filterOption}>
+                    <input
+                      type="checkbox"
+                      checked={selectedCourseIds.includes(option.id)}
+                      onChange={() => toggleCourse(option.id)}
+                    />
+                    <span className={styles.filterOptionLabel}>{option.label}</span>
+                    <span className={styles.filterCount}>{option.count}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+
+            <div className={styles.detailActions}>
+              <button type="button" className={styles.detailPrimary} onClick={() => setIsCourseFilterOpen(false)}>
+                Done
+              </button>
+              <button
+                type="button"
+                className={styles.detailLink}
+                onClick={() => setSelectedCourseIds([])}
+                disabled={!selectedCourseIds.length}
+              >
+                Clear selection
+              </button>
+            </div>
+          </Modal>
+        ) : null}
+
+        {activeEntry ? (
+          <Modal
+            onClose={() => setActiveBadgeId(null)}
+            overlayClassName={styles.detailOverlay}
+            className={styles.detailCard}
+            ariaLabel={`${activeEntry.badge.name} details`}
+          >
+            <button
+              type="button"
+              className={styles.detailClose}
+              onClick={() => setActiveBadgeId(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+
+            <div className={styles.detailHeader}>
+              <span className={styles.detailMark}>
+                {activeEntry.badge.imageUrl || activeEntry.badge.youtubeUrl ? (
+                  <BadgeImage
+                    imageUrl={activeEntry.badge.imageUrl}
+                    imagePositionX={activeEntry.badge.imagePositionX}
+                    imagePositionY={activeEntry.badge.imagePositionY}
+                    imageScale={activeEntry.badge.imageScale}
+                    videoUrl={activeEntry.badge.youtubeUrl}
+                    alt=""
+                    className={styles.entryImage}
+                  />
+                ) : (
+                  <span className={styles.entryCheck}>
+                    <VerifiedCheck />
+                  </span>
+                )}
+              </span>
+              <div>
+                <h2 className={styles.detailTitle}>{activeEntry.badge.name}</h2>
+                <p className={styles.detailMeta}>
+                  {activeEntry.course?.title ?? 'Independent badge'}
+                  {activeEntry.badge.awardedAt ? ` · Earned ${formatPassportDate(activeEntry.badge.awardedAt)}` : ''}
+                </p>
+              </div>
+            </div>
+
+            {activeEntry.badge.description ? (
+              <p className={styles.detailDescription}>{activeEntry.badge.description}</p>
+            ) : null}
+
+            <div className={styles.detailActions}>
+              <button
+                type="button"
+                className={styles.detailPrimary}
+                onClick={() => exportBadgeToLinkedIn(activeEntry.badge)}
+                disabled={isExporting}
+              >
+                {isExporting ? 'Preparing LinkedIn package…' : 'Export to LinkedIn'}
+              </button>
+              <button type="button" className={styles.detailLink} onClick={() => reviewFeedback(activeEntry.badge)}>
+                Review feedback
+              </button>
+            </div>
+
+            {exportStatus ? <p className={styles.detailStatus}>{exportStatus}</p> : null}
+          </Modal>
+        ) : null}
       </main>
     </div>
   );

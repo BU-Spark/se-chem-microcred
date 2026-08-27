@@ -14,8 +14,8 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #fff;
-  color: #1f4b99;
+  background: var(--checkd-white);
+  color: var(--checkd-blue);
   font-family: 'Lato', sans-serif;
   font-weight: 700;
   display: grid;
@@ -40,7 +40,7 @@
 }
 
 .sidebarNavItemActive {
-  color: #1f4b99;
+  color: var(--checkd-blue);
   font-family: 'Lato', sans-serif;
   font-weight: 700;
 }
@@ -52,7 +52,7 @@
   border: none;
   padding: 0;
   background: transparent;
-  color: #1f4b99;
+  color: var(--checkd-blue);
   font-family: 'Lato', sans-serif;
   font-weight: 600;
   text-decoration: none;
@@ -62,11 +62,11 @@
 }
 
 .backLink:hover {
-  filter: brightness(0.85);
+  color: var(--checkd-blue-low);
 }
 
 .backLink:focus-visible {
-  outline: 2px solid #1f4b99;
+  outline: 2px solid var(--checkd-blue);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -86,12 +86,12 @@
 }
 
 .badgeCard {
-  background: linear-gradient(180deg, #1f4b99, #245dbb);
-  color: #fff;
+  background: linear-gradient(180deg, var(--checkd-blue), var(--checkd-blue));
+  color: var(--checkd-white);
   padding: 2rem;
   border-radius: 24px;
   margin-bottom: 2rem;
-  box-shadow: 0 30px 60px rgba(31, 75, 153, 0.2);
+  box-shadow: 0 30px 60px rgb(var(--checkd-blue-rgb) / 0.2);
 }
 
 .badgeCard h2 {
@@ -106,7 +106,7 @@
 }
 
 .cooldown {
-  background: #fff;
+  background: var(--checkd-white);
   border-radius: 20px;
   padding: 2rem;
   margin-bottom: 2rem;
@@ -116,7 +116,7 @@
 .cooldownBar {
   height: 18px;
   border-radius: 999px;
-  background: rgba(31, 75, 153, 0.2);
+  background: rgb(var(--checkd-blue-rgb) / 0.2);
   margin: 1rem 0;
   overflow: hidden;
 }
@@ -124,7 +124,7 @@
 .cooldownBarFill {
   height: 100%;
   border-radius: 999px;
-  background: #1f4b99;
+  background: var(--checkd-blue);
   transition: width 0.3s ease;
 }
 
@@ -136,7 +136,7 @@
 }
 
 .section {
-  background: #fff;
+  background: var(--checkd-white);
   border-radius: 20px;
   padding: 2rem;
   margin-bottom: 2rem;
@@ -187,7 +187,6 @@
 }
 
 .rubricRow {
-  
   padding: 1rem;
   border: 1px solid #d8e0ec;
   border-radius: 16px;
@@ -211,8 +210,8 @@
 }
 
 .rubricPassed {
-  background: #dcfce7;
-  color: #166534;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
 }
 
 .rubricNeedsWork {
@@ -263,8 +262,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: #1f4b99;
-  color: #fff;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
   border: none;
   border-radius: 999px;
   padding: 0.75rem 1.5rem;
@@ -277,11 +276,11 @@
 }
 
 .primaryButton:hover {
-  filter: brightness(0.92);
+  background: var(--checkd-blue-low);
 }
 
 .primaryButton:focus-visible {
-  outline: 2px solid #1f4b99;
+  outline: 2px solid var(--checkd-blue);
   outline-offset: 2px;
 }
 
@@ -315,7 +314,7 @@
 .surveyModal {
   position: relative;
   width: min(640px, 92%);
-  background: #ffffff;
+  background: var(--checkd-white);
   border-radius: 1.75rem;
   padding: 2.75rem 3rem;
   box-shadow: 0 45px 60px rgba(15, 23, 42, 0.35);
@@ -388,15 +387,15 @@
   padding: 0.7rem 1.8rem;
   border-radius: 999px;
   border: none;
-  background: #1f5fab;
-  color: #ffffff;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
   font-weight: 600;
   cursor: pointer;
   transition: filter 0.2s ease;
 }
 
 .surveySubmit:hover {
-  filter: brightness(0.95);
+  filter: brightness(0.93);
 }
 
 .surveySubmit:disabled {

@@ -248,7 +248,7 @@ describe('Course roster page', () => {
     expect(mockPush).toHaveBeenCalledWith('/roster/student-2?courseId=course-1');
   });
 
-  it('loads the assessor roster when the checker role is selected', async () => {
+  it('loads the checker roster when the checker role is selected', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
 
     mockFetch.mockResolvedValue({
@@ -291,7 +291,7 @@ describe('Course roster page', () => {
 
     render(<StudentRosterPage />);
 
-    expect(await screen.findByRole('heading', { name: 'Assessor Roster' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Checker Roster' })).toBeInTheDocument();
     // The heading derives from the role search param and renders before the fetched
     // roster rows, so wait on a data-dependent cell to avoid racing the fetch.
     expect(await screen.findByText('Alex')).toBeInTheDocument();
@@ -351,7 +351,7 @@ describe('Course roster page', () => {
     expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
-  it('shows the assessor add modal only to instructors', async () => {
+  it('shows the checker add modal only to instructors', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
     mockFetch.mockResolvedValue({
       ok: true,
@@ -366,8 +366,8 @@ describe('Course roster page', () => {
       }),
     });
     render(<StudentRosterPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '+ Add assessors' }));
-    expect(screen.getByRole('dialog', { name: 'Add assessors' })).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: '+ Add checkers' }));
+    expect(screen.getByRole('dialog', { name: 'Add checkers' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Single user' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'CSV upload' })).toBeInTheDocument();
   });
@@ -406,7 +406,7 @@ describe('Course roster page', () => {
     );
   });
 
-  it('lets an instructor add multiple assessor sections', async () => {
+  it('lets an instructor add multiple checker sections', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
     const payload = {
       viewerRole: 'INSTRUCTOR',
@@ -441,7 +441,7 @@ describe('Course roster page', () => {
     );
   });
 
-  it('lets an instructor remove an assessor', async () => {
+  it('lets an instructor remove a checker', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
     const payload = {
       viewerRole: 'INSTRUCTOR',
@@ -466,10 +466,10 @@ describe('Course roster page', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => payload });
     render(<StudentRosterPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
-    expect(screen.getByRole('dialog', { name: 'Remove assessor?' })).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Remove assessor' }));
+    expect(screen.getByRole('dialog', { name: 'Remove checker?' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Remove checker' }));
     await waitFor(() =>
-      expect(mockFetch).toHaveBeenCalledWith('/api/courses/course-1/assessors/checker-1', {
+      expect(mockFetch).toHaveBeenCalledWith('/api/courses/course-1/checkers/checker-1', {
         method: 'DELETE',
         headers: { Accept: 'application/json' },
       })

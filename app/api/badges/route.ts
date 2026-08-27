@@ -1,12 +1,18 @@
+// Issues: #247 badge image zoom
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
-import { canCreateContent } from '@/lib/adminAccess';
 import { normalizeRubricGoal, normalizePassingPercent, normalizeBadgePolicy } from '@/lib/badges/badge.service';
 import { parseTimeToSeconds, parseDate } from '@/lib/utils';
 import { normalizeString, normalizeSkills } from '@/lib/checkpoints/normalizeWrite';
 import { CreateBadgePayload, UpdateBadgePayload } from '@/lib/badges/types';
+import {
+  BadgeImageValidationError,
+  normalizeBadgeImagePosition,
+  normalizeBadgeImageScale,
+  normalizeBadgeImageUrl,
+} from '@/lib/badges/badge-image';
 import {
   executeBadgeCreationTx,
   executeBadgePatchTx,
@@ -57,6 +63,10 @@ export async function GET(req: NextRequest) {
           slug: badge.slug,
           name: badge.name,
           description: badge.description,
+          imageUrl: badge.imageUrl,
+          imagePositionX: badge.imagePositionX,
+          imagePositionY: badge.imagePositionY,
+          imageScale: badge.imageScale,
           availableOn: badge.availableOn?.toISOString() ?? null,
           closesOn: badge.closesOn?.toISOString() ?? null,
           neverCloses: badge.neverCloses ?? null,
@@ -138,6 +148,11 @@ export async function PATCH(req: NextRequest) {
     const badgeId = normalizeString(body.id);
     const badgeName = normalizeString(body.badgeName);
     const badgeDescription = normalizeString(body.badgeDescription);
+    const imageUrl = normalizeBadgeImageUrl(body.imageUrl);
+    const imagePositionX = normalizeBadgeImagePosition(body.imagePositionX);
+    const imagePositionY = normalizeBadgeImagePosition(body.imagePositionY);
+    // Issue #247: zoom, clamped separately from the pan coordinates.
+    const imageScale = normalizeBadgeImageScale(body.imageScale);
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
     const checkpoints = body.checkpoints ?? [];
@@ -159,11 +174,19 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'Badge name is required.' }, { status: 400 });
     }
 
+    if (availableOn && closesOn && closesOn <= availableOn) {
+      return NextResponse.json({ error: 'Badge due date must be after its availability date.' }, { status: 400 });
+    }
+
     const updated = await executeBadgePatchTx({
       editorId: editor.id,
       badgeId,
       badgeName,
       badgeDescription,
+      imageUrl,
+      imagePositionX,
+      imagePositionY,
+      imageScale,
       skills,
       rubricGoal,
       checkpoints,
@@ -191,6 +214,10 @@ export async function PATCH(req: NextRequest) {
   } catch (error) {
     console.error('PATCH /api/badges failed:', error);
 
+    if (error instanceof BadgeImageValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
       return NextResponse.json({ error: 'Badge not found.' }, { status: 404 });
     }
@@ -209,12 +236,6 @@ export async function POST(req: NextRequest) {
 
     const creatorEmail = clerkUser.emailAddresses[0].emailAddress.trim().toLowerCase();
 
-    // Alpha lock: creation is temporarily restricted to allowlisted accounts.
-    // Reversible by clearing ALPHA_ADMIN_EMAILS (see lib/adminAccess.ts).
-    if (!canCreateContent(creatorEmail)) {
-      return NextResponse.json({ error: 'Badge creation is restricted during the alpha test.' }, { status: 403 });
-    }
-
     const creator = await prisma.user.findUnique({
       where: { email: creatorEmail },
       select: { id: true },
@@ -228,6 +249,11 @@ export async function POST(req: NextRequest) {
     const courseId = normalizeString(body.courseId);
     const badgeName = normalizeString(body.badgeName);
     const badgeDescription = normalizeString(body.badgeDescription);
+    const imageUrl = normalizeBadgeImageUrl(body.imageUrl);
+    const imagePositionX = normalizeBadgeImagePosition(body.imagePositionX);
+    const imagePositionY = normalizeBadgeImagePosition(body.imagePositionY);
+    // Issue #247: zoom, clamped separately from the pan coordinates.
+    const imageScale = normalizeBadgeImageScale(body.imageScale);
     const videoTitle = normalizeString(body.videoTitle);
     const youtubeUrl = normalizeString(body.youtubeUrl);
     const checkpoints = body.checkpoints ?? [];
@@ -248,11 +274,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Badge name is required.' }, { status: 400 });
     }
 
+    if (availableOn && closesOn && closesOn <= availableOn) {
+      return NextResponse.json({ error: 'Badge due date must be after its availability date.' }, { status: 400 });
+    }
+
     const created = await executeBadgeCreationTx({
       creatorId: creator.id,
       courseId,
       badgeName,
       badgeDescription,
+      imageUrl,
+      imagePositionX,
+      imagePositionY,
+      imageScale,
       skills,
       rubricGoal,
       checkpoints,
@@ -280,6 +314,10 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error('POST /api/badges failed:', error);
+
+    if (error instanceof BadgeImageValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
 
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
       return NextResponse.json({ error: 'A badge or lesson with this slug already exists.' }, { status: 409 });

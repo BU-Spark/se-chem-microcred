@@ -28,8 +28,8 @@
 .badge {
   padding: 0.4rem 0.85rem;
   border-radius: 999px;
-  background: rgba(40, 167, 69, 0.15);
-  color: #1d6630;
+  background: rgb(var(--checkd-green-rgb) / 0.15);
+  color: var(--checkd-black);
   font-family: 'Lato', sans-serif;
   font-size: 0.85rem;
   font-weight: 600;
@@ -120,6 +120,6 @@ html.dark .sectionCard {
 }
 
 html.dark .badge {
-  background: rgba(40, 167, 69, 0.25);
-  color: #bef7d0;
+  background: rgb(var(--checkd-green-rgb) / 0.25);
+  color: var(--checkd-green);
 }

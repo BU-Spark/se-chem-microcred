@@ -5,6 +5,10 @@ export type CreateBadgePayload = {
   courseId?: string | null;
   badgeName?: string | null;
   badgeDescription?: string | null;
+  imageUrl?: string | null;
+  imagePositionX?: number | string | null;
+  imagePositionY?: number | string | null;
+  imageScale?: number | string | null;
   skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;
@@ -24,6 +28,10 @@ export type UpdateBadgePayload = {
   id?: string | null;
   badgeName?: string | null;
   badgeDescription?: string | null;
+  imageUrl?: string | null;
+  imagePositionX?: number | string | null;
+  imagePositionY?: number | string | null;
+  imageScale?: number | string | null;
   skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;

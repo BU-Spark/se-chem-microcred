@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import StudentProfileCard from './index';
+import StudentProfileCard from './StudentProfileCard';
 
 describe('StudentProfileCard', () => {
   it('renders student, course, and contact information', () => {

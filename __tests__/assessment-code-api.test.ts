@@ -1,4 +1,5 @@
 /** @jest-environment node */
+// Issues: #258 multi-word last names
 
 import { POST } from '../app/api/assessment-codes/route';
 import { GET } from '../app/qr/assessment-code/route';
@@ -88,6 +89,8 @@ describe('Assessment access codes', () => {
       email: 'student@example.edu',
       name: 'Student Example',
       externalId: null,
+      firstName: null,
+      lastName: null,
       avatar: null,
     });
     mockSyncLessonBadgesForStudent.mockResolvedValue({ readyForAssessment: false });
@@ -153,6 +156,20 @@ describe('Assessment access codes', () => {
     const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1' }));
 
     expect(response.status).toBe(409);
+    expect(mockPrisma.assessmentAccessCode.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects assessment codes after the badge deadline', async () => {
+    mockPrisma.studentBadge.findUnique.mockResolvedValue({
+      status: 'READY_FOR_ASSESSMENT',
+      cooldownUntil: null,
+      badge: { closesOn: new Date(Date.now() - 60_000), neverCloses: false },
+    });
+
+    const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1' }));
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toEqual({ error: 'This badge deadline has passed.' });
     expect(mockPrisma.assessmentAccessCode.create).not.toHaveBeenCalled();
   });
 

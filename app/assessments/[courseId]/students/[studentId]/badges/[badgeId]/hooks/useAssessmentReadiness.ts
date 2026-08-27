@@ -15,6 +15,8 @@ type StudentProfileResponse = {
   member: {
     id: string;
     name: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     externalId: string | null;
     createdAt: string;
@@ -49,6 +51,11 @@ type BadgeDetailResponse = {
     percentComplete: number;
     precheckComplete: boolean;
     assessmentComplete: boolean;
+    // Whether an attempt may be recorded right now, mirroring the assess POST
+    // guard. Optional so an older cached payload degrades to "blocked" rather
+    // than silently re-opening grading.
+    canAssess?: boolean;
+    awaitingStudentReview?: boolean;
     currentCheckpoint: string | null;
     totalCheckpoints: number;
     completedCheckpoints: number;

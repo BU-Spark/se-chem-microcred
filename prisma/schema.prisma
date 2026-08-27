@@ -1,3 +1,4 @@
+// Issues: #247 badge image zoom, #258 multi-word last names
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,11 +12,22 @@ model User {
   id                  String               @id @default(cuid())
   email               String?              @unique
   name                String?
+  firstName           String?
+  lastName            String?
   externalId          String?              @unique
   gender              String?
   raceEthnicity       String?
   parentalEducation   String?
   pellGrantQualified  Boolean?
+  // Issue: onboarding was gated only by <SignUp forceRedirectUrl>, a client-side
+  // prop that silently no-ops whenever sign-up completes anywhere other than that
+  // mounted component (email-code verification finished in another tab, an
+  // interrupted password sign-up, a roster-imported student's first login). No
+  // durable state recorded whether the flow ran, and ensureCurrentUser() provisions
+  // a row on any page load, so a skip was permanent and indistinguishable from a
+  // completed onboarding. This column is that missing state: set once, by
+  // POST /api/onboarding, and never written by the lazy-provisioning path.
+  onboardedAt         DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   enrollments         Enrollment[]
@@ -30,31 +42,65 @@ model User {
   createdCourses      Course[]             @relation("CourseCreator")
   createdBadges       Badge[]              @relation("BadgeCreator")
   assessmentAttempts  AssessmentAttempt[]  @relation("AssessmentStudent")
-  assessmentsGiven    AssessmentAttempt[]  @relation("AssessmentAssessor")
-  receivedMessages    Message[]            @relation("MessageRecipient")
+  assessmentsGiven    AssessmentAttempt[]  @relation("AssessmentChecker")
+  messageReceipts     MessageReceipt[]
   sentMessages        Message[]            @relation("MessageSender")
+  qevWaiversGranted   StudentBadge[]       @relation("BadgeQevWaiver")
+  gradeOverridesGiven StudentBadge[]       @relation("BadgeGradeOverride")
 
   @@map("Student")
 }
 
+// One authored message. Who can see it lives in MessageReceipt rather than on
+// this row, so a blast is a single body with many receipts instead of a copy per
+// student. The audience is frozen when the message is sent: receipts are written
+// once and never recomputed, which is what makes a later enrollee invisible to
+// old messages and lets an unenrolled student keep the mail they already got.
 model Message {
-  id          String    @id @default(cuid())
-  recipientId String
-  senderId    String?
-  courseId    String?
-  badgeId     String?
-  subject     String
-  body        String
-  readAt      DateTime?
-  createdAt   DateTime  @default(now())
+  id        String          @id @default(cuid())
+  senderId  String?
+  courseId  String?
+  badgeId   String?
+  audience  MessageAudience @default(DIRECT)
+  subject   String
+  body      String
+  createdAt DateTime        @default(now())
 
-  recipient User    @relation("MessageRecipient", fields: [recipientId], references: [id])
-  sender    User?   @relation("MessageSender", fields: [senderId], references: [id])
-  course    Course? @relation(fields: [courseId], references: [id])
-  badge     Badge?  @relation(fields: [badgeId], references: [id])
+  sender   User?            @relation("MessageSender", fields: [senderId], references: [id])
+  course   Course?          @relation(fields: [courseId], references: [id])
+  badge    Badge?           @relation(fields: [badgeId], references: [id])
+  receipts MessageReceipt[]
 
-  @@index([recipientId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([courseId])
   @@index([badgeId])
+}
+
+// How a message's audience was chosen. Kept for display and audit only — the
+// receipts are the authority on who actually received it.
+enum MessageAudience {
+  DIRECT
+  ALL_STUDENTS
+  BADGE_INCOMPLETE
+}
+
+// One row per person a message reached, carrying their own read state.
+// createdAt mirrors the message's own so the inbox can sort and page on this
+// table alone. isObserver marks course staff copied on a blast: they see it in
+// their inbox but are excluded from the sender's read count.
+model MessageReceipt {
+  id         String    @id @default(cuid())
+  messageId  String
+  userId     String
+  readAt     DateTime?
+  isObserver Boolean   @default(false)
+  createdAt  DateTime  @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id])
+
+  @@unique([messageId, userId])
+  @@index([userId, createdAt])
 }
 
 model AvatarSetting {
@@ -92,7 +138,9 @@ enum AvatarAccessory {
 model Course {
   id           String  @id @default(cuid())
   code         String? @unique
-  assessorCode String? @unique
+  // Field renamed assessor -> checker; the physical column keeps its original
+  // name via @map so no migration is needed.
+  checkerCode  String? @unique @map("assessorCode")
   title        String
   section      String?
   sectionCount Int
@@ -113,13 +161,15 @@ model Course {
   settings    CourseSettings?
   assessments AssessmentAttempt[]
   messages    Message[]
+
+  @@index([createdById])
 }
 
 model CourseSettings {
   id                    String   @id @default(cuid())
   courseId              String   @unique
   allowCooldownOverride Boolean  @default(false)
-  allowAssessorMessages Boolean  @default(false)
+  allowCheckerMessages  Boolean  @default(false) @map("allowAssessorMessages")
   allowCrossSectionView Boolean  @default(false)
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
@@ -275,6 +325,10 @@ model CheckpointQuestion {
   prompt       String
   options      Json
   correctIndex Int?
+  // Point value for this question, used to weight lesson (QEV) grading —
+  // moved here from the checkpoint (issue #248) since a checkpoint can hold
+  // several questions worth different amounts.
+  points       Int      @default(1)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -409,6 +463,10 @@ model Badge {
   slug                 String              @unique
   name                 String
   description          String?
+  imageUrl             String?
+  imagePositionX       Int                 @default(50)
+  imagePositionY       Int                 @default(50)
+  imageScale           Int                 @default(115)
   createdById          String?
   sourceBadgeId        String?
   availableOn          DateTime?
@@ -506,13 +564,27 @@ model StudentBadge {
   reassessmentLimit    Int?
   cooldownDays         Int?
   reassessmentRequired Boolean?
+  // Instructor action: QEV waived rather than earned. Load-bearing, not just
+  // attribution — the waiver is surfaced to instructors and students so a badge
+  // that unlocked without a completed lesson reads honestly. See
+  // docs/student-actions-plan.md.
+  qevWaivedAt          DateTime?
+  qevWaivedById        String?
+  // Instructor action: grade recorded outside a normal assessment. Attribution
+  // only — the override attempt itself carries the checker and the reason.
+  gradeOverriddenAt    DateTime?
+  gradeOverriddenById  String?
 
-  student User  @relation(fields: [studentId], references: [id])
-  badge   Badge @relation(fields: [badgeId], references: [id])
+  student           User  @relation(fields: [studentId], references: [id])
+  badge             Badge @relation(fields: [badgeId], references: [id])
+  qevWaivedBy       User? @relation("BadgeQevWaiver", fields: [qevWaivedById], references: [id], onDelete: SetNull)
+  gradeOverriddenBy User? @relation("BadgeGradeOverride", fields: [gradeOverriddenById], references: [id], onDelete: SetNull)
 
   @@unique([studentId, badgeId])
   @@index([badgeId])
   @@index([status, badgeId])
+  @@index([qevWaivedById])
+  @@index([gradeOverriddenById])
 }
 
 model StudentAnalytics {
@@ -536,7 +608,7 @@ model AssessmentAttempt {
   courseId       String
   badgeId        String
   studentId      String
-  assessorId     String
+  checkerId      String    @map("assessorId")
   passed         Boolean
   score          Int?
   pointsEarned   Int?
@@ -550,12 +622,12 @@ model AssessmentAttempt {
   course    Course                   @relation(fields: [courseId], references: [id])
   badge     Badge                    @relation(fields: [badgeId], references: [id])
   student   User                     @relation("AssessmentStudent", fields: [studentId], references: [id])
-  assessor  User                     @relation("AssessmentAssessor", fields: [assessorId], references: [id])
+  checker   User                     @relation("AssessmentChecker", fields: [checkerId], references: [id])
   responses AssessmentTaskResponse[]
 
   @@index([courseId, badgeId])
   @@index([studentId, badgeId])
-  @@index([assessorId])
+  @@index([checkerId])
   @@index([completedAt])
 }
 
@@ -596,7 +668,7 @@ model AssessmentTaskResponse {
 // BADGE LIFECYCLE STATE
 //   LEARNING             default at enroll; QEV projected from LessonProgress
 //   READY_FOR_ASSESSMENT qevPassedAt set; assessment gated while now < cooldownUntil
-//   IN_REVIEW            assessor submitted an attempt; pass/fail derived from latest attempt
+//   IN_REVIEW            checker submitted an attempt; pass/fail derived from latest attempt
 //   COMPLETED           passed + acknowledged + rated; awardedAt set
 //   LOCKED              failed past the reassessment limit; terminal for this run
 enum BadgeStatus {

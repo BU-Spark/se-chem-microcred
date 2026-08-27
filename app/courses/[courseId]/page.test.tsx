@@ -84,7 +84,7 @@ describe('Created course detail page', () => {
           },
           settings: {
             allowCooldownOverride: true,
-            allowAssessorMessages: true,
+            allowCheckerMessages: true,
             allowCrossSectionView: true,
           },
           contacts: [
@@ -235,33 +235,33 @@ describe('Created course detail page', () => {
     });
 
     expect(await screen.findAllByText('Chemistry 101')).toHaveLength(2);
-    expect(screen.getByRole('heading', { level: 2, name: 'Chemistry 101' })).toBeInTheDocument();
-    expect(screen.getByText('Course Info')).toBeInTheDocument();
-    expect(screen.getByText('Number of Sections: 5')).toBeInTheDocument();
-    expect(screen.getByText('Number of Students Enrolled: 2')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Chemistry 101' })).toBeInTheDocument();
+    expect(screen.getByText('Course overview')).toBeInTheDocument();
+    expect(screen.getByText('Sections')).toBeInTheDocument();
+    expect(screen.getByText('Students')).toBeInTheDocument();
     expect(screen.getByText('CHEM101')).toBeInTheDocument();
     expect(screen.getByText('One, Checker')).toBeInTheDocument();
     expect(screen.getByText('Two, Checker')).toBeInTheDocument();
     expect(screen.queryByText('Xiao, David')).not.toBeInTheDocument();
-    expect(screen.getByText('Assigned Badges')).toBeInTheDocument();
-    expect(screen.getByText('Waste Handling')).toBeInTheDocument();
-    expect(screen.getByText('Bunsen Burners')).toBeInTheDocument();
+    expect(screen.getByText('Course badges')).toBeInTheDocument();
+    expect(screen.getByText('Waste Handling Badge')).toBeInTheDocument();
+    expect(screen.getByText('Bunsen Burners Badge')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Waste Handling/i })).toHaveAttribute('href', '/courses/course-1/badge-1');
-    expect(screen.getByRole('link', { name: 'View Student Roster' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View roster' })).toHaveAttribute(
       'href',
       '/roster?courseId=course-1&role=STUDENT'
     );
-    expect(screen.getByRole('link', { name: 'View Assessor Roster' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Manage checkers' })).toHaveAttribute(
       'href',
       '/roster?courseId=course-1&role=CHECKER'
     );
-    expect(screen.getByRole('link', { name: 'Edit Course' })).toHaveAttribute('href', '/courses/new?courseId=course-1');
+    expect(screen.getByRole('link', { name: 'Edit course' })).toHaveAttribute('href', '/courses/new?courseId=course-1');
     expect(screen.queryByRole('button', { name: 'Delete badge' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
 
     // Open the combined edit-settings popup; its header shows the badge name and
     // the read-only insertion date.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edit badge settings' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Settings' })[0]);
     const settingsDialog = screen.getByRole('dialog', { name: 'Edit settings for Waste Handling Badge' });
     expect(settingsDialog).toBeInTheDocument();
     expect(screen.getByText(/· Added/i)).toBeInTheDocument();
@@ -277,7 +277,7 @@ describe('Created course detail page', () => {
     });
 
     // Unassign lives behind an inline confirm step inside the popup.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Edit badge settings' })[0]);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Settings' })[0]);
     fireEvent.click(screen.getByRole('button', { name: 'Unassign badge' }));
     expect(screen.getByText(/The badge itself will not be deleted/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Unassign Badge' }));
@@ -335,15 +335,15 @@ describe('Created course detail page', () => {
 
     render(<CreatedCourseDetailPage />);
 
-    expect(await screen.findByText('Your Role: STUDENT')).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'View Student Roster' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Edit Course' })).not.toBeInTheDocument();
+    expect(await screen.findByText('student')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View roster' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Edit course' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Import Existing Badge' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Import badge' })).not.toBeInTheDocument();
   });
 
-  it('renders assessor mode for an instructor entering through the assessor card', async () => {
-    mockUseSearchParams.mockReturnValue(new URLSearchParams('view=assessor'));
+  it('renders checker mode for an instructor entering through the checker card', async () => {
+    mockUseSearchParams.mockReturnValue(new URLSearchParams('view=checker'));
     mockFetch.mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -394,10 +394,10 @@ describe('Created course detail page', () => {
 
     render(<CreatedCourseDetailPage />);
 
-    expect(await screen.findByText('Your Role: ASSESSOR')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'View Students to Assess' })).toHaveAttribute(
+    expect(await screen.findByText('Checker')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Students to assess' })).toHaveAttribute(
       'href',
-      '/roster?courseId=course-1&role=STUDENT'
+      '/roster?courseId=course-1&role=STUDENT&view=checker'
     );
     fireEvent.click(screen.getByRole('button', { name: 'Assess Student' }));
     expect(screen.getByRole('dialog', { name: 'Assess student by code' })).toBeInTheDocument();
@@ -408,10 +408,10 @@ describe('Created course detail page', () => {
     fireEvent.change(screen.getByLabelText('Assessment code'), { target: { value: 'abcd-2345' } });
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
     expect(mockPush).toHaveBeenCalledWith('/qr/assessment-code?code=ABCD2345');
-    expect(screen.queryByRole('link', { name: 'View Assessor Roster' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Edit Course' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Manage checkers' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Edit course' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Create Badge' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Import Existing Badge' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '+ Import badge' })).not.toBeInTheDocument();
   });
 
   it('imports an existing badge into the course', async () => {
@@ -537,7 +537,7 @@ describe('Created course detail page', () => {
 
     render(<CreatedCourseDetailPage />);
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Import Existing Badge' }));
+    fireEvent.click(await screen.findByRole('button', { name: '+ Import badge' }));
 
     expect(await screen.findByRole('heading', { name: 'Import Existing Badge' })).toBeInTheDocument();
     await waitFor(() => {
@@ -566,6 +566,6 @@ describe('Created course detail page', () => {
     // The confirmation step renders after a successful import.
     expect(await screen.findByRole('heading', { name: 'Badge imported' })).toBeInTheDocument();
     expect(await screen.findByText('The badge has been added to this course.')).toBeInTheDocument();
-    expect(await screen.findByText('Bunsen Burner')).toBeInTheDocument();
+    expect(await screen.findByText('Bunsen Burner Badge')).toBeInTheDocument();
   });
 });

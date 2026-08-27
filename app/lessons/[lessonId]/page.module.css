@@ -1,10 +1,10 @@
 .root {
-  width: min(1120px, calc(100% - 3rem));
+  width: min(1400px, calc(100% - 4rem));
   margin: 0 auto;
-  padding: 0 0 4rem;
+  padding: 0 0 3rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .header {
@@ -13,227 +13,130 @@
   min-height: 44px;
 }
 
-.lessonTitle {
-  margin: 0;
-  max-width: 900px;
-  color: #111827;
-  font-family: 'Lato', sans-serif;
-  font-size: clamp(2.25rem, 5vw, 3.5rem);
-  line-height: 1.08;
-  letter-spacing: -0.03em;
+/* Two rails on desktop: a fixed-width summary card and the outline beside it.
+   The old single column stacked five full-width sections and left the right
+   two thirds of a laptop screen empty. */
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 420px) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
 }
 
-.section {
+.summaryColumn {
+  position: sticky;
+  top: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-}
-
-.overviewCard {
-  padding: 1.5rem 1.75rem;
-  border: 1px solid #e2e8f0;
-  border-radius: 18px;
-  background: #ffffff;
+  gap: 1.25rem;
+  padding: 1.75rem;
+  border: 1px solid var(--card-border);
+  border-radius: 22px;
+  background: var(--card-bg);
   box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
 }
 
-.sectionHeading {
+.outlineColumn {
+  min-width: 0;
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.lessonTitle {
   margin: 0;
   color: #111827;
   font-family: 'Lato', sans-serif;
-  font-size: clamp(1.35rem, 2.5vw, 1.75rem);
-  line-height: 1.2;
+  font-size: clamp(2rem, 3.6vw, 2.9rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
 }
 
-.body,
-.bullets {
+.totalTime {
   margin: 0;
+  color: var(--checkd-blue);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.lessonSummary {
+  margin: 0.15rem 0 0;
   color: #475569;
   font-family: 'Lato', sans-serif;
   font-size: 1.05rem;
-  line-height: 1.65;
+  line-height: 1.6;
 }
 
-.bullets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.6rem;
-  padding: 0;
-  list-style: none;
-}
-
-.bullets li {
-  padding: 0.45rem 0.8rem;
-  border-radius: 999px;
-  background: #edf4fc;
-  color: #1f5fab;
-  font-size: 0.95rem;
-  font-weight: 700;
-}
-
-.timelineSection {
-  margin-top: 0.75rem;
-  gap: 1rem;
-}
-
-.timeline {
-  width: 100%;
-  display: flex;
-  align-items: flex-start;
-  padding: 3.25rem 0.25rem 1.25rem;
-  overflow-x: auto;
-  overscroll-behavior-inline: contain;
-  scrollbar-gutter: stable;
-}
-
-.timelineGroup {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: flex-start;
-}
-
-.timelineItem {
-  width: 180px;
-  flex: 0 0 180px;
-}
-
-.thumb {
-  width: 180px;
-  aspect-ratio: 16 / 10;
-  overflow: hidden;
-  border: 1px solid #dbe3ed;
-  border-radius: 14px;
-  background: #f1f5f9;
-  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
-}
-
-.thumbImg,
-.thumbPlaceholder {
-  width: 100%;
-  height: 100%;
-}
-
-.thumbImg {
-  display: block;
-  object-fit: cover;
-}
-
-.thumbPlaceholder {
-  display: grid;
-  place-items: center;
-  color: #64748b;
-  font-size: 0.85rem;
-  font-weight: 600;
-}
-
-.partTitle {
-  margin-top: 0.7rem;
-  color: #172033;
-  font-size: 1rem;
-  font-weight: 800;
-}
-
-.partDuration {
-  margin-top: 0.15rem;
-  color: #64748b;
-  font-size: 0.88rem;
-}
-
-.timelineConnectorBlock,
-.timelineEndBlock {
-  width: 150px;
-  height: 113px;
-  flex: 0 0 150px;
-  position: relative;
+.statsSection {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  gap: 0.7rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--card-border);
 }
 
-.timelineCheckpointLabel {
-  position: absolute;
-  right: 0;
-  bottom: calc(100% + 0.35rem);
-  left: 0;
-  color: #334155;
-  font-family: 'Lato', sans-serif;
-  font-size: 0.9rem;
-  font-weight: 800;
-  text-align: center;
+.stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  margin: 0;
 }
 
-.timelineCheckpointMeta {
-  margin-top: 0.1rem;
+.statsHint {
+  margin: 0;
   color: #64748b;
-  font-size: 0.78rem;
-  font-weight: 500;
+  font-family: 'Lato', sans-serif;
+  font-size: 0.92rem;
+  line-height: 1.5;
 }
 
-.timelineConnector {
-  width: 100%;
-  height: 64px;
-  margin-top: 24px;
+.statRow {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  color: #475569;
+  font-family: 'Lato', sans-serif;
+  font-size: 1rem;
 }
 
-.timelineLine {
-  height: 2px;
-  flex: 1;
-  background: #7da7d2;
+.statRow dt {
+  margin: 0;
 }
 
-.timelineCircle {
-  width: 24px;
-  height: 24px;
-  flex: 0 0 24px;
-  border: 3px solid #2e6aa9;
-  border-radius: 50%;
-  background: #ffffff;
+.statRow dd {
+  margin: 0;
+  color: var(--text-color);
+  font-weight: 800;
 }
 
-.timelineFinalCircle {
-  width: 64px;
-  height: 64px;
-  flex: 0 0 64px;
-  display: grid;
-  place-items: center;
-  overflow: hidden;
-  border: 2px solid #2e6aa9;
-  border-radius: 50%;
-  background: #ffffff;
-}
-
-.timelineFinalCircle img {
-  width: 48px;
-  height: 48px;
-  object-fit: contain;
-}
-
-.actionsRow {
-  position: sticky;
-  bottom: 1rem;
-  z-index: 5;
+.emptyState {
   display: flex;
-  justify-content: flex-end;
-  pointer-events: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.85rem;
 }
 
 .primaryButton {
-  min-height: 48px;
+  min-height: 54px;
+  margin-top: 0.25rem;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0.8rem 1.5rem;
+  padding: 0.9rem 1.5rem;
   border-radius: 999px;
-  background: #1f5fab;
-  color: #ffffff;
-  box-shadow: 0 12px 28px rgba(31, 95, 171, 0.28);
-  font-size: 1rem;
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
+  box-shadow: 0 12px 28px rgb(var(--checkd-blue-rgb) / 0.28);
+  font-family: 'Lato', sans-serif;
+  font-size: 1.05rem;
   font-weight: 800;
   text-decoration: none;
-  pointer-events: auto;
   transition:
     transform 160ms ease,
     box-shadow 160ms ease,
@@ -242,112 +145,39 @@
 
 .primaryButton:hover {
   transform: translateY(-1px);
-  background: #194f91;
-  box-shadow: 0 16px 34px rgba(31, 95, 171, 0.32);
+  background: var(--checkd-blue-low);
+  box-shadow: 0 16px 34px rgb(var(--checkd-blue-rgb) / 0.32);
 }
 
 .primaryButton:focus-visible {
-  outline: 3px solid rgba(46, 106, 169, 0.3);
+  outline: 3px solid rgb(var(--checkd-blue-rgb) / 0.3);
   outline-offset: 3px;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .root {
-    width: min(100% - 2rem, 720px);
-    padding-bottom: 2rem;
+    width: min(100% - 2rem, 760px);
   }
 
-  .timeline {
-    display: grid;
-    gap: 0.85rem;
-    padding-top: 0.5rem;
-    overflow: visible;
-  }
-
-  .timelineGroup {
-    display: grid;
+  .layout {
     grid-template-columns: minmax(0, 1fr);
-    gap: 0.85rem;
+    gap: 1.25rem;
   }
 
-  .timelineItem {
-    width: 100%;
-    display: grid;
-    grid-template-columns: 120px minmax(0, 1fr);
-    grid-template-rows: auto auto;
-    column-gap: 1rem;
-    padding: 0.85rem;
-    border: 1px solid #e2e8f0;
-    border-radius: 16px;
-    background: #ffffff;
-  }
-
-  .thumb {
-    width: 120px;
-    grid-row: 1 / 3;
-  }
-
-  .partTitle {
-    align-self: end;
-    margin: 0;
-  }
-
-  .timelineConnectorBlock,
-  .timelineEndBlock {
-    width: 100%;
-    height: auto;
-    margin: 0;
+  /* Sticky only makes sense while the outline scrolls alongside the summary. */
+  .summaryColumn {
     position: static;
-    flex-direction: row;
-    gap: 0.75rem;
-  }
-
-  .timelineCheckpointLabel {
-    min-width: 120px;
-    min-height: auto;
-    position: static;
-    text-align: left;
-  }
-
-  .timelineConnector {
-    height: 48px;
-    margin-top: 0;
-  }
-
-  .timelineFinalCircle {
-    width: 48px;
-    height: 48px;
-    flex-basis: 48px;
-  }
-
-  .timelineFinalCircle img {
-    width: 36px;
-    height: 36px;
   }
 }
 
 @media (max-width: 560px) {
   .root {
     width: calc(100% - 1.25rem);
-    gap: 1.1rem;
   }
 
-  .overviewCard {
-    padding: 1.15rem;
-    border-radius: 14px;
-  }
-
-  .timelineItem {
-    grid-template-columns: 96px minmax(0, 1fr);
-    column-gap: 0.8rem;
-  }
-
-  .thumb {
-    width: 96px;
-  }
-
-  .actionsRow {
-    bottom: 0.75rem;
+  .summaryColumn {
+    padding: 1rem;
+    border-radius: 16px;
   }
 
   .primaryButton {

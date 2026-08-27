@@ -1,4 +1,4 @@
-import { buildVideoThumbnail } from '../lib/badge-helpers';
+import { buildVideoThumbnail, checkpointTotalPoints } from '../lib/badge-helpers';
 import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 
@@ -70,111 +70,104 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
         </div>
       </section>
 
+      {/* Lesson Video, Checkpoints, and the Rubric all describe the same lesson,
+          so they live in one section: video + checkpoints side by side (they're
+          literally the same timeline), rubric underneath. */}
       <section className={styles.reviewCard}>
-        <div className={styles.reviewCardHeader}>
-          <h3>Lesson Video</h3>
-          <EditButton onClick={() => goToStep(1)} />
-        </div>
-        <p className={styles.reviewBadgeName}>{draft.youtubeUrl || 'No video linked'}</p>
-        <h4 className={styles.reviewVideoTitle}>{draft.videoTitle || 'Untitled video'}</h4>
-        <p className={styles.reviewMeta}>
-          Length: <strong>{draft.videoLength || '—'}</strong>
-        </p>
-      </section>
-
-      <section className={styles.reviewCard}>
-        <div className={styles.reviewCardHeader}>
-          <h3>Checkpoints</h3>
-          <EditButton onClick={() => goToStep(2)} />
-        </div>
-        <p className={styles.reviewMeta}>
-          # of Checkpoints: <strong>{draft.checkpoints.length}</strong>
-        </p>
-        <p className={styles.reviewMeta}>
-          Passing threshold: <strong>{draft.passingPercent}%</strong>
-        </p>
-
-        <div className={styles.checkpointLayout}>
-          <div className={styles.cpRail}>
-            <div className={styles.cpRailLine} aria-hidden="true" />
-            {draft.checkpoints.map((checkpoint, index) => (
-              <div key={checkpoint.id} className={styles.cpRailGroup}>
-                <div className={styles.cpSegmentRow}>
-                  <div className={styles.cpSegmentLabel}>
-                    <span>Segment {index + 1}</span>
-                    <span>Starts {checkpoint.time}</span>
-                  </div>
-                  <div
-                    className={styles.cpSegmentThumb}
-                    style={videoThumbnail ? { backgroundImage: `url(${videoThumbnail})` } : undefined}
-                  />
-                </div>
-                <div className={styles.cpCheckpointRow}>
-                  <div className={styles.cpCheckpointLabel}>
-                    <span>{checkpoint.title}</span>
-                    <span>{checkpoint.points} points</span>
-                  </div>
-                  <span className={styles.cpNodeStatic} aria-hidden="true" />
-                </div>
-              </div>
-            ))}
+        <div className={styles.reviewLessonAssessmentGrid}>
+          <div>
+            <div className={styles.reviewCardHeader}>
+              <h3>Lesson Video</h3>
+              <EditButton onClick={() => goToStep(1)} />
+            </div>
+            <p className={styles.reviewBadgeName}>{draft.youtubeUrl || 'No video linked'}</p>
+            <h4 className={styles.reviewVideoTitle}>{draft.videoTitle || 'Untitled video'}</h4>
+            <p className={styles.reviewMeta}>
+              Length: <strong>{draft.videoLength || '—'}</strong>
+            </p>
           </div>
 
-          <div className={styles.checkpointMain}>
-            <div
-              className={styles.reviewVideoPreview}
-              style={videoThumbnail ? { backgroundImage: `url(${videoThumbnail})` } : undefined}
-            >
-              {!videoThumbnail && <span>No video preview</span>}
+          <div>
+            <div className={styles.reviewCardHeader}>
+              <h3>Checkpoints</h3>
+              <EditButton onClick={() => goToStep(2)} />
+            </div>
+            <p className={styles.reviewMeta}>
+              # of Checkpoints: <strong>{draft.checkpoints.length}</strong>
+            </p>
+            <p className={styles.reviewMeta}>
+              Passing threshold: <strong>{draft.passingPercent}%</strong>
+            </p>
+
+            <div className={styles.reviewCheckpointLayout}>
+              <div
+                className={styles.reviewCheckpointVideo}
+                style={videoThumbnail ? { backgroundImage: `url(${videoThumbnail})` } : undefined}
+              >
+                {!videoThumbnail && <span>No preview</span>}
+              </div>
+
+              <div className={styles.reviewCheckpointList}>
+                {draft.checkpoints.map((checkpoint, index) => (
+                  <div key={checkpoint.id} className={styles.reviewCheckpointItem}>
+                    <span className={styles.reviewCheckpointItemTitle}>
+                      {index + 1}. {checkpoint.title}
+                    </span>
+                    <span className={styles.reviewMuted}>
+                      Starts {checkpoint.time} · {checkpointTotalPoints(checkpoint)} pts
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
-      </section>
 
-      <section className={styles.reviewCard}>
-        <div className={styles.reviewCardHeader}>
-          <h3>Rubric</h3>
-          <EditButton onClick={() => goToStep(3)} />
+        <div className={styles.reviewRubricSection}>
+          <div className={styles.reviewCardHeader}>
+            <h3>Rubric</h3>
+            <EditButton onClick={() => goToStep(3)} />
+          </div>
+
+          <p className={styles.reviewGradingPrompt}>
+            {draft.rubricGoal.name || <span className={styles.reviewMuted}>Untitled goal</span>}
+          </p>
+
+          <ol className={styles.reviewOrderedList}>
+            {draft.rubricGoal.subgoals.map((subgoal) => {
+              const subgoalTotal = subgoal.tasks.reduce((sum, task) => sum + (task.points || 0), 0);
+              return (
+                <li key={subgoal.id}>
+                  {subgoal.text || <span className={styles.reviewMuted}>Untitled subgoal</span>}{' '}
+                  <strong>
+                    (pass at {subgoal.passThreshold} of {subgoalTotal} pts)
+                  </strong>
+                  {subgoal.tasks.length > 0 ? (
+                    <ul className={styles.reviewTaskList}>
+                      {subgoal.tasks.map((task) => (
+                        <li key={task.id}>
+                          {task.text || <span className={styles.reviewMuted}>Empty task</span>}{' '}
+                          <strong>
+                            ({task.points} {task.points === 1 ? 'pt' : 'pts'})
+                          </strong>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <span className={styles.reviewMuted}> — no tasks</span>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+
+          <div className={styles.reviewSubsectionHeader}>Checker Instructions</div>
+          {draft.rubricGoal.taInstructions.trim() ? (
+            <div className="rte-readonly" dangerouslySetInnerHTML={{ __html: draft.rubricGoal.taInstructions }} />
+          ) : (
+            <p className={styles.reviewMuted}>No instructions added</p>
+          )}
         </div>
-
-        <p className={styles.reviewGradingPrompt}>
-          {draft.rubricGoal.name || <span className={styles.reviewMuted}>Untitled goal</span>}
-        </p>
-
-        <ol className={styles.reviewOrderedList}>
-          {draft.rubricGoal.subgoals.map((subgoal) => {
-            const subgoalTotal = subgoal.tasks.reduce((sum, task) => sum + (task.points || 0), 0);
-            return (
-              <li key={subgoal.id}>
-                {subgoal.text || <span className={styles.reviewMuted}>Untitled subgoal</span>}{' '}
-                <strong>
-                  (pass at {subgoal.passThreshold} of {subgoalTotal} pts)
-                </strong>
-                {subgoal.tasks.length > 0 ? (
-                  <ul className={styles.reviewTaskList}>
-                    {subgoal.tasks.map((task) => (
-                      <li key={task.id}>
-                        {task.text || <span className={styles.reviewMuted}>Empty task</span>}{' '}
-                        <strong>
-                          ({task.points} {task.points === 1 ? 'pt' : 'pts'})
-                        </strong>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <span className={styles.reviewMuted}> — no tasks</span>
-                )}
-              </li>
-            );
-          })}
-        </ol>
-
-        <div className={styles.reviewSubsectionHeader}>Assessor Instructions</div>
-        {draft.rubricGoal.taInstructions.trim() ? (
-          <div className="rte-readonly" dangerouslySetInnerHTML={{ __html: draft.rubricGoal.taInstructions }} />
-        ) : (
-          <p className={styles.reviewMuted}>No instructions added</p>
-        )}
       </section>
     </div>
   );
