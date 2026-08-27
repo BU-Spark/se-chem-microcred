@@ -22,6 +22,8 @@ type Contact = {
   id: string;
   type: 'INSTRUCTOR' | 'CHECKER';
   name: string;
+  firstName: string | null;
+  lastName: string | null;
   email: string;
   avatarUrl: string | null;
 };
@@ -34,6 +36,7 @@ type StudentProfileBadge = {
   imageUrl?: string | null;
   imagePositionX?: number | null;
   imagePositionY?: number | null;
+  imageScale?: number | null;
 
   status?: string;
   awardedAt?: string | null;
@@ -48,6 +51,8 @@ type InstructorMemberProfileResponse = {
   member: {
     id: string;
     name: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     externalId: string | null;
     gender: string | null;
@@ -73,10 +78,6 @@ type InstructorMemberProfileResponse = {
     } | null;
   };
   contacts: Contact[];
-  // The three cohorts the API actually returns (classifyStudentBadgeCohort), which
-  // are also the three the course badge page reports. This used to declare
-  // inProgress/inReview/completed — keys the route stopped sending — so every
-  // read here was undefined at runtime.
   badges: {
     proficient: StudentProfileBadge[];
     stillLearning: StudentProfileBadge[];
@@ -414,7 +415,7 @@ export default function InstructorStudentProfilePage() {
 
   const sideContactTitle = currentRole === 'CHECKER' ? 'Instructor' : 'Checker';
   const emptyContactMessage = currentRole === 'CHECKER' ? 'No instructor assigned.' : 'No checker assigned.';
-  const memberDisplay = useMemo(() => getNameForProfile(data?.member.name), [data?.member.name]);
+  const memberDisplay = useMemo(() => getNameForProfile(data?.member), [data?.member]);
   const memberAvatarSrc = avatarAsset(data?.member.avatar?.base);
   const displayName = data?.course.createdBy?.name || '';
 
@@ -460,7 +461,7 @@ export default function InstructorStudentProfilePage() {
                 externalId={data.member.externalId}
                 avatarSrc={data.member.avatar ? memberAvatarSrc : null}
                 avatarAlt={`${currentProfileLabel} avatar`}
-                avatarFallback={generateInitials(data.member.name)}
+                avatarFallback={generateInitials(data.member)}
                 courseTitle={data.course.title}
                 courseSectionsLabel={`${data.course.sections.length > 1 ? 'Sections' : 'Section'}: ${
                   courseSectionsLabel || 'Not provided'
@@ -469,15 +470,15 @@ export default function InstructorStudentProfilePage() {
                 contactName={
                   sideContact ? (
                     <>
-                      <p>{getNameForProfile(sideContact.name).headlineTop}</p>
-                      <p>{getNameForProfile(sideContact.name).headlineBottom}</p>
+                      <p>{getNameForProfile(sideContact).headlineTop}</p>
+                      <p>{getNameForProfile(sideContact).headlineBottom}</p>
                     </>
                   ) : null
                 }
                 contactEmail={sideContact?.email}
                 contactAvatarSrc={sideContact?.avatarUrl}
                 contactAvatarAlt={sideContact?.name}
-                contactFallback={sideContact ? generateInitials(sideContact.name) : ''}
+                contactFallback={sideContact ? generateInitials(sideContact) : ''}
                 emptyContactMessage={emptyContactMessage}
                 sideTop={
                   <CollapsibleSection

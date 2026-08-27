@@ -34,15 +34,6 @@
   text-transform: uppercase;
 }
 
-.pageTitle {
-  margin: 0;
-  font-family: 'Lato', sans-serif;
-  font-size: clamp(2rem, 4vw, 2.75rem);
-  font-weight: 700;
-  line-height: 1.05;
-  color: var(--checkd-black);
-}
-
 .backLink,
 .inlineLink {
   width: fit-content;
@@ -743,9 +734,6 @@
     width: 76px;
   }
 
-  .pageTitle {
-    font-size: 38px;
-  }
 
   .cardTitle {
     font-size: 1.35rem;

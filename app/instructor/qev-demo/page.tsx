@@ -48,7 +48,7 @@ export default function InstructorQevDemoPage() {
     <div className={styles.page}>
       <header className={styles.header}>
         <div className={styles.titleGroup}>
-          <h1 className={styles.pageTitle}>Configure Question Embedded Video</h1>
+          <h1 className="page-heading">Configure Question Embedded Video</h1>
           <p className={styles.pageSubtitle}>Prototype tool for instructors to assign checkpoints to lesson videos.</p>
         </div>
       </header>

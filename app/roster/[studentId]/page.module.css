@@ -48,18 +48,10 @@
 }
 
 .pageTitle {
-  margin: 0;
-  font-family: Lato, sans-serif;
-  font-size: clamp(2rem, 4vw, 2.75rem);
-  line-height: 1.05;
-  font-weight: 700;
-  color: #111111;
+  composes: heading from '../../components/PageHeading/PageHeading.module.css';
 }
 
 @media (max-width: 640px) {
-  .pageTitle {
-    font-size: 38px;
-  }
 }
 
 .statusMessage {

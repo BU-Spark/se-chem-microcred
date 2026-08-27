@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import PageHeading from '@/app/components/PageHeading/PageHeading';
 import { notifyMessagesRead } from '@/app/hooks/useUnreadMessages';
 import shellStyles from '../page.module.css';
 import styles from './page.module.css';
@@ -162,7 +163,7 @@ export default function MessagesPage() {
       />
 
       <main className={shellStyles.main}>
-        <h1 className={styles.title}>Messages</h1>
+        <PageHeading title="Messages" />
 
         <div className={styles.tabs} role="tablist" aria-label="Message boxes">
           <button
