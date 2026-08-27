@@ -1,3 +1,4 @@
+// Issues: #247 badge image zoom, #258 multi-word last names
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,6 +12,8 @@ model User {
   id                  String               @id @default(cuid())
   email               String?              @unique
   name                String?
+  firstName           String?
+  lastName            String?
   externalId          String?              @unique
   gender              String?
   raceEthnicity       String?
@@ -454,6 +457,7 @@ model Badge {
   imageUrl             String?
   imagePositionX       Int                 @default(50)
   imagePositionY       Int                 @default(50)
+  imageScale           Int                 @default(115)
   createdById          String?
   sourceBadgeId        String?
   availableOn          DateTime?
