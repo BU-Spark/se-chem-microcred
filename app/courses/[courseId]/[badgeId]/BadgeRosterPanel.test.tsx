@@ -1,3 +1,4 @@
+// Issues: #247 badge image zoom, #258 multi-word last names
 import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import BadgeRosterPanel, { type BadgeRosterRow } from './BadgeRosterPanel';
@@ -15,7 +16,14 @@ const rows: BadgeRosterRow[] = [
   {
     enrollmentId: 'enrollment-2',
     sections: ['B'],
-    student: { id: 'student-2', name: 'Ada Zimmer', email: 'ada@bu.edu', externalId: 'U2' },
+    student: {
+      id: 'student-2',
+      name: 'Ada Zimmer',
+      firstName: 'Ada',
+      lastName: 'Zimmer',
+      email: 'ada@bu.edu',
+      externalId: 'U2',
+    },
     cohort: 'STILL_LEARNING',
     stage: 'ATTEMPT_FAILED',
     locked: true,
@@ -23,14 +31,21 @@ const rows: BadgeRosterRow[] = [
   {
     enrollmentId: 'enrollment-1',
     sections: ['A', 'C'],
-    student: { id: 'student-1', name: 'Bea Adams', email: 'bea@bu.edu', externalId: 'U1' },
+    student: {
+      id: 'student-1',
+      name: 'Bea Adams',
+      firstName: 'Bea',
+      lastName: 'Adams',
+      email: 'bea@bu.edu',
+      externalId: 'U1',
+    },
     cohort: 'PROFICIENT',
     stage: null,
   },
   {
     enrollmentId: 'enrollment-3',
     sections: [],
-    student: { id: 'student-3', name: null, email: 'carl@bu.edu', externalId: null },
+    student: { id: 'student-3', name: null, firstName: null, lastName: null, email: 'carl@bu.edu', externalId: null },
     cohort: 'NOT_STARTED',
     stage: null,
   },

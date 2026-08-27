@@ -1,3 +1,4 @@
+/* Issues: #242 standardize headings */
 .page {
   display: flex;
   min-height: calc(100vh - 80px);
@@ -21,15 +22,6 @@
   align-items: center;
   justify-content: flex-start;
   margin-bottom: 1.3rem;
-}
-
-.pageTitle {
-  margin: 0;
-  font-family: 'Lato', sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  line-height: 1.05;
-  color: var(--checkd-black);
 }
 
 .statusBlock {
@@ -795,9 +787,6 @@
     align-items: flex-start;
   }
 
-  .pageTitle {
-    font-size: 2.2rem;
-  }
 
   .badgesTitle {
     font-size: 2rem;
@@ -854,14 +843,6 @@
 .breadcrumb a {
   color: var(--brand-color);
   text-decoration: none;
-}
-
-.pageTitle {
-  align-self: stretch;
-  color: #0b1833;
-  font-size: clamp(2.15rem, 4vw, 3.5rem);
-  letter-spacing: -0.045em;
-  text-align: left;
 }
 
 .heroCard,
@@ -1625,9 +1606,6 @@
 }
 
 @media (max-width: 520px) {
-  .pageTitle {
-    font-size: 2rem;
-  }
   .heroInfo,
   .heroSide {
     padding: 1.25rem;

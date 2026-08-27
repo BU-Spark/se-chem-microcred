@@ -9,6 +9,7 @@ export type BadgeGridItem = {
   imageUrl?: string | null;
   imagePositionX?: number | null;
   imagePositionY?: number | null;
+  imageScale?: number | null;
   youtubeUrl?: string | null;
 };
 
@@ -40,6 +41,7 @@ export default function BadgeGrid({
                 imageUrl={badge.imageUrl}
                 imagePositionX={badge.imagePositionX}
                 imagePositionY={badge.imagePositionY}
+                imageScale={badge.imageScale}
                 videoUrl={badge.youtubeUrl}
                 alt={`${badge.name} thumbnail`}
                 className={styles.badgeBubbleImage}

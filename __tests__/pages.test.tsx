@@ -1,10 +1,10 @@
+// Issues: #258 multi-word last names
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import HomePage from '../app/page';
 import BadgePassportPage from '../app/badges/page';
 import BadgeFeedbackPage from '@/app/badges/[badgeSlug]/feedback/page';
 import ProfilePage from '../app/profile/page';
 import GradesPage from '../app/grades/page';
-import SettingsPage from '../app/settings/page';
 import LessonDetailPage from '../app/lessons/[lessonId]/page';
 import InstructorQevDemoPage from '../app/instructor/qev-demo/page';
 import type { StudentData } from '../app/hooks/useStudentData';
@@ -196,6 +196,8 @@ function createStudentData(): StudentData {
     student: {
       id: 'student-1',
       name: 'Student Demo',
+      firstName: 'Student',
+      lastName: 'Demo',
       email: 'student@example.edu',
       externalId: 'U1234567',
       gender: 'Female',
@@ -595,13 +597,12 @@ describe('Profile page', () => {
   });
 });
 
-describe('Grades and Settings placeholders', () => {
-  it('show placeholder copy and honor sign-out flow', () => {
+// The settings page was removed deliberately -- its features live on the profile
+// page now, which is what the sidebar links to.
+describe('Grades placeholder', () => {
+  it('shows placeholder copy', () => {
     render(<GradesPage />);
     expect(screen.getByText(/Gradebook coming soon/i)).toBeInTheDocument();
-
-    render(<SettingsPage />);
-    expect(screen.getByText(/Settings content coming soon/i)).toBeInTheDocument();
   });
 });
 

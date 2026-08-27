@@ -8,6 +8,7 @@ export default function BadgeImage({
   imageUrl,
   imagePositionX = 50,
   imagePositionY = 50,
+  imageScale = 115,
   videoUrl,
   fallbackThumbnailUrl,
   quality,
@@ -17,6 +18,7 @@ export default function BadgeImage({
   imageUrl?: string | null;
   imagePositionX?: number | null;
   imagePositionY?: number | null;
+  imageScale?: number | null;
   videoUrl?: string | null;
   fallbackThumbnailUrl?: string | null;
   quality?: YoutubeThumbnailQuality;
@@ -31,6 +33,9 @@ export default function BadgeImage({
     // the translation makes the same focal coordinates work for every aspect ratio.
     const translateX = Number(((50 - positionX) * 0.1).toFixed(2));
     const translateY = Number(((50 - positionY) * 0.1).toFixed(2));
+    // Never below 100: under it the cover-cropped image would stop filling the
+    // circle and leave a gap at the edge.
+    const scale = Math.max(100, imageScale ?? 115) / 100;
     // Uploaded badge art is stored as a validated data URL, which next/image does
     // not optimize. Native img is the correct rendering path for this local data.
     return (
@@ -44,7 +49,7 @@ export default function BadgeImage({
           height: '100%',
           objectFit: 'cover',
           objectPosition: `${positionX}% ${positionY}%`,
-          transform: `scale(1.15) translate(${translateX}%, ${translateY}%)`,
+          transform: `scale(${scale}) translate(${translateX}%, ${translateY}%)`,
         }}
       />
     );

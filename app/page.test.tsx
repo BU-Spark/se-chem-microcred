@@ -87,6 +87,7 @@ function createAuthState(overrides = {}) {
 
 describe('Courses Page', () => {
   beforeEach(() => {
+    window.localStorage.clear();
     mockReplace.mockClear();
     mockUsePathname.mockReset();
     mockUsePathname.mockReturnValue('/');
@@ -506,6 +507,20 @@ describe('Courses Page', () => {
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/splash');
     });
+  });
+
+  it('reopens on the course tab last selected, across a remount', async () => {
+    const { unmount } = renderCourses();
+    await screen.findByText('General Chemistry');
+
+    fireEvent.click(screen.getByRole('tab', { name: /Instructor/ }));
+    expect(screen.getByRole('tab', { name: /Instructor/ })).toHaveAttribute('aria-selected', 'true');
+    unmount();
+
+    renderCourses();
+
+    expect(await screen.findByRole('tab', { name: /Instructor/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /Student/ })).toHaveAttribute('aria-selected', 'false');
   });
 
   it('joins a course by course code and refreshes the course list', async () => {

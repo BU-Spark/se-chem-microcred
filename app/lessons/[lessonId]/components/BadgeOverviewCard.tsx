@@ -4,12 +4,6 @@ import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 
 import styles from './BadgeOverviewCard.module.css';
 
-/**
- * The badge half of the lesson summary panel: badge art (when the badge has
- * real artwork), its name and description, and the skills the lesson teaches —
- * two hairline-divided sections rather than the three full-width stacked cards
- * this replaced, which left the page mostly dead space.
- */
 export default function BadgeOverviewCard({
   badgeName,
   badgeDescription,
@@ -34,14 +28,13 @@ export default function BadgeOverviewCard({
         <section className={styles.section} aria-label="Badge you will earn">
           <p className={styles.eyebrow}>Badge you&rsquo;ll earn</p>
           <div className={styles.badgeRow}>
-            {/* Only real badge artwork earns a thumbnail — a letterboxed video
-                frame here reads as a broken image next to the badge name. */}
             {badgeImageUrl ? (
               <span className={styles.badgeArt}>
                 <BadgeImage
                   imageUrl={badgeImageUrl}
                   imagePositionX={badgeImagePositionX}
                   imagePositionY={badgeImagePositionY}
+                  imageScale={badgeImagePositionY}
                   alt={badgeName ?? 'Badge'}
                   className={styles.badgeArtImg}
                 />

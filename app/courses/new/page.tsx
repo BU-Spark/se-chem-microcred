@@ -14,7 +14,7 @@ import SectionChips from './components/SectionChips';
 import CourseTileImage from '@/app/components/Courses/CourseTileImage';
 import { CourseRole } from '@prisma/client';
 import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
-import { splitName } from '@/lib/text/name';
+import { resolveName } from '@/lib/text/name';
 import { parseRosterCsv } from '@/lib/csv';
 
 const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Checker Roster', 'Review'];
@@ -38,6 +38,8 @@ type RosterRow = {
 // General declaration a person that could be a part of a course
 interface Person {
   name: string;
+  firstName?: string | null;
+  lastName?: string | null;
   email: string;
   externalId: string | null;
   sections: string[] | null;
@@ -95,6 +97,8 @@ type EditableCourseResponse = {
       student: {
         id: string;
         name: string;
+        firstName: string | null;
+        lastName: string | null;
         email: string;
         externalId: string;
       };
@@ -103,7 +107,7 @@ type EditableCourseResponse = {
 };
 
 function toRosterRow(person: Person): RosterRow {
-  const { first, last } = splitName(person.name);
+  const { first, last } = resolveName(person);
 
   return {
     firstName: first,
@@ -330,6 +334,8 @@ export default function CourseNewPage() {
           studentEnrollments.map((enrollment) =>
             toRosterRow({
               name: enrollment.student.name,
+              firstName: enrollment.student.firstName,
+              lastName: enrollment.student.lastName,
               email: enrollment.student.email,
               externalId: enrollment.student.externalId,
               sections: enrollment.sections,
@@ -341,6 +347,8 @@ export default function CourseNewPage() {
             ? checkerEnrollments.map((enrollment) =>
                 toRosterRow({
                   name: enrollment.student.name,
+                  firstName: enrollment.student.firstName,
+                  lastName: enrollment.student.lastName,
                   email: enrollment.student.email,
                   externalId: enrollment.student.externalId,
                   sections: enrollment.sections,
@@ -751,7 +759,7 @@ export default function CourseNewPage() {
 
       <main className={`main ${styles.main}`}>
         <div className={styles.topRow}>
-          <h1 className={styles.pageTitle}>{isEditMode ? 'Edit course' : 'Create a course'}</h1>
+          <h1 className="page-heading">{isEditMode ? 'Edit course' : 'Create a course'}</h1>
         </div>
 
         {isLoadingCourse && <p className={styles.tableMeta}>Loading course data...</p>}

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import { generateInitials, getNameForProfile } from '@/lib/text/name';
+import { generateInitials, getNameForProfile, type NamedPerson } from '@/lib/text/name';
 import { isInstructor } from '@/lib/roles';
 
 import { CourseBlastModal } from './CourseBlastModal';
@@ -76,15 +76,23 @@ function resolveCourseId(value: string | string[] | undefined) {
 function PersonCard({
   label,
   name,
+  firstName,
+  lastName,
   email,
   avatarSrc,
 }: {
   label?: string;
   name?: string | null;
+  // Issue #258: prefer the stored parts; `name` remains the fallback for rows
+  // written before they existed.
+  firstName?: string | null;
+  lastName?: string | null;
   email?: string | null;
   avatarSrc?: StaticImageData;
 }) {
-  const source = name?.trim() || email?.trim() || 'Unassigned';
+  // Email stands in for someone with no name on file, and reads as a single token.
+  const source: NamedPerson =
+    name?.trim() || firstName?.trim() ? { name, firstName, lastName } : { name: email?.trim() || 'Unassigned' };
   const display = getNameForProfile(source);
 
   return (
@@ -527,7 +535,7 @@ export default function CreatedCourseDetailPage() {
               <span aria-hidden="true">/</span>
               <span>{course?.title ?? 'Course'}</span>
             </nav>
-            <h1 className={styles.pageTitle}>{course?.title ?? 'Course'}</h1>
+            <h1 className="page-heading">{course?.title ?? 'Course'}</h1>
           </header>
 
           {isLoading ? <p className={styles.statusMessage}>Loading course details...</p> : null}
@@ -548,6 +556,8 @@ export default function CreatedCourseDetailPage() {
                     <PersonCard
                       label={isInstructorFlag ? 'Instructor (You)' : 'Instructor'}
                       name={course.createdBy?.name}
+                      firstName={course.createdBy?.firstName}
+                      lastName={course.createdBy?.lastName}
                       email={course.createdBy?.email}
                       avatarSrc={avatarFor(course.createdBy?.avatarBase)}
                     />
@@ -636,7 +646,13 @@ export default function CreatedCourseDetailPage() {
                   {checkers.length > 0 ? (
                     <div className={styles.checkerList}>
                       {checkers.map((checker) => (
-                        <PersonCard key={checker.id} name={checker.name} email={checker.email} />
+                        <PersonCard
+                          key={checker.id}
+                          name={checker.name}
+                          firstName={checker.firstName}
+                          lastName={checker.lastName}
+                          email={checker.email}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -691,6 +707,7 @@ export default function CreatedCourseDetailPage() {
                                 imageUrl={badge.imageUrl}
                                 imagePositionX={badge.imagePositionX}
                                 imagePositionY={badge.imagePositionY}
+                                imageScale={badge.imageScale}
                                 videoUrl={badge.videoUrl}
                                 fallbackThumbnailUrl={fallbackImage}
                                 quality="mqdefault"

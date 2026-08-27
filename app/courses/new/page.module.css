@@ -1,3 +1,4 @@
+
 .page {
   display: flex;
   min-height: 100vh;
@@ -16,15 +17,6 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 1.5rem;
-}
-
-.pageTitle {
-  margin: 0;
-  font-family: Lato, sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  line-height: 1.05;
-  color: var(--checkd-black);
 }
 
 .logo {

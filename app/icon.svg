@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="checkd">
+  <!-- Issue #260: browser-tab favicon. The checkd check on the brand blue, traced
+       from the logo attached to the issue. Colors are hard-coded because the browser
+       renders a favicon outside the app, where globals.css tokens are not in scope. -->
+  <rect width="512" height="512" rx="96" fill="#2e6aa9"/>
+  <g transform="translate(107 88) scale(0.396)">
+    <path fill="#c9db50" d="M8 287 L150 287 L250 610 L560 0 L747 0 L170 887 L8 860 Z"/>
+  </g>
+</svg>

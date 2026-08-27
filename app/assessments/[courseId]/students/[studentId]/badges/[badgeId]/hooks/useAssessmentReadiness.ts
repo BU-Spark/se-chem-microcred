@@ -15,6 +15,8 @@ type StudentProfileResponse = {
   member: {
     id: string;
     name: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     externalId: string | null;
     createdAt: string;

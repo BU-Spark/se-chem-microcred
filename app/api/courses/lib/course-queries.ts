@@ -1,3 +1,4 @@
+// Issues: #258 multi-word last names
 import prisma from '@/lib/prisma';
 
 export async function fetchUserByEmail(email: string) {
@@ -66,6 +67,10 @@ export async function fetchCheckerCourseEnrollments(userId: string) {
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
             },
@@ -105,6 +110,10 @@ export async function fetchCreatedCourseDetail(userId: string, courseId: string)
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
             },
@@ -135,6 +144,7 @@ export async function fetchCreatedCourseDetail(userId: string, courseId: string)
                   imageUrl: true,
                   imagePositionX: true,
                   imagePositionY: true,
+                  imageScale: true,
                 },
               },
             },
@@ -238,6 +248,7 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
                   imageUrl: true,
                   imagePositionX: true,
                   imagePositionY: true,
+                  imageScale: true,
                   slug: true,
 
                   name: true,
@@ -283,6 +294,10 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
               badgeProgress: {
@@ -380,6 +395,10 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
             },
@@ -415,6 +434,7 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
                   imageUrl: true,
                   imagePositionX: true,
                   imagePositionY: true,
+                  imageScale: true,
                   availableOn: true,
                   closesOn: true,
                   neverCloses: true,
@@ -494,6 +514,7 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
                   imageUrl: true,
                   imagePositionX: true,
                   imagePositionY: true,
+                  imageScale: true,
                 },
               },
             },
@@ -518,6 +539,10 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
               gender: true,
@@ -620,6 +645,7 @@ export async function fetchCreatedCourseMemberDetail(userId: string, courseId: s
                   imageUrl: true,
                   imagePositionX: true,
                   imagePositionY: true,
+                  imageScale: true,
                 },
               },
             },
@@ -644,6 +670,10 @@ export async function fetchCreatedCourseMemberDetail(userId: string, courseId: s
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
               gender: true,
@@ -723,6 +753,10 @@ export async function fetchEnrolledCourses(userId: string) {
             select: {
               id: true,
               name: true,
+              // Issue #258: the discrete name parts travel with every student payload
+              // so screens render the real surname instead of guessing at the split.
+              firstName: true,
+              lastName: true,
               email: true,
               externalId: true,
             },

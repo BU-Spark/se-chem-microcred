@@ -1,3 +1,4 @@
+// Issues: #258 multi-word last names
 'use client';
 
 import { useMemo } from 'react';
@@ -5,7 +6,7 @@ import Link from 'next/link';
 
 import { useFocusTrap } from '@/app/hooks/useFocusTrap';
 import { buildCsv, csvFilename, downloadCsv } from '@/lib/csv';
-import { splitName } from '@/lib/text/name';
+import { resolveName } from '@/lib/text/name';
 
 import styles from './BadgeRosterPanel.module.css';
 
@@ -18,6 +19,10 @@ export type BadgeRosterRow = {
   student: {
     id: string;
     name: string | null;
+    // Issue #258: sorting and the CSV export both need the real surname, which a
+    // joined name cannot give up when the surname is more than one word.
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     externalId: string | null;
   };
@@ -77,7 +82,7 @@ export default function BadgeRosterPanel({
   // the visible order always reads alphabetically.
   const sortedRows = useMemo(() => {
     const sortKey = (row: BadgeRosterRow) => {
-      const { first, last } = splitName(row.student.name);
+      const { first, last } = resolveName(row.student);
       const email = row.student.email ?? '';
 
       return last || first ? [last, first, email] : [email, '', email];
@@ -93,7 +98,7 @@ export default function BadgeRosterPanel({
 
   const handleExport = () => {
     const csvRows = sortedRows.map((row) => {
-      const { first, last } = splitName(row.student.name);
+      const { first, last } = resolveName(row.student);
 
       return {
         'First Name': first,

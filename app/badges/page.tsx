@@ -10,6 +10,7 @@ import { useMyCourses } from '../hooks/useMyCourses';
 import { derivePassportNumber, formatPassportDate } from '@/lib/students/passport';
 import styles from './page.module.css';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import PageHeading from '@/app/components/PageHeading/PageHeading';
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import Modal from '@/app/components/Modal/Modal';
 import EarnedBeforePicker from './EarnedBeforePicker';
@@ -298,6 +299,7 @@ export default function BadgePassportPage() {
                 imageUrl={badge.imageUrl}
                 imagePositionX={badge.imagePositionX}
                 imagePositionY={badge.imagePositionY}
+                imageScale={badge.imageScale}
                 videoUrl={badge.youtubeUrl}
                 alt=""
                 className={styles.entryImage}
@@ -330,10 +332,7 @@ export default function BadgePassportPage() {
 
       <main className="main">
         <div className={styles.passportRoot}>
-          <div className={styles.eyebrowRow}>
-            <h1 className={styles.pageTitle}>Badge Passport</h1>
-            <span className={styles.eyebrow}>Skills passport · Verified record</span>
-          </div>
+          <PageHeading title="Badge Passport" eyebrow="Skills passport · Verified record" />
 
           <header className={styles.identityCard}>
             <div className={styles.identityLeft}>
@@ -488,6 +487,7 @@ export default function BadgePassportPage() {
                     imageUrl={activeEntry.badge.imageUrl}
                     imagePositionX={activeEntry.badge.imagePositionX}
                     imagePositionY={activeEntry.badge.imagePositionY}
+                    imageScale={activeEntry.badge.imageScale}
                     videoUrl={activeEntry.badge.youtubeUrl}
                     alt=""
                     className={styles.entryImage}

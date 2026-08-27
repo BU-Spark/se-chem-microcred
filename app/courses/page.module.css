@@ -1,3 +1,4 @@
+/* Issues: #242 standardize headings */
 .page {
   display: flex;
   min-height: calc(100vh - 80px);
@@ -19,20 +20,6 @@
   margin-bottom: 2rem;
 }
 
-.pageTitle {
-  margin: 0;
-  font-family: Lato, sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  line-height: 1.05;
-  color: var(--checkd-black);
-}
-
-@media (max-width: 640px) {
-  .pageTitle {
-    font-size: 38px;
-  }
-}
 
 .pageSubtitle {
   margin: 0.45rem 0 0;

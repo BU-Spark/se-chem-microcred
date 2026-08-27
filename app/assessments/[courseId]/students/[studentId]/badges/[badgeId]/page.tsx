@@ -116,16 +116,11 @@ export default function AssessmentReadinessPage() {
     router.push(courseId ? `/courses/${courseId}` : '/');
   };
 
-  const memberDisplay = useMemo(() => getNameForProfile(profile?.member.name), [profile?.member.name]);
+  const memberDisplay = useMemo(() => getNameForProfile(profile?.member), [profile?.member]);
   const instructor = profile?.course.createdBy ?? null;
   const sideContact = profile?.contacts.find((contact) => contact.type === 'INSTRUCTOR') ?? instructor;
   const canStartAssessment = badgeDetail?.progress.precheckComplete === true;
   const assessmentComplete = badgeDetail?.progress.assessmentComplete === true;
-  // The server owns this gate (it mirrors the assess POST guard). Grading was
-  // previously opened on `!assessmentComplete`, which only means "no passing
-  // attempt on record" — a checker override writes a failing attempt, so the
-  // screen re-armed itself the moment the override was saved and let a checker
-  // re-grade before the student had seen any of it.
   const canAssess = badgeDetail?.progress.canAssess === true;
   const awaitingStudentReview = badgeDetail?.progress.awaitingStudentReview === true;
   const canStartNewAssessment = canStartAssessment && !assessmentComplete && canAssess;
@@ -280,7 +275,7 @@ export default function AssessmentReadinessPage() {
           <BackButton onClick={handleBack} />
 
           <header className={styles.header}>
-            <h1 className={styles.pageTitle}>{badgeDetail?.badge.name ?? 'Assessment'}</h1>
+            <h1 className="page-heading">{badgeDetail?.badge.name ?? 'Assessment'}</h1>
           </header>
 
           {isLoading ? <p className={styles.statusMessage}>Loading assessment readiness...</p> : null}
@@ -305,10 +300,6 @@ export default function AssessmentReadinessPage() {
                     </div>
                   ) : null}
 
-                  {/* The student cleared the precheck but the badge is not assessable
-                      right now. The common case is an override: the result is graded
-                      and sitting with the student, and re-grading has to wait for them
-                      to review it. Without this the screen would simply render empty. */}
                   {canStartAssessment && !canAssess && !assessmentComplete ? (
                     <div className={styles.unablePanel}>
                       <h2>{awaitingStudentReview ? 'Waiting on the student' : 'Unable to assess'}</h2>
@@ -552,7 +543,7 @@ export default function AssessmentReadinessPage() {
                         height={56}
                       />
                     ) : (
-                      <span className={styles.studentAvatarFallback}>{generateInitials(profile.member.name)}</span>
+                      <span className={styles.studentAvatarFallback}>{generateInitials(profile.member)}</span>
                     )}
                   </div>
                   <div>

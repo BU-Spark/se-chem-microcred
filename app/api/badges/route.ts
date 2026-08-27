@@ -1,3 +1,4 @@
+// Issues: #247 badge image zoom
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { Prisma } from '@prisma/client';
@@ -9,6 +10,7 @@ import { CreateBadgePayload, UpdateBadgePayload } from '@/lib/badges/types';
 import {
   BadgeImageValidationError,
   normalizeBadgeImagePosition,
+  normalizeBadgeImageScale,
   normalizeBadgeImageUrl,
 } from '@/lib/badges/badge-image';
 import {
@@ -64,6 +66,7 @@ export async function GET(req: NextRequest) {
           imageUrl: badge.imageUrl,
           imagePositionX: badge.imagePositionX,
           imagePositionY: badge.imagePositionY,
+          imageScale: badge.imageScale,
           availableOn: badge.availableOn?.toISOString() ?? null,
           closesOn: badge.closesOn?.toISOString() ?? null,
           neverCloses: badge.neverCloses ?? null,
@@ -148,6 +151,8 @@ export async function PATCH(req: NextRequest) {
     const imageUrl = normalizeBadgeImageUrl(body.imageUrl);
     const imagePositionX = normalizeBadgeImagePosition(body.imagePositionX);
     const imagePositionY = normalizeBadgeImagePosition(body.imagePositionY);
+    // Issue #247: zoom, clamped separately from the pan coordinates.
+    const imageScale = normalizeBadgeImageScale(body.imageScale);
     const skills = normalizeSkills(body.skills);
     const rubricGoal = normalizeRubricGoal(body.rubricGoal);
     const checkpoints = body.checkpoints ?? [];
@@ -181,6 +186,7 @@ export async function PATCH(req: NextRequest) {
       imageUrl,
       imagePositionX,
       imagePositionY,
+      imageScale,
       skills,
       rubricGoal,
       checkpoints,
@@ -246,6 +252,8 @@ export async function POST(req: NextRequest) {
     const imageUrl = normalizeBadgeImageUrl(body.imageUrl);
     const imagePositionX = normalizeBadgeImagePosition(body.imagePositionX);
     const imagePositionY = normalizeBadgeImagePosition(body.imagePositionY);
+    // Issue #247: zoom, clamped separately from the pan coordinates.
+    const imageScale = normalizeBadgeImageScale(body.imageScale);
     const videoTitle = normalizeString(body.videoTitle);
     const youtubeUrl = normalizeString(body.youtubeUrl);
     const checkpoints = body.checkpoints ?? [];
@@ -278,6 +286,7 @@ export async function POST(req: NextRequest) {
       imageUrl,
       imagePositionX,
       imagePositionY,
+      imageScale,
       skills,
       rubricGoal,
       checkpoints,

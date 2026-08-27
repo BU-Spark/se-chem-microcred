@@ -1,4 +1,5 @@
 /** @jest-environment node */
+// Issues: #247 badge image zoom, #258 multi-word last names
 
 import { NextRequest } from 'next/server';
 import { BadgeStatus, CourseRole, EnrollmentStatus, LessonStatus } from '@prisma/client';
@@ -53,6 +54,7 @@ function badge(id: string, name: string) {
     imageUrl: null,
     imagePositionX: 50,
     imagePositionY: 50,
+    imageScale: 115,
   };
 }
 
@@ -120,6 +122,8 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
         student: {
           id: 'prof-1',
           name: 'Professor Demo',
+          firstName: 'Professor',
+          lastName: 'Demo',
           email: 'prof@example.edu',
           externalId: 'P111',
           gender: null,
@@ -139,6 +143,8 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
         student: {
           id: 'student-1',
           name: 'Jane Student',
+          firstName: 'Jane',
+          lastName: 'Student',
           email: 'student@example.edu',
           externalId: 'U11111111',
           gender: null,

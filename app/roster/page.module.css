@@ -42,15 +42,6 @@
   flex-wrap: wrap;
 }
 
-.pageTitle {
-  margin: 0;
-  font-family: 'Lato', sans-serif;
-  font-size: 48px;
-  font-weight: 700;
-  line-height: 1.05;
-  color: var(--checkd-black);
-}
-
 .pageSubtitle {
   margin: 0;
   font-size: 1rem;
@@ -710,12 +701,6 @@
   margin: 1rem 0 1.5rem;
 }
 
-.pageTitle {
-  color: #0b1833;
-  font-size: clamp(2.1rem, 4vw, 3.25rem);
-  line-height: 1.05;
-  letter-spacing: -0.04em;
-}
 
 .pageSubtitle {
   color: #657188;

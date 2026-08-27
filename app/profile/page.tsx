@@ -11,7 +11,7 @@ import styles from './page.module.css';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
-import { splitName } from '@/lib/text/name';
+import { resolveName, splitName } from '@/lib/text/name';
 import { AnalyticsPanel } from '@/app/components/AnalyticsPanel/AnalyticsPanel';
 
 function avatarAsset(base?: string | null) {
@@ -269,7 +269,7 @@ export default function ProfilePage() {
     first: firstName,
     last: lastName,
     isFallback,
-  } = splitName(studentData?.student.name ?? user?.fullName ?? null);
+  } = studentData?.student ? resolveName(studentData.student) : splitName(user?.fullName ?? null);
 
   const greetingName = isFallback ? 'Student' : firstName;
   const studentEmail = studentData?.student.email ?? user?.primaryEmailAddress?.emailAddress ?? 'Not provided';
@@ -297,7 +297,7 @@ export default function ProfilePage() {
       <main className="main">
         <div className={styles.pageContent}>
           <header className={styles.headerRow}>
-            <h1 className={styles.pageTitle}>My Profile</h1>
+            <h1 className="page-heading">My Profile</h1>
             <span className={styles.greeting}>Hello, {greetingName}</span>
           </header>
           <div className={styles.headerRule} aria-hidden="true" />

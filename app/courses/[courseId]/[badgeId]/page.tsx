@@ -1,3 +1,4 @@
+// Issues: #258 multi-word last names
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -97,6 +98,9 @@ type StudentProgressRow = {
   student: {
     id: string;
     name: string | null;
+    // Issue #258: discrete name parts, preferred over re-splitting `name`.
+    firstName: string | null;
+    lastName: string | null;
     email: string | null;
     externalId: string | null;
   };
@@ -303,7 +307,7 @@ export default function CourseBadgeProgress() {
           <header className={styles.header}>
             <BackButton onClick={handleBackToCourse} />
             <p className={styles.eyebrow}>Badge analytics</p>
-            <h1 className={styles.pageTitle}>{badge?.name ?? course?.title ?? 'Badge'}</h1>
+            <h1 className="page-heading">{badge?.name ?? course?.title ?? 'Badge'}</h1>
           </header>
 
           {isLoading ? <p className={styles.statusMessage}>Loading badge details...</p> : null}

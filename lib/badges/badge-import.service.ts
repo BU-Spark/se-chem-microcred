@@ -76,7 +76,7 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
           imageUrl: true,
           imagePositionX: true,
           imagePositionY: true,
-          // Carry the authored assessment policy onto the course copy.
+          imageScale: true,
           reassessmentLimit: true,
           cooldownDays: true,
           reassessmentRequired: true,

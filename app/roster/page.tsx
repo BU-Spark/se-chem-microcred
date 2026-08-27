@@ -1,10 +1,9 @@
 'use client';
-
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import { splitName } from '@/lib/text/name';
+import { resolveName } from '@/lib/text/name';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
@@ -170,7 +169,7 @@ export default function StudentRosterPage() {
     return course.enrollments
       .filter((enrollment) => enrollment.role === 'CHECKER' && enrollment.status === 'PENDING')
       .map((enrollment) => {
-        const { first, last } = splitName(enrollment.student.name);
+        const { first, last } = resolveName(enrollment.student);
         return {
           enrollmentId: enrollment.id,
           name: [first, last].filter(Boolean).join(' ') || enrollment.student.email || 'Unknown',
@@ -346,7 +345,7 @@ export default function StudentRosterPage() {
     return course.enrollments
       .filter((enrollment) => enrollment.role === rosterRole && enrollment.status !== 'PENDING')
       .map((enrollment) => {
-        const { first, last } = splitName(enrollment.student.name);
+        const { first, last } = resolveName(enrollment.student);
 
         return {
           enrollmentId: enrollment.id,
@@ -474,7 +473,7 @@ export default function StudentRosterPage() {
           {courseId ? <BackButton href={`/courses/${courseId}${returnToCheckerView ? '?view=checker' : ''}`} /> : null}
 
           <header className={styles.header}>
-            <h1 className={styles.pageTitle}>{rosterLabel} Roster</h1>
+            <h1 className="page-heading">{rosterLabel} Roster</h1>
             <p className={styles.pageSubtitle}>
               {course ? (
                 <>

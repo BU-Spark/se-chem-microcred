@@ -11,6 +11,27 @@ jest.mock('@/app/components/Video/Youtube/YoutubeThumbnail', () => ({
 }));
 
 describe('BadgeImage', () => {
+  it("renders at the badge's stored zoom", () => {
+    render(<BadgeImage imageUrl="data:image/png;base64,YWJj" imageScale={200} alt="Zoomed" />);
+    expect(screen.getByRole('img', { name: 'Zoomed' })).toHaveStyle({
+      transform: 'scale(2) translate(0%, 0%)',
+    });
+  });
+
+  it('falls back to the legacy fixed crop when no zoom is stored', () => {
+    render(<BadgeImage imageUrl="data:image/png;base64,YWJj" alt="Legacy" />);
+    expect(screen.getByRole('img', { name: 'Legacy' })).toHaveStyle({
+      transform: 'scale(1.15) translate(0%, 0%)',
+    });
+  });
+
+  it('never zooms below 100%, which would leave a gap at the edge of the circle', () => {
+    render(<BadgeImage imageUrl="data:image/png;base64,YWJj" imageScale={10} alt="Clamped" />);
+    expect(screen.getByRole('img', { name: 'Clamped' })).toHaveStyle({
+      transform: 'scale(1) translate(0%, 0%)',
+    });
+  });
+
   it('prefers uploaded badge artwork', () => {
     render(
       <BadgeImage

@@ -91,7 +91,7 @@ export default function MyBadgesPage() {
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
-        <h1 className={styles.pageTitle}>Badges</h1>
+        <h1 className="page-heading">Badges</h1>
 
         <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
           Create New Badge
@@ -127,6 +127,7 @@ export default function MyBadgesPage() {
                         imageUrl={badge.imageUrl}
                         imagePositionX={badge.imagePositionX}
                         imagePositionY={badge.imagePositionY}
+                        imageScale={badge.imageScale}
                         videoUrl={videoUrl}
                         alt={`${badge.name} thumbnail`}
                         className={styles.badgeTokenImage}

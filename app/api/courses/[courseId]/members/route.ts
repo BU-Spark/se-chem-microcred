@@ -56,7 +56,15 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
       const email = normalize(member.email)?.toLowerCase() ?? null;
       const externalId = normalize(member.externalId);
       const sections = parseSections(member.sections);
-      return { name: [firstName, lastName].filter(Boolean).join(' ') || null, email, externalId, sections };
+
+      return {
+        name: [firstName, lastName].filter(Boolean).join(' ') || null,
+        firstName,
+        lastName,
+        email,
+        externalId,
+        sections,
+      };
     });
 
     if (members.length === 0) {
@@ -92,7 +100,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
           const key = member.externalId || member.email;
           return entries.findIndex((candidate) => (candidate.externalId || candidate.email) === key) === index;
         })
-        .map(({ name, email, externalId }) => ({ name, email, externalId }));
+        .map(({ name, firstName, lastName, email, externalId }) => ({
+          name,
+          firstName,
+          lastName,
+          email,
+          externalId,
+        }));
       if (newUsers.length) {
         await tx.user.createMany({ data: newUsers, skipDuplicates: true });
         users = await tx.user.findMany({
@@ -108,6 +122,37 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
           if (user.email) byEmail.set(user.email.toLowerCase(), user);
         }
       }
+
+      const nameRepairs = new Set<string>();
+      const externalIdRepairs = new Set<string>();
+      const repairs: Prisma.PrismaPromise<unknown>[] = [];
+
+      for (const member of members) {
+        const user = resolveUser(member);
+        if (!user) continue;
+
+        if (member.firstName && !user.firstName && !nameRepairs.has(user.id)) {
+          nameRepairs.add(user.id);
+          repairs.push(
+            tx.user.updateMany({
+              where: { id: user.id, firstName: null },
+              data: { name: member.name, firstName: member.firstName, lastName: member.lastName },
+            })
+          );
+        }
+
+        if (member.externalId && !user.externalId && !externalIdRepairs.has(user.id)) {
+          externalIdRepairs.add(user.id);
+          repairs.push(
+            tx.user.updateMany({
+              where: { id: user.id, externalId: null },
+              data: { externalId: member.externalId },
+            })
+          );
+        }
+      }
+
+      if (repairs.length) await Promise.all(repairs);
 
       const uniqueMembers = new Map<
         string,
