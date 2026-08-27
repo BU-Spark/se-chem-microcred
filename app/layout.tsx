@@ -17,16 +17,6 @@ export const metadata: Metadata = {
   title: 'checkd',
   description: 'checkd app - Micro-credential platform',
   keywords: ['Chemistry', 'Micro-credential', 'Student Experience', 'Student', 'Instructor'],
-  icons: [
-    {
-      url: '/icon.svg',
-      type: 'image/svg+xml',
-    },
-    {
-      url: '/favicon.ico',
-      type: 'image/x-icon',
-    },
-  ],
 };
 
 // Every route is auth-gated and renders client-side from the Clerk session +
