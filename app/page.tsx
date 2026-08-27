@@ -23,6 +23,11 @@ import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg'
 import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
 import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+
+const COURSE_TAB_STORAGE_KEY = 'dashboardCourseTab';
+type CourseTab = 'instructor' | 'enrolled' | 'checker';
+const isCourseTab = (value: string): value is CourseTab =>
+  value === 'instructor' || value === 'enrolled' || value === 'checker';
 import BackButton from '@/app/components/BackButton/BackButton';
 import CourseTileImage from '@/app/components/Courses/CourseTileImage';
 import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
@@ -315,7 +320,15 @@ function HomeContent() {
   const checkerCoursesError = coursesError;
 
   const [isSigningOut, setIsSigningOut] = useState(false);
-  const [activeCourseTab, setActiveCourseTab] = useState<'instructor' | 'enrolled' | 'checker'>('enrolled');
+  const [activeCourseTab, setActiveCourseTab] = useState<CourseTab>('enrolled');
+  useEffect(() => {
+    const stored = window.localStorage.getItem(COURSE_TAB_STORAGE_KEY);
+    if (stored && isCourseTab(stored)) setActiveCourseTab(stored);
+  }, []);
+  const selectCourseTab = useCallback((tab: CourseTab) => {
+    setActiveCourseTab(tab);
+    window.localStorage.setItem(COURSE_TAB_STORAGE_KEY, tab);
+  }, []);
   const [activeSurvey, setActiveSurvey] = useState<{
     promptId: string;
     badgeId: string;
@@ -777,7 +790,7 @@ function HomeContent() {
                 aria-selected={activeCourseTab === tab.id}
                 aria-controls={`course-panel-${tab.id}`}
                 className={`${styles.courseTab} ${activeCourseTab === tab.id ? styles.courseTabActive : ''}`}
-                onClick={() => setActiveCourseTab(tab.id)}
+                onClick={() => selectCourseTab(tab.id)}
               >
                 <Icon icon={tab.icon} className={styles.courseTabIcon} aria-hidden="true" />
                 <span>{tab.label}</span>
