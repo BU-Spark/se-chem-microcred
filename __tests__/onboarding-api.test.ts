@@ -75,4 +75,24 @@ describe('onboarding API', () => {
       })
     );
   });
+
+  // This route is the only writer of onboardedAt, and the flag is the only thing
+  // that lifts the OnboardingGate redirect. If it stops being stamped, every user
+  // silently loops back into onboarding on their next page load.
+  it('stamps onboardedAt on both the create and update paths', async () => {
+    const response = await postOnboarding({ firstName: 'Ada', lastName: 'Lovelace', avatarBase: 'SAPPHIRE' });
+    expect(response.status).toBe(200);
+
+    const args = mockPrisma.user.upsert.mock.calls[0][0];
+    expect(args.create.onboardedAt).toBeInstanceOf(Date);
+    // Stamped on update too, so a user finishing after an interrupted sign-up --
+    // whose row ensureCurrentUser() already provisioned -- also clears the gate.
+    expect(args.update.onboardedAt).toBeInstanceOf(Date);
+  });
+
+  it('does not stamp onboardedAt when validation rejects the payload', async () => {
+    const response = await postOnboarding({ firstName: 'Ada' });
+    expect(response.status).toBe(400);
+    expect(mockPrisma.user.upsert).not.toHaveBeenCalled();
+  });
 });

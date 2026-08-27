@@ -5,6 +5,7 @@ import './globals.css';
 import { DatabaseDisplayNameProvider } from '@/app/components/Profile/DatabaseDisplayNameProvider';
 import { ErrorBoundary } from './components/ErrorBoundary/ErrorBoundary';
 import { GlobalHeader } from './components/GlobalHeader'; // 👈 NEW
+import OnboardingGate from './components/OnboardingGate';
 
 const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY;
 
@@ -36,6 +37,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         <body>
           <ErrorBoundary>
+            {/* Server-side redirect for anyone who never completed onboarding.
+                Renders nothing; must stay above the app content so the redirect
+                happens before any of it is streamed. */}
+            <OnboardingGate />
             <DatabaseDisplayNameProvider>
               <GlobalHeader />
               <div className="main-content-container">{children}</div>

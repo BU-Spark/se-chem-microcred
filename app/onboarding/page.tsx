@@ -62,12 +62,6 @@ export default function OnboardingPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    if (isLoaded && !isSignedIn) {
-      router.replace('/sign-in');
-    }
-  }, [isLoaded, isSignedIn, router]);
-
   // Prefill name from the Clerk profile when available.
   useEffect(() => {
     if (!user) return;

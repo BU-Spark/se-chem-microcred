@@ -19,6 +19,15 @@ model User {
   raceEthnicity       String?
   parentalEducation   String?
   pellGrantQualified  Boolean?
+  // Issue: onboarding was gated only by <SignUp forceRedirectUrl>, a client-side
+  // prop that silently no-ops whenever sign-up completes anywhere other than that
+  // mounted component (email-code verification finished in another tab, an
+  // interrupted password sign-up, a roster-imported student's first login). No
+  // durable state recorded whether the flow ran, and ensureCurrentUser() provisions
+  // a row on any page load, so a skip was permanent and indistinguishable from a
+  // completed onboarding. This column is that missing state: set once, by
+  // POST /api/onboarding, and never written by the lazy-provisioning path.
+  onboardedAt         DateTime?
   createdAt           DateTime             @default(now())
   updatedAt           DateTime             @updatedAt
   enrollments         Enrollment[]
