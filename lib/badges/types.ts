@@ -8,6 +8,7 @@ export type CreateBadgePayload = {
   imageUrl?: string | null;
   imagePositionX?: number | string | null;
   imagePositionY?: number | string | null;
+  imageScale?: number | string | null;
   skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;
@@ -30,6 +31,7 @@ export type UpdateBadgePayload = {
   imageUrl?: string | null;
   imagePositionX?: number | string | null;
   imagePositionY?: number | string | null;
+  imageScale?: number | string | null;
   skills?: string[] | null;
   availableOn?: string | null;
   closesOn?: string | null;

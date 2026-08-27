@@ -279,6 +279,7 @@ export async function executeFetchBadges(args: FetchBadgesArgs) {
       imageUrl: true,
       imagePositionX: true,
       imagePositionY: true,
+      imageScale: true,
       availableOn: true,
       closesOn: true,
       neverCloses: true,
@@ -360,6 +361,7 @@ export interface CreateBadgeArgs {
   imageUrl: string | null;
   imagePositionX: number;
   imagePositionY: number;
+  imageScale: number;
   videoTitle: string | null;
   youtubeVideoUrl: string | null;
   checkpoints: CheckpointPayload[];
@@ -386,6 +388,7 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
     imageUrl,
     imagePositionX,
     imagePositionY,
+    imageScale,
     videoTitle,
     youtubeVideoUrl,
     checkpoints,
@@ -441,6 +444,7 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
           imageUrl,
           imagePositionX,
           imagePositionY,
+          imageScale,
           availableOn,
           closesOn,
           neverCloses,
@@ -473,6 +477,7 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
             imageUrl,
             imagePositionX,
             imagePositionY,
+            imageScale,
             availableOn,
             closesOn,
             neverCloses,
@@ -608,6 +613,7 @@ interface PatchBadgeArgs {
   imageUrl: string | null;
   imagePositionX: number;
   imagePositionY: number;
+  imageScale: number;
   editorId: string;
   skills: string[];
   rubricGoal: NormalizedRubricGoal;
@@ -622,7 +628,6 @@ interface PatchBadgeArgs {
   videoSeconds: number | null;
   thumbnailUrl?: string | null;
   passingPercentage: number | null;
-  // Authored assessment policy that flows to students via inheritance.
   badgePolicy?: BadgePolicy;
 }
 
@@ -635,6 +640,7 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
     imageUrl,
     imagePositionX,
     imagePositionY,
+    imageScale,
     skills,
     rubricGoal,
     checkpoints,
@@ -661,6 +667,7 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
         imageUrl,
         imagePositionX,
         imagePositionY,
+        imageScale,
         availableOn,
         closesOn,
         neverCloses,
@@ -678,6 +685,7 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
         imageUrl,
         imagePositionX,
         imagePositionY,
+        imageScale,
         availableOn,
         closesOn,
         neverCloses,
