@@ -22,6 +22,7 @@ function formatBadge(
     imageUrl: string | null;
     imagePositionX: number;
     imagePositionY: number;
+    imageScale: number;
   },
   summary?: string | null
 ) {
@@ -33,6 +34,7 @@ function formatBadge(
     imageUrl: badge.imageUrl,
     imagePositionX: badge.imagePositionX,
     imagePositionY: badge.imagePositionY,
+    imageScale: badge.imageScale,
     youtubeUrl: youtubeUrlFromSummary(summary),
   };
 }
@@ -121,7 +123,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       },
       include: {
         sections: { select: { section: true } },
-        student: { select: { id: true, name: true, email: true } },
+        student: { select: { id: true, name: true, firstName: true, lastName: true, email: true } },
       },
     });
 
@@ -138,6 +140,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         id: staff.id,
         type: staff.role === CourseRole.INSTRUCTOR ? CourseRole.INSTRUCTOR : CourseRole.CHECKER,
         name: staff.student.name ?? staff.student.email ?? 'Unknown',
+
+        firstName: staff.student.firstName,
+        lastName: staff.student.lastName,
         email: staff.student.email ?? '',
         avatarUrl: null,
       }));
@@ -250,6 +255,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         member: {
           id: member.id,
           name: member.name,
+          firstName: member.firstName,
+          lastName: member.lastName,
           email: member.email,
           externalId: member.externalId,
           gender: member.gender,

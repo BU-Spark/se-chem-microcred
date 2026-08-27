@@ -748,7 +748,7 @@ function HomeContent() {
 
       <main className={`main ${styles.main}`}>
         <header className={styles.welcomeHeader}>
-          <h1 className={styles.welcomeTitle}>Dashboard</h1>
+          <h1 className="page-heading">Dashboard</h1>
           <p className={styles.welcomeSubtitle}>Manage the courses you teach, take, and review.</p>
         </header>
 

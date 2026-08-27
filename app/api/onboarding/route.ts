@@ -62,11 +62,15 @@ export async function POST(request: Request) {
       where: { email },
       update: {
         name,
+        firstName,
+        lastName,
         ...demographics,
       },
       create: {
         email,
         name,
+        firstName,
+        lastName,
         ...demographics,
       },
       select: { id: true, name: true },

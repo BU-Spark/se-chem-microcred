@@ -17,6 +17,7 @@ import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
 import { isLessonReleased, lessonReleaseDate } from '../../../../lib/lessonVisibility';
 import { lessonDeadline } from '../../../../lib/badgeAvailability';
 import { deriveCatalogLessonStatus } from '../../../../lib/lessonStatus';
+import { resolveName, type NamedPerson } from '../../../../lib/text/name';
 
 function avatarPathForBase(base?: string | null): string {
   switch (base) {
@@ -32,22 +33,12 @@ function avatarPathForBase(base?: string | null): string {
   }
 }
 
-// Converts a stored "First Last" name into the "Last, First" display format the designs use.
-// Names already containing a comma are assumed to be in the desired format and left as-is.
-function formatLastFirst(fullName?: string | null) {
-  if (!fullName) return null;
-  const trimmed = fullName.trim();
-  if (!trimmed) return null;
-  if (trimmed.includes(',')) return trimmed;
-  const parts = trimmed.split(/\s+/);
-  if (parts.length === 1) return parts[0];
-  const last = parts[parts.length - 1];
-  const first = parts.slice(0, -1).join(' ');
-  return `${last}, ${first}`;
+function formatLastFirst(person?: NamedPerson | null) {
+  const { first, last, isFallback } = resolveName(person);
+  if (isFallback) return null;
+  return last ? `${last}, ${first}` : first || null;
 }
 
-// Shared by both studentBadge reads below — the initial load and the refetch that
-// follows a badge sync. They must stay identical or formatBadge sees two shapes.
 const STUDENT_BADGE_INCLUDE = {
   badge: {
     include: {
@@ -94,6 +85,7 @@ function formatBadge(
       imageUrl: string | null;
       imagePositionX: number;
       imagePositionY: number;
+      imageScale: number;
       requirements: Array<{
         lessonId: string | null;
         summary: string | null;
@@ -120,6 +112,7 @@ function formatBadge(
     imageUrl: studentBadge.badge.imageUrl,
     imagePositionX: studentBadge.badge.imagePositionX,
     imagePositionY: studentBadge.badge.imagePositionY,
+    imageScale: studentBadge.badge.imageScale,
     status: studentBadge.status,
     awardedAt: studentBadge.awardedAt?.toISOString() ?? null,
     score: studentBadge.score ?? null,
@@ -383,7 +376,16 @@ export async function GET(req: Request) {
           },
           include: {
             sections: true,
-            student: { select: { id: true, name: true, email: true, avatar: { select: { base: true } } } },
+            student: {
+              select: {
+                id: true,
+                name: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                avatar: { select: { base: true } },
+              },
+            },
           },
         })
       : Promise.resolve([]),
@@ -400,6 +402,7 @@ export async function GET(req: Request) {
             imageUrl: true,
             imagePositionX: true,
             imagePositionY: true,
+            imageScale: true,
           },
         })
       : Promise.resolve([]),
@@ -494,7 +497,7 @@ export async function GET(req: Request) {
     .map((staff) => ({
       id: staff.id,
       type: staff.role === CourseRole.INSTRUCTOR ? CourseContactType.INSTRUCTOR : CourseContactType.CHECKER,
-      name: formatLastFirst(staff.student.name) ?? staff.student.email ?? 'Unknown',
+      name: formatLastFirst(staff.student) ?? staff.student.email ?? 'Unknown',
       email: staff.student.email ?? '',
       avatarUrl: avatarPathForBase(staff.student.avatar?.base),
     }));
@@ -781,6 +784,8 @@ export async function GET(req: Request) {
     student: {
       id: student.id,
       name: student.name,
+      firstName: student.firstName,
+      lastName: student.lastName,
       email: student.email,
       externalId: student.externalId,
       gender: student.gender,

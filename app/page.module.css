@@ -798,10 +798,6 @@
 }
 
 
-.welcomeTitle {
-  composes: heading from './components/PageHeading/PageHeading.module.css';
-}
-
 .welcomeSubtitle {
   margin: 0.55rem 0 0;
   font-family: 'Open Sans', sans-serif;
