@@ -14,8 +14,8 @@ if (!clerkPublishableKey) {
 }
 
 export const metadata: Metadata = {
-  title: 'Checkd',
-  description: 'Checkd app - Micro-credential platform',
+  title: 'checkd',
+  description: 'checkd app - Micro-credential platform',
   keywords: ['Chemistry', 'Micro-credential', 'Student Experience', 'Student', 'Instructor'],
 };
 
