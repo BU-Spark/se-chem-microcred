@@ -184,12 +184,6 @@ describe('Course dashboard page', () => {
     refresh: jest.fn(),
   });
 
-  // Issue #194: a completed badge lesson's "Review" points at the badge feedback page,
-  // which is where the review material lives — in every assessment state, not just the
-  // failing one. Routing can't key off badge status: a failed badge only sits at
-  // IN_REVIEW until the feedback is acknowledged, then drops to READY_FOR_ASSESSMENT or
-  // LOCKED, and the state machine backfill put every pre-existing failed badge at
-  // READY_FOR_ASSESSMENT.
   it.each([
     ['passed the assessment (badge COMPLETED)', 'COMPLETED', 'completed', true],
     ['failed, feedback not yet acknowledged (badge IN_REVIEW)', 'IN_REVIEW', 'inReview', false],
@@ -221,24 +215,12 @@ describe('Course dashboard page', () => {
   });
 
   it.each([
-    [
-      'awaiting a first assessment',
-      'READY_FOR_ASSESSMENT',
-      null,
-      'Assessment in progress',
-      'Pick up where you left off',
-    ],
-    ['awaiting failed-feedback review', 'IN_REVIEW', false, 'In review', 'Pick up where you left off'],
-    ['awaiting passed-feedback review and rating', 'IN_REVIEW', true, 'In review', 'Pick up where you left off'],
-    ['out of assessment attempts', 'LOCKED', false, 'Video lesson in progress', 'Pick up where you left off'],
+    ['awaiting a first assessment', 'READY_FOR_ASSESSMENT', null, 'Ready for assessment', 'In progress'],
+    ['awaiting failed-feedback review', 'IN_REVIEW', false, 'In review', 'In progress'],
+    ['awaiting passed-feedback review and rating', 'IN_REVIEW', true, 'In review', 'In progress'],
+    ['out of assessment attempts', 'LOCKED', false, 'Locked', 'In progress'],
     ['has earned the badge', 'COMPLETED', true, 'Completed', 'Completed'],
-    [
-      'finished the lesson but still owes lesson feedback',
-      'LEARNING',
-      null,
-      'Video lesson in progress',
-      'Pick up where you left off',
-    ],
+    ['finished the lesson but still owes lesson feedback', 'LEARNING', null, 'Still learning', 'In progress'],
   ])(
     'shows the consolidated badge state under the correct section when the student is %s',
     async (_label, status, passed, text, sectionTitle) => {
@@ -269,8 +251,8 @@ describe('Course dashboard page', () => {
 
     render(<CourseDashboardPage />);
 
-    const statusText = await screen.findByText('Assessment in progress');
-    expect(statusText.closest('section')).toHaveTextContent('Pick up where you left off');
+    const statusText = await screen.findByText('Ready for assessment');
+    expect(statusText.closest('section')).toHaveTextContent('In progress');
   });
 
   // Start/Continue drop the student straight into the video + checkpoint questions,

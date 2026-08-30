@@ -152,6 +152,10 @@
   display: flex;
   align-items: center;
   gap: 20px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
 
   width: 654px;
   height: 102px;
@@ -384,7 +388,7 @@
    ========================= */
 .dashboardGrid {
   display: grid;
-  grid-template-columns: minmax(0, 2.2fr) minmax(280px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: clamp(1.5rem, 3vw, 2.5rem);
   align-items: start;
 }
