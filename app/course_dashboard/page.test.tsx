@@ -33,8 +33,6 @@ jest.mock('next/image', () => ({
 }));
 
 jest.mock('../hooks/useStudentData', () => {
-  // Stable identity: the component lists this in effect/callback dependency
-  // arrays, so a fresh jest.fn() per render would re-fire them every commit.
   const refreshAllStudentData = jest.fn();
   return {
     useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
@@ -108,8 +106,6 @@ describe('Course dashboard page', () => {
   });
 
   it('uses the badge requirement video for the card image when the lesson has no segment video', async () => {
-    // Badge videos live on badgeRequirements[].youtubeUrl, not on a segment (bug #14).
-    // A badge-only lesson must resolve to the YouTube thumbnail, not the ChemSkills dummy.
     mockUseStudentData.mockReturnValue({
       data: {
         student: { name: 'Student Demo', email: 'student@example.edu' },
@@ -255,12 +251,10 @@ describe('Course dashboard page', () => {
     expect(statusText.closest('section')).toHaveTextContent('In progress');
   });
 
-  // Start/Continue drop the student straight into the video + checkpoint questions,
-  // never the lesson preview page.
   it.each([
-    ['not started', 'NOT_STARTED', 'upNext', 'Start'],
-    ['in progress', 'IN_PROGRESS', 'inProgress', 'Continue'],
-  ])('routes a %s lesson to the QEV route', async (_label, status, bucket, action) => {
+    ['not started', 'NOT_STARTED', 'upNext', 'Start', '/lessons/lab-safety?courseId=course-2'],
+    ['in progress', 'IN_PROGRESS', 'inProgress', 'Continue', '/lessons/lab-safety/video?courseId=course-2'],
+  ])('routes a %s lesson to the right destination', async (_label, status, bucket, action, expectedHref) => {
     mockUseStudentData.mockReturnValue({
       data: {
         student: { name: 'Student Demo', email: 'student@example.edu' },
@@ -280,17 +274,9 @@ describe('Course dashboard page', () => {
     render(<CourseDashboardPage />);
 
     const link = await screen.findByRole('link', { name: action });
-    expect(link.getAttribute('href')).toBe('/lessons/lab-safety/video?courseId=course-2');
+    expect(link.getAttribute('href')).toBe(expectedHref);
   });
 
-  // SurveyResponse has no unique key on (promptId, studentId) and the route does
-  // find-then-write, so two overlapping submits each insert a row and the student's
-  // rating counts twice. The route's IN_REVIEW -> COMPLETED guard already covers
-  // sequential clicks; the button has to cover the concurrent ones.
-  //
-  // This modal is reached only by landing on /course_dashboard?surveyBadge=<slug>.
-  // The in-app finalize flow ("Review & Finalize") routes to the badge feedback
-  // page instead, which has its own guard — so this path is defensive.
   it('blocks a second survey submit while the first is still in flight', async () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams({ courseId: 'course-2', surveyBadge: 'safety' }));
 
@@ -328,19 +314,14 @@ describe('Course dashboard page', () => {
 
     const callsBeforeSecondClick = submitFetch.mock.calls.length;
 
-    // The impatient second click a student makes when nothing appears to happen.
     fireEvent.click(screen.getByRole('button', { name: 'Submitting…' }));
     expect(submitFetch.mock.calls.length).toBe(callsBeforeSecondClick);
     expect(submitFetch.mock.calls.filter((call) => String(call[0]).includes('/survey'))).toHaveLength(1);
 
-    // Let the in-flight submit settle so its state updates land inside the test.
     releaseSubmit({ ok: true, json: async () => ({}) });
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Submitting…' })).not.toBeInTheDocument());
   });
 
-  // A waived badge leaves lesson progress untouched by design, so the lesson stays
-  // in "Pick up where you left off" while the badge reports itself assessable. The
-  // note is what stops those two true statements reading as a contradiction.
   describe('a waived QEV requirement', () => {
     const waivedData = (qevWaivedAt: string | null) => ({
       data: {
@@ -392,9 +373,6 @@ describe('Course dashboard page', () => {
     });
   });
 
-  // "Ready to finalize" is a per-course list. The API scopes it too, but a badge
-  // finalizable in course A used to render on every other course's dashboard, so
-  // both sources are filtered here as well.
   describe('a badge ready to finalize in a different course', () => {
     const readyBadge = (courseId: string | null) => ({
       ...makeBadge('safety', 'IN_REVIEW', true),
@@ -418,8 +396,8 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(await screen.findByText('No badges ready to finalize right now.')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Review & Finalize' })).not.toBeInTheDocument();
+      expect(await screen.findByText('No lessons ready to start.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /to finalize/i })).not.toBeInTheDocument();
     });
 
     it('stays out when it arrives as a pending survey instead', async () => {
@@ -443,7 +421,8 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(await screen.findByText('No badges ready to finalize right now.')).toBeInTheDocument();
+      expect(await screen.findByText('No lessons ready to start.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /to finalize/i })).not.toBeInTheDocument();
     });
 
     it('still shows a badge that belongs to this course', async () => {
@@ -451,7 +430,9 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(await screen.findByRole('button', { name: 'Review & Finalize' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('button', { name: 'Review feedback for Safety to finalize it.' })
+      ).toBeInTheDocument();
     });
 
     it('still shows a badge with no derivable course, which belongs to no course', async () => {
@@ -461,7 +442,9 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(await screen.findByRole('button', { name: 'Review & Finalize' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('button', { name: 'Review feedback for Safety to finalize it.' })
+      ).toBeInTheDocument();
     });
   });
 });

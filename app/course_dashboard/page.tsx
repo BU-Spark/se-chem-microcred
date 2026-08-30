@@ -199,22 +199,14 @@ function lessonRecordToCard(
   const variant: LessonCard['variant'] =
     record.status === 'COMPLETED' ? 'completed' : record.status === 'IN_PROGRESS' ? 'continue' : 'start';
 
-  // Where the card's action button goes (issue #194). Neither destination is the
-  // lesson preview page at /lessons/<slug> — the dashboard never wants that.
-  //
-  // Completed: the badge feedback page, which holds the review material and any
-  // assessment results. This holds regardless of assessment state; see
-  // startedBadgeSlugs for why only started badges qualify.
-  //
-  // Start/Continue: straight into the QEV route — the video plus its checkpoint
-  // questions — rather than the preview. A completed lesson whose badge isn't
-  // resolvable falls back here too; the QEV route re-enters it in review mode.
   const badgeSlug = record.badgeRequirements?.[0]?.badgeSlug ?? null;
   const badgeStarted = badgeSlug ? (startedBadgeSlugs?.has(badgeSlug) ?? false) : false;
   const href =
-    record.status === 'COMPLETED' && badgeSlug && badgeStarted
-      ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
-      : `/lessons/${record.slug}/video`;
+    record.status === 'NOT_STARTED'
+      ? `/lessons/${record.slug}`
+      : record.status === 'COMPLETED' && badgeSlug && badgeStarted
+        ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
+        : `/lessons/${record.slug}/video`;
 
   // Name the badge rather than the lesson: the student's question is "why can I be
   // assessed when I haven't finished this?", and the badge is the thing that moved.
