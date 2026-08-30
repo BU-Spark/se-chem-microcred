@@ -40,6 +40,10 @@ const NAV_ICONS: Record<string, string> = {
   '/profile': 'lucide:user-round',
 };
 
+//Currently unpublished - remind Kaylin to publish
+const SUPPORT_FORM_URL =
+  'https://docs.google.com/forms/d/e/1FAIpQLSc8-7hXjs-GqBMEpHUPxOXWOIDtmtEuGO86Kmyo7nLG4t_fIA/viewform?usp=header';
+
 export const SIDEBAR_NAV: NavItem[] = [
   { label: 'Dashboard', href: '/' },
   { label: 'Created Badges', href: '/my_badges' },
@@ -158,6 +162,10 @@ export default function Sidebar({ navItems, displayName, onSignOut, isSigningOut
 
         {/* Footer */}
         <div className={styles.sidebarFooter}>
+          <a href={SUPPORT_FORM_URL} target="_blank" rel="noopener noreferrer" className={styles.signOffButton}>
+            <Icon icon="lucide:life-buoy" className={styles.signOffIcon} aria-hidden="true" />
+            Support
+          </a>
           <button type="button" onClick={onSignOut} className={styles.signOffButton} disabled={isSigningOut}>
             <Icon icon="lucide:log-out" className={styles.signOffIcon} aria-hidden="true" />
             {isSigningOut ? 'Signing off…' : 'Sign off'}
