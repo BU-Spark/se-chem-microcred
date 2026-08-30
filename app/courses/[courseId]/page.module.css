@@ -1183,6 +1183,12 @@
 .availability strong[data-tone='scheduled']::before {
   background: #e68a17;
 }
+.availability strong[data-tone='closed'] {
+  color: #657188;
+}
+.availability strong[data-tone='closed']::before {
+  background: #8b95a7;
+}
 .badgeReminderButton,
 .badgeUnassignButton {
   min-height: 2.5rem;

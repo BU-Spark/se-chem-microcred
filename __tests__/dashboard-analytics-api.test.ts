@@ -1,4 +1,3 @@
-// Issues: #258 multi-word last names
 import { GET } from '@/app/api/dashboard/analytics/route';
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import prisma from '@/lib/prisma';
@@ -69,9 +68,6 @@ describe('GET /api/dashboard/analytics', () => {
       .mockResolvedValueOnce(1);
     (mockPrisma.enrollment.count as jest.Mock).mockResolvedValue(3);
     (mockPrisma.badge.count as jest.Mock).mockResolvedValueOnce(4).mockResolvedValueOnce(2);
-    // No badge-backed requirement, so each lesson falls back to its own LessonStatus
-    // — the pre-badge behaviour, kept here so this payload test stays about the
-    // payload. Badge-window handling has its own test below.
     (mockPrisma.lesson.findMany as jest.Mock).mockResolvedValue([
       { id: 'l1', courseId: 'student-1', progress: [], badgeRequirements: [] },
       { id: 'l2', courseId: 'student-1', progress: [{ status: 'IN_PROGRESS' }], badgeRequirements: [] },
@@ -125,9 +121,6 @@ describe('GET /api/dashboard/analytics', () => {
       .mockResolvedValueOnce([{ id: 'active-checker-badge', requirements: [{ lesson: { courseId: 'checked-1' } }] }]);
   });
 
-  // Issue #271: a badge the student cannot act on yet (or any more) must not pad the
-  // "Not started" figure on the course card. The student API already hid unreleased
-  // lessons; this route counted every lesson in the course regardless.
   it('leaves scheduled and closed badges out of the student lesson counts', async () => {
     const badge = (overrides: Record<string, unknown>) => ({
       id: 'b-x',

@@ -568,4 +568,99 @@ describe('Created course detail page', () => {
     expect(await screen.findByText('The badge has been added to this course.')).toBeInTheDocument();
     expect(await screen.findByText('Bunsen Burner Badge')).toBeInTheDocument();
   });
+
+  describe('badge availability', () => {
+    const courseWithBadges = (badges: Array<Record<string, unknown>>) => ({
+      ok: true,
+      json: async () => ({
+        viewerRole: 'INSTRUCTOR',
+        course: {
+          id: 'course-1',
+          code: 'CHEM101',
+          title: 'Chemistry 101',
+          description: null,
+          sectionCount: 1,
+          createdAt: '2026-04-01T00:00:00.000Z',
+          createdBy: { id: 'user-1', name: 'Professor Demo', email: 'prof@example.edu', externalId: 'U1234567' },
+          settings: null,
+          contacts: [],
+          enrollments: [],
+          lessons: [
+            {
+              id: 'lesson-1',
+              slug: 'lesson-1',
+              title: 'Lesson 1',
+              summary: 'Summary',
+              thumbnailUrl: null,
+              sortOrder: 0,
+              badgeRequirements: badges.map((badge, index) => ({
+                id: `requirement-${index}`,
+                summary: null,
+                badge: {
+                  description: null,
+                  availableOn: null,
+                  closesOn: null,
+                  neverCloses: false,
+                  createdAt: '2026-04-01T00:00:00.000Z',
+                  ...badge,
+                },
+              })),
+            },
+          ],
+        },
+      }),
+    });
+
+    const closedBadge = {
+      id: 'badge-closed',
+      slug: 'closed',
+      name: 'Waste Badge',
+      closesOn: '2000-01-01T00:00:00.000Z',
+    };
+
+    // Issue #278: a badge past its close date read "Available / Closes <past date>".
+    it('marks a badge past its close date as closed', async () => {
+      mockFetch.mockResolvedValue(courseWithBadges([closedBadge]));
+
+      render(<CreatedCourseDetailPage />);
+
+      expect(await screen.findByText('Closed')).toBeInTheDocument();
+      expect(screen.queryByText('Available')).not.toBeInTheDocument();
+    });
+
+    it('leaves an open badge available and a future one scheduled', async () => {
+      mockFetch.mockResolvedValue(
+        courseWithBadges([
+          { id: 'badge-open', slug: 'open', name: 'Open Badge', closesOn: '2099-01-01T00:00:00.000Z' },
+          { id: 'badge-later', slug: 'later', name: 'Later Badge', availableOn: '2099-01-01T00:00:00.000Z' },
+        ])
+      );
+
+      render(<CreatedCourseDetailPage />);
+
+      expect(await screen.findByText('Available')).toBeInTheDocument();
+      expect(screen.getByText('Scheduled')).toBeInTheDocument();
+      expect(screen.queryByText('Closed')).not.toBeInTheDocument();
+    });
+
+    // The checker dashboard is this same page under ?view=checker.
+    it('marks a closed badge the same way in the checker view', async () => {
+      mockUseSearchParams.mockReturnValue(new URLSearchParams('view=checker'));
+      mockFetch.mockResolvedValue(courseWithBadges([closedBadge]));
+
+      render(<CreatedCourseDetailPage />);
+
+      expect(await screen.findByText('Closed')).toBeInTheDocument();
+      expect(screen.queryByText('Available')).not.toBeInTheDocument();
+    });
+
+    it('respects neverCloses even with a past close date', async () => {
+      mockFetch.mockResolvedValue(courseWithBadges([{ ...closedBadge, neverCloses: true }]));
+
+      render(<CreatedCourseDetailPage />);
+
+      expect(await screen.findByText('Available')).toBeInTheDocument();
+      expect(screen.queryByText('Closed')).not.toBeInTheDocument();
+    });
+  });
 });
