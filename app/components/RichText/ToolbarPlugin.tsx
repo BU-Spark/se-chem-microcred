@@ -242,7 +242,7 @@ export default function ToolbarPlugin({ variant = 'full' }: { variant?: 'full' |
         aria-pressed={isSubscript}
         title="Subscript"
       >
-        X<sub>2</sub>
+        <Icon icon="lucide:subscript" width={18} height={18} />
       </button>
       <button
         type="button"
@@ -252,7 +252,7 @@ export default function ToolbarPlugin({ variant = 'full' }: { variant?: 'full' |
         aria-pressed={isSuperscript}
         title="Superscript"
       >
-        X<sup>2</sup>
+        <Icon icon="lucide:superscript" width={18} height={18} />
       </button>
       {variant === 'full' ? (
         <button
