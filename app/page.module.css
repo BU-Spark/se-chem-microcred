@@ -773,24 +773,6 @@
 /* =========================
    Welcome header + brand (Figma)
    ========================= */
-.welcomeHeader {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  /* leave clearance for the absolutely-positioned global checkd logo (top:32 right:48) */
-  padding-right: 180px;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #dfe4ea;
-}
-
-
-.welcomeSubtitle {
-  margin: 0.55rem 0 0;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 1rem;
-  color: #647184;
-  line-height: 1.55;
-}
 
 /* =========================
    Permission-based course workspace
@@ -1816,10 +1798,6 @@
 
   .navItem {
     padding: 0.45rem 0.7rem;
-  }
-
-  .welcomeHeader {
-    padding-right: 0;
   }
 
   .courseTabs {

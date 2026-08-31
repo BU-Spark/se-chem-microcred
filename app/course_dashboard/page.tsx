@@ -597,6 +597,7 @@ function HomePageContent() {
           <div className={styles.heroText}>
             {/* The shared page heading, so the course name reads like every other page's title (issue #261). */}
             <PageHeading
+              bare
               eyebrow={`Welcome back, ${displayName}`}
               title={courseTitle || 'Your course'}
               subtitle={

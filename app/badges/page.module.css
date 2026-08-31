@@ -1,13 +1,15 @@
 
 
+/* Inner layout only — the page frame's offsets come from .main. */
 .passportRoot {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
-  padding: 0.5rem 1rem 3rem;
   max-width: 1180px;
   width: 100%;
-  margin: 0 auto;
+  /* Left-aligned with every other page: the frame owns the left offset, so the
+     content edge does not move when the sidebar collapses. */
+  margin: 0;
   font-family: 'Open Sans', sans-serif;
   color: var(--text-color);
 }

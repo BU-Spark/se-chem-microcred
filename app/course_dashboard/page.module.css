@@ -239,11 +239,6 @@
   padding: 1.15rem 1.4rem 1.25rem;
 }
 
-/* The shared heading carries its own trailing space; the hero card supplies it. */
-.heroText > header {
-  margin-bottom: 0;
-}
-
 .heroDetails {
   display: grid;
   align-content: center;
