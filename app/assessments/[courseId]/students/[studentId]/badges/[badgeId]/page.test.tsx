@@ -31,9 +31,10 @@ jest.mock('next/image', () => ({
   },
 }));
 
-function createProfilePayload() {
+function createProfilePayload(viewerRole: 'CHECKER' | 'INSTRUCTOR' = 'CHECKER') {
   return {
     memberRole: 'STUDENT',
+    viewerRole,
     member: {
       id: 'student-1',
       name: 'Ada Lovelace',
@@ -229,7 +230,10 @@ describe('Assessment readiness page', () => {
     ).toBeInTheDocument();
   });
 
-  it('starts and submits an assessment attempt', async () => {
+  it.each([
+    ['a checker back to the checker view', 'CHECKER', '/courses/course-1?view=checker'],
+    ['an instructor back to the instructor dashboard', 'INSTRUCTOR', '/courses/course-1'],
+  ])('starts and submits an assessment attempt, returning %s', async (_label, viewerRole, destination) => {
     mockFetch.mockImplementation(async (input: string | URL | Request, init?: RequestInit) => {
       const url = String(input);
 
@@ -252,7 +256,7 @@ describe('Assessment readiness page', () => {
       if (url === '/api/courses/course-1/students/student-1?email=prof%40example.edu') {
         return {
           ok: true,
-          json: async () => createProfilePayload(),
+          json: async () => createProfilePayload(viewerRole as 'CHECKER' | 'INSTRUCTOR'),
         };
       }
 
@@ -312,7 +316,7 @@ describe('Assessment readiness page', () => {
     });
 
     expect(await screen.findByText('Assessment recorded. Badge is ready for finalization.')).toBeInTheDocument();
-    expect(mockPush).toHaveBeenCalledWith('/courses/course-1?view=checker');
+    expect(mockPush).toHaveBeenCalledWith(destination);
   });
 
   it('downgrades a passing student to still learning with override feedback', async () => {

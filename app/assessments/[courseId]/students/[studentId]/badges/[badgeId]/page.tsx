@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { generateInitials, getNameForProfile } from '@/lib/text/name';
+import { isInstructor } from '@/lib/roles';
 
 import Image from 'next/image';
 
@@ -254,7 +255,8 @@ export default function AssessmentReadinessPage() {
 
       setSubmitStatus(finalPassed ? 'Assessment recorded. Badge is ready for finalization.' : 'Assessment recorded.');
       setPhase('overview');
-      router.push(`/courses/${courseId}?view=checker`);
+      // Instructors own the course dashboard; only checkers belong in the checker view.
+      router.push(isInstructor(profile?.viewerRole) ? `/courses/${courseId}` : `/courses/${courseId}?view=checker`);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Unable to record assessment.');
     } finally {

@@ -12,6 +12,8 @@ type Contact = {
 
 type StudentProfileResponse = {
   memberRole: 'STUDENT' | 'CHECKER' | 'INSTRUCTOR';
+  // The signed-in assessor's role, which decides where they return to after assessing.
+  viewerRole: 'STUDENT' | 'CHECKER' | 'INSTRUCTOR' | null;
   member: {
     id: string;
     name: string | null;
