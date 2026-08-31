@@ -243,10 +243,10 @@ function CreatedCourseCard({
             )
           }
         />
-        <div className={courseStyles.courseCardOverlay}>
-          <h3 className={courseStyles.courseCardTitle}>{course.title}</h3>
-          <Icon icon="lucide:arrow-up-right" className={courseStyles.courseCardArrow} aria-hidden="true" />
-        </div>
+      </div>
+      <div className={`${courseStyles.courseCardCaption} ${metrics?.length ? styles.courseCardCaptionSpan : ''}`}>
+        <h3 className={courseStyles.courseCardTitle}>{course.title}</h3>
+        <Icon icon="lucide:arrow-up-right" className={courseStyles.courseCardArrow} aria-hidden="true" />
       </div>
       {metrics?.length ? (
         <div className={styles.courseCardMetrics} aria-label={`${course.title} analytics`}>
@@ -719,10 +719,10 @@ function HomeContent() {
               )
             }
           />
-          <div className={courseStyles.courseCardOverlay}>
-            <h3 className={courseStyles.courseCardTitle}>{course.title}</h3>
-            <Icon icon="lucide:arrow-up-right" className={courseStyles.courseCardArrow} aria-hidden="true" />
-          </div>
+        </div>
+        <div className={`${courseStyles.courseCardCaption} ${styles.courseCardCaptionSpan}`}>
+          <h3 className={courseStyles.courseCardTitle}>{course.title}</h3>
+          <Icon icon="lucide:arrow-up-right" className={courseStyles.courseCardArrow} aria-hidden="true" />
         </div>
         {!isLoadingDashboardAnalytics ? (
           <div className={styles.courseCardMetrics} aria-label={`${course.title} analytics`}>

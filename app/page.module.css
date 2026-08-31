@@ -1144,6 +1144,9 @@
 }
 
 .courseCardMetrics {
+  /* Beside the media, with the title caption spanning the row underneath. */
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   min-width: 90px;
   flex-direction: column;
@@ -1153,7 +1156,7 @@
   overflow: hidden;
   border: 1px solid #dfe5ed;
   border-left: 0;
-  border-radius: 0 16px 16px 0;
+  border-radius: 0;
   background: var(--checkd-white);
 }
 
@@ -1167,7 +1170,12 @@
 .courseCardWithMetrics.courseCardWithMetrics > :first-child {
   height: 100%;
   aspect-ratio: 4 / 3;
-  border-radius: 16px 0 0 16px;
+  border-radius: 0;
+}
+
+.courseCardCaptionSpan.courseCardCaptionSpan {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 
 .courseCardMetric {
