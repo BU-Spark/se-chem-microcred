@@ -55,6 +55,8 @@ function describeLessonState(record: LessonRecord, badgesById?: Map<string, Badg
 
   const describeLessonOnly = () => {
     if (record.status === 'COMPLETED') return 'Completed';
+    // A waived QEV is why the lesson is unfinished, so name that instead of the lesson state (issue #273).
+    if (badge?.qevWaivedAt) return 'Waived';
     if (record.status === 'IN_PROGRESS') return 'Video lesson in progress';
     return 'Lesson not started';
   };
@@ -198,9 +200,10 @@ function lessonRecordToCard(
   const statusLabel = describeLessonState(record, badgesById);
 
   const { badge } = badgeStateForLesson(record, badgesById);
-  // A passed QEV leaves the badge assessable, so the card shows the code rather than the feedback page.
+  // A passed — or waived — QEV leaves the badge assessable, so the card shows the code
+  // rather than sending the student back to the feedback page or the video.
   const canShowAssessmentCode =
-    record.status === 'COMPLETED' &&
+    (record.status === 'COMPLETED' || Boolean(badge?.qevWaivedAt)) &&
     badge?.status === 'READY_FOR_ASSESSMENT' &&
     !(badge.cooldownUntil && new Date(badge.cooldownUntil).getTime() > Date.now());
 
@@ -224,8 +227,7 @@ function lessonRecordToCard(
         ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
         : `/lessons/${record.slug}/video`;
 
-  // Name the badge rather than the lesson: the student's question is "why can I be
-  // assessed when I haven't finished this?", and the badge is the thing that moved.
+  // The waiver lives on the badge, so a lesson card is waived when any of its badges is.
   const waivedBadgeName = record.badgeRequirements
     ?.map((requirement) => waivedBadgeNamesById?.get(requirement.badgeId))
     .find((name): name is string => Boolean(name));
@@ -240,9 +242,7 @@ function lessonRecordToCard(
     image: resolveLessonImage(record),
     href: canShowAssessmentCode ? undefined : href,
     section: resolveLessonSection(record, badgesById),
-    waivedNote: waivedBadgeName
-      ? `Your instructor cleared this requirement for ${waivedBadgeName} — you can be assessed without finishing it.`
-      : undefined,
+    waivedNote: waivedBadgeName ? 'Your instructor has waived your QEV.' : undefined,
     assessmentBadge: canShowAssessmentCode && badge ? { id: badge.id, name: badge.name } : undefined,
   };
 }

@@ -373,21 +373,28 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(
-        await screen.findByText(
-          'Your instructor cleared this requirement for Safety — you can be assessed without finishing it.'
-        )
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Your instructor has waived your QEV.')).toBeInTheDocument();
     });
 
-    it('leaves the lesson where it was rather than pretending it is finished', async () => {
+    it('offers the assessment code instead of sending the student back to the video', async () => {
       mockUseStudentData.mockReturnValue(waivedData('2026-08-11T12:00:00.000Z'));
 
       render(<CourseDashboardPage />);
 
-      // Still "Continue", still in progress — the waiver unblocks assessment, it
-      // does not complete the lesson.
-      expect(await screen.findByRole('link', { name: 'Continue' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Show Code' })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Continue' })).not.toBeInTheDocument();
+    });
+
+    it('labels an unstarted lesson "Waived" rather than "Lesson not started"', async () => {
+      const data = waivedData('2026-08-11T12:00:00.000Z');
+      data.data.lessons.inProgress = [{ ...completedBadgeLesson('safety'), id: 'lesson-open', status: 'NOT_STARTED' }];
+      data.data.badges.readyForAssessment[0].status = 'LEARNING';
+      mockUseStudentData.mockReturnValue(data);
+
+      render(<CourseDashboardPage />);
+
+      expect(await screen.findByText('Waived')).toBeInTheDocument();
+      expect(screen.queryByText('Lesson not started')).not.toBeInTheDocument();
     });
 
     it('says nothing when the requirement was not waived', async () => {
@@ -396,7 +403,7 @@ describe('Course dashboard page', () => {
       render(<CourseDashboardPage />);
 
       await screen.findByRole('link', { name: 'Continue' });
-      expect(screen.queryByText(/Your instructor cleared this requirement/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/waived your QEV/)).not.toBeInTheDocument();
     });
   });
 
