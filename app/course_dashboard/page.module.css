@@ -207,6 +207,14 @@
   gap: 0.6rem;
 }
 
+/* The back button row also keeps the hero clear of the global check'd logo,
+   which is pinned at top:32 / right:48. */
+.topBar {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+
 /* =========================
    Redesigned dashboard: hero band
    ========================= */
@@ -219,9 +227,6 @@
   background: var(--checkd-white);
   border: 1px solid #dce3ec;
   border-radius: 16px;
-  /* Clear the global check'd logo pinned at top:32 / right:48 (115x32) so it
-     stays on the white page background instead of disappearing into the band. */
-  margin-top: 2.75rem;
   padding: 0;
   color: #0b1833;
   box-shadow: 0 10px 30px rgb(var(--checkd-blue-rgb) / 0.045);
@@ -244,35 +249,9 @@
   padding: 1.15rem 1.4rem 1.25rem;
 }
 
-.heroEyebrow {
-  grid-column: 1 / -1;
-  margin: 0;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 0.8rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  color: #657188;
-}
-
-.heroTitle {
-  margin: 0;
-  font-family: 'Lato', sans-serif;
-  font-size: clamp(1.8rem, 3.2vw, 2.65rem);
-  font-weight: 700;
-  font-style: normal;
-  line-height: 1.05;
-  color: var(--checkd-white);
-}
-
-.heroMeta {
-  margin: 0;
-  font-family: 'Open Sans', sans-serif;
-  padding-bottom: 0.18rem;
-  font-size: 0.84rem;
-  font-weight: 600;
-  white-space: nowrap;
-  color: #657188;
+/* The shared heading carries its own trailing space; the hero card supplies it. */
+.heroText > header {
+  margin-bottom: 0;
 }
 
 .heroDetails {
@@ -842,7 +821,6 @@
 
   .hero {
     grid-template-columns: 1fr;
-    margin-top: 2.25rem;
     border-radius: 20px;
   }
 
@@ -851,11 +829,6 @@
     align-items: start;
     gap: 0.25rem;
     padding: 1rem 1.15rem 1.1rem;
-  }
-
-  .heroMeta {
-    padding-bottom: 0;
-    white-space: normal;
   }
 
   .heroDetails {
