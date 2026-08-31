@@ -14,6 +14,7 @@ import { resolveBadgeCourseId, studentBadgeScope } from '../../../../lib/student
 import { normalizeCheckpointQuestion } from '../../../../lib/checkpointQuestions';
 import { ensureCurrentUser } from '../../courses/lib/ensure-user';
 import { syncLessonBadgesForStudent } from '../../../../lib/badgeProgress';
+import { hasLessonActivity } from '../../../../lib/badgeBuckets';
 import { isLessonReleased, lessonReleaseDate } from '../../../../lib/lessonVisibility';
 import { lessonDeadline } from '../../../../lib/badgeAvailability';
 import { deriveCatalogLessonStatus } from '../../../../lib/lessonStatus';
@@ -678,9 +679,6 @@ export async function GET(req: Request) {
         };
   });
 
-  // StudentBadge rows are eagerly created with LEARNING status when a badge is
-  // created/imported, so a LEARNING row alone doesn't mean the student has
-  // started: require activity on at least one requirement lesson.
   const isUnstartedLearningBadge = (entry: (typeof normalizedStudentBadges)[number]) => {
     if (entry.status !== BadgeStatus.LEARNING) {
       return false;
@@ -694,15 +692,7 @@ export async function GET(req: Request) {
       return false;
     }
 
-    return !requirementLessonIds.some((lessonId) => {
-      const progress = progressByLessonId.get(lessonId);
-      return (
-        Boolean(progress?.startedAt || progress?.completedAt) ||
-        progress?.status === LessonStatus.IN_PROGRESS ||
-        progress?.status === LessonStatus.COMPLETED ||
-        (progress?.percentComplete ?? 0) > 0
-      );
-    });
+    return !requirementLessonIds.some((lessonId) => hasLessonActivity(progressByLessonId.get(lessonId)));
   };
 
   const startedStudentBadges = normalizedStudentBadges.filter((entry) => !isUnstartedLearningBadge(entry));

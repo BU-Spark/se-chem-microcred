@@ -8,6 +8,7 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { generateInitials, getNameForProfile, type NamedPerson } from '@/lib/text/name';
 import { isInstructor } from '@/lib/roles';
+import { isBadgeClosed } from '@/lib/badgeAvailability';
 
 import { CourseBlastModal } from './CourseBlastModal';
 import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
@@ -136,14 +137,18 @@ function MessageIcon() {
 
 function availabilityLabel(badge: AssignedBadge) {
   const availableOn = badge.availableOn ? new Date(badge.availableOn) : null;
+  const closesOn = badge.closesOn ? new Date(badge.closesOn) : null;
   const formatDate = (date: Date) =>
     date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
 
   if (availableOn && availableOn.getTime() > Date.now()) {
     return { label: 'Scheduled', detail: `Available ${formatDate(availableOn)}`, tone: 'scheduled' };
   }
-  if (!badge.neverCloses && badge.closesOn) {
-    return { label: 'Available', detail: `Closes ${formatDate(new Date(badge.closesOn))}`, tone: 'available' };
+  if (closesOn && isBadgeClosed({ closesOn, neverCloses: badge.neverCloses })) {
+    return { label: 'Closed', detail: `Closed ${formatDate(closesOn)}`, tone: 'closed' };
+  }
+  if (!badge.neverCloses && closesOn) {
+    return { label: 'Available', detail: `Closes ${formatDate(closesOn)}`, tone: 'available' };
   }
   return {
     label: 'Available',
