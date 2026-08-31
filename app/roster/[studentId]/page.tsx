@@ -426,7 +426,7 @@ export default function InstructorStudentProfilePage() {
     <div className={styles.page}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
-      <main className={styles.main}>
+      <main className={`main ${styles.main}`}>
         <div className={styles.content}>
           <header className={styles.header}>
             {courseId ? (

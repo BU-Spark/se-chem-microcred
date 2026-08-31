@@ -621,7 +621,7 @@ export default function BadgeCreationPage() {
     <div className={`page ${styles.page}`}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
-      <main className={`main ${styles.main}`}>
+      <main className="main">
         <div className={styles.pageShell}>
           <header className={styles.pageHeader}>
             <h1 className="page-heading">{isEditMode ? 'Edit Badge' : 'Create a Badge'}</h1>

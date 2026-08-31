@@ -5,11 +5,6 @@
   font-family: 'Open Sans', sans-serif;
 }
 
-.main {
-  flex: 1;
-  padding: 36px 42px 48px;
-}
-
 .pageShell {
   display: flex;
   flex-direction: column;
@@ -2274,10 +2269,6 @@
 }
 
 @media (max-width: 720px) {
-  .main {
-    padding: 24px 20px 32px;
-  }
-
 
   .canvasCard,
   .editorCard,

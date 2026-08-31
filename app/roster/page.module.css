@@ -7,13 +7,6 @@
   font-family: 'Open Sans', sans-serif;
 }
 
-.main {
-  flex: 1;
-  min-height: 100vh;
-  padding: 2rem 1.8rem 1.9rem;
-  background: var(--checkd-white);
-}
-
 .content {
   width: 100%;
 }
@@ -655,11 +648,6 @@
     flex-direction: column;
   }
 
-  .main {
-    min-height: auto;
-    padding: 1rem;
-  }
-
   .header {
     gap: 0.5rem;
     flex-direction: column;
@@ -683,7 +671,6 @@
 }
 
 .main {
-  padding: 2rem clamp(1.25rem, 3vw, 3rem) 3.5rem;
   background: #f7f9fc;
   color: #0b1833;
 }
@@ -1005,10 +992,6 @@
 }
 
 @media (max-width: 900px) {
-  .main {
-    padding: 1.25rem 1rem 2.5rem;
-  }
-
   .toolbar {
     grid-template-columns: 1fr;
   }

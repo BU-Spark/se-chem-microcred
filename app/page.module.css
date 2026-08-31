@@ -364,23 +364,9 @@
   filter: none;
 }
 
-/* =========================
-   Main (card-free: no radius / no shadow)
-   ========================= */
-.main {
-  flex: 1;
-  background: transparent;
-  border-radius: 0;
-  box-shadow: none;
-  min-height: 100vh;
-
-  padding: 2.75rem 3rem 3rem;
-  /* Primary content padding */
-  display: flex;
-  flex-direction: column;
-  gap: 2.75rem;
-}
-
+/* The dashboard is the frame baseline: everything it needs comes from the global
+   .main. The one exception is the course workspace, which packs its own sections
+   tighter than the page gap. */
 .main:has(.courseWorkspace) {
   gap: 1.5rem;
 }

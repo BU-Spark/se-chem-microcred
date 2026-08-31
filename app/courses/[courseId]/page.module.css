@@ -5,14 +5,6 @@
   background: var(--checkd-white);
 }
 
-.main {
-  flex: 1;
-  min-height: 100vh;
-  padding: 1.5rem 1.75rem 3rem;
-  background: var(--checkd-white);
-  font-family: 'Open Sans', system-ui, sans-serif;
-}
-
 .content {
   width: 100%;
 }
@@ -777,11 +769,6 @@
     flex-direction: column;
   }
 
-  .main {
-    min-height: auto;
-    padding: 1.1rem 1rem 2rem;
-  }
-
   .header {
     flex-direction: column;
     align-items: flex-start;
@@ -807,9 +794,9 @@
 
 /* Instructor course workspace — 2026 refactor */
 .main {
-  padding: 2rem clamp(1.5rem, 3vw, 3.25rem) 4rem;
   background: #f7f9fc;
   color: #0b1833;
+  font-family: 'Open Sans', system-ui, sans-serif;
 }
 
 .content {
@@ -1568,9 +1555,6 @@
 }
 
 @media (max-width: 800px) {
-  .main {
-    padding: 1.25rem 1rem 2.5rem;
-  }
   .header {
     gap: 1.1rem;
   }

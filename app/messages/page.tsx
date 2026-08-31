@@ -162,7 +162,7 @@ export default function MessagesPage() {
         isSigningOut={isSigningOut}
       />
 
-      <main className={shellStyles.main}>
+      <main className="main">
         <PageHeading title="Messages" />
 
         <div className={styles.tabs} role="tablist" aria-label="Message boxes">

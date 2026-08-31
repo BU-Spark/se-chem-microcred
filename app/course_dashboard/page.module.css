@@ -122,17 +122,7 @@
    Main (card-free: no radius / no shadow)
    ========================= */
 .main {
-  flex: 1;
   background: #f4f7fb;
-  border-radius: 0;
-  box-shadow: none;
-  min-height: 100vh;
-
-  padding: 1.75rem clamp(1.25rem, 3vw, 3rem) 4rem;
-  /* Primary content padding */
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;
 }
 
 .topRow {
@@ -814,11 +804,6 @@
 }
 
 @media (max-width: 760px) {
-  .main {
-    padding: 1rem 1rem 3rem;
-    gap: 1.5rem;
-  }
-
   .hero {
     grid-template-columns: 1fr;
     border-radius: 20px;

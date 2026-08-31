@@ -6,12 +6,6 @@
   font-family: 'Open Sans', sans-serif;
 }
 
-.main {
-  flex: 1;
-  min-height: 100vh;
-  padding: 2.5rem 2.75rem 3rem;
-}
-
 .header {
   display: flex;
   align-items: flex-start;
@@ -209,11 +203,6 @@
 @media (max-width: 960px) {
   .page {
     flex-direction: column;
-  }
-
-  .main {
-    min-height: auto;
-    padding: 1.5rem 1.25rem 2rem;
   }
 
   .courseGrid {
