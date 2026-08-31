@@ -1,4 +1,4 @@
-import { buildVideoThumbnail, checkpointTotalPoints } from '../lib/badge-helpers';
+import { buildVideoThumbnail } from '../lib/badge-helpers';
 import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 
@@ -70,24 +70,31 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
         </div>
       </section>
 
-      {/* Lesson Video, Checkpoints, and the Rubric all describe the same lesson,
-          so they live in one section: video + checkpoints side by side (they're
-          literally the same timeline), rubric underneath. */}
+      {/* Lesson Video, Checkpoints, and the Rubric all describe the same lesson, so
+          they live in one section: video + checkpoint totals side by side, rubric
+          underneath. The per-checkpoint list is authored a step earlier (issue #268). */}
       <section className={styles.reviewCard}>
         <div className={styles.reviewLessonAssessmentGrid}>
-          <div>
+          <div className={styles.reviewLessonColumn}>
             <div className={styles.reviewCardHeader}>
               <h3>Lesson Video</h3>
               <EditButton onClick={() => goToStep(1)} />
             </div>
-            <p className={styles.reviewBadgeName}>{draft.youtubeUrl || 'No video linked'}</p>
+            {/* Title first: the link is reference detail, not the headline (issue #268). */}
             <h4 className={styles.reviewVideoTitle}>{draft.videoTitle || 'Untitled video'}</h4>
+            <p className={styles.reviewVideoUrl}>{draft.youtubeUrl || 'No video linked'}</p>
             <p className={styles.reviewMeta}>
               Length: <strong>{draft.videoLength || '—'}</strong>
             </p>
+            <div
+              className={styles.reviewVideoThumbnail}
+              style={videoThumbnail ? { backgroundImage: `url(${videoThumbnail})` } : undefined}
+            >
+              {!videoThumbnail && <span>No preview</span>}
+            </div>
           </div>
 
-          <div>
+          <div className={styles.reviewLessonColumn}>
             <div className={styles.reviewCardHeader}>
               <h3>Checkpoints</h3>
               <EditButton onClick={() => goToStep(2)} />
@@ -98,28 +105,6 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
             <p className={styles.reviewMeta}>
               Passing threshold: <strong>{draft.passingPercent}%</strong>
             </p>
-
-            <div className={styles.reviewCheckpointLayout}>
-              <div
-                className={styles.reviewCheckpointVideo}
-                style={videoThumbnail ? { backgroundImage: `url(${videoThumbnail})` } : undefined}
-              >
-                {!videoThumbnail && <span>No preview</span>}
-              </div>
-
-              <div className={styles.reviewCheckpointList}>
-                {draft.checkpoints.map((checkpoint, index) => (
-                  <div key={checkpoint.id} className={styles.reviewCheckpointItem}>
-                    <span className={styles.reviewCheckpointItemTitle}>
-                      {index + 1}. {checkpoint.title}
-                    </span>
-                    <span className={styles.reviewMuted}>
-                      Starts {checkpoint.time} · {checkpointTotalPoints(checkpoint)} pts
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         </div>
 

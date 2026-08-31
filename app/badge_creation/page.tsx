@@ -651,8 +651,9 @@ export default function BadgeCreationPage() {
               <div>
                 <p className={styles.cardEyebrow}>{activeStep.label}</p>
                 {/* The rubric step leads straight into its Goal field — repeating the
-                    badge name under the eyebrow duplicated the goal it seeds. */}
-                {activeStep.key !== 'rubric' && (
+                    badge name under the eyebrow duplicated the goal it seeds. Review
+                    repeats it too, in its own Badge Info field (issue #268). */}
+                {activeStep.key !== 'rubric' && activeStep.key !== 'review' && (
                   <h2 className={styles.cardTitle}>
                     {activeStep.key === 'checkpoints' ? 'Add Checkpoints for:' : draft.badgeName}
                   </h2>
