@@ -184,9 +184,7 @@ describe('Course dashboard page', () => {
     ['passed the assessment (badge COMPLETED)', 'COMPLETED', 'completed', true],
     ['failed, feedback not yet acknowledged (badge IN_REVIEW)', 'IN_REVIEW', 'inReview', false],
     ['failed terminally (badge LOCKED)', 'LOCKED', 'locked', false],
-    ['failed and acknowledged, retry allowed', 'READY_FOR_ASSESSMENT', 'readyForAssessment', false],
     ['failed on a legacy/backfilled badge still at LEARNING', 'LEARNING', 'learning', false],
-    ['has not been assessed yet', 'READY_FOR_ASSESSMENT', 'readyForAssessment', null],
   ])(
     'routes a completed badge lesson to the feedback page when the student %s',
     async (_label, status, bucket, passed) => {
@@ -198,6 +196,35 @@ describe('Course dashboard page', () => {
       expect(review.getAttribute('href')).toBe('/badges/safety/feedback?courseId=course-2');
     }
   );
+
+  it.each([
+    ['has not been assessed yet', null],
+    ['failed and acknowledged, retry allowed', false],
+  ])('offers the assessment code on a completed badge lesson when the student %s', async (_label, passed) => {
+    mockUseStudentData.mockReturnValue(
+      dataWithCompletedLesson('safety', 'readyForAssessment', 'READY_FOR_ASSESSMENT', passed as boolean | null)
+    );
+
+    render(<CourseDashboardPage />);
+
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ code: 'ABC123' }) });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Show Code' }));
+
+    expect(await screen.findByText('Safety Skill Check')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Review' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the feedback link while the reassessment cooldown is still running', async () => {
+    const data = dataWithCompletedLesson('safety', 'readyForAssessment', 'READY_FOR_ASSESSMENT', false);
+    data.data.badges.readyForAssessment[0].cooldownUntil = new Date(Date.now() + 86_400_000).toISOString();
+    mockUseStudentData.mockReturnValue(data);
+
+    render(<CourseDashboardPage />);
+
+    const review = await screen.findByRole('link', { name: 'Review' });
+    expect(review.getAttribute('href')).toBe('/badges/safety/feedback?courseId=course-2');
+  });
 
   // A badge with no StudentBadge row isn't resolvable on the feedback page (it would
   // bounce to /badges), so the card falls back to the QEV route in review mode.

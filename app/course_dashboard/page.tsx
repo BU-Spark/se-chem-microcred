@@ -8,6 +8,7 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
+import AssessmentCodeModal from '@/app/components/AssessmentCodeModal/AssessmentCodeModal';
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import { useStudentData, useRefreshAllStudentData, type BadgeRecord, type LessonRecord } from '../hooks/useStudentData';
 import { describeBadgeStatus } from '@/lib/badgeStatusLabels';
@@ -25,6 +26,8 @@ interface LessonCard {
   href?: string;
   section: ProgressBucket;
   waivedNote?: string;
+  // Set when the badge is assessable now: the card shows the QR code instead of linking out.
+  assessmentBadge?: { id: string; name: string };
 }
 
 function badgeStateForLesson(record: LessonRecord, badgesById?: Map<string, BadgeRecord>) {
@@ -194,7 +197,20 @@ function lessonRecordToCard(
 
   const statusLabel = describeLessonState(record, badgesById);
 
-  const actionLabel = record.status === 'COMPLETED' ? 'Review' : record.status === 'IN_PROGRESS' ? 'Continue' : 'Start';
+  const { badge } = badgeStateForLesson(record, badgesById);
+  // A passed QEV leaves the badge assessable, so the card shows the code rather than the feedback page.
+  const canShowAssessmentCode =
+    record.status === 'COMPLETED' &&
+    badge?.status === 'READY_FOR_ASSESSMENT' &&
+    !(badge.cooldownUntil && new Date(badge.cooldownUntil).getTime() > Date.now());
+
+  const actionLabel = canShowAssessmentCode
+    ? 'Show Code'
+    : record.status === 'COMPLETED'
+      ? 'Review'
+      : record.status === 'IN_PROGRESS'
+        ? 'Continue'
+        : 'Start';
 
   const variant: LessonCard['variant'] =
     record.status === 'COMPLETED' ? 'completed' : record.status === 'IN_PROGRESS' ? 'continue' : 'start';
@@ -222,11 +238,12 @@ function lessonRecordToCard(
     actionLabel,
     variant,
     image: resolveLessonImage(record),
-    href,
+    href: canShowAssessmentCode ? undefined : href,
     section: resolveLessonSection(record, badgesById),
     waivedNote: waivedBadgeName
       ? `Your instructor cleared this requirement for ${waivedBadgeName} — you can be assessed without finishing it.`
       : undefined,
+    assessmentBadge: canShowAssessmentCode && badge ? { id: badge.id, name: badge.name } : undefined,
   };
 }
 
@@ -248,6 +265,7 @@ function HomePageContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
+  const [assessmentCodeBadge, setAssessmentCodeBadge] = useState<{ id: string; name: string } | null>(null);
   // The submit button stayed live for the whole request plus the refresh that
   // follows it, so a student on a slow connection saw nothing happen and clicked
   // again. SurveyResponse has no unique key on (promptId, studentId) and the route
@@ -534,7 +552,15 @@ function HomePageContent() {
           {lesson.waivedNote ? <p className={styles.cardWaivedNote}>{lesson.waivedNote}</p> : null}
         </div>
 
-        {lessonHref ? (
+        {lesson.assessmentBadge ? (
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={() => setAssessmentCodeBadge(lesson.assessmentBadge ?? null)}
+          >
+            {lesson.actionLabel}
+          </button>
+        ) : lessonHref ? (
           <Link href={lessonHref} className={buttonClass}>
             {lesson.actionLabel}
           </Link>
@@ -681,6 +707,16 @@ function HomePageContent() {
             selectedOptionImage: styles.surveyFaceImageSelected,
             submit: styles.surveySubmit,
           }}
+        />
+      ) : null}
+
+      {assessmentCodeBadge ? (
+        <AssessmentCodeModal
+          badgeId={assessmentCodeBadge.id}
+          badgeName={assessmentCodeBadge.name}
+          courseId={courseId ?? studentData?.course?.id}
+          studentId={studentData?.student?.id}
+          onClose={() => setAssessmentCodeBadge(null)}
         />
       ) : null}
     </div>
