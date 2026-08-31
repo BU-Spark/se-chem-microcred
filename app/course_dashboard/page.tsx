@@ -8,6 +8,7 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
+import AssessmentCodeModal from '@/app/components/AssessmentCodeModal/AssessmentCodeModal';
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import { useStudentData, useRefreshAllStudentData, type BadgeRecord, type LessonRecord } from '../hooks/useStudentData';
 import { describeBadgeStatus } from '@/lib/badgeStatusLabels';
@@ -25,6 +26,8 @@ interface LessonCard {
   href?: string;
   section: ProgressBucket;
   waivedNote?: string;
+  // Set when the badge is assessable now: the card shows the QR code instead of linking out.
+  assessmentBadge?: { id: string; name: string };
 }
 
 function badgeStateForLesson(record: LessonRecord, badgesById?: Map<string, BadgeRecord>) {
@@ -52,6 +55,8 @@ function describeLessonState(record: LessonRecord, badgesById?: Map<string, Badg
 
   const describeLessonOnly = () => {
     if (record.status === 'COMPLETED') return 'Completed';
+    // A waived QEV is why the lesson is unfinished, so name that instead of the lesson state (issue #273).
+    if (badge?.qevWaivedAt) return 'Waived';
     if (record.status === 'IN_PROGRESS') return 'Video lesson in progress';
     return 'Lesson not started';
   };
@@ -194,7 +199,28 @@ function lessonRecordToCard(
 
   const statusLabel = describeLessonState(record, badgesById);
 
-  const actionLabel = record.status === 'COMPLETED' ? 'Review' : record.status === 'IN_PROGRESS' ? 'Continue' : 'Start';
+  const { badge } = badgeStateForLesson(record, badgesById);
+  const isWaived = Boolean(badge?.qevWaivedAt);
+  // An attempt has been recorded once the badge leaves the pre-assessment states.
+  const hasBeenAssessed =
+    badge?.latestAttemptPassed != null || ['IN_REVIEW', 'COMPLETED', 'LOCKED'].includes(badge?.status ?? '');
+  // A passed — or waived — QEV leaves the badge assessable, so the card shows the code
+  // rather than sending the student back to the feedback page or the video.
+  const canShowAssessmentCode =
+    (record.status === 'COMPLETED' || isWaived) &&
+    badge?.status === 'READY_FOR_ASSESSMENT' &&
+    !(badge.cooldownUntil && new Date(badge.cooldownUntil).getTime() > Date.now());
+  // Sending the student back to the video only makes sense before the badge is settled
+  // and while the QEV is still theirs to finish (issue #273).
+  const canResumeLesson = record.status !== 'COMPLETED' && !isWaived && !hasBeenAssessed;
+
+  const actionLabel = canShowAssessmentCode
+    ? 'Show Code'
+    : !canResumeLesson
+      ? 'Review'
+      : record.status === 'IN_PROGRESS'
+        ? 'Continue'
+        : 'Start';
 
   const variant: LessonCard['variant'] =
     record.status === 'COMPLETED' ? 'completed' : record.status === 'IN_PROGRESS' ? 'continue' : 'start';
@@ -202,14 +228,13 @@ function lessonRecordToCard(
   const badgeSlug = record.badgeRequirements?.[0]?.badgeSlug ?? null;
   const badgeStarted = badgeSlug ? (startedBadgeSlugs?.has(badgeSlug) ?? false) : false;
   const href =
-    record.status === 'NOT_STARTED'
-      ? `/lessons/${record.slug}`
-      : record.status === 'COMPLETED' && badgeSlug && badgeStarted
-        ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
+    !canResumeLesson && badgeSlug && badgeStarted
+      ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
+      : record.status === 'NOT_STARTED'
+        ? `/lessons/${record.slug}`
         : `/lessons/${record.slug}/video`;
 
-  // Name the badge rather than the lesson: the student's question is "why can I be
-  // assessed when I haven't finished this?", and the badge is the thing that moved.
+  // The waiver lives on the badge, so a lesson card is waived when any of its badges is.
   const waivedBadgeName = record.badgeRequirements
     ?.map((requirement) => waivedBadgeNamesById?.get(requirement.badgeId))
     .find((name): name is string => Boolean(name));
@@ -222,11 +247,10 @@ function lessonRecordToCard(
     actionLabel,
     variant,
     image: resolveLessonImage(record),
-    href,
+    href: canShowAssessmentCode ? undefined : href,
     section: resolveLessonSection(record, badgesById),
-    waivedNote: waivedBadgeName
-      ? `Your instructor cleared this requirement for ${waivedBadgeName} — you can be assessed without finishing it.`
-      : undefined,
+    waivedNote: waivedBadgeName ? 'Your instructor has waived your QEV.' : undefined,
+    assessmentBadge: canShowAssessmentCode && badge ? { id: badge.id, name: badge.name } : undefined,
   };
 }
 
@@ -248,6 +272,7 @@ function HomePageContent() {
     question: string;
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
+  const [assessmentCodeBadge, setAssessmentCodeBadge] = useState<{ id: string; name: string } | null>(null);
   // The submit button stayed live for the whole request plus the refresh that
   // follows it, so a student on a slow connection saw nothing happen and clicked
   // again. SurveyResponse has no unique key on (promptId, studentId) and the route
@@ -534,7 +559,15 @@ function HomePageContent() {
           {lesson.waivedNote ? <p className={styles.cardWaivedNote}>{lesson.waivedNote}</p> : null}
         </div>
 
-        {lessonHref ? (
+        {lesson.assessmentBadge ? (
+          <button
+            type="button"
+            className={buttonClass}
+            onClick={() => setAssessmentCodeBadge(lesson.assessmentBadge ?? null)}
+          >
+            {lesson.actionLabel}
+          </button>
+        ) : lessonHref ? (
           <Link href={lessonHref} className={buttonClass}>
             {lesson.actionLabel}
           </Link>
@@ -681,6 +714,16 @@ function HomePageContent() {
             selectedOptionImage: styles.surveyFaceImageSelected,
             submit: styles.surveySubmit,
           }}
+        />
+      ) : null}
+
+      {assessmentCodeBadge ? (
+        <AssessmentCodeModal
+          badgeId={assessmentCodeBadge.id}
+          badgeName={assessmentCodeBadge.name}
+          courseId={courseId ?? studentData?.course?.id}
+          studentId={studentData?.student?.id}
+          onClose={() => setAssessmentCodeBadge(null)}
         />
       ) : null}
     </div>

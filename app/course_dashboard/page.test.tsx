@@ -184,9 +184,7 @@ describe('Course dashboard page', () => {
     ['passed the assessment (badge COMPLETED)', 'COMPLETED', 'completed', true],
     ['failed, feedback not yet acknowledged (badge IN_REVIEW)', 'IN_REVIEW', 'inReview', false],
     ['failed terminally (badge LOCKED)', 'LOCKED', 'locked', false],
-    ['failed and acknowledged, retry allowed', 'READY_FOR_ASSESSMENT', 'readyForAssessment', false],
     ['failed on a legacy/backfilled badge still at LEARNING', 'LEARNING', 'learning', false],
-    ['has not been assessed yet', 'READY_FOR_ASSESSMENT', 'readyForAssessment', null],
   ])(
     'routes a completed badge lesson to the feedback page when the student %s',
     async (_label, status, bucket, passed) => {
@@ -198,6 +196,35 @@ describe('Course dashboard page', () => {
       expect(review.getAttribute('href')).toBe('/badges/safety/feedback?courseId=course-2');
     }
   );
+
+  it.each([
+    ['has not been assessed yet', null],
+    ['failed and acknowledged, retry allowed', false],
+  ])('offers the assessment code on a completed badge lesson when the student %s', async (_label, passed) => {
+    mockUseStudentData.mockReturnValue(
+      dataWithCompletedLesson('safety', 'readyForAssessment', 'READY_FOR_ASSESSMENT', passed as boolean | null)
+    );
+
+    render(<CourseDashboardPage />);
+
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ code: 'ABC123' }) });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Show Code' }));
+
+    expect(await screen.findByText('Safety Skill Check')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Review' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the feedback link while the reassessment cooldown is still running', async () => {
+    const data = dataWithCompletedLesson('safety', 'readyForAssessment', 'READY_FOR_ASSESSMENT', false);
+    data.data.badges.readyForAssessment[0].cooldownUntil = new Date(Date.now() + 86_400_000).toISOString();
+    mockUseStudentData.mockReturnValue(data);
+
+    render(<CourseDashboardPage />);
+
+    const review = await screen.findByRole('link', { name: 'Review' });
+    expect(review.getAttribute('href')).toBe('/badges/safety/feedback?courseId=course-2');
+  });
 
   // A badge with no StudentBadge row isn't resolvable on the feedback page (it would
   // bounce to /badges), so the card falls back to the QEV route in review mode.
@@ -346,21 +373,41 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(
-        await screen.findByText(
-          'Your instructor cleared this requirement for Safety — you can be assessed without finishing it.'
-        )
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Your instructor has waived your QEV.')).toBeInTheDocument();
     });
 
-    it('leaves the lesson where it was rather than pretending it is finished', async () => {
+    it('offers the assessment code instead of sending the student back to the video', async () => {
       mockUseStudentData.mockReturnValue(waivedData('2026-08-11T12:00:00.000Z'));
 
       render(<CourseDashboardPage />);
 
-      // Still "Continue", still in progress — the waiver unblocks assessment, it
-      // does not complete the lesson.
-      expect(await screen.findByRole('link', { name: 'Continue' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Show Code' })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Continue' })).not.toBeInTheDocument();
+    });
+
+    it('offers a review link once the waived badge has been assessed', async () => {
+      const data = waivedData('2026-08-11T12:00:00.000Z');
+      data.data.badges.readyForAssessment[0].status = 'COMPLETED';
+      data.data.badges.readyForAssessment[0].latestAttemptPassed = true;
+      mockUseStudentData.mockReturnValue(data);
+
+      render(<CourseDashboardPage />);
+
+      const review = await screen.findByRole('link', { name: 'Review' });
+      expect(review.getAttribute('href')).toBe('/badges/safety/feedback?courseId=course-2');
+      expect(screen.queryByRole('link', { name: 'Continue' })).not.toBeInTheDocument();
+    });
+
+    it('labels an unstarted lesson "Waived" rather than "Lesson not started"', async () => {
+      const data = waivedData('2026-08-11T12:00:00.000Z');
+      data.data.lessons.inProgress = [{ ...completedBadgeLesson('safety'), id: 'lesson-open', status: 'NOT_STARTED' }];
+      data.data.badges.readyForAssessment[0].status = 'LEARNING';
+      mockUseStudentData.mockReturnValue(data);
+
+      render(<CourseDashboardPage />);
+
+      expect(await screen.findByText('Waived')).toBeInTheDocument();
+      expect(screen.queryByText('Lesson not started')).not.toBeInTheDocument();
     });
 
     it('says nothing when the requirement was not waived', async () => {
@@ -369,7 +416,7 @@ describe('Course dashboard page', () => {
       render(<CourseDashboardPage />);
 
       await screen.findByRole('link', { name: 'Continue' });
-      expect(screen.queryByText(/Your instructor cleared this requirement/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/waived your QEV/)).not.toBeInTheDocument();
     });
   });
 
