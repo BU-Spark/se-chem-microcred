@@ -284,6 +284,21 @@
   outline-offset: 2px;
 }
 
+/* The badge card is checkd blue, so a blue button disappears into it. */
+.badgeCard .primaryButton {
+  background: var(--checkd-green);
+  color: var(--checkd-black);
+}
+
+.badgeCard .primaryButton:hover {
+  background: var(--checkd-green);
+  filter: brightness(0.94);
+}
+
+.badgeCard .primaryButton:focus-visible {
+  outline: 2px solid var(--checkd-white);
+}
+
 @media (max-width: 720px) {
   .rubricHeader,
   .rubricRow {

@@ -200,16 +200,23 @@ function lessonRecordToCard(
   const statusLabel = describeLessonState(record, badgesById);
 
   const { badge } = badgeStateForLesson(record, badgesById);
+  const isWaived = Boolean(badge?.qevWaivedAt);
+  // An attempt has been recorded once the badge leaves the pre-assessment states.
+  const hasBeenAssessed =
+    badge?.latestAttemptPassed != null || ['IN_REVIEW', 'COMPLETED', 'LOCKED'].includes(badge?.status ?? '');
   // A passed — or waived — QEV leaves the badge assessable, so the card shows the code
   // rather than sending the student back to the feedback page or the video.
   const canShowAssessmentCode =
-    (record.status === 'COMPLETED' || Boolean(badge?.qevWaivedAt)) &&
+    (record.status === 'COMPLETED' || isWaived) &&
     badge?.status === 'READY_FOR_ASSESSMENT' &&
     !(badge.cooldownUntil && new Date(badge.cooldownUntil).getTime() > Date.now());
+  // Sending the student back to the video only makes sense before the badge is settled
+  // and while the QEV is still theirs to finish (issue #273).
+  const canResumeLesson = record.status !== 'COMPLETED' && !isWaived && !hasBeenAssessed;
 
   const actionLabel = canShowAssessmentCode
     ? 'Show Code'
-    : record.status === 'COMPLETED'
+    : !canResumeLesson
       ? 'Review'
       : record.status === 'IN_PROGRESS'
         ? 'Continue'
@@ -221,10 +228,10 @@ function lessonRecordToCard(
   const badgeSlug = record.badgeRequirements?.[0]?.badgeSlug ?? null;
   const badgeStarted = badgeSlug ? (startedBadgeSlugs?.has(badgeSlug) ?? false) : false;
   const href =
-    record.status === 'NOT_STARTED'
-      ? `/lessons/${record.slug}`
-      : record.status === 'COMPLETED' && badgeSlug && badgeStarted
-        ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
+    !canResumeLesson && badgeSlug && badgeStarted
+      ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
+      : record.status === 'NOT_STARTED'
+        ? `/lessons/${record.slug}`
         : `/lessons/${record.slug}/video`;
 
   // The waiver lives on the badge, so a lesson card is waived when any of its badges is.

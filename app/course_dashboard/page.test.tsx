@@ -385,6 +385,19 @@ describe('Course dashboard page', () => {
       expect(screen.queryByRole('link', { name: 'Continue' })).not.toBeInTheDocument();
     });
 
+    it('offers a review link once the waived badge has been assessed', async () => {
+      const data = waivedData('2026-08-11T12:00:00.000Z');
+      data.data.badges.readyForAssessment[0].status = 'COMPLETED';
+      data.data.badges.readyForAssessment[0].latestAttemptPassed = true;
+      mockUseStudentData.mockReturnValue(data);
+
+      render(<CourseDashboardPage />);
+
+      const review = await screen.findByRole('link', { name: 'Review' });
+      expect(review.getAttribute('href')).toBe('/badges/safety/feedback?courseId=course-2');
+      expect(screen.queryByRole('link', { name: 'Continue' })).not.toBeInTheDocument();
+    });
+
     it('labels an unstarted lesson "Waived" rather than "Lesson not started"', async () => {
       const data = waivedData('2026-08-11T12:00:00.000Z');
       data.data.lessons.inProgress = [{ ...completedBadgeLesson('safety'), id: 'lesson-open', status: 'NOT_STARTED' }];
