@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { BadgeStatus, CourseRole, EnrollmentStatus, LessonStatus } from '@prisma/client';
 
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
+import { classifyLessonProgress, hasLessonActivity, type ProgressBucket } from '@/lib/badgeBuckets';
 import prisma from '@/lib/prisma';
 
 const UPCOMING_DAYS = 14;
@@ -106,11 +107,32 @@ export async function GET() {
         ? prisma.lesson.findMany({
             where: { courseId: { in: studentCourseIds } },
             select: {
+              id: true,
               courseId: true,
               progress: {
                 where: { studentId: user.id },
-                select: { status: true },
+
+                select: { status: true, startedAt: true, completedAt: true, percentComplete: true },
                 take: 1,
+              },
+
+              badgeRequirements: {
+                select: {
+                  badge: {
+                    select: {
+                      id: true,
+                      availableOn: true,
+                      closesOn: true,
+                      neverCloses: true,
+                      requirements: { select: { lessonId: true } },
+                      studentProgress: {
+                        where: { studentId: user.id },
+                        select: { status: true },
+                        take: 1,
+                      },
+                    },
+                  },
+                },
               },
             },
           })
@@ -182,12 +204,41 @@ export async function GET() {
         : 0,
     ]);
 
-    const studentLessonMetrics = studentLessons.reduce(
-      (totals, lesson) => {
-        const status = lesson.progress[0]?.status ?? LessonStatus.NOT_STARTED;
-        if (status === LessonStatus.NOT_STARTED) totals.notStarted += 1;
-        if (status === LessonStatus.IN_PROGRESS) totals.inProgress += 1;
-        if (status === LessonStatus.COMPLETED) totals.completed += 1;
+    // Classify every lesson once, then reuse it for both the global totals here and
+    // the per-course card metrics further down, so the two can never disagree.
+    const studentProgressByLessonId = new Map(studentLessons.map((lesson) => [lesson.id, lesson.progress[0] ?? null]));
+
+    const studentLessonBuckets = studentLessons.map((lesson) => {
+      const badges = lesson.badgeRequirements
+        .map((requirement) => requirement.badge)
+        .filter((badge): badge is NonNullable<typeof badge> => Boolean(badge))
+        .map((badge) => ({
+          status: badge.studentProgress[0]?.status ?? null,
+          availableOn: badge.availableOn,
+          closesOn: badge.closesOn,
+          neverCloses: badge.neverCloses,
+          hasActivity: badge.requirements.some(
+            (requirement) =>
+              requirement.lessonId && hasLessonActivity(studentProgressByLessonId.get(requirement.lessonId))
+          ),
+        }));
+
+      const lessonStatus = lesson.progress[0]?.status ?? LessonStatus.NOT_STARTED;
+      const fallback: ProgressBucket =
+        lessonStatus === LessonStatus.COMPLETED
+          ? 'COMPLETED'
+          : lessonStatus === LessonStatus.IN_PROGRESS
+            ? 'IN_PROGRESS'
+            : 'NOT_STARTED';
+
+      return { courseId: lesson.courseId, bucket: classifyLessonProgress(badges, fallback, now) };
+    });
+
+    const studentLessonMetrics = studentLessonBuckets.reduce(
+      (totals, entry) => {
+        if (entry.bucket === 'NOT_STARTED') totals.notStarted += 1;
+        if (entry.bucket === 'IN_PROGRESS') totals.inProgress += 1;
+        if (entry.bucket === 'COMPLETED') totals.completed += 1;
         return totals;
       },
       { notStarted: 0, inProgress: 0, completed: 0, upcoming: 0, overdue: 0 }
@@ -336,11 +387,10 @@ export async function GET() {
         if (requirement.lesson?.courseId) metric('instructor', requirement.lesson.courseId, 'upcomingDeadlines');
       }
     }
-    for (const lesson of studentLessons) {
-      const status = lesson.progress[0]?.status ?? LessonStatus.NOT_STARTED;
-      if (status === LessonStatus.NOT_STARTED) metric('student', lesson.courseId, 'lessonsNotStarted');
-      if (status === LessonStatus.IN_PROGRESS) metric('student', lesson.courseId, 'lessonsInProgress');
-      if (status === LessonStatus.COMPLETED) metric('student', lesson.courseId, 'lessonsCompleted');
+    for (const entry of studentLessonBuckets) {
+      if (entry.bucket === 'NOT_STARTED') metric('student', entry.courseId, 'lessonsNotStarted');
+      if (entry.bucket === 'IN_PROGRESS') metric('student', entry.courseId, 'lessonsInProgress');
+      if (entry.bucket === 'COMPLETED') metric('student', entry.courseId, 'lessonsCompleted');
     }
     for (const row of studentReadyRows) {
       for (const requirement of row.badge.requirements) {

@@ -1,4 +1,3 @@
-// Issues: #258 multi-word last names
 import { GET } from '@/app/api/dashboard/analytics/route';
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import prisma from '@/lib/prisma';
@@ -70,11 +69,11 @@ describe('GET /api/dashboard/analytics', () => {
     (mockPrisma.enrollment.count as jest.Mock).mockResolvedValue(3);
     (mockPrisma.badge.count as jest.Mock).mockResolvedValueOnce(4).mockResolvedValueOnce(2);
     (mockPrisma.lesson.findMany as jest.Mock).mockResolvedValue([
-      { courseId: 'student-1', progress: [] },
-      { courseId: 'student-1', progress: [{ status: 'IN_PROGRESS' }] },
-      { courseId: 'student-1', progress: [] },
-      { courseId: 'student-1', progress: [] },
-      { courseId: 'student-1', progress: [{ status: 'COMPLETED' }] },
+      { id: 'l1', courseId: 'student-1', progress: [], badgeRequirements: [] },
+      { id: 'l2', courseId: 'student-1', progress: [{ status: 'IN_PROGRESS' }], badgeRequirements: [] },
+      { id: 'l3', courseId: 'student-1', progress: [], badgeRequirements: [] },
+      { id: 'l4', courseId: 'student-1', progress: [], badgeRequirements: [] },
+      { id: 'l5', courseId: 'student-1', progress: [{ status: 'COMPLETED' }], badgeRequirements: [] },
     ]);
     (mockPrisma.studentBadge.findMany as jest.Mock)
       .mockResolvedValueOnce([
@@ -120,6 +119,48 @@ describe('GET /api/dashboard/analytics', () => {
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'active-checker-badge', requirements: [{ lesson: { courseId: 'checked-1' } }] }]);
+  });
+
+  it('leaves scheduled and closed badges out of the student lesson counts', async () => {
+    const badge = (overrides: Record<string, unknown>) => ({
+      id: 'b-x',
+      availableOn: null,
+      closesOn: null,
+      neverCloses: null,
+      requirements: [],
+      studentProgress: [],
+      ...overrides,
+    });
+
+    (mockPrisma.lesson.findMany as jest.Mock).mockResolvedValue([
+      // Open badge, never touched — the only one that should count.
+      { id: 'open', courseId: 'student-1', progress: [], badgeRequirements: [{ badge: badge({ id: 'b-open' }) }] },
+      // Scheduled: the window has not opened yet.
+      {
+        id: 'scheduled',
+        courseId: 'student-1',
+        progress: [],
+        badgeRequirements: [{ badge: badge({ id: 'b-sched', availableOn: new Date('2099-01-01T00:00:00.000Z') }) }],
+      },
+      // Closed: the window has already passed.
+      {
+        id: 'closed',
+        courseId: 'student-1',
+        progress: [],
+        badgeRequirements: [{ badge: badge({ id: 'b-closed', closesOn: new Date('2000-01-01T00:00:00.000Z') }) }],
+      },
+    ]);
+
+    const response = await GET();
+    expect(response.status).toBe(200);
+    const payload = await response.json();
+
+    expect(payload.student).toMatchObject({
+      lessonsNotStarted: 1,
+      lessonsInProgress: 0,
+      lessonsCompleted: 0,
+    });
+    expect(payload.byCourse.student['student-1']).toMatchObject({ lessonsNotStarted: 1 });
   });
 
   it('returns action-oriented metrics and respects checker section scope', async () => {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import PageShell from '@/app/components/PageShell/PageShell';
 import PageHeading from '@/app/components/PageHeading/PageHeading';
 import { notifyMessagesRead } from '@/app/hooks/useUnreadMessages';
 import shellStyles from '../page.module.css';
@@ -154,94 +154,90 @@ export default function MessagesPage() {
   const isEmpty = box === 'sent' ? sent.length === 0 : messages.length === 0;
 
   return (
-    <div className={shellStyles.page}>
-      <Sidebar
-        navItems={SIDEBAR_NAV}
-        displayName={user?.fullName ?? ''}
-        onSignOut={handleSignOut}
-        isSigningOut={isSigningOut}
-      />
+    <PageShell
+      displayName={user?.fullName ?? ''}
+      onSignOut={handleSignOut}
+      isSigningOut={isSigningOut}
+      pageClassName={shellStyles.page}
+    >
+      <PageHeading title="Messages" />
 
-      <main className={shellStyles.main}>
-        <PageHeading title="Messages" />
+      <div className={styles.tabs} role="tablist" aria-label="Message boxes">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={box === 'received'}
+          className={`${styles.tab} ${box === 'received' ? styles.tabActive : ''}`}
+          onClick={() => setBox('received')}
+        >
+          Received
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={box === 'sent'}
+          className={`${styles.tab} ${box === 'sent' ? styles.tabActive : ''}`}
+          onClick={() => setBox('sent')}
+        >
+          Sent
+        </button>
 
-        <div className={styles.tabs} role="tablist" aria-label="Message boxes">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={box === 'received'}
-            className={`${styles.tab} ${box === 'received' ? styles.tabActive : ''}`}
-            onClick={() => setBox('received')}
+        <label className={styles.orderControl}>
+          <span className={styles.orderLabel}>Sort</span>
+          <select
+            className={styles.orderSelect}
+            value={order}
+            onChange={(event) => setOrder(event.target.value as Order)}
           >
-            Received
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={box === 'sent'}
-            className={`${styles.tab} ${box === 'sent' ? styles.tabActive : ''}`}
-            onClick={() => setBox('sent')}
-          >
-            Sent
-          </button>
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+        </label>
+      </div>
 
-          <label className={styles.orderControl}>
-            <span className={styles.orderLabel}>Sort</span>
-            <select
-              className={styles.orderSelect}
-              value={order}
-              onChange={(event) => setOrder(event.target.value as Order)}
+      {isLoading ? (
+        <p className={styles.muted}>Loading messages…</p>
+      ) : error ? (
+        <p className={styles.error}>{error}</p>
+      ) : isEmpty ? (
+        <p className={styles.muted}>{box === 'sent' ? 'You have not sent any messages.' : 'No messages yet.'}</p>
+      ) : box === 'sent' ? (
+        <ul className={styles.list}>
+          {sent.map((message) => (
+            <li key={message.id} className={styles.item}>
+              <div className={styles.itemHeader}>
+                <span className={styles.itemSubject}>{message.subject}</span>
+                <span className={styles.itemDate}>{new Date(message.createdAt).toLocaleDateString()}</span>
+              </div>
+              <p className={styles.itemMeta}>To: {sentAudienceLabel(message)}</p>
+              <p className={styles.itemMeta}>
+                <span className={styles.readCount}>
+                  {message.readCount} of {message.recipientCount} read
+                </span>
+              </p>
+              <p className={styles.itemBody}>{message.body}</p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <ul className={styles.list}>
+          {messages.map((message) => (
+            <li
+              key={message.id}
+              className={`${styles.item} ${message.read ? '' : styles.itemUnread}`}
+              onClick={message.read ? undefined : () => void markRead(message.id)}
             >
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
-            </select>
-          </label>
-        </div>
-
-        {isLoading ? (
-          <p className={styles.muted}>Loading messages…</p>
-        ) : error ? (
-          <p className={styles.error}>{error}</p>
-        ) : isEmpty ? (
-          <p className={styles.muted}>{box === 'sent' ? 'You have not sent any messages.' : 'No messages yet.'}</p>
-        ) : box === 'sent' ? (
-          <ul className={styles.list}>
-            {sent.map((message) => (
-              <li key={message.id} className={styles.item}>
-                <div className={styles.itemHeader}>
-                  <span className={styles.itemSubject}>{message.subject}</span>
-                  <span className={styles.itemDate}>{new Date(message.createdAt).toLocaleDateString()}</span>
-                </div>
-                <p className={styles.itemMeta}>To: {sentAudienceLabel(message)}</p>
-                <p className={styles.itemMeta}>
-                  <span className={styles.readCount}>
-                    {message.readCount} of {message.recipientCount} read
-                  </span>
-                </p>
-                <p className={styles.itemBody}>{message.body}</p>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <ul className={styles.list}>
-            {messages.map((message) => (
-              <li
-                key={message.id}
-                className={`${styles.item} ${message.read ? '' : styles.itemUnread}`}
-                onClick={message.read ? undefined : () => void markRead(message.id)}
-              >
-                <div className={styles.itemHeader}>
-                  <span className={styles.itemSubject}>{message.subject}</span>
-                  <span className={styles.itemDate}>{new Date(message.createdAt).toLocaleDateString()}</span>
-                </div>
-                <p className={styles.itemMeta}>To: {receivedAudienceLabel(message)}</p>
-                <p className={styles.itemMeta}>From: {message.senderName ?? 'your instructor'}</p>
-                <p className={styles.itemBody}>{message.body}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </main>
-    </div>
+              <div className={styles.itemHeader}>
+                <span className={styles.itemSubject}>{message.subject}</span>
+                <span className={styles.itemDate}>{new Date(message.createdAt).toLocaleDateString()}</span>
+              </div>
+              <p className={styles.itemMeta}>To: {receivedAudienceLabel(message)}</p>
+              <p className={styles.itemMeta}>From: {message.senderName ?? 'your instructor'}</p>
+              <p className={styles.itemBody}>{message.body}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </PageShell>
   );
 }

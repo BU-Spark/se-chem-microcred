@@ -6,12 +6,6 @@
   font-family: 'Open Sans', sans-serif;
 }
 
-.main {
-  flex: 1;
-  min-height: 100vh;
-  padding: 2.5rem 2.75rem 3rem;
-}
-
 .header {
   display: flex;
   align-items: flex-start;
@@ -66,7 +60,11 @@
 }
 
 .courseCard {
+  /* Hairline frame, rounded on all four corners; the image carries no radius of
+     its own and is clipped by the card. */
+  border: 0.75px solid #94a3b8;
   border-radius: 16px;
+  overflow: hidden;
   transition:
     transform 0.2s ease,
     box-shadow 0.2s ease;
@@ -90,16 +88,18 @@
   overflow: hidden;
   border: none;
   background: #d9d9d9;
-  border-radius: 16px;
 }
 
+/* Square image inside a rounded card — the card keeps its own radius. */
 .courseMedia {
   isolation: isolate;
+  border-radius: 0;
   box-shadow: inset 0 0 0 1px rgba(17, 24, 39, 0.04);
 }
 
 .addCourseMedia {
   border: 4px solid var(--checkd-blue);
+  border-radius: 16px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -117,28 +117,22 @@
 .coursePlaceholder {
   width: 100%;
   height: 100%;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.28), transparent 45%), #d9d9d9;
+  background: #d9d9d9;
 }
 
-.courseCardOverlay {
-  position: absolute;
-  z-index: 2;
-  right: 0;
-  bottom: 0;
-  left: 0;
+/* The title sits under the tile, so the chosen course image renders unobscured. */
+.courseCardCaption {
   display: flex;
-  align-items: flex-end;
+  align-items: baseline;
   justify-content: space-between;
   gap: 1rem;
-  min-height: 46%;
-  padding: 2.6rem 1.15rem 1rem;
-  background: linear-gradient(to top, rgba(12, 28, 47, 0.86), rgba(12, 28, 47, 0));
-  color: var(--checkd-white);
-  pointer-events: none;
+  padding: 0.65rem 0.15rem 0.6rem;
+  color: var(--checkd-black);
 }
 
 .courseCardTitle {
-  margin: 0;
+  /* Indents the title only; the arrow stays pinned to the card's right edge. */
+  margin: 0 0 0 0.4rem;
   font-family: 'Lato', sans-serif;
   font-size: 1.2rem;
   font-weight: 700;
@@ -150,7 +144,8 @@
   width: 19px;
   height: 19px;
   flex: 0 0 19px;
-  margin-bottom: 0.1rem;
+  margin-right: 0.4rem;
+  align-self: center;
   opacity: 0.82;
   transition:
     opacity 0.2s ease,
@@ -209,11 +204,6 @@
 @media (max-width: 960px) {
   .page {
     flex-direction: column;
-  }
-
-  .main {
-    min-height: auto;
-    padding: 1.5rem 1.25rem 2rem;
   }
 
   .courseGrid {

@@ -5,16 +5,13 @@
 }
 
 .main {
-  flex: 1;
-  min-height: 100vh;
-  padding: 2rem clamp(1.5rem, 4vw, 4rem) 4rem;
   background: #f6f8fb;
 }
 
 .content {
   width: 100%;
   max-width: 1240px;
-  margin: 0 auto;
+  margin: 0;
 }
 
 .header {
@@ -718,11 +715,6 @@
 @media (max-width: 800px) {
   .page {
     flex-direction: column;
-  }
-
-  .main {
-    min-height: auto;
-    padding: 1.25rem 1.25rem 2.5rem;
   }
 
   .hero {

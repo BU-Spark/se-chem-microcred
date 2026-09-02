@@ -6,7 +6,8 @@ import { useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useBadgesCatalog, type BadgeCatalogItem } from '@/app/hooks/useBadgesCatalog';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import PageShell from '@/app/components/PageShell/PageShell';
+import PageHeading from '@/app/components/PageHeading/PageHeading';
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import BadgeToken from '@/app/components/BadgeToken/BadgeToken';
 import styles from './page.module.css';
@@ -87,100 +88,113 @@ export default function MyBadgesPage() {
   };
 
   return (
-    <div className={`page ${styles.page}`}>
-      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
-
-      <main className={`main ${styles.main}`}>
-        <h1 className="page-heading">Badges</h1>
-
-        <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
-          Create New Badge
-        </button>
-
-        {isLoading ? <p className={styles.statusMessage}>Loading badges...</p> : null}
-
-        {!isLoading && error ? (
-          <div className={styles.statusBlock}>
-            <p className={styles.statusMessage}>{error}</p>
-            <button type="button" className={styles.secondaryButton} onClick={() => refresh()}>
-              Try again
-            </button>
-          </div>
-        ) : null}
-
-        {!isLoading && !error && sortedBadges.length === 0 ? (
-          <section className={styles.emptyState}>
-            <h2>No badges yet</h2>
-            <p>Create a badge and it will appear here.</p>
-          </section>
-        ) : null}
-
-        {!isLoading && !error && sortedBadges.length > 0 ? (
-          <section className={styles.badgeGrid} aria-label="Badge catalog">
-            {sortedBadges.map((badge) => {
-              const videoUrl = badge.requirements.find((requirement) => requirement.youtubeUrl)?.youtubeUrl ?? null;
-              return (
-                <div key={badge.id} className={styles.badgeCardItem}>
-                  <Link href={resolveBadgeHref(badge)} className={styles.badgeCard}>
-                    <BadgeToken as="span" className={styles.badgeToken}>
-                      <BadgeImage
-                        imageUrl={badge.imageUrl}
-                        imagePositionX={badge.imagePositionX}
-                        imagePositionY={badge.imagePositionY}
-                        imageScale={badge.imageScale}
-                        videoUrl={videoUrl}
-                        alt={`${badge.name} thumbnail`}
-                        className={styles.badgeTokenImage}
-                      />
-                    </BadgeToken>
-                    <span className={styles.badgeName}>{badge.name}</span>
-                  </Link>
-                  <button
-                    type="button"
-                    className={styles.badgeDeleteButton}
-                    onClick={() => requestDeleteBadge({ id: badge.id, name: badge.name })}
-                    disabled={isDeleting}
-                    aria-label={`Delete ${badge.name}`}
-                  >
-                    Delete
-                  </button>
-                </div>
-              );
-            })}
-          </section>
-        ) : null}
-      </main>
-
-      {badgePendingDelete ? (
-        <div
-          className={styles.modalOverlay}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-badge-title"
-          onClick={closeDeleteModal}
-        >
-          <div className={styles.editModal} onClick={(event) => event.stopPropagation()}>
-            <div className={styles.modalHeader}>
-              <h2 id="delete-badge-title">Delete badge</h2>
-              <button type="button" className={styles.closeButton} onClick={closeDeleteModal} aria-label="Close">
-                ×
-              </button>
-            </div>
-            <p className={styles.statusMessage}>
-              Delete the badge &ldquo;{badgePendingDelete.name}&rdquo;? This removes it everywhere and cannot be undone.
-            </p>
-            {deleteError ? <p className={styles.errorText}>{deleteError}</p> : null}
-            <div className={styles.modalActions}>
-              <button type="button" className={styles.secondaryButton} onClick={closeDeleteModal} disabled={isDeleting}>
-                Cancel
-              </button>
-              <button type="button" className={styles.dangerButton} onClick={confirmDeleteBadge} disabled={isDeleting}>
-                {isDeleting ? 'Deleting…' : 'Delete badge'}
-              </button>
+    <PageShell
+      displayName={displayName}
+      onSignOut={handleSignOut}
+      isSigningOut={isSigningOut}
+      pageClassName={styles.page}
+      overlays={
+        badgePendingDelete ? (
+          <div
+            className={styles.modalOverlay}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-badge-title"
+            onClick={closeDeleteModal}
+          >
+            <div className={styles.editModal} onClick={(event) => event.stopPropagation()}>
+              <div className={styles.modalHeader}>
+                <h2 id="delete-badge-title">Delete badge</h2>
+                <button type="button" className={styles.closeButton} onClick={closeDeleteModal} aria-label="Close">
+                  ×
+                </button>
+              </div>
+              <p className={styles.statusMessage}>
+                Delete the badge &ldquo;{badgePendingDelete.name}&rdquo;? This removes it everywhere and cannot be
+                undone.
+              </p>
+              {deleteError ? <p className={styles.errorText}>{deleteError}</p> : null}
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={closeDeleteModal}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className={styles.dangerButton}
+                  onClick={confirmDeleteBadge}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? 'Deleting…' : 'Delete badge'}
+                </button>
+              </div>
             </div>
           </div>
+        ) : null
+      }
+    >
+      <PageHeading title="Badges" />
+
+      <button type="button" onClick={() => router.push('/badge_creation')} className={styles.createButton}>
+        Create New Badge
+      </button>
+
+      {isLoading ? <p className={styles.statusMessage}>Loading badges...</p> : null}
+
+      {!isLoading && error ? (
+        <div className={styles.statusBlock}>
+          <p className={styles.statusMessage}>{error}</p>
+          <button type="button" className={styles.secondaryButton} onClick={() => refresh()}>
+            Try again
+          </button>
         </div>
       ) : null}
-    </div>
+
+      {!isLoading && !error && sortedBadges.length === 0 ? (
+        <section className={styles.emptyState}>
+          <h2>No badges yet</h2>
+          <p>Create a badge and it will appear here.</p>
+        </section>
+      ) : null}
+
+      {!isLoading && !error && sortedBadges.length > 0 ? (
+        <section className={styles.badgeGrid} aria-label="Badge catalog">
+          {sortedBadges.map((badge) => {
+            const videoUrl = badge.requirements.find((requirement) => requirement.youtubeUrl)?.youtubeUrl ?? null;
+            return (
+              <div key={badge.id} className={styles.badgeCardItem}>
+                <Link href={resolveBadgeHref(badge)} className={styles.badgeCard}>
+                  <BadgeToken as="span" className={styles.badgeToken}>
+                    <BadgeImage
+                      imageUrl={badge.imageUrl}
+                      imagePositionX={badge.imagePositionX}
+                      imagePositionY={badge.imagePositionY}
+                      imageScale={badge.imageScale}
+                      videoUrl={videoUrl}
+                      alt={`${badge.name} thumbnail`}
+                      className={styles.badgeTokenImage}
+                    />
+                  </BadgeToken>
+                  <span className={styles.badgeName}>{badge.name}</span>
+                </Link>
+                <button
+                  type="button"
+                  className={styles.badgeDeleteButton}
+                  onClick={() => requestDeleteBadge({ id: badge.id, name: badge.name })}
+                  disabled={isDeleting}
+                  aria-label={`Delete ${badge.name}`}
+                >
+                  Delete
+                </button>
+              </div>
+            );
+          })}
+        </section>
+      ) : null}
+    </PageShell>
   );
 }

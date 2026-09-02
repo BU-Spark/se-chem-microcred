@@ -9,7 +9,8 @@ import { useStudentData } from '../hooks/useStudentData';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import styles from './page.module.css';
 import EditAvatarModal from '../edit_avatar/EditAvatarModal';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import PageShell from '@/app/components/PageShell/PageShell';
+import PageHeading from '@/app/components/PageHeading/PageHeading';
 import { useDatabaseDisplayNameContext } from '@/app/components/Profile/DatabaseDisplayNameProvider';
 import { resolveName, splitName } from '@/lib/text/name';
 import { AnalyticsPanel } from '@/app/components/AnalyticsPanel/AnalyticsPanel';
@@ -291,255 +292,258 @@ export default function ProfilePage() {
   const avatarSrc = avatarAsset(optimisticAvatarBase ?? studentData?.student.avatar?.base ?? cachedAvatarBase);
 
   return (
-    <div className="page">
-      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
-
-      <main className="main">
-        <div className={styles.pageContent}>
-          <header className={styles.headerRow}>
-            <h1 className="page-heading">My Profile</h1>
-            <span className={styles.greeting}>Hello, {greetingName}</span>
-          </header>
-          <div className={styles.headerRule} aria-hidden="true" />
-
-          {/* ===================== Identity ===================== */}
-          <section className={styles.identityRow}>
-            {/* LEFT: name, details, inline actions */}
-            <div className={styles.infoColumn}>
-              <h2 className={styles.eyebrow}>My Info:</h2>
-
-              <div className={styles.primaryName}>
-                {lastName ? (
-                  <>
-                    {lastName},
-                    <br />
-                    {firstName}
-                  </>
-                ) : (
-                  firstName
-                )}
-              </div>
-
-              <div className={styles.infoRule} aria-hidden="true" />
-
-              <div className={styles.detailGridTop}>
-                <div>
-                  <div className={styles.detailLabel}>Date Created:</div>
-                  <div className={styles.detailValue}>{createdAt}</div>
-                </div>
-                <div>
-                  <div className={styles.detailLabel}>Email:</div>
-                  <div className={styles.detailValue}>{studentEmail}</div>
-                </div>
-                <div>
-                  <div className={styles.detailLabel}>ID:</div>
-                  <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
-                    {sensitiveHidden ? 'UXXXXXXXX' : externalId}
-                  </div>
-                </div>
-              </div>
-
-              <div className={styles.inlineActionsRow}>
-                <button type="button" className={styles.inlineLink} onClick={handleOpenLanguageModal}>
-                  Change Language
-                </button>
-                <button type="button" className={styles.inlineLink} onClick={() => setIsEditAvatarOpen(true)}>
-                  Edit avatar
-                </button>
-              </div>
-            </div>
-
-            {/* RIGHT: avatar, then demographic dropdown + edit */}
-            <aside className={styles.avatarColumn}>
-              <div className={styles.avatarFrame}>
-                <Image src={avatarSrc} alt="Student avatar" width={280} height={280} className={styles.avatarImage} />
-              </div>
-
-              <div className={styles.demographicSection}>
-                <button
-                  type="button"
-                  className={styles.demographicHeader}
-                  onClick={handleToggleDemographic}
-                  aria-expanded={demographicOpen}
-                >
-                  <span className={styles.demographicTitle}>Demographic Info</span>
-                  <span className={`${styles.caret} ${demographicOpen ? styles.caretOpen : ''}`} aria-hidden="true">
-                    ⌄
-                  </span>
-                </button>
-
-                <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
-                  Edit
-                </button>
-
-                {demographicOpen && (
-                  <div className={styles.detailGrid}>
-                    {demographicFields.map((field) => (
-                      <div key={field.label}>
-                        <div className={styles.detailLabel}>{field.label}</div>
-                        <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
-                          {sensitiveHidden ? 'XXXXXXX' : field.value}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </aside>
-          </section>
-
-          <div className={styles.sectionRule} aria-hidden="true" />
-
-          {/* ===================== Analytics ===================== */}
-          <AnalyticsPanel />
-        </div>
-      </main>
-
-      {/* Demographic edit modal */}
-      {isDemographicModalOpen && (
-        <div
-          className={styles.demographicModalOverlay}
-          onClick={() => !isSavingDemographics && setIsDemographicModalOpen(false)}
-        >
-          <div
-            ref={demographicModalRef}
-            className={styles.demographicModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="demographic-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="demographic-modal-title" className={styles.demographicModalTitle}>
-              Edit profile info
-            </h2>
-            <p className={styles.demographicModalHint}>Update your name and demographic details.</p>
-
-            <label className={styles.demographicModalField}>
-              <span className={styles.demographicModalLabel}>Name</span>
-              <input
-                type="text"
-                value={draftName}
-                onChange={(e) => setDraftName(e.target.value)}
-                placeholder="First Last"
-              />
-            </label>
-
-            <label className={styles.demographicModalField}>
-              <span className={styles.demographicModalLabel}>Gender</span>
-              <input type="text" value={draftGender} onChange={(e) => setDraftGender(e.target.value)} />
-            </label>
-
-            <label className={styles.demographicModalField}>
-              <span className={styles.demographicModalLabel}>Race / Ethnicity</span>
-              <input type="text" value={draftRaceEthnicity} onChange={(e) => setDraftRaceEthnicity(e.target.value)} />
-            </label>
-
-            <label className={styles.demographicModalField}>
-              <span className={styles.demographicModalLabel}>Parental education</span>
-              <input
-                type="text"
-                value={draftParentalEducation}
-                onChange={(e) => setDraftParentalEducation(e.target.value)}
-              />
-            </label>
-
-            <label className={styles.demographicModalField}>
-              <span className={styles.demographicModalLabel}>Pell Grant qualified?</span>
-              <select
-                value={draftPellQualified}
-                onChange={(e) => setDraftPellQualified(e.target.value as 'Yes' | 'No' | 'Not provided')}
+    <PageShell
+      displayName={displayName}
+      onSignOut={handleSignOut}
+      isSigningOut={isSigningOut}
+      overlays={
+        <>
+          {/* Demographic edit modal */}
+          {isDemographicModalOpen && (
+            <div
+              className={styles.demographicModalOverlay}
+              onClick={() => !isSavingDemographics && setIsDemographicModalOpen(false)}
+            >
+              <div
+                ref={demographicModalRef}
+                className={styles.demographicModal}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="demographic-modal-title"
+                onClick={(e) => e.stopPropagation()}
               >
-                <option value="Yes">Yes</option>
-                <option value="No">No</option>
-                <option value="Not provided">Not provided</option>
-              </select>
-            </label>
+                <h2 id="demographic-modal-title" className={styles.demographicModalTitle}>
+                  Edit profile info
+                </h2>
+                <p className={styles.demographicModalHint}>Update your name and demographic details.</p>
 
-            <div className={styles.demographicModalActions}>
-              <button
-                type="button"
-                className={styles.demographicModalCancel}
-                onClick={() => setIsDemographicModalOpen(false)}
-                disabled={isSavingDemographics}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.demographicModalSave}
-                onClick={handleSaveDemographics}
-                disabled={isSavingDemographics || !draftName.trim()}
-              >
-                {isSavingDemographics ? 'Saving…' : 'Save'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {isLanguageModalOpen && (
-        <div className={styles.languageModalOverlay} onClick={() => setIsLanguageModalOpen(false)}>
-          <div
-            ref={languageModalRef}
-            className={styles.languageModal}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="language-modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id="language-modal-title" className={styles.languageModalTitle}>
-              Change language
-            </h2>
-            <p className={styles.languageModalHint}>
-              Choose the language you’d like to use for this site. More options will be available in the future.
-            </p>
-
-            <div className={styles.languageList}>
-              {AVAILABLE_LANGUAGES.map((lang) => (
-                <label key={lang.code} className={styles.languageOptionRow}>
+                <label className={styles.demographicModalField}>
+                  <span className={styles.demographicModalLabel}>Name</span>
                   <input
-                    type="radio"
-                    name="language"
-                    value={lang.code}
-                    checked={languageDraft === lang.code}
-                    onChange={() => setLanguageDraft(lang.code)}
+                    type="text"
+                    value={draftName}
+                    onChange={(e) => setDraftName(e.target.value)}
+                    placeholder="First Last"
                   />
-                  <div className={styles.languageOptionLabel}>
-                    <div className={styles.languageOptionTitle}>
-                      {lang.label}
-                      {language === lang.code && <span className={styles.languageTag}>Current</span>}
-                    </div>
-                    <div className={styles.languageOptionDesc}>{lang.description}</div>
-                  </div>
                 </label>
-              ))}
+
+                <label className={styles.demographicModalField}>
+                  <span className={styles.demographicModalLabel}>Gender</span>
+                  <input type="text" value={draftGender} onChange={(e) => setDraftGender(e.target.value)} />
+                </label>
+
+                <label className={styles.demographicModalField}>
+                  <span className={styles.demographicModalLabel}>Race / Ethnicity</span>
+                  <input
+                    type="text"
+                    value={draftRaceEthnicity}
+                    onChange={(e) => setDraftRaceEthnicity(e.target.value)}
+                  />
+                </label>
+
+                <label className={styles.demographicModalField}>
+                  <span className={styles.demographicModalLabel}>Parental education</span>
+                  <input
+                    type="text"
+                    value={draftParentalEducation}
+                    onChange={(e) => setDraftParentalEducation(e.target.value)}
+                  />
+                </label>
+
+                <label className={styles.demographicModalField}>
+                  <span className={styles.demographicModalLabel}>Pell Grant qualified?</span>
+                  <select
+                    value={draftPellQualified}
+                    onChange={(e) => setDraftPellQualified(e.target.value as 'Yes' | 'No' | 'Not provided')}
+                  >
+                    <option value="Yes">Yes</option>
+                    <option value="No">No</option>
+                    <option value="Not provided">Not provided</option>
+                  </select>
+                </label>
+
+                <div className={styles.demographicModalActions}>
+                  <button
+                    type="button"
+                    className={styles.demographicModalCancel}
+                    onClick={() => setIsDemographicModalOpen(false)}
+                    disabled={isSavingDemographics}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.demographicModalSave}
+                    onClick={handleSaveDemographics}
+                    disabled={isSavingDemographics || !draftName.trim()}
+                  >
+                    {isSavingDemographics ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {isLanguageModalOpen && (
+            <div className={styles.languageModalOverlay} onClick={() => setIsLanguageModalOpen(false)}>
+              <div
+                ref={languageModalRef}
+                className={styles.languageModal}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="language-modal-title"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 id="language-modal-title" className={styles.languageModalTitle}>
+                  Change language
+                </h2>
+                <p className={styles.languageModalHint}>
+                  Choose the language you’d like to use for this site. More options will be available in the future.
+                </p>
+
+                <div className={styles.languageList}>
+                  {AVAILABLE_LANGUAGES.map((lang) => (
+                    <label key={lang.code} className={styles.languageOptionRow}>
+                      <input
+                        type="radio"
+                        name="language"
+                        value={lang.code}
+                        checked={languageDraft === lang.code}
+                        onChange={() => setLanguageDraft(lang.code)}
+                      />
+                      <div className={styles.languageOptionLabel}>
+                        <div className={styles.languageOptionTitle}>
+                          {lang.label}
+                          {language === lang.code && <span className={styles.languageTag}>Current</span>}
+                        </div>
+                        <div className={styles.languageOptionDesc}>{lang.description}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+
+                <div className={styles.languageModalActions}>
+                  <button
+                    type="button"
+                    className={styles.languageModalCancel}
+                    onClick={() => setIsLanguageModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button type="button" className={styles.languageModalSave} onClick={handleSaveLanguage}>
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {isEditAvatarOpen && (
+            <EditAvatarModal
+              onClose={() => setIsEditAvatarOpen(false)}
+              onSaved={(base) => {
+                setOptimisticAvatarBase(base);
+                setCachedAvatarBase(base);
+                refreshStudentData();
+              }}
+            />
+          )}
+        </>
+      }
+    >
+      <div className={styles.pageContent}>
+        <PageHeading title="My Profile" actions={<span className={styles.greeting}>Hello, {greetingName}</span>} />
+
+        {/* ===================== Identity ===================== */}
+        <section className={styles.identityRow}>
+          {/* LEFT: name, details, inline actions */}
+          <div className={styles.infoColumn}>
+            <h2 className={styles.eyebrow}>My Info:</h2>
+
+            <div className={styles.primaryName}>
+              {lastName ? (
+                <>
+                  {lastName},
+                  <br />
+                  {firstName}
+                </>
+              ) : (
+                firstName
+              )}
             </div>
 
-            <div className={styles.languageModalActions}>
-              <button
-                type="button"
-                className={styles.languageModalCancel}
-                onClick={() => setIsLanguageModalOpen(false)}
-              >
-                Cancel
+            <div className={styles.infoRule} aria-hidden="true" />
+
+            <div className={styles.detailGridTop}>
+              <div>
+                <div className={styles.detailLabel}>Date Created:</div>
+                <div className={styles.detailValue}>{createdAt}</div>
+              </div>
+              <div>
+                <div className={styles.detailLabel}>Email:</div>
+                <div className={styles.detailValue}>{studentEmail}</div>
+              </div>
+              <div>
+                <div className={styles.detailLabel}>ID:</div>
+                <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
+                  {sensitiveHidden ? 'UXXXXXXXX' : externalId}
+                </div>
+              </div>
+            </div>
+
+            <div className={styles.inlineActionsRow}>
+              <button type="button" className={styles.inlineLink} onClick={handleOpenLanguageModal}>
+                Change Language
               </button>
-              <button type="button" className={styles.languageModalSave} onClick={handleSaveLanguage}>
-                Save
+              <button type="button" className={styles.inlineLink} onClick={() => setIsEditAvatarOpen(true)}>
+                Edit avatar
               </button>
             </div>
           </div>
-        </div>
-      )}
-      {isEditAvatarOpen && (
-        <EditAvatarModal
-          onClose={() => setIsEditAvatarOpen(false)}
-          onSaved={(base) => {
-            setOptimisticAvatarBase(base);
-            setCachedAvatarBase(base);
-            refreshStudentData();
-          }}
-        />
-      )}
-    </div>
+
+          {/* RIGHT: avatar, then demographic dropdown + edit */}
+          <aside className={styles.avatarColumn}>
+            <div className={styles.avatarFrame}>
+              <Image src={avatarSrc} alt="Student avatar" width={280} height={280} className={styles.avatarImage} />
+            </div>
+
+            <div className={styles.demographicSection}>
+              <button
+                type="button"
+                className={styles.demographicHeader}
+                onClick={handleToggleDemographic}
+                aria-expanded={demographicOpen}
+              >
+                <span className={styles.demographicTitle}>Demographic Info</span>
+                <span className={`${styles.caret} ${demographicOpen ? styles.caretOpen : ''}`} aria-hidden="true">
+                  ⌄
+                </span>
+              </button>
+
+              <button type="button" className={styles.editPencil} onClick={handleOpenDemographicModal}>
+                Edit
+              </button>
+
+              {demographicOpen && (
+                <div className={styles.detailGrid}>
+                  {demographicFields.map((field) => (
+                    <div key={field.label}>
+                      <div className={styles.detailLabel}>{field.label}</div>
+                      <div className={`${styles.detailValue} ${sensitiveHidden ? styles.sensitiveValueMasked : ''}`}>
+                        {sensitiveHidden ? 'XXXXXXX' : field.value}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </aside>
+        </section>
+
+        <div className={styles.sectionRule} aria-hidden="true" />
+
+        {/* ===================== Analytics ===================== */}
+        <AnalyticsPanel />
+      </div>
+    </PageShell>
   );
 }

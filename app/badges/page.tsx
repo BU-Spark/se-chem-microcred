@@ -9,7 +9,7 @@ import { useStudentData, type BadgeRecord } from '../hooks/useStudentData';
 import { useMyCourses } from '../hooks/useMyCourses';
 import { derivePassportNumber, formatPassportDate } from '@/lib/students/passport';
 import styles from './page.module.css';
-import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import PageShell from '@/app/components/PageShell/PageShell';
 import PageHeading from '@/app/components/PageHeading/PageHeading';
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import Modal from '@/app/components/Modal/Modal';
@@ -327,208 +327,204 @@ export default function BadgePassportPage() {
   };
 
   return (
-    <div className="page">
-      <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
+    <PageShell displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut}>
+      <div className={styles.passportRoot}>
+        <PageHeading title="Badge Passport" />
 
-      <main className="main">
-        <div className={styles.passportRoot}>
-          <PageHeading title="Badge Passport" eyebrow="Skills passport · Verified record" />
-
-          <header className={styles.identityCard}>
-            <div className={styles.identityLeft}>
-              <div className={styles.avatarFrame}>
-                <Image src={avatarSrc} alt="" width={72} height={72} className={styles.avatarImage} />
-              </div>
-              <div>
-                <p className={styles.identityName}>{displayName || 'Your passport'}</p>
-                <p className={styles.identityMeta}>{summaryLine}</p>
-              </div>
+        <header className={styles.identityCard}>
+          <div className={styles.identityLeft}>
+            <div className={styles.avatarFrame}>
+              <Image src={avatarSrc} alt="" width={72} height={72} className={styles.avatarImage} />
             </div>
-
-            {passportNumber || issuedOn ? (
-              <div className={styles.identityRight}>
-                {passportNumber ? (
-                  <>
-                    <span className={styles.identityLabel}>Passport no.</span>
-                    <span className={styles.identityNumber}>{passportNumber}</span>
-                  </>
-                ) : null}
-                {issuedOn ? <span className={styles.identityIssued}>Issued {issuedOn}</span> : null}
-              </div>
-            ) : null}
-          </header>
-
-          <div className={styles.filterRow}>
-            {courseOptions.length > 1 ? (
-              <button
-                type="button"
-                className={[styles.filterControl, selectedCourseIds.length ? styles.filterControlActive : '']
-                  .filter(Boolean)
-                  .join(' ')}
-                onClick={() => setIsCourseFilterOpen(true)}
-                aria-haspopup="dialog"
-                aria-expanded={isCourseFilterOpen}
-              >
-                <span className={styles.filterControlLabel}>Courses</span>
-                <span className={styles.filterControlValue}>{courseFilterLabel}</span>
-              </button>
-            ) : null}
-
-            <EarnedBeforePicker value={earnedBefore} onChange={setEarnedBefore} />
-
-            {isFiltered ? (
-              <button type="button" className={styles.filterClear} onClick={clearFilters}>
-                Clear filters
-              </button>
-            ) : null}
-
-            {/* Only while filtered: unfiltered, this would just repeat the count
-                already in the identity strip. */}
-            {isFiltered ? (
-              <span className={styles.filterSummary} role="status">
-                Showing {visibleEntries.length} of {entries.length}
-              </span>
-            ) : null}
+            <div>
+              <p className={styles.identityName}>{displayName || 'Your passport'}</p>
+              <p className={styles.identityMeta}>{summaryLine}</p>
+            </div>
           </div>
 
-          <section className={styles.recordCard} aria-label="Completed badges">
-            {visibleEntries.length ? (
-              <ul className={styles.entryGrid}>{visibleEntries.map(renderEntry)}</ul>
-            ) : (
-              <p className={styles.emptyState}>
-                {entries.length
-                  ? 'No completed badges match these filters.'
-                  : "You haven't completed any badges yet. Finish a lesson and pass its assessment to add your first entry."}
-              </p>
-            )}
+          {passportNumber || issuedOn ? (
+            <div className={styles.identityRight}>
+              {passportNumber ? (
+                <>
+                  <span className={styles.identityLabel}>Passport no.</span>
+                  <span className={styles.identityNumber}>{passportNumber}</span>
+                </>
+              ) : null}
+              {issuedOn ? <span className={styles.identityIssued}>Issued {issuedOn}</span> : null}
+            </div>
+          ) : null}
+        </header>
 
-            <p className={styles.recordFootnote}>
-              <span className={styles.footnoteDot} aria-hidden="true" />
-              Every entry is a passed assessment. Nothing here is self-reported.
-            </p>
-          </section>
+        <div className={styles.filterRow}>
+          {courseOptions.length > 1 ? (
+            <button
+              type="button"
+              className={[styles.filterControl, selectedCourseIds.length ? styles.filterControlActive : '']
+                .filter(Boolean)
+                .join(' ')}
+              onClick={() => setIsCourseFilterOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={isCourseFilterOpen}
+            >
+              <span className={styles.filterControlLabel}>Courses</span>
+              <span className={styles.filterControlValue}>{courseFilterLabel}</span>
+            </button>
+          ) : null}
+
+          <EarnedBeforePicker value={earnedBefore} onChange={setEarnedBefore} />
+
+          {isFiltered ? (
+            <button type="button" className={styles.filterClear} onClick={clearFilters}>
+              Clear filters
+            </button>
+          ) : null}
+
+          {/* Only while filtered: unfiltered, this would just repeat the count
+                already in the identity strip. */}
+          {isFiltered ? (
+            <span className={styles.filterSummary} role="status">
+              Showing {visibleEntries.length} of {entries.length}
+            </span>
+          ) : null}
         </div>
 
-        {isCourseFilterOpen ? (
-          <Modal
-            onClose={() => setIsCourseFilterOpen(false)}
-            overlayClassName={styles.detailOverlay}
-            className={styles.filterModal}
-            ariaLabel="Filter badges by course"
-          >
-            <div className={styles.filterModalHeader}>
-              <h2 className={styles.detailTitle}>Courses</h2>
-              <button
-                type="button"
-                className={styles.detailClose}
-                onClick={() => setIsCourseFilterOpen(false)}
-                aria-label="Close"
-              >
-                ×
-              </button>
-            </div>
-
-            <p className={styles.filterModalHint}>
-              {selectedCourseIds.length ? 'Showing the checked courses.' : 'Nothing checked shows every course.'}
+        <section className={styles.recordCard} aria-label="Completed badges">
+          {visibleEntries.length ? (
+            <ul className={styles.entryGrid}>{visibleEntries.map(renderEntry)}</ul>
+          ) : (
+            <p className={styles.emptyState}>
+              {entries.length
+                ? 'No completed badges match these filters.'
+                : "You haven't completed any badges yet. Finish a lesson and pass its assessment to add your first entry."}
             </p>
+          )}
 
-            <ul className={styles.filterOptionList}>
-              {courseOptions.map((option) => (
-                <li key={option.id}>
-                  <label className={styles.filterOption}>
-                    <input
-                      type="checkbox"
-                      checked={selectedCourseIds.includes(option.id)}
-                      onChange={() => toggleCourse(option.id)}
-                    />
-                    <span className={styles.filterOptionLabel}>{option.label}</span>
-                    <span className={styles.filterCount}>{option.count}</span>
-                  </label>
-                </li>
-              ))}
-            </ul>
+          <p className={styles.recordFootnote}>
+            <span className={styles.footnoteDot} aria-hidden="true" />
+            Every entry is a passed assessment. Nothing here is self-reported.
+          </p>
+        </section>
+      </div>
 
-            <div className={styles.detailActions}>
-              <button type="button" className={styles.detailPrimary} onClick={() => setIsCourseFilterOpen(false)}>
-                Done
-              </button>
-              <button
-                type="button"
-                className={styles.detailLink}
-                onClick={() => setSelectedCourseIds([])}
-                disabled={!selectedCourseIds.length}
-              >
-                Clear selection
-              </button>
-            </div>
-          </Modal>
-        ) : null}
-
-        {activeEntry ? (
-          <Modal
-            onClose={() => setActiveBadgeId(null)}
-            overlayClassName={styles.detailOverlay}
-            className={styles.detailCard}
-            ariaLabel={`${activeEntry.badge.name} details`}
-          >
+      {isCourseFilterOpen ? (
+        <Modal
+          onClose={() => setIsCourseFilterOpen(false)}
+          overlayClassName={styles.detailOverlay}
+          className={styles.filterModal}
+          ariaLabel="Filter badges by course"
+        >
+          <div className={styles.filterModalHeader}>
+            <h2 className={styles.detailTitle}>Courses</h2>
             <button
               type="button"
               className={styles.detailClose}
-              onClick={() => setActiveBadgeId(null)}
+              onClick={() => setIsCourseFilterOpen(false)}
               aria-label="Close"
             >
               ×
             </button>
+          </div>
 
-            <div className={styles.detailHeader}>
-              <span className={styles.detailMark}>
-                {activeEntry.badge.imageUrl || activeEntry.badge.youtubeUrl ? (
-                  <BadgeImage
-                    imageUrl={activeEntry.badge.imageUrl}
-                    imagePositionX={activeEntry.badge.imagePositionX}
-                    imagePositionY={activeEntry.badge.imagePositionY}
-                    imageScale={activeEntry.badge.imageScale}
-                    videoUrl={activeEntry.badge.youtubeUrl}
-                    alt=""
-                    className={styles.entryImage}
+          <p className={styles.filterModalHint}>
+            {selectedCourseIds.length ? 'Showing the checked courses.' : 'Nothing checked shows every course.'}
+          </p>
+
+          <ul className={styles.filterOptionList}>
+            {courseOptions.map((option) => (
+              <li key={option.id}>
+                <label className={styles.filterOption}>
+                  <input
+                    type="checkbox"
+                    checked={selectedCourseIds.includes(option.id)}
+                    onChange={() => toggleCourse(option.id)}
                   />
-                ) : (
-                  <span className={styles.entryCheck}>
-                    <VerifiedCheck />
-                  </span>
-                )}
-              </span>
-              <div>
-                <h2 className={styles.detailTitle}>{activeEntry.badge.name}</h2>
-                <p className={styles.detailMeta}>
-                  {activeEntry.course?.title ?? 'Independent badge'}
-                  {activeEntry.badge.awardedAt ? ` · Earned ${formatPassportDate(activeEntry.badge.awardedAt)}` : ''}
-                </p>
-              </div>
+                  <span className={styles.filterOptionLabel}>{option.label}</span>
+                  <span className={styles.filterCount}>{option.count}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+
+          <div className={styles.detailActions}>
+            <button type="button" className={styles.detailPrimary} onClick={() => setIsCourseFilterOpen(false)}>
+              Done
+            </button>
+            <button
+              type="button"
+              className={styles.detailLink}
+              onClick={() => setSelectedCourseIds([])}
+              disabled={!selectedCourseIds.length}
+            >
+              Clear selection
+            </button>
+          </div>
+        </Modal>
+      ) : null}
+
+      {activeEntry ? (
+        <Modal
+          onClose={() => setActiveBadgeId(null)}
+          overlayClassName={styles.detailOverlay}
+          className={styles.detailCard}
+          ariaLabel={`${activeEntry.badge.name} details`}
+        >
+          <button
+            type="button"
+            className={styles.detailClose}
+            onClick={() => setActiveBadgeId(null)}
+            aria-label="Close"
+          >
+            ×
+          </button>
+
+          <div className={styles.detailHeader}>
+            <span className={styles.detailMark}>
+              {activeEntry.badge.imageUrl || activeEntry.badge.youtubeUrl ? (
+                <BadgeImage
+                  imageUrl={activeEntry.badge.imageUrl}
+                  imagePositionX={activeEntry.badge.imagePositionX}
+                  imagePositionY={activeEntry.badge.imagePositionY}
+                  imageScale={activeEntry.badge.imageScale}
+                  videoUrl={activeEntry.badge.youtubeUrl}
+                  alt=""
+                  className={styles.entryImage}
+                />
+              ) : (
+                <span className={styles.entryCheck}>
+                  <VerifiedCheck />
+                </span>
+              )}
+            </span>
+            <div>
+              <h2 className={styles.detailTitle}>{activeEntry.badge.name}</h2>
+              <p className={styles.detailMeta}>
+                {activeEntry.course?.title ?? 'Independent badge'}
+                {activeEntry.badge.awardedAt ? ` · Earned ${formatPassportDate(activeEntry.badge.awardedAt)}` : ''}
+              </p>
             </div>
+          </div>
 
-            {activeEntry.badge.description ? (
-              <p className={styles.detailDescription}>{activeEntry.badge.description}</p>
-            ) : null}
+          {activeEntry.badge.description ? (
+            <p className={styles.detailDescription}>{activeEntry.badge.description}</p>
+          ) : null}
 
-            <div className={styles.detailActions}>
-              <button
-                type="button"
-                className={styles.detailPrimary}
-                onClick={() => exportBadgeToLinkedIn(activeEntry.badge)}
-                disabled={isExporting}
-              >
-                {isExporting ? 'Preparing LinkedIn package…' : 'Export to LinkedIn'}
-              </button>
-              <button type="button" className={styles.detailLink} onClick={() => reviewFeedback(activeEntry.badge)}>
-                Review feedback
-              </button>
-            </div>
+          <div className={styles.detailActions}>
+            <button
+              type="button"
+              className={styles.detailPrimary}
+              onClick={() => exportBadgeToLinkedIn(activeEntry.badge)}
+              disabled={isExporting}
+            >
+              {isExporting ? 'Preparing LinkedIn package…' : 'Export to LinkedIn'}
+            </button>
+            <button type="button" className={styles.detailLink} onClick={() => reviewFeedback(activeEntry.badge)}>
+              Review feedback
+            </button>
+          </div>
 
-            {exportStatus ? <p className={styles.detailStatus}>{exportStatus}</p> : null}
-          </Modal>
-        ) : null}
-      </main>
-    </div>
+          {exportStatus ? <p className={styles.detailStatus}>{exportStatus}</p> : null}
+        </Modal>
+      ) : null}
+    </PageShell>
   );
 }

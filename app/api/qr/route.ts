@@ -250,11 +250,14 @@ async function buildQrResponse(request: Request, includeBody: boolean) {
       errorCorrectionLevel: 'M',
     });
 
-    return new NextResponse(png, {
+    // Node's Buffer no longer satisfies BodyInit, so hand the route a plain byte view.
+    const body = new Uint8Array(png);
+
+    return new NextResponse(body, {
       status: 200,
       headers: {
         'Content-Type': 'image/png',
-        'Content-Length': String(png.byteLength),
+        'Content-Length': String(body.byteLength),
         'Cache-Control': 'public, max-age=31536000, immutable',
       },
     });

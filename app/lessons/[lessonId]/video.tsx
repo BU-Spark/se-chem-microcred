@@ -1779,7 +1779,6 @@ export function LessonVideoPage({
                                 const isSelected =
                                   selection?.kind === 'multipleChoice' &&
                                   selection.selectedIndices.includes(optionIndex);
-                                const supportsMultiple = (currentQuestion.correctIndices ?? []).length > 1;
                                 const className = [
                                   styles.controlButton,
                                   isSelected ? styles.controlButtonPrimary : styles.controlButtonSecondary,
@@ -1794,7 +1793,6 @@ export function LessonVideoPage({
                                     onClick={() => handleChoiceSelect(currentQuestion, optionIndex)}
                                     aria-pressed={isSelected}
                                   >
-                                    {supportsMultiple ? `${isSelected ? '✓ ' : ''}` : ''}
                                     <span
                                       className={styles.questionRichText}
                                       dangerouslySetInnerHTML={{ __html: sanitizeQuestionRichText(String(option)) }}

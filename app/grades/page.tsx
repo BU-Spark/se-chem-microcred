@@ -46,7 +46,7 @@ export default function GradesPage() {
     <div className={shellStyles.page}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
-      <main className={shellStyles.main}>
+      <main className="main">
         <PageHeading title="Grades" subtitle="Gradebook coming soon." />
       </main>
     </div>

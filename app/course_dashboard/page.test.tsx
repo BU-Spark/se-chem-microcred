@@ -33,8 +33,6 @@ jest.mock('next/image', () => ({
 }));
 
 jest.mock('../hooks/useStudentData', () => {
-  // Stable identity: the component lists this in effect/callback dependency
-  // arrays, so a fresh jest.fn() per render would re-fire them every commit.
   const refreshAllStudentData = jest.fn();
   return {
     useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
@@ -108,8 +106,6 @@ describe('Course dashboard page', () => {
   });
 
   it('uses the badge requirement video for the card image when the lesson has no segment video', async () => {
-    // Badge videos live on badgeRequirements[].youtubeUrl, not on a segment (bug #14).
-    // A badge-only lesson must resolve to the YouTube thumbnail, not the ChemSkills dummy.
     mockUseStudentData.mockReturnValue({
       data: {
         student: { name: 'Student Demo', email: 'student@example.edu' },
@@ -184,19 +180,11 @@ describe('Course dashboard page', () => {
     refresh: jest.fn(),
   });
 
-  // Issue #194: a completed badge lesson's "Review" points at the badge feedback page,
-  // which is where the review material lives — in every assessment state, not just the
-  // failing one. Routing can't key off badge status: a failed badge only sits at
-  // IN_REVIEW until the feedback is acknowledged, then drops to READY_FOR_ASSESSMENT or
-  // LOCKED, and the state machine backfill put every pre-existing failed badge at
-  // READY_FOR_ASSESSMENT.
   it.each([
     ['passed the assessment (badge COMPLETED)', 'COMPLETED', 'completed', true],
     ['failed, feedback not yet acknowledged (badge IN_REVIEW)', 'IN_REVIEW', 'inReview', false],
     ['failed terminally (badge LOCKED)', 'LOCKED', 'locked', false],
-    ['failed and acknowledged, retry allowed', 'READY_FOR_ASSESSMENT', 'readyForAssessment', false],
     ['failed on a legacy/backfilled badge still at LEARNING', 'LEARNING', 'learning', false],
-    ['has not been assessed yet', 'READY_FOR_ASSESSMENT', 'readyForAssessment', null],
   ])(
     'routes a completed badge lesson to the feedback page when the student %s',
     async (_label, status, bucket, passed) => {
@@ -208,6 +196,35 @@ describe('Course dashboard page', () => {
       expect(review.getAttribute('href')).toBe('/badges/safety/feedback?courseId=course-2');
     }
   );
+
+  it.each([
+    ['has not been assessed yet', null],
+    ['failed and acknowledged, retry allowed', false],
+  ])('offers the assessment code on a completed badge lesson when the student %s', async (_label, passed) => {
+    mockUseStudentData.mockReturnValue(
+      dataWithCompletedLesson('safety', 'readyForAssessment', 'READY_FOR_ASSESSMENT', passed as boolean | null)
+    );
+
+    render(<CourseDashboardPage />);
+
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ code: 'ABC123' }) });
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Show Code' }));
+
+    expect(await screen.findByText('Safety Skill Check')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Review' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the feedback link while the reassessment cooldown is still running', async () => {
+    const data = dataWithCompletedLesson('safety', 'readyForAssessment', 'READY_FOR_ASSESSMENT', false);
+    data.data.badges.readyForAssessment[0].cooldownUntil = new Date(Date.now() + 86_400_000).toISOString();
+    mockUseStudentData.mockReturnValue(data);
+
+    render(<CourseDashboardPage />);
+
+    const review = await screen.findByRole('link', { name: 'Review' });
+    expect(review.getAttribute('href')).toBe('/badges/safety/feedback?courseId=course-2');
+  });
 
   // A badge with no StudentBadge row isn't resolvable on the feedback page (it would
   // bounce to /badges), so the card falls back to the QEV route in review mode.
@@ -221,24 +238,12 @@ describe('Course dashboard page', () => {
   });
 
   it.each([
-    [
-      'awaiting a first assessment',
-      'READY_FOR_ASSESSMENT',
-      null,
-      'Assessment in progress',
-      'Pick up where you left off',
-    ],
-    ['awaiting failed-feedback review', 'IN_REVIEW', false, 'In review', 'Pick up where you left off'],
-    ['awaiting passed-feedback review and rating', 'IN_REVIEW', true, 'In review', 'Pick up where you left off'],
-    ['out of assessment attempts', 'LOCKED', false, 'Video lesson in progress', 'Pick up where you left off'],
+    ['awaiting a first assessment', 'READY_FOR_ASSESSMENT', null, 'Ready for assessment', 'In progress'],
+    ['awaiting failed-feedback review', 'IN_REVIEW', false, 'In review', 'In progress'],
+    ['awaiting passed-feedback review and rating', 'IN_REVIEW', true, 'In review', 'In progress'],
+    ['out of assessment attempts', 'LOCKED', false, 'Locked', 'In progress'],
     ['has earned the badge', 'COMPLETED', true, 'Completed', 'Completed'],
-    [
-      'finished the lesson but still owes lesson feedback',
-      'LEARNING',
-      null,
-      'Video lesson in progress',
-      'Pick up where you left off',
-    ],
+    ['finished the lesson but still owes lesson feedback', 'LEARNING', null, 'Still learning', 'In progress'],
   ])(
     'shows the consolidated badge state under the correct section when the student is %s',
     async (_label, status, passed, text, sectionTitle) => {
@@ -269,16 +274,14 @@ describe('Course dashboard page', () => {
 
     render(<CourseDashboardPage />);
 
-    const statusText = await screen.findByText('Assessment in progress');
-    expect(statusText.closest('section')).toHaveTextContent('Pick up where you left off');
+    const statusText = await screen.findByText('Ready for assessment');
+    expect(statusText.closest('section')).toHaveTextContent('In progress');
   });
 
-  // Start/Continue drop the student straight into the video + checkpoint questions,
-  // never the lesson preview page.
   it.each([
-    ['not started', 'NOT_STARTED', 'upNext', 'Start'],
-    ['in progress', 'IN_PROGRESS', 'inProgress', 'Continue'],
-  ])('routes a %s lesson to the QEV route', async (_label, status, bucket, action) => {
+    ['not started', 'NOT_STARTED', 'upNext', 'Start', '/lessons/lab-safety?courseId=course-2'],
+    ['in progress', 'IN_PROGRESS', 'inProgress', 'Continue', '/lessons/lab-safety/video?courseId=course-2'],
+  ])('routes a %s lesson to the right destination', async (_label, status, bucket, action, expectedHref) => {
     mockUseStudentData.mockReturnValue({
       data: {
         student: { name: 'Student Demo', email: 'student@example.edu' },
@@ -298,17 +301,9 @@ describe('Course dashboard page', () => {
     render(<CourseDashboardPage />);
 
     const link = await screen.findByRole('link', { name: action });
-    expect(link.getAttribute('href')).toBe('/lessons/lab-safety/video?courseId=course-2');
+    expect(link.getAttribute('href')).toBe(expectedHref);
   });
 
-  // SurveyResponse has no unique key on (promptId, studentId) and the route does
-  // find-then-write, so two overlapping submits each insert a row and the student's
-  // rating counts twice. The route's IN_REVIEW -> COMPLETED guard already covers
-  // sequential clicks; the button has to cover the concurrent ones.
-  //
-  // This modal is reached only by landing on /course_dashboard?surveyBadge=<slug>.
-  // The in-app finalize flow ("Review & Finalize") routes to the badge feedback
-  // page instead, which has its own guard — so this path is defensive.
   it('blocks a second survey submit while the first is still in flight', async () => {
     mockUseSearchParams.mockReturnValue(new URLSearchParams({ courseId: 'course-2', surveyBadge: 'safety' }));
 
@@ -346,19 +341,14 @@ describe('Course dashboard page', () => {
 
     const callsBeforeSecondClick = submitFetch.mock.calls.length;
 
-    // The impatient second click a student makes when nothing appears to happen.
     fireEvent.click(screen.getByRole('button', { name: 'Submitting…' }));
     expect(submitFetch.mock.calls.length).toBe(callsBeforeSecondClick);
     expect(submitFetch.mock.calls.filter((call) => String(call[0]).includes('/survey'))).toHaveLength(1);
 
-    // Let the in-flight submit settle so its state updates land inside the test.
     releaseSubmit({ ok: true, json: async () => ({}) });
     await waitFor(() => expect(screen.queryByRole('button', { name: 'Submitting…' })).not.toBeInTheDocument());
   });
 
-  // A waived badge leaves lesson progress untouched by design, so the lesson stays
-  // in "Pick up where you left off" while the badge reports itself assessable. The
-  // note is what stops those two true statements reading as a contradiction.
   describe('a waived QEV requirement', () => {
     const waivedData = (qevWaivedAt: string | null) => ({
       data: {
@@ -383,21 +373,41 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(
-        await screen.findByText(
-          'Your instructor cleared this requirement for Safety — you can be assessed without finishing it.'
-        )
-      ).toBeInTheDocument();
+      expect(await screen.findByText('Your instructor has waived your QEV.')).toBeInTheDocument();
     });
 
-    it('leaves the lesson where it was rather than pretending it is finished', async () => {
+    it('offers the assessment code instead of sending the student back to the video', async () => {
       mockUseStudentData.mockReturnValue(waivedData('2026-08-11T12:00:00.000Z'));
 
       render(<CourseDashboardPage />);
 
-      // Still "Continue", still in progress — the waiver unblocks assessment, it
-      // does not complete the lesson.
-      expect(await screen.findByRole('link', { name: 'Continue' })).toBeInTheDocument();
+      expect(await screen.findByRole('button', { name: 'Show Code' })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Continue' })).not.toBeInTheDocument();
+    });
+
+    it('offers a review link once the waived badge has been assessed', async () => {
+      const data = waivedData('2026-08-11T12:00:00.000Z');
+      data.data.badges.readyForAssessment[0].status = 'COMPLETED';
+      data.data.badges.readyForAssessment[0].latestAttemptPassed = true;
+      mockUseStudentData.mockReturnValue(data);
+
+      render(<CourseDashboardPage />);
+
+      const review = await screen.findByRole('link', { name: 'Review' });
+      expect(review.getAttribute('href')).toBe('/badges/safety/feedback?courseId=course-2');
+      expect(screen.queryByRole('link', { name: 'Continue' })).not.toBeInTheDocument();
+    });
+
+    it('labels an unstarted lesson "Waived" rather than "Lesson not started"', async () => {
+      const data = waivedData('2026-08-11T12:00:00.000Z');
+      data.data.lessons.inProgress = [{ ...completedBadgeLesson('safety'), id: 'lesson-open', status: 'NOT_STARTED' }];
+      data.data.badges.readyForAssessment[0].status = 'LEARNING';
+      mockUseStudentData.mockReturnValue(data);
+
+      render(<CourseDashboardPage />);
+
+      expect(await screen.findByText('Waived')).toBeInTheDocument();
+      expect(screen.queryByText('Lesson not started')).not.toBeInTheDocument();
     });
 
     it('says nothing when the requirement was not waived', async () => {
@@ -406,13 +416,10 @@ describe('Course dashboard page', () => {
       render(<CourseDashboardPage />);
 
       await screen.findByRole('link', { name: 'Continue' });
-      expect(screen.queryByText(/Your instructor cleared this requirement/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/waived your QEV/)).not.toBeInTheDocument();
     });
   });
 
-  // "Ready to finalize" is a per-course list. The API scopes it too, but a badge
-  // finalizable in course A used to render on every other course's dashboard, so
-  // both sources are filtered here as well.
   describe('a badge ready to finalize in a different course', () => {
     const readyBadge = (courseId: string | null) => ({
       ...makeBadge('safety', 'IN_REVIEW', true),
@@ -436,8 +443,8 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(await screen.findByText('No badges ready to finalize right now.')).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Review & Finalize' })).not.toBeInTheDocument();
+      expect(await screen.findByText('No lessons ready to start.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /to finalize/i })).not.toBeInTheDocument();
     });
 
     it('stays out when it arrives as a pending survey instead', async () => {
@@ -461,7 +468,8 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(await screen.findByText('No badges ready to finalize right now.')).toBeInTheDocument();
+      expect(await screen.findByText('No lessons ready to start.')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /to finalize/i })).not.toBeInTheDocument();
     });
 
     it('still shows a badge that belongs to this course', async () => {
@@ -469,7 +477,9 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(await screen.findByRole('button', { name: 'Review & Finalize' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('button', { name: 'Review feedback for Safety to finalize it.' })
+      ).toBeInTheDocument();
     });
 
     it('still shows a badge with no derivable course, which belongs to no course', async () => {
@@ -479,7 +489,9 @@ describe('Course dashboard page', () => {
 
       render(<CourseDashboardPage />);
 
-      expect(await screen.findByRole('button', { name: 'Review & Finalize' })).toBeInTheDocument();
+      expect(
+        await screen.findByRole('button', { name: 'Review feedback for Safety to finalize it.' })
+      ).toBeInTheDocument();
     });
   });
 });

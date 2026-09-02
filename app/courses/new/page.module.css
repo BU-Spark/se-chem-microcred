@@ -6,8 +6,6 @@
 }
 
 .main {
-  flex: 1;
-  padding: 44px 48px 48px;
   font-family: 'Open Sans', sans-serif;
   color: var(--checkd-black);
 }

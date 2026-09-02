@@ -39,6 +39,19 @@
   --brand-logo-url: '';
   /* e.g. url('/logo.svg') */
 
+  /* =========================
+     Page frame — the single source of the content-area offsets, taken from the
+     dashboard (/). Every page's <main> is .main, which reads these; a page that
+     genuinely needs a different frame adds a named modifier rather than
+     restating padding. See docs/page-frame.md.
+     ========================= */
+  --page-pad-top: 2.75rem;
+  --page-pad-x: 3rem;
+  --page-pad-bottom: 3rem;
+  --page-gap: 2.75rem;
+  /* Clearance for the global check'd logo pinned at top:32 / right:48 (115x32). */
+  --page-logo-clearance: 180px;
+
   /* Light Theme */
   --page-bg: var(--checkd-white);
   --page-bg-gradient-start: var(--checkd-white);
@@ -265,16 +278,21 @@ a {
   filter: none;
 }
 
-/* ---- Main area (no rounded cards / no drop shadows) ---- */
+/* ---- Main area (no rounded cards / no drop shadows) ----
+   The ONLY page-frame implementation. Pages apply this class and add their own
+   module class for page-specific paint (background, colour) — never for padding
+   or gap. A page that genuinely needs a different frame adds a modifier below.
+   See docs/page-frame.md. */
 .main {
   flex: 1;
   background: transparent;
   border-radius: 0;
   box-shadow: none;
-  padding: 2rem 2rem 3rem;
+  min-height: 100vh;
+  padding: var(--page-pad-top) var(--page-pad-x) var(--page-pad-bottom);
   display: flex;
   flex-direction: column;
-  gap: 2.5rem;
+  gap: var(--page-gap);
 }
 
 .topRow {
@@ -917,5 +935,23 @@ html.dark .rte-quote {
 @media (max-width: 640px) {
   .page-heading {
     font-size: 2rem;
+  }
+}
+
+/* ---- Page frame: narrow screens ----
+   900px is the canonical narrow breakpoint for the frame (media queries can't
+   read a custom property, so the number lives here). This is the only place the
+   content frame changes size; no page re-declares padding at its own breakpoint. */
+@media (max-width: 900px) {
+  :root {
+    --page-pad-top: 1.25rem;
+    --page-pad-x: 1rem;
+    --page-pad-bottom: 2.5rem;
+    --page-gap: 1.5rem;
+    --page-logo-clearance: 0px;
+  }
+
+  .main {
+    min-height: auto;
   }
 }
