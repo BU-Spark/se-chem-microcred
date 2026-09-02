@@ -272,7 +272,7 @@ export default function AssessmentReadinessPage() {
     <div className={styles.page}>
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
-      <main className={styles.main}>
+      <main className={`main ${styles.main}`}>
         <div className={styles.content}>
           <BackButton onClick={handleBack} />
 

@@ -9,18 +9,11 @@
 /* ===========================
    Page Layout
    =========================== */
+/* Inner layout only — the page frame's offsets come from .main. */
 .pageContent {
-  padding: 2.5rem 2.5rem 3rem;
   display: flex;
   flex-direction: column;
   gap: 0;
-}
-
-.headerRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 1.5rem;
 }
 
 .greeting {
@@ -29,13 +22,6 @@
   font-weight: 400;
   font-style: italic;
   color: #4b5563;
-}
-
-/* Heavy rule directly under the page header */
-.headerRule {
-  height: 3px;
-  background: var(--checkd-blue-low);
-  margin-top: 0.9rem;
 }
 
 /* Hairline rule between the identity block and the analytics section */

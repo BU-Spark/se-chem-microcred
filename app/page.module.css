@@ -364,23 +364,9 @@
   filter: none;
 }
 
-/* =========================
-   Main (card-free: no radius / no shadow)
-   ========================= */
-.main {
-  flex: 1;
-  background: transparent;
-  border-radius: 0;
-  box-shadow: none;
-  min-height: 100vh;
-
-  padding: 2.75rem 3rem 3rem;
-  /* Primary content padding */
-  display: flex;
-  flex-direction: column;
-  gap: 2.75rem;
-}
-
+/* The dashboard is the frame baseline: everything it needs comes from the global
+   .main. The one exception is the course workspace, which packs its own sections
+   tighter than the page gap. */
 .main:has(.courseWorkspace) {
   gap: 1.5rem;
 }
@@ -787,24 +773,6 @@
 /* =========================
    Welcome header + brand (Figma)
    ========================= */
-.welcomeHeader {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  /* leave clearance for the absolutely-positioned global checkd logo (top:32 right:48) */
-  padding-right: 180px;
-  padding-bottom: 1rem;
-  border-bottom: 1px solid #dfe4ea;
-}
-
-
-.welcomeSubtitle {
-  margin: 0.55rem 0 0;
-  font-family: 'Open Sans', sans-serif;
-  font-size: 1rem;
-  color: #647184;
-  line-height: 1.55;
-}
 
 /* =========================
    Permission-based course workspace
@@ -1176,6 +1144,9 @@
 }
 
 .courseCardMetrics {
+  /* Beside the media, with the title caption spanning the row underneath. */
+  grid-column: 2;
+  grid-row: 1;
   display: flex;
   min-width: 90px;
   flex-direction: column;
@@ -1185,7 +1156,7 @@
   overflow: hidden;
   border: 1px solid #dfe5ed;
   border-left: 0;
-  border-radius: 0 16px 16px 0;
+  border-radius: 0;
   background: var(--checkd-white);
 }
 
@@ -1199,7 +1170,12 @@
 .courseCardWithMetrics.courseCardWithMetrics > :first-child {
   height: 100%;
   aspect-ratio: 4 / 3;
-  border-radius: 16px 0 0 16px;
+  border-radius: 0;
+}
+
+.courseCardCaptionSpan.courseCardCaptionSpan {
+  grid-column: 1 / -1;
+  grid-row: 2;
 }
 
 .courseCardMetric {
@@ -1830,10 +1806,6 @@
 
   .navItem {
     padding: 0.45rem 0.7rem;
-  }
-
-  .welcomeHeader {
-    padding-right: 0;
   }
 
   .courseTabs {

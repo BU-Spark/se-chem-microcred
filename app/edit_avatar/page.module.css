@@ -1,13 +1,3 @@
-.main {
-  position: relative;
-  background: transparent;
-  display: flex;
-  justify-content: center;
-  align-items: stretch;
-  padding: 3rem 0;
-  font-family: 'Open Sans', sans-serif;
-}
-
 .sidebarContent {
   display: flex;
   flex-direction: column;

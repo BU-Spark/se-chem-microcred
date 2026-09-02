@@ -7,6 +7,8 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
+import PageHeading from '@/app/components/PageHeading/PageHeading';
+import BackButton from '@/app/components/BackButton/BackButton';
 import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal/AssessmentCodeModal';
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
@@ -585,19 +587,25 @@ function HomePageContent() {
       <Sidebar navItems={SIDEBAR_NAV} displayName={displayName} onSignOut={handleSignOut} isSigningOut={isSigningOut} />
 
       <main className={`main ${styles.main}`}>
+        <header className={styles.topBar}>
+          <BackButton inline fallbackHref="/" />
+        </header>
+
         <section
           className={`${styles.hero} ${courseDescription || courseContacts.length > 0 ? styles.heroWithDetails : styles.heroWithoutDetails}`}
         >
           <div className={styles.heroText}>
-            <p className={styles.heroEyebrow}>Welcome back, {displayName}</p>
-            <h1 className={styles.heroTitle}>{courseTitle || 'Your course'}</h1>
-            {courseCode || courseSection ? (
-              <p className={styles.heroMeta}>
-                {courseCode}
-                {courseCode && courseSection ? ' · ' : ''}
-                {courseSection ? `Section ${courseSection}` : ''}
-              </p>
-            ) : null}
+            {/* The shared page heading, so the course name reads like every other page's title (issue #261). */}
+            <PageHeading
+              bare
+              eyebrow={`Welcome back, ${displayName}`}
+              title={courseTitle || 'Your course'}
+              subtitle={
+                courseCode || courseSection
+                  ? `${courseCode}${courseCode && courseSection ? ' · ' : ''}${courseSection ? `Section ${courseSection}` : ''}`
+                  : undefined
+              }
+            />
           </div>
           {courseDescription || courseContacts.length > 0 ? (
             <div className={styles.heroDetails}>

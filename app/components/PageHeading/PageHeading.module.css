@@ -1,9 +1,3 @@
-/* Issues: #242 standardize headings */
-/*
- * Issue #242: the heading's own type is the global .page-heading class in
- * globals.css. This module carries only the layout around it, so there is one
- * place to change how a page title looks.
- */
 
 .header {
   display: flex;
@@ -11,7 +5,15 @@
   align-items: flex-end;
   justify-content: space-between;
   gap: 1rem;
-  margin-bottom: 1.25rem;
+  padding-right: var(--page-logo-clearance);
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #dfe4ea;
+}
+
+.bare {
+  padding-right: 0;
+  padding-bottom: 0;
+  border-bottom: none;
 }
 
 .headingGroup {
@@ -34,7 +36,8 @@
   margin: 0;
   font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
-  color: var(--muted-text-color, #4b5563);
+  line-height: 1.55;
+  color: #647184;
 }
 
 .actions {
