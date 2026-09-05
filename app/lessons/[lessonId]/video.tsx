@@ -1324,13 +1324,6 @@ export function LessonVideoPage({
     setModalState('none');
   }, [seekTo, updateFurthestTime]);
 
-  const handleRestartAfterFailure = useCallback(() => {
-    setModalState('none');
-    requestAnimationFrame(() => {
-      playerRef.current?.playVideo?.();
-    });
-  }, []);
-
   // Preview is embedded in the badge editor: every "leave the lesson" action
   // hands control back to the editor instead of navigating the instructor away
   // from their unsaved draft.
@@ -1655,14 +1648,13 @@ export function LessonVideoPage({
                           Your grade for this lesson is{' '}
                           <strong>{lessonAssessment ? `${lessonAssessment.gradePercent.toFixed(1)}%` : '—'}</strong>,
                           which is below the instructor threshold of{' '}
-                          <strong>{lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}</strong>. Please redo
-                          the lesson.
+                          <strong>{lessonAssessment ? `${lessonAssessment.passingPercent}%` : '—'}</strong>. Head back
+                          to your course to review this lesson and try it again.
                         </p>
                         {assessmentError ? <p className={styles.modalError}>{assessmentError}</p> : null}
                         <div className={styles.modalActions}>
-                          <button type="button" className={styles.modalSecondary} onClick={handleRestartAfterFailure}>
-                            Restart now
-                          </button>
+                          {/* No restart here (issue #289): a failed run ends at the course
+                              page, where the lesson is restarted deliberately. */}
                           <button type="button" className={styles.modalSecondary} onClick={handleGoCourseDashboard}>
                             Go to course
                           </button>

@@ -512,6 +512,19 @@ describe('LessonVideoPage', () => {
       expect(screen.getByText('Lesson needs another try')).toBeInTheDocument();
     });
 
+    // Issue #289: a failed run used to offer "Restart now" beside "Go to course",
+    // which resumed the same watch-through in place. The course page is the only
+    // way out now.
+    it('sends a failing student to the course instead of offering a restart', async () => {
+      mockLessonApis({ passed: false });
+      await renderFinishedLesson();
+
+      expect(screen.queryByRole('button', { name: /Restart/i })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Go to course' }));
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/course_dashboard'));
+    });
+
     it('never asks in instructor preview, which has no student to attribute it to', async () => {
       mockLessonApis();
       installFakeYouTubePlayer();
