@@ -370,6 +370,58 @@ describe('LessonVideoPage', () => {
       expect(screen.getByRole('button', { name: 'Finish lesson' })).toBeInTheDocument();
     });
   });
+  // Issue #287: getting a checkpoint question wrong used to offer "Rewatch
+  // section" alongside Continue. The summary now only moves forward.
+  describe('a failed checkpoint', () => {
+    async function failCheckpointOne() {
+      const player = installFakeYouTubePlayer();
+      global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+        if (String(url).includes('/attempt')) {
+          return {
+            ok: true,
+            json: async () => ({
+              isPassing: false,
+              questions: [{ questionId: 'question-1', isCorrect: false }],
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({}) };
+      }) as unknown as typeof fetch;
+
+      render(
+        <LessonVideoPage
+          lesson={buildLesson({ ...withVideo(), answeredCheckpointIds: [] })}
+          studentEmail="student@example.edu"
+          studentId="student-1"
+          resumeRequested={false}
+        />
+      );
+      await flushPlayerReady();
+
+      // Play into checkpoint-1 (30s) so the poll interval opens its question.
+      await act(async () => {
+        playerEvents.onStateChange?.({ data: 1 });
+        player.seekTo(30);
+      });
+      await screen.findByRole('heading', { name: 'Checkpoint 1' });
+
+      // 'B' is wrong: the question's correctIndex is 0.
+      fireEvent.click(screen.getByRole('button', { name: 'B' }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      });
+
+      await screen.findByRole('heading', { name: 'Checkpoint summary' });
+    }
+
+    it('offers no rewatch on the summary — only Continue', async () => {
+      await failCheckpointOne();
+
+      expect(screen.queryByRole('button', { name: /Rewatch/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+    });
+  });
+
   // The QEV rating is required: a passing student rates the lesson before the
   // completion card (and its assessment QR) appears. See lib/surveyRatings.ts and
   // POST /api/lessons/[lessonId]/survey.
@@ -458,6 +510,127 @@ describe('LessonVideoPage', () => {
 
       expect(screen.queryByText('How was this lesson?')).not.toBeInTheDocument();
       expect(screen.getByText('Lesson needs another try')).toBeInTheDocument();
+    });
+
+    // Issue #289: a failed run used to offer "Restart now" beside "Go to course",
+    // which resumed the same watch-through in place. The course page is the only
+    // way out now.
+    it('sends a failing student to the course instead of offering a restart', async () => {
+      mockLessonApis({ passed: false });
+      await renderFinishedLesson();
+
+      expect(screen.queryByRole('button', { name: /Restart/i })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Go to course' }));
+      expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/course_dashboard'));
+    });
+
+    // The end-of-QEV answer review reads the sealed run back from the server
+    // (GET /api/lessons/[id]/attempts/latest) rather than anything held in the
+    // browser, so a refresh or a resumed run still shows the full attempt.
+    describe('answer review', () => {
+      const REVIEW = {
+        attemptId: 'lesson-attempt-1',
+        passed: false,
+        gradePercent: 33.3,
+        passingPercent: 70,
+        correctAnswers: 1,
+        totalQuestions: 3,
+        checkpoints: [
+          {
+            id: 'checkpoint-1',
+            title: 'Checkpoint 1',
+            questions: [
+              {
+                id: 'question-1',
+                promptHtml: '<p>What is 2 + 2?</p>',
+                answerHtml: ['<p>Five</p>'],
+                isCorrect: false,
+              },
+            ],
+          },
+        ],
+      };
+
+      function mockReviewApis({ passed = false }: { passed?: boolean } = {}) {
+        global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+          const href = String(url);
+
+          if (href.includes('/attempts/latest')) {
+            return { ok: true, json: async () => ({ ...REVIEW, passed }) };
+          }
+          if (href.includes('/grade')) {
+            return {
+              ok: true,
+              json: async () => ({ passed, gradePercent: 33.3, passingPercent: 70 }),
+            };
+          }
+          return { ok: true, json: async () => ({}) };
+        }) as unknown as typeof fetch;
+      }
+
+      async function openReview() {
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: 'Review your answers' }));
+        });
+      }
+
+      it('shows the answers a failing student gave, with the grade', async () => {
+        mockReviewApis();
+        await renderFinishedLesson();
+        await openReview();
+
+        expect(screen.getByRole('heading', { name: 'Your answers' })).toBeInTheDocument();
+        expect(screen.getByText('What is 2 + 2?')).toBeInTheDocument();
+        expect(screen.getByText('Five')).toBeInTheDocument();
+        expect(screen.getByText('33.3%')).toBeInTheDocument();
+        expect(screen.getByText('1 / 3')).toBeInTheDocument();
+      });
+
+      it('marks the question wrong without revealing the correct answer', async () => {
+        mockReviewApis();
+        await renderFinishedLesson();
+        await openReview();
+
+        expect(screen.getByText('✗ Incorrect')).toBeInTheDocument();
+        // Nothing in the review names the right option.
+        expect(screen.queryByText(/correct answer is/i)).not.toBeInTheDocument();
+      });
+
+      it('asks the server for the latest attempt rather than trusting the browser', async () => {
+        mockReviewApis();
+        await renderFinishedLesson();
+        await openReview();
+
+        expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/attempts/latest'));
+      });
+
+      it('surfaces a failure to load instead of an empty review', async () => {
+        global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+          if (String(url).includes('/attempts/latest')) {
+            return { ok: false, json: async () => ({ error: 'No finished attempt to review yet.' }) };
+          }
+          if (String(url).includes('/grade')) {
+            return { ok: true, json: async () => ({ passed: false, gradePercent: 33.3, passingPercent: 70 }) };
+          }
+          return { ok: true, json: async () => ({}) };
+        }) as unknown as typeof fetch;
+
+        await renderFinishedLesson();
+        await openReview();
+
+        expect(screen.getByText('No finished attempt to review yet.')).toBeInTheDocument();
+      });
+
+      it('returns to the card the student came from', async () => {
+        mockReviewApis();
+        await renderFinishedLesson();
+        await openReview();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back to summary' }));
+
+        expect(screen.getByText('Lesson needs another try')).toBeInTheDocument();
+      });
     });
 
     it('never asks in instructor preview, which has no student to attribute it to', async () => {

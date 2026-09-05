@@ -3,8 +3,8 @@ import { BadgeStatus, EnrollmentStatus } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
-import { normalizeCheckpointQuestion, type NormalizedCheckpointQuestion } from '@/lib/checkpointQuestions';
-import { toPlainText } from '@/lib/question-rich-text';
+import { normalizeCheckpointQuestion } from '@/lib/checkpointQuestions';
+import { answerTextFromResponse } from '@/lib/checkpointAnswers';
 import { resolveEffectiveBadgePolicy } from '@/lib/badgePolicy';
 import { isBadgeClosed } from '@/lib/badgeAvailability';
 import {
@@ -30,38 +30,6 @@ async function sessionMatchesEmail(email: string) {
   const clerkUser = await currentUser();
   const sessionEmail = normalizeEmail(clerkUser?.emailAddresses?.[0]?.emailAddress);
   return Boolean(sessionEmail) && sessionEmail === email;
-}
-
-// Render a stored response against its (normalized) question. Multiple-choice
-// answers map indices onto the normalized option texts; short answers read the
-// persisted numericAnswer. Older responses predate the numericAnswer and
-// selectedIndices columns, so fall back to selectedIndex / "No answer recorded".
-function answerTextFromResponse(
-  question: NormalizedCheckpointQuestion,
-  response: { selectedIndex: number | null; selectedIndices: unknown; numericAnswer: number | null }
-) {
-  if (question.type === 'shortAnswer') {
-    return response.numericAnswer != null ? String(response.numericAnswer) : 'No answer recorded';
-  }
-
-  const indices = Array.isArray(response.selectedIndices)
-    ? response.selectedIndices.map((index) => Number(index)).filter((index) => Number.isInteger(index) && index >= 0)
-    : response.selectedIndex != null
-      ? [response.selectedIndex]
-      : [];
-
-  if (indices.length === 0) {
-    return 'No answer recorded';
-  }
-
-  const options = Array.isArray(question.options) ? question.options : [];
-  // Options are authored as rich text (issue #248); this history table renders
-  // plain text, so strip formatting rather than leaking raw HTML into the cell.
-  return indices
-    .map((index) =>
-      index < options.length ? toPlainText(String(options[index])) || `Option ${index + 1}` : `Option ${index + 1}`
-    )
-    .join(', ');
 }
 
 function formatCheckpointLabel(label: string | null | undefined, sortOrder: number) {
