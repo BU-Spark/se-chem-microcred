@@ -525,6 +525,114 @@ describe('LessonVideoPage', () => {
       expect(mockPush).toHaveBeenCalledWith(expect.stringContaining('/course_dashboard'));
     });
 
+    // The end-of-QEV answer review reads the sealed run back from the server
+    // (GET /api/lessons/[id]/attempts/latest) rather than anything held in the
+    // browser, so a refresh or a resumed run still shows the full attempt.
+    describe('answer review', () => {
+      const REVIEW = {
+        attemptId: 'lesson-attempt-1',
+        passed: false,
+        gradePercent: 33.3,
+        passingPercent: 70,
+        correctAnswers: 1,
+        totalQuestions: 3,
+        checkpoints: [
+          {
+            id: 'checkpoint-1',
+            title: 'Checkpoint 1',
+            questions: [
+              {
+                id: 'question-1',
+                promptHtml: '<p>What is 2 + 2?</p>',
+                answerHtml: ['<p>Five</p>'],
+                isCorrect: false,
+              },
+            ],
+          },
+        ],
+      };
+
+      function mockReviewApis({ passed = false }: { passed?: boolean } = {}) {
+        global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+          const href = String(url);
+
+          if (href.includes('/attempts/latest')) {
+            return { ok: true, json: async () => ({ ...REVIEW, passed }) };
+          }
+          if (href.includes('/grade')) {
+            return {
+              ok: true,
+              json: async () => ({ passed, gradePercent: 33.3, passingPercent: 70 }),
+            };
+          }
+          return { ok: true, json: async () => ({}) };
+        }) as unknown as typeof fetch;
+      }
+
+      async function openReview() {
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: 'Review your answers' }));
+        });
+      }
+
+      it('shows the answers a failing student gave, with the grade', async () => {
+        mockReviewApis();
+        await renderFinishedLesson();
+        await openReview();
+
+        expect(screen.getByRole('heading', { name: 'Your answers' })).toBeInTheDocument();
+        expect(screen.getByText('What is 2 + 2?')).toBeInTheDocument();
+        expect(screen.getByText('Five')).toBeInTheDocument();
+        expect(screen.getByText('33.3%')).toBeInTheDocument();
+        expect(screen.getByText('1 / 3')).toBeInTheDocument();
+      });
+
+      it('marks the question wrong without revealing the correct answer', async () => {
+        mockReviewApis();
+        await renderFinishedLesson();
+        await openReview();
+
+        expect(screen.getByText('✗ Incorrect')).toBeInTheDocument();
+        // Nothing in the review names the right option.
+        expect(screen.queryByText(/correct answer is/i)).not.toBeInTheDocument();
+      });
+
+      it('asks the server for the latest attempt rather than trusting the browser', async () => {
+        mockReviewApis();
+        await renderFinishedLesson();
+        await openReview();
+
+        expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/attempts/latest'));
+      });
+
+      it('surfaces a failure to load instead of an empty review', async () => {
+        global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+          if (String(url).includes('/attempts/latest')) {
+            return { ok: false, json: async () => ({ error: 'No finished attempt to review yet.' }) };
+          }
+          if (String(url).includes('/grade')) {
+            return { ok: true, json: async () => ({ passed: false, gradePercent: 33.3, passingPercent: 70 }) };
+          }
+          return { ok: true, json: async () => ({}) };
+        }) as unknown as typeof fetch;
+
+        await renderFinishedLesson();
+        await openReview();
+
+        expect(screen.getByText('No finished attempt to review yet.')).toBeInTheDocument();
+      });
+
+      it('returns to the card the student came from', async () => {
+        mockReviewApis();
+        await renderFinishedLesson();
+        await openReview();
+
+        fireEvent.click(screen.getByRole('button', { name: 'Back to summary' }));
+
+        expect(screen.getByText('Lesson needs another try')).toBeInTheDocument();
+      });
+    });
+
     it('never asks in instructor preview, which has no student to attribute it to', async () => {
       mockLessonApis();
       installFakeYouTubePlayer();

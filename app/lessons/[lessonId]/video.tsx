@@ -23,7 +23,37 @@ const ENABLE_QEV_SKIP =
   (process.env.NEXT_PUBLIC_DEV_QEV_SKIP ?? process.env.NEXT_PUBLIC_CURRENT_ENVIRONMENT_DEV ?? '').toLowerCase() ===
   'true';
 
-type ModalState = 'none' | 'question' | 'result' | 'success' | 'lessonRating' | 'lessonComplete' | 'lessonFailed';
+type ModalState =
+  | 'none'
+  | 'question'
+  | 'result'
+  | 'success'
+  | 'lessonRating'
+  | 'lessonComplete'
+  | 'lessonFailed'
+  | 'lessonReview';
+
+// The student's own end-of-QEV review, from GET /api/lessons/[id]/attempts/latest.
+// Answer-blind by construction: the payload carries what they picked and whether
+// it was right, never the correct answer.
+type LessonReview = {
+  attemptId: string;
+  passed: boolean;
+  gradePercent: number;
+  passingPercent: number;
+  correctAnswers: number | null;
+  totalQuestions: number | null;
+  checkpoints: Array<{
+    id: string;
+    title: string;
+    questions: Array<{
+      id: string;
+      promptHtml: string;
+      answerHtml: string[];
+      isCorrect: boolean | null;
+    }>;
+  }>;
+};
 type RangeStyleVars = CSSProperties & {
   '--progress': string;
   '--unlocked': string;
@@ -264,6 +294,9 @@ export function LessonVideoPage({
     passingPercent: number;
   } | null>(null);
   const [assessmentError, setAssessmentError] = useState<string | null>(null);
+  const [lessonReview, setLessonReview] = useState<LessonReview | null>(null);
+  const [isLoadingReview, setIsLoadingReview] = useState(false);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [assessingLesson, setAssessingLesson] = useState(false);
   const [qevRating, setQevRating] = useState<number | null>(null);
   const [isSubmittingQevRating, setIsSubmittingQevRating] = useState(false);
@@ -1241,7 +1274,8 @@ export function LessonVideoPage({
       modalState === 'result' ||
       modalState === 'lessonRating' ||
       modalState === 'lessonComplete' ||
-      modalState === 'lessonFailed'
+      modalState === 'lessonFailed' ||
+      modalState === 'lessonReview'
     ) {
       ensurePlayerPaused();
     }
@@ -1323,6 +1357,37 @@ export function LessonVideoPage({
     seekTo(0, true, true);
     setModalState('none');
   }, [seekTo, updateFurthestTime]);
+
+  // The end-of-QEV answer review. The run is already sealed server-side by the
+  // time either end card renders, so this reads it back rather than trusting
+  // anything accumulated in the browser (which a refresh or resume would lose).
+  const handleShowAnswerReview = useCallback(async () => {
+    setModalState('lessonReview');
+
+    if (lessonReview) {
+      return;
+    }
+
+    setIsLoadingReview(true);
+    setReviewError(null);
+
+    try {
+      const response = await fetch(`/api/lessons/${lesson.id}/attempts/latest`);
+      if (!response.ok) {
+        const body = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || 'Unable to load your answers.');
+      }
+      setLessonReview((await response.json()) as LessonReview);
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : 'Unable to load your answers.');
+    } finally {
+      setIsLoadingReview(false);
+    }
+  }, [lesson.id, lessonReview]);
+
+  const handleCloseAnswerReview = useCallback(() => {
+    setModalState(lessonAssessment?.passed === false ? 'lessonFailed' : 'lessonComplete');
+  }, [lessonAssessment]);
 
   // Preview is embedded in the badge editor: every "leave the lesson" action
   // hands control back to the editor instead of navigating the instructor away
@@ -1631,13 +1696,95 @@ export function LessonVideoPage({
                 />
               ) : null}
 
-              {modalState === 'success' || modalState === 'lessonComplete' || modalState === 'lessonFailed' ? (
+              {modalState === 'success' ||
+              modalState === 'lessonComplete' ||
+              modalState === 'lessonFailed' ||
+              modalState === 'lessonReview' ? (
                 <div className={styles.overlay}>
                   <div className={styles.modalCard}>
                     {modalState === 'success' ? (
                       <>
                         <h2 className={styles.modalTitle}>Checkpoint cleared!</h2>
                         <p className={styles.modalDescription}>Great work—keep going to finish the lesson.</p>
+                      </>
+                    ) : null}
+
+                    {modalState === 'lessonReview' ? (
+                      <>
+                        <h2 className={styles.modalTitle}>Your answers</h2>
+                        <p className={styles.modalDescription}>
+                          Here is what you answered on this attempt. The correct answers are not shown.
+                        </p>
+                        <div className={styles.modalStats}>
+                          <div className={styles.modalStat}>
+                            Grade
+                            <span className={styles.modalStatValue}>
+                              {lessonReview ? `${lessonReview.gradePercent.toFixed(1)}%` : '—'}
+                            </span>
+                          </div>
+                          <div className={styles.modalStat}>
+                            Required to pass
+                            <span className={styles.modalStatValue}>
+                              {lessonReview ? `${lessonReview.passingPercent}%` : '—'}
+                            </span>
+                          </div>
+                          {lessonReview?.totalQuestions != null ? (
+                            <div className={styles.modalStat}>
+                              Correct
+                              <span className={styles.modalStatValue}>
+                                {lessonReview.correctAnswers ?? 0} / {lessonReview.totalQuestions}
+                              </span>
+                            </div>
+                          ) : null}
+                        </div>
+
+                        {isLoadingReview ? <p className={styles.modalDescription}>Loading your answers…</p> : null}
+                        {reviewError ? <p className={styles.modalError}>{reviewError}</p> : null}
+                        {!isLoadingReview && !reviewError && lessonReview?.checkpoints.length === 0 ? (
+                          <p className={styles.modalDescription}>No answers were recorded for this attempt.</p>
+                        ) : null}
+
+                        {lessonReview?.checkpoints.map((checkpoint) => (
+                          <section key={checkpoint.id} className={styles.reviewCheckpoint}>
+                            <h3 className={styles.reviewCheckpointTitle}>{checkpoint.title}</h3>
+                            {checkpoint.questions.map((question, questionIndex) => (
+                              <article key={question.id} className={styles.reviewQuestion}>
+                                <div className={styles.reviewQuestionHeading}>
+                                  <span>Question {questionIndex + 1}</span>
+                                  <span
+                                    className={
+                                      question.isCorrect ? styles.reviewVerdictCorrect : styles.reviewVerdictIncorrect
+                                    }
+                                  >
+                                    {question.isCorrect ? '✓ Correct' : '✗ Incorrect'}
+                                  </span>
+                                </div>
+                                <div
+                                  className={styles.questionRichText}
+                                  dangerouslySetInnerHTML={{ __html: question.promptHtml }}
+                                />
+                                <div className={styles.reviewAnswerLabel}>Your answer</div>
+                                {question.answerHtml.length > 0 ? (
+                                  question.answerHtml.map((answer, answerIndex) => (
+                                    <div
+                                      key={`${question.id}-answer-${answerIndex}`}
+                                      className={`${styles.reviewAnswer} ${styles.questionRichText}`}
+                                      dangerouslySetInnerHTML={{ __html: answer }}
+                                    />
+                                  ))
+                                ) : (
+                                  <div className={styles.reviewAnswer}>No answer recorded</div>
+                                )}
+                              </article>
+                            ))}
+                          </section>
+                        ))}
+
+                        <div className={styles.modalActions}>
+                          <button type="button" className={styles.modalSecondary} onClick={handleCloseAnswerReview}>
+                            Back to summary
+                          </button>
+                        </div>
                       </>
                     ) : null}
 
@@ -1655,6 +1802,11 @@ export function LessonVideoPage({
                         <div className={styles.modalActions}>
                           {/* No restart here (issue #289): a failed run ends at the course
                               page, where the lesson is restarted deliberately. */}
+                          {previewMode ? null : (
+                            <button type="button" className={styles.modalSecondary} onClick={handleShowAnswerReview}>
+                              Review your answers
+                            </button>
+                          )}
                           <button type="button" className={styles.modalSecondary} onClick={handleGoCourseDashboard}>
                             Go to course
                           </button>
@@ -1731,6 +1883,9 @@ export function LessonVideoPage({
                           <div className={styles.modalActions}>
                             <button type="button" className={styles.modalSecondary} onClick={handleShowQrCode}>
                               Show QR code
+                            </button>
+                            <button type="button" className={styles.modalSecondary} onClick={handleShowAnswerReview}>
+                              Review your answers
                             </button>
                             <button type="button" className={styles.modalSecondary} onClick={handleGoHome}>
                               Home
