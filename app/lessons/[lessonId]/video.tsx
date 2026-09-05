@@ -1854,7 +1854,7 @@ export function LessonVideoPage({
                       <p className={styles.modalDescription}>
                         {attemptSummary.isPassing
                           ? 'Nice work — you passed this checkpoint.'
-                          : 'Not quite. You can rewatch this section to review, or continue on.'}
+                          : 'Not quite. You can review your answers after the end of the QEV.'}
                       </p>
                       <ul className={styles.questionList}>
                         {attemptSummary.questions.map((question, index) => (
@@ -1867,15 +1867,8 @@ export function LessonVideoPage({
                         ))}
                       </ul>
                       <div className={styles.controlRow}>
-                        {!attemptSummary.isPassing ? (
-                          <button
-                            type="button"
-                            className={`${styles.controlButton} ${styles.controlButtonSecondary}`}
-                            onClick={handleRewatch}
-                          >
-                            Rewatch section
-                          </button>
-                        ) : null}
+                        {/* No rewatch here (issue #287): once the questions are answered the
+                            section is done, so the summary only moves forward. */}
                         <button
                           type="button"
                           className={`${styles.controlButton} ${styles.controlButtonPrimary}`}

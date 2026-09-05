@@ -370,6 +370,58 @@ describe('LessonVideoPage', () => {
       expect(screen.getByRole('button', { name: 'Finish lesson' })).toBeInTheDocument();
     });
   });
+  // Issue #287: getting a checkpoint question wrong used to offer "Rewatch
+  // section" alongside Continue. The summary now only moves forward.
+  describe('a failed checkpoint', () => {
+    async function failCheckpointOne() {
+      const player = installFakeYouTubePlayer();
+      global.fetch = jest.fn(async (url: RequestInfo | URL) => {
+        if (String(url).includes('/attempt')) {
+          return {
+            ok: true,
+            json: async () => ({
+              isPassing: false,
+              questions: [{ questionId: 'question-1', isCorrect: false }],
+            }),
+          };
+        }
+        return { ok: true, json: async () => ({}) };
+      }) as unknown as typeof fetch;
+
+      render(
+        <LessonVideoPage
+          lesson={buildLesson({ ...withVideo(), answeredCheckpointIds: [] })}
+          studentEmail="student@example.edu"
+          studentId="student-1"
+          resumeRequested={false}
+        />
+      );
+      await flushPlayerReady();
+
+      // Play into checkpoint-1 (30s) so the poll interval opens its question.
+      await act(async () => {
+        playerEvents.onStateChange?.({ data: 1 });
+        player.seekTo(30);
+      });
+      await screen.findByRole('heading', { name: 'Checkpoint 1' });
+
+      // 'B' is wrong: the question's correctIndex is 0.
+      fireEvent.click(screen.getByRole('button', { name: 'B' }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Submit' }));
+      });
+
+      await screen.findByRole('heading', { name: 'Checkpoint summary' });
+    }
+
+    it('offers no rewatch on the summary — only Continue', async () => {
+      await failCheckpointOne();
+
+      expect(screen.queryByRole('button', { name: /Rewatch/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+    });
+  });
+
   // The QEV rating is required: a passing student rates the lesson before the
   // completion card (and its assessment QR) appears. See lib/surveyRatings.ts and
   // POST /api/lessons/[lessonId]/survey.
