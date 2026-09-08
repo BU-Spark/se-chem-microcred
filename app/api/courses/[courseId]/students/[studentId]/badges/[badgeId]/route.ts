@@ -742,11 +742,7 @@ export async function GET(
           // unlocked without a finished lesson.
           qevWaivedAt: badgeProgress.qevWaivedAt?.toISOString() ?? null,
           qevWaivedByName: badgeProgress.qevWaivedBy?.name ?? badgeProgress.qevWaivedBy?.email ?? null,
-          // Raw per-student overrides (null = inherit) for the config editor …
-          reassessmentLimit: badgeProgress.reassessmentLimit ?? null,
-          cooldownDays: badgeProgress.cooldownDays ?? null,
-          reassessmentRequired: badgeProgress.reassessmentRequired ?? null,
-          // … and the resolved policy that actually applies to this student.
+          // The resolved policy (per-student override, if any, over the badge default).
           effectivePolicy: resolveEffectiveBadgePolicy(badgeProgress, badgeProgress.badge),
           allowCooldownOverride: course.settings?.allowCooldownOverride ?? false,
         },
@@ -1101,8 +1097,6 @@ export async function POST(
 }
 
 type StudentBadgeConfigPayload = {
-  reassessmentLimit?: unknown;
-  reassessmentRequired?: unknown;
   // One-click checker action: clear the cooldown so a student who failed the
   // in-person assessment can re-assess immediately. The cooldown *length* is
   // authored on the badge, not set per student here.
@@ -1229,8 +1223,7 @@ async function runStudentBadgeAction({
   }
 }
 
-// Update per-student badge configuration (reassessment count, whether reassessment
-// is mandatory) and/or override an active cooldown — instructor/checker. Also the
+// Override an active cooldown for a student's badge — instructor/checker. Also the
 // entry point for the instructor-only student actions, which arrive on the same
 // endpoint carrying an `action` discriminator.
 export async function PATCH(
@@ -1257,20 +1250,11 @@ export async function PATCH(
     const action = parsedAction?.payload ?? null;
     const body = rawBody as StudentBadgeConfigPayload;
 
-    const data: { reassessmentLimit?: number; reassessmentRequired?: boolean; cooldownUntil?: null } = {};
-
-    if (!action) {
-      if (typeof body.reassessmentLimit === 'number' && Number.isFinite(body.reassessmentLimit)) {
-        data.reassessmentLimit = Math.max(0, Math.round(body.reassessmentLimit));
-      }
-      if (typeof body.reassessmentRequired === 'boolean') {
-        data.reassessmentRequired = body.reassessmentRequired;
-      }
-    }
+    const data: { cooldownUntil?: null } = {};
 
     const wantsCooldownOverride = !action && body.overrideCooldown === true;
 
-    if (!action && Object.keys(data).length === 0 && !wantsCooldownOverride) {
+    if (!action && !wantsCooldownOverride) {
       return NextResponse.json({ error: 'No configuration fields provided.' }, { status: 400 });
     }
 
@@ -1384,9 +1368,6 @@ export async function PATCH(
       where: { id: badgeProgress.id },
       data,
       select: {
-        reassessmentLimit: true,
-        cooldownDays: true,
-        reassessmentRequired: true,
         cooldownUntil: true,
       },
     });

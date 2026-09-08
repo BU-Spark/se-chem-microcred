@@ -544,8 +544,7 @@ describe('GET /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', ()
   });
 });
 
-// Per-student config edits (reassessment count, cooldown, whether reassessment is
-// mandatory). The cooldown override is the checker feature gated by the course's
+// The cooldown override is the checker feature gated by the course's
 // allowCooldownOverride setting.
 function configRequest(body: unknown) {
   return new NextRequest(
@@ -612,20 +611,6 @@ describe('PATCH /api/courses/[courseId]/students/[studentId]/badges/[badgeId]', 
       expect.objectContaining({
         where: { id: 'progress-1' },
         data: { cooldownUntil: null },
-      })
-    );
-  });
-
-  it('updates the per-student config without touching the cooldown', async () => {
-    mockPrisma.course.findFirst.mockResolvedValue(configCourseFixture(false));
-
-    const response = await PATCH(configRequest({ reassessmentLimit: 2, reassessmentRequired: true }), submitParams());
-
-    expect(response.status).toBe(200);
-    expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: 'progress-1' },
-        data: { reassessmentLimit: 2, reassessmentRequired: true },
       })
     );
   });

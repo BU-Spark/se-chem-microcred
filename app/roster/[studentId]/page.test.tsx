@@ -469,56 +469,6 @@ describe('Roster member profile page', () => {
     expect(screen.getByRole('button', { name: 'Waste Handling' })).toBeInTheDocument();
   });
 
-  it('saves per-student badge configuration via the config modal', async () => {
-    mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
-    const detailPayload = createInProgressBadgeDetailPayload() as ReturnType<
-      typeof createInProgressBadgeDetailPayload
-    > & {
-      badge: Record<string, unknown>;
-    };
-    detailPayload.badge.reassessmentLimit = 1;
-    detailPayload.badge.cooldownDays = 2;
-    detailPayload.badge.reassessmentRequired = false;
-    detailPayload.badge.allowCooldownOverride = true;
-
-    mockFetch.mockImplementation(async (input: unknown, init?: { method?: string; body?: string }) => {
-      const url = String(input);
-
-      if (init?.method === 'PATCH') {
-        return {
-          ok: true,
-          json: async () => ({ config: { reassessmentLimit: 3, cooldownDays: 2, reassessmentRequired: true } }),
-        } as Response;
-      }
-
-      if (url.includes('/badges/badge-1')) {
-        return { ok: true, json: async () => detailPayload } as Response;
-      }
-
-      return { ok: true, json: async () => createStudentProfilePayload() } as Response;
-    });
-
-    render(<InstructorStudentProfilePage />);
-
-    expect(await screen.findByText('Student Progress for:')).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole('button', { name: 'Edit configurations' }));
-    expect(screen.getByText('Editing badge configurations for: Ada Lovelace')).toBeInTheDocument();
-
-    fireEvent.change(screen.getByLabelText('Number of reassessments allowed'), { target: { value: '3' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Mandatory' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-
-    await waitFor(() => {
-      const patchCall = mockFetch.mock.calls.find((call) => call[1]?.method === 'PATCH');
-      expect(patchCall).toBeTruthy();
-      const body = JSON.parse(patchCall![1].body as string);
-      // The checker sets reassessment count + requirement, but NOT the cooldown length.
-      expect(body).toEqual({ reassessmentLimit: 3, reassessmentRequired: true });
-      expect(body).not.toHaveProperty('cooldownDays');
-    });
-  });
-
   it('lets the checker override an active cooldown so the student can retake now', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&badgeId=badge-1');
     const detailPayload = createInProgressBadgeDetailPayload() as ReturnType<
