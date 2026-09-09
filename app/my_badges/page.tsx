@@ -181,15 +181,25 @@ export default function MyBadgesPage() {
                   </BadgeToken>
                   <span className={styles.badgeName}>{badge.name}</span>
                 </Link>
-                <button
-                  type="button"
-                  className={styles.badgeDeleteButton}
-                  onClick={() => requestDeleteBadge({ id: badge.id, name: badge.name })}
-                  disabled={isDeleting}
-                  aria-label={`Delete ${badge.name}`}
-                >
-                  Delete
-                </button>
+                <div className={styles.badgeCardActions}>
+                  <button
+                    type="button"
+                    className={styles.badgeEditButton}
+                    onClick={() => router.push(`/badge_creation?badgeId=${badge.id}`)}
+                    aria-label={`Edit ${badge.name}`}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.badgeDeleteButton}
+                    onClick={() => requestDeleteBadge({ id: badge.id, name: badge.name })}
+                    disabled={isDeleting}
+                    aria-label={`Delete ${badge.name}`}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
             );
           })}
