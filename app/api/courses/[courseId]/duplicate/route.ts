@@ -8,9 +8,11 @@ import prisma from '@/lib/prisma';
 /**
  * Deep-copies a course the caller owns into a brand-new course owned by the caller.
  * Copies structure (settings, lessons + segments/checkpoints/questions/skills,
- * badges + requirements, survey prompts) but resets all state: no student/checker
- * enrollments, no checker contacts, no progress, no attempts, no StudentBadges,
- * no survey responses.
+ * badges + requirements + rubrics, survey prompts) but resets all state: no
+ * student/checker enrollments, no checker contacts, no progress, no attempts,
+ * no StudentBadges, no survey responses. Lesson due dates and badge
+ * availability windows carry over verbatim from the source course — the
+ * frontend prompts the instructor to review/update them after duplicating.
  */
 export async function POST(_req: NextRequest, context: { params: Promise<{ courseId: string }> }) {
   try {
@@ -52,7 +54,14 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
                   include: { questions: { orderBy: { sortOrder: 'asc' } } },
                 },
                 badgeRequirements: {
-                  include: { badge: { include: { surveys: true } } },
+                  include: {
+                    badge: {
+                      include: {
+                        surveys: true,
+                        rubricGoal: { include: { subgoals: { include: { tasks: true } } } },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -269,6 +278,16 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
           slug: string;
           name: string;
           description: string | null;
+          imageUrl: string | null;
+          imagePositionX: number;
+          imagePositionY: number;
+          imageScale: number;
+          availableOn: Date | null;
+          closesOn: Date | null;
+          neverCloses: boolean | null;
+          reassessmentLimit: number | null;
+          cooldownDays: number | null;
+          reassessmentRequired: boolean | null;
           createdById: string;
           sourceBadgeId: string;
         }[] = [];
@@ -286,6 +305,19 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
               slug: newSlug,
               name: sourceBadge.name,
               description: sourceBadge.description,
+              imageUrl: sourceBadge.imageUrl,
+              imagePositionX: sourceBadge.imagePositionX,
+              imagePositionY: sourceBadge.imagePositionY,
+              imageScale: sourceBadge.imageScale,
+              // Dates/window carry over verbatim from the source course; the
+              // post-duplication "review dates" modal prompts the instructor
+              // to update them for the new course.
+              availableOn: sourceBadge.availableOn,
+              closesOn: sourceBadge.closesOn,
+              neverCloses: sourceBadge.neverCloses,
+              reassessmentLimit: sourceBadge.reassessmentLimit,
+              cooldownDays: sourceBadge.cooldownDays,
+              reassessmentRequired: sourceBadge.reassessmentRequired,
               createdById: creator.id,
               sourceBadgeId: sourceBadge.sourceBadgeId ?? sourceBadge.id,
             });
@@ -308,6 +340,122 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
             const newId = badgeIdBySlug.get(slug);
             if (newId) badgeIdBySource.set(sourceBadgeId, newId);
           }
+        }
+
+        // 7b. Rubric (goal -> subgoals -> tasks) for each newly-created badge.
+        //     RubricGoal is 1:1 with Badge (@unique badgeId), so read-back by
+        //     badgeId alone is unambiguous.
+        const goalData = source.lessons.flatMap((lesson) =>
+          lesson.badgeRequirements.flatMap((requirement) => {
+            const sourceBadge = requirement.badge;
+            const newBadgeId = sourceBadge ? badgeIdBySource.get(sourceBadge.id) : undefined;
+            if (!sourceBadge?.rubricGoal || !newBadgeId) return [];
+            return [
+              {
+                badgeId: newBadgeId,
+                name: sourceBadge.rubricGoal.name,
+                instructions: sourceBadge.rubricGoal.instructions,
+              },
+            ];
+          })
+        );
+        // Dedupe (a badge can be reached via multiple lesson requirements).
+        const uniqueGoalData = Array.from(new Map(goalData.map((g) => [g.badgeId, g])).values());
+
+        const goalIdByBadge = new Map<string, string>();
+
+        if (uniqueGoalData.length > 0) {
+          await tx.rubricGoal.createMany({ data: uniqueGoalData });
+
+          const createdGoals = await tx.rubricGoal.findMany({
+            where: { badgeId: { in: uniqueGoalData.map((g) => g.badgeId) } },
+            select: { id: true, badgeId: true },
+          });
+          for (const goal of createdGoals) {
+            goalIdByBadge.set(goal.badgeId, goal.id);
+          }
+        }
+
+        // sourceSubgoalId -> newSubgoalId, so tasks can be remapped.
+        const subgoalIdBySource = new Map<string, string>();
+        const seenSourceGoals = new Set<string>();
+        const subgoalData: { goalId: string; text: string; passThreshold: number; sortOrder: number }[] = [];
+
+        for (const lesson of source.lessons) {
+          for (const requirement of lesson.badgeRequirements) {
+            const sourceBadge = requirement.badge;
+            const sourceGoal = sourceBadge?.rubricGoal;
+            if (!sourceBadge || !sourceGoal || seenSourceGoals.has(sourceGoal.id)) continue;
+            seenSourceGoals.add(sourceGoal.id);
+
+            const newGoalId = goalIdByBadge.get(badgeIdBySource.get(sourceBadge.id) ?? '');
+            if (!newGoalId) continue;
+
+            for (const subgoal of sourceGoal.subgoals) {
+              subgoalData.push({
+                goalId: newGoalId,
+                text: subgoal.text,
+                passThreshold: subgoal.passThreshold,
+                sortOrder: subgoal.sortOrder,
+              });
+            }
+          }
+        }
+
+        if (subgoalData.length > 0) {
+          await tx.rubricSubgoal.createMany({ data: subgoalData });
+
+          const newGoalIds = Array.from(new Set(subgoalData.map((s) => s.goalId)));
+          const createdSubgoals = await tx.rubricSubgoal.findMany({
+            where: { goalId: { in: newGoalIds } },
+            select: { id: true, goalId: true, sortOrder: true },
+          });
+          const subgoalIdByKey = new Map(createdSubgoals.map((s) => [`${s.goalId}:${s.sortOrder}`, s.id]));
+
+          for (const lesson of source.lessons) {
+            for (const requirement of lesson.badgeRequirements) {
+              const sourceBadge = requirement.badge;
+              const sourceGoal = sourceBadge?.rubricGoal;
+              if (!sourceBadge || !sourceGoal) continue;
+              const newGoalId = goalIdByBadge.get(badgeIdBySource.get(sourceBadge.id) ?? '');
+              if (!newGoalId) continue;
+              for (const subgoal of sourceGoal.subgoals) {
+                const newId = subgoalIdByKey.get(`${newGoalId}:${subgoal.sortOrder}`);
+                if (newId) subgoalIdBySource.set(subgoal.id, newId);
+              }
+            }
+          }
+        }
+
+        // Tasks. No read-back needed — nothing downstream references task ids.
+        const seenSourceSubgoals = new Set<string>();
+        const taskData: { subgoalId: string; text: string; points: number; sortOrder: number }[] = [];
+
+        for (const lesson of source.lessons) {
+          for (const requirement of lesson.badgeRequirements) {
+            const sourceGoal = requirement.badge?.rubricGoal;
+            if (!sourceGoal) continue;
+            for (const subgoal of sourceGoal.subgoals) {
+              if (seenSourceSubgoals.has(subgoal.id)) continue;
+              seenSourceSubgoals.add(subgoal.id);
+
+              const newSubgoalId = subgoalIdBySource.get(subgoal.id);
+              if (!newSubgoalId) continue;
+
+              for (const task of subgoal.tasks) {
+                taskData.push({
+                  subgoalId: newSubgoalId,
+                  text: task.text,
+                  points: task.points,
+                  sortOrder: task.sortOrder,
+                });
+              }
+            }
+          }
+        }
+
+        if (taskData.length > 0) {
+          await tx.rubricTask.createMany({ data: taskData });
         }
 
         // 8. Badge-context survey prompts for each newly-created badge.

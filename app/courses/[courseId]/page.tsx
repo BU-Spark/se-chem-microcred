@@ -179,6 +179,7 @@ export default function CreatedCourseDetailPage() {
   const [showUnassignConfirm, setShowUnassignConfirm] = useState(false);
   const [isAssessmentCodeOpen, setIsAssessmentCodeOpen] = useState(false);
   const [isDeleteCourseOpen, setIsDeleteCourseOpen] = useState(false);
+  const [isReviewDatesOpen, setIsReviewDatesOpen] = useState(false);
   const [assessmentCodeInput, setAssessmentCodeInput] = useState('');
   const [assessmentCodeError, setAssessmentCodeError] = useState('');
   // MVP test-cleanup affordance (remove before handoff).
@@ -206,6 +207,20 @@ export default function CreatedCourseDetailPage() {
       router.replace('/sign-in');
     }
   }, [isLoaded, isSignedIn, isSigningOut, router]);
+
+  // Landing here right after duplicating a course: prompt the instructor to
+  // review due dates/availability windows, which carried over from the
+  // source course unchanged. Strip the param so a refresh doesn't re-trigger it.
+  useEffect(() => {
+    if (searchParams.get('duplicated') === '1') {
+      setIsReviewDatesOpen(true);
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete('duplicated');
+      const query = params.toString();
+      router.replace(query ? `?${query}` : window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const handleSignOut = async () => {
     if (isSigningOut) return;
@@ -466,6 +481,7 @@ export default function CreatedCourseDetailPage() {
   const deleteCourseModalRef = useFocusTrap<HTMLDivElement>(isDeleteCourseOpen, () => {
     if (!isDeleting) setIsDeleteCourseOpen(false);
   });
+  const reviewDatesModalRef = useFocusTrap<HTMLDivElement>(isReviewDatesOpen, () => setIsReviewDatesOpen(false));
 
   // Auto-dismiss the confirmation step after a short, visible countdown. The
   // interval drives the on-screen notice; the timeout performs the actual close.
@@ -1031,6 +1047,50 @@ export default function CreatedCourseDetailPage() {
                 disabled={isDeleting}
               >
                 {isDeleting ? 'Deleting…' : 'Delete course'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {isReviewDatesOpen ? (
+        <div className={styles.importOverlay} role="presentation" onClick={() => setIsReviewDatesOpen(false)}>
+          <div
+            ref={reviewDatesModalRef}
+            className={styles.importModal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="review-dates-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              className={styles.importCloseButton}
+              onClick={() => setIsReviewDatesOpen(false)}
+              aria-label="Close review dates dialog"
+            >
+              ×
+            </button>
+            <div className={styles.modalSystemHeader}>
+              <div className={styles.modalSystemIcon} aria-hidden="true">
+                !
+              </div>
+              <div>
+                <h2 id="review-dates-title" className={styles.importTitle}>
+                  Review due dates for this copy
+                </h2>
+                <p className={styles.importSubtitle}>
+                  Lesson due dates and badge availability windows were copied from the original course.
+                </p>
+              </div>
+            </div>
+            <p className={styles.deleteCourseWarning}>
+              Update each lesson&apos;s due date and each badge&apos;s open/close window for this course before
+              assigning it to students.
+            </p>
+            <div className={styles.importModalActions}>
+              <button type="button" className={styles.confirmButton} onClick={() => setIsReviewDatesOpen(false)}>
+                Got it
               </button>
             </div>
           </div>

@@ -625,7 +625,7 @@ function HomeContent() {
         const response = await fetch(`/api/courses/${courseId}/duplicate`, { method: 'POST' });
         const payload = await response.json().catch(() => ({}));
         if (!response.ok) throw new Error(payload.error ?? 'Failed to duplicate course.');
-        router.push(`/courses/${payload.course.id}`);
+        router.push(`/courses/${payload.course.id}?duplicated=1`);
       } catch (error) {
         setDuplicateError(error instanceof Error ? error.message : 'Failed to duplicate course.');
         setDuplicatingId(null);

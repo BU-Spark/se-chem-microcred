@@ -658,179 +658,244 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
   const videoId = extractYouTubeId(youtubeVideoUrl);
   const thumbnailUrl = videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
 
-  return await prisma.$transaction(async (tx) => {
-    const badge = await tx.badge.update({
-      where: { id: badgeId, createdById: editorId },
-      data: {
-        name: badgeName,
-        description: badgeDescription,
-        imageUrl,
-        imagePositionX,
-        imagePositionY,
-        imageScale,
-        availableOn,
-        closesOn,
-        neverCloses,
-        ...badgePolicy,
-      },
-      select: { id: true, slug: true, name: true, description: true, sourceBadgeId: true },
-    });
-
-    const familyRootId = badge.sourceBadgeId ?? badge.id;
-    await tx.badge.updateMany({
-      where: { OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }], NOT: { id: badge.id } },
-      data: {
-        name: badgeName,
-        description: badgeDescription,
-        imageUrl,
-        imagePositionX,
-        imagePositionY,
-        imageScale,
-        availableOn,
-        closesOn,
-        neverCloses,
-        ...badgePolicy,
-      },
-    });
-
-    const firstRequirement = await tx.badgeRequirement.findFirst({
-      where: { badgeId },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, lesson: { select: { title: true } } },
-    });
-
-    const requirementSummary = buildRequirementSummary({
-      badgeName,
-      lessonTitle: badgeName,
-      skills,
-      checkpoints,
-      youtubeUrl: youtubeVideoUrl,
-      videoTitle,
-      videoLength: videoLength,
-      passingPercent: passingPercentage,
-    });
-
-    if (firstRequirement) {
-      await tx.badgeRequirement.update({ where: { id: firstRequirement.id }, data: { summary: requirementSummary } });
-    } else {
-      await tx.badgeRequirement.create({ data: { badgeId, summary: requirementSummary } });
-    }
-
-    const otherFamilyBadges = await tx.badge.findMany({
-      where: { OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }], NOT: { id: badge.id } },
-      select: { id: true },
-    });
-
-    if (otherFamilyBadges.length > 0) {
-      await tx.badgeRequirement.updateMany({
-        where: { badgeId: { in: otherFamilyBadges.map((b) => b.id) } },
-        data: { summary: requirementSummary },
+  return await prisma.$transaction(
+    async (tx) => {
+      const badge = await tx.badge.update({
+        where: { id: badgeId, createdById: editorId },
+        data: {
+          name: badgeName,
+          description: badgeDescription,
+          imageUrl,
+          imagePositionX,
+          imagePositionY,
+          imageScale,
+          availableOn,
+          closesOn,
+          neverCloses,
+          ...badgePolicy,
+        },
+        select: { id: true, slug: true, name: true, description: true, sourceBadgeId: true },
       });
-    }
 
-    for (const familyBadgeId of [badge.id, ...otherFamilyBadges.map((b) => b.id)]) {
-      await syncBadgeRubricGoal(tx, familyBadgeId, rubricGoal);
-    }
-
-    if (badgeName) {
-      const familyBadgeIds = [badge.id, ...otherFamilyBadges.map((b) => b.id)];
-      const requirementsWithLessons = await tx.badgeRequirement.findMany({
-        where: { badgeId: { in: familyBadgeIds }, lessonId: { not: null } },
-        select: { lessonId: true },
+      const familyRootId = badge.sourceBadgeId ?? badge.id;
+      await tx.badge.updateMany({
+        where: { OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }], NOT: { id: badge.id } },
+        data: {
+          name: badgeName,
+          description: badgeDescription,
+          imageUrl,
+          imagePositionX,
+          imagePositionY,
+          imageScale,
+          availableOn,
+          closesOn,
+          neverCloses,
+          ...badgePolicy,
+        },
       });
-      const lessonIds = Array.from(
-        new Set(requirementsWithLessons.map((r) => r.lessonId).filter((id): id is string => Boolean(id)))
-      );
 
-      if (lessonIds.length > 0) {
-        await tx.lesson.updateMany({
-          where: { id: { in: lessonIds } },
-          data: {
-            title: badgeName,
-            dueDate: neverCloses === true ? null : closesOn,
-            passingPercent: passingPercentage ?? undefined,
-            estimatedMinutes: videoSeconds ? Math.max(1, Math.round(videoSeconds / 60)) : undefined,
-          },
+      const firstRequirement = await tx.badgeRequirement.findFirst({
+        where: { badgeId },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true, lesson: { select: { title: true } } },
+      });
+
+      const requirementSummary = buildRequirementSummary({
+        badgeName,
+        lessonTitle: badgeName,
+        skills,
+        checkpoints,
+        youtubeUrl: youtubeVideoUrl,
+        videoTitle,
+        videoLength: videoLength,
+        passingPercent: passingPercentage,
+      });
+
+      if (firstRequirement) {
+        await tx.badgeRequirement.update({ where: { id: firstRequirement.id }, data: { summary: requirementSummary } });
+      } else {
+        await tx.badgeRequirement.create({ data: { badgeId, summary: requirementSummary } });
+      }
+
+      const otherFamilyBadges = await tx.badge.findMany({
+        where: { OR: [{ id: familyRootId }, { sourceBadgeId: familyRootId }], NOT: { id: badge.id } },
+        select: { id: true },
+      });
+
+      if (otherFamilyBadges.length > 0) {
+        await tx.badgeRequirement.updateMany({
+          where: { badgeId: { in: otherFamilyBadges.map((b) => b.id) } },
+          data: { summary: requirementSummary },
         });
+      }
 
-        await tx.lessonSkill.deleteMany({ where: { lessonId: { in: lessonIds } } });
+      for (const familyBadgeId of [badge.id, ...otherFamilyBadges.map((b) => b.id)]) {
+        await syncBadgeRubricGoal(tx, familyBadgeId, rubricGoal);
+      }
 
-        if (skills.length > 0) {
-          await tx.lessonSkill.createMany({
-            data: lessonIds.flatMap((lessonId) =>
-              skills.map((skill, skillIndex) => ({ lessonId, sortOrder: skillIndex, text: skill }))
-            ),
-          });
-        }
-
-        const segments = await tx.lessonSegment.findMany({
-          where: { lessonId: { in: lessonIds } },
-          orderBy: [{ lessonId: 'asc' }, { sortOrder: 'asc' }],
-          select: { id: true, lessonId: true },
+      if (badgeName) {
+        const familyBadgeIds = [badge.id, ...otherFamilyBadges.map((b) => b.id)];
+        const requirementsWithLessons = await tx.badgeRequirement.findMany({
+          where: { badgeId: { in: familyBadgeIds }, lessonId: { not: null } },
+          select: { lessonId: true },
         });
-        const firstSegmentIdByLesson = new Map<string, string>();
-        for (const segment of segments) {
-          if (!firstSegmentIdByLesson.has(segment.lessonId)) firstSegmentIdByLesson.set(segment.lessonId, segment.id);
-        }
-        const firstSegmentIds = Array.from(firstSegmentIdByLesson.values());
+        const lessonIds = Array.from(
+          new Set(requirementsWithLessons.map((r) => r.lessonId).filter((id): id is string => Boolean(id)))
+        );
 
-        if (firstSegmentIds.length > 0 && (youtubeVideoUrl || videoTitle || videoSeconds || thumbnailUrl)) {
-          await tx.lessonSegment.updateMany({
-            where: { id: { in: firstSegmentIds } },
+        if (lessonIds.length > 0) {
+          await tx.lesson.updateMany({
+            where: { id: { in: lessonIds } },
             data: {
-              videoUrl: youtubeVideoUrl ?? undefined,
-              title: videoTitle ?? undefined,
-              duration: videoSeconds || undefined,
-              thumbnailUrl: thumbnailUrl ?? undefined,
+              title: badgeName,
+              dueDate: neverCloses === true ? null : closesOn,
+              passingPercent: passingPercentage ?? undefined,
+              estimatedMinutes: videoSeconds ? Math.max(1, Math.round(videoSeconds / 60)) : undefined,
             },
           });
-        }
 
-        if (checkpoints.length > 0) {
-          for (const lessonId of lessonIds) {
-            const firstSegmentId = firstSegmentIdByLesson.get(lessonId) ?? null;
-            for (const [checkpointIndex, checkpoint] of checkpoints.entries()) {
-              const title = normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`;
+          await tx.lessonSkill.deleteMany({ where: { lessonId: { in: lessonIds } } });
+
+          if (skills.length > 0) {
+            await tx.lessonSkill.createMany({
+              data: lessonIds.flatMap((lessonId) =>
+                skills.map((skill, skillIndex) => ({ lessonId, sortOrder: skillIndex, text: skill }))
+              ),
+            });
+          }
+
+          const segments = await tx.lessonSegment.findMany({
+            where: { lessonId: { in: lessonIds } },
+            orderBy: [{ lessonId: 'asc' }, { sortOrder: 'asc' }],
+            select: { id: true, lessonId: true },
+          });
+          const firstSegmentIdByLesson = new Map<string, string>();
+          for (const segment of segments) {
+            if (!firstSegmentIdByLesson.has(segment.lessonId)) firstSegmentIdByLesson.set(segment.lessonId, segment.id);
+          }
+          const firstSegmentIds = Array.from(firstSegmentIdByLesson.values());
+
+          if (firstSegmentIds.length > 0 && (youtubeVideoUrl || videoTitle || videoSeconds || thumbnailUrl)) {
+            await tx.lessonSegment.updateMany({
+              where: { id: { in: firstSegmentIds } },
+              data: {
+                videoUrl: youtubeVideoUrl ?? undefined,
+                title: videoTitle ?? undefined,
+                duration: videoSeconds || undefined,
+                thumbnailUrl: thumbnailUrl ?? undefined,
+              },
+            });
+          }
+
+          if (checkpoints.length > 0) {
+            // Checkpoint/question content (title, prompt, options, ...) is identical
+            // across every lesson in the family for a given (checkpointIndex,
+            // questionIndex) — only the lessonId/segmentId/checkpointId differ per
+            // lesson. So instead of one upsert per (lesson x checkpoint x question)
+            // — which used to be sequential, unbatched round-trips that scaled with
+            // family size and blew the transaction timeout once a badge had more
+            // than a couple of course copies — batch create the missing rows and
+            // fan the shared content out to the rest with per-index updateMany calls.
+            const checkpointSortOrders = checkpoints.map((_, index) => index);
+            const checkpointMeta = checkpoints.map((checkpoint, checkpointIndex) => {
               const questions = buildCheckpointQuestionsWithSummary(checkpoint);
-              const lessonCheckpoint = await tx.lessonCheckpoint.upsert({
-                where: { lessonId_sortOrder: { lessonId, sortOrder: checkpointIndex } },
-                create: {
-                  lessonId,
-                  segmentId: firstSegmentId,
-                  sortOrder: checkpointIndex,
-                  title,
+              return {
+                title: normalizeString(checkpoint.title) ?? `Checkpoint ${checkpointIndex + 1}`,
+                meta: formatQuestionCount(questions.length),
+                questionCount: questions.length,
+                timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
+                questions,
+              };
+            });
+
+            const existingCheckpoints = await tx.lessonCheckpoint.findMany({
+              where: { lessonId: { in: lessonIds }, sortOrder: { in: checkpointSortOrders } },
+              select: { id: true, lessonId: true, sortOrder: true },
+            });
+            const checkpointIdByKey = new Map(existingCheckpoints.map((c) => [`${c.lessonId}:${c.sortOrder}`, c.id]));
+
+            const checkpointCreateData = lessonIds.flatMap((lessonId) => {
+              const segmentId = firstSegmentIdByLesson.get(lessonId) ?? null;
+              return checkpointMeta.flatMap((meta, checkpointIndex) => {
+                if (checkpointIdByKey.has(`${lessonId}:${checkpointIndex}`)) return [];
+                return [
+                  {
+                    lessonId,
+                    segmentId,
+                    sortOrder: checkpointIndex,
+                    title: meta.title,
+                    label: 'Checkpoint',
+                    meta: meta.meta,
+                    questionCount: meta.questionCount,
+                    timeOffsetSeconds: meta.timeOffsetSeconds,
+                  },
+                ];
+              });
+            });
+
+            if (checkpointCreateData.length > 0) {
+              await tx.lessonCheckpoint.createMany({ data: checkpointCreateData });
+
+              const createdCheckpoints = await tx.lessonCheckpoint.findMany({
+                where: { lessonId: { in: lessonIds }, sortOrder: { in: checkpointSortOrders } },
+                select: { id: true, lessonId: true, sortOrder: true },
+              });
+              checkpointIdByKey.clear();
+              for (const c of createdCheckpoints) checkpointIdByKey.set(`${c.lessonId}:${c.sortOrder}`, c.id);
+            }
+
+            for (const [checkpointIndex, meta] of checkpointMeta.entries()) {
+              await tx.lessonCheckpoint.updateMany({
+                where: { lessonId: { in: lessonIds }, sortOrder: checkpointIndex },
+                data: {
+                  title: meta.title,
                   label: 'Checkpoint',
-                  meta: formatQuestionCount(questions.length),
-                  questionCount: questions.length,
-                  timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
+                  meta: meta.meta,
+                  questionCount: meta.questionCount,
+                  timeOffsetSeconds: meta.timeOffsetSeconds,
                 },
-                update: {
-                  segmentId: firstSegmentId,
-                  title,
-                  label: 'Checkpoint',
-                  meta: formatQuestionCount(questions.length),
-                  questionCount: questions.length,
-                  timeOffsetSeconds: parseTimeToSeconds(checkpoint.time),
-                },
-                select: { id: true },
               });
 
-              for (const question of questions) {
-                await tx.checkpointQuestion.upsert({
-                  where: {
-                    checkpointId_sortOrder: { checkpointId: lessonCheckpoint.id, sortOrder: question.sortOrder },
-                  },
-                  create: {
-                    checkpointId: lessonCheckpoint.id,
-                    sortOrder: question.sortOrder,
+              if (meta.questions.length === 0) continue;
+
+              const checkpointIdsForIndex = lessonIds
+                .map((lessonId) => checkpointIdByKey.get(`${lessonId}:${checkpointIndex}`))
+                .filter((id): id is string => Boolean(id));
+              if (checkpointIdsForIndex.length === 0) continue;
+
+              const questionSortOrders = meta.questions.map((q) => q.sortOrder);
+              const existingQuestions = await tx.checkpointQuestion.findMany({
+                where: { checkpointId: { in: checkpointIdsForIndex }, sortOrder: { in: questionSortOrders } },
+                select: { checkpointId: true, sortOrder: true },
+              });
+              const existingQuestionKeys = new Set(existingQuestions.map((q) => `${q.checkpointId}:${q.sortOrder}`));
+
+              const questionCreateData = checkpointIdsForIndex.flatMap((checkpointId) =>
+                meta.questions.flatMap((question) => {
+                  if (existingQuestionKeys.has(`${checkpointId}:${question.sortOrder}`)) return [];
+                  return [
+                    {
+                      checkpointId,
+                      sortOrder: question.sortOrder,
+                      prompt: question.prompt!,
+                      options: question.questionOptions.options as Prisma.InputJsonValue,
+                      correctIndex: question.questionOptions.correctIndex,
+                      points: question.points,
+                    },
+                  ];
+                })
+              );
+
+              if (questionCreateData.length > 0) {
+                await tx.checkpointQuestion.createMany({ data: questionCreateData });
+              }
+
+              for (const question of meta.questions) {
+                await tx.checkpointQuestion.updateMany({
+                  where: { checkpointId: { in: checkpointIdsForIndex }, sortOrder: question.sortOrder },
+                  data: {
                     prompt: question.prompt!,
-                    options: question.questionOptions.options,
-                    correctIndex: question.questionOptions.correctIndex,
-                    points: question.points,
-                  },
-                  update: {
-                    prompt: question.prompt!,
-                    options: question.questionOptions.options,
+                    options: question.questionOptions.options as Prisma.InputJsonValue,
                     correctIndex: question.questionOptions.correctIndex,
                     points: question.points,
                   },
@@ -840,7 +905,11 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
           }
         }
       }
-    }
-    return badge;
-  });
+      return badge;
+    },
+    // Matches the create/duplicate transactions' cap (Prisma Accelerate limits
+    // interactive transactions to 15s); the default 5s was too tight once a
+    // badge has more than one or two course copies sharing its lineage.
+    { maxWait: 5000, timeout: 15000 }
+  );
 }
