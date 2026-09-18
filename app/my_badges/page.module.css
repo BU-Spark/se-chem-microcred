@@ -106,6 +106,28 @@
   max-width: 100%;
 }
 
+.badgeCardActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.badgeEditButton {
+  border: 1px solid #c7d6ea;
+  border-radius: 999px;
+  background: #eef3fa;
+  color: var(--brand-color);
+  cursor: pointer;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1;
+  padding: 0.5rem 1rem;
+}
+
+.badgeEditButton:hover {
+  background: #dfe9f6;
+}
+
 .badgeDeleteButton {
   border: 1px solid #f0c4c0;
   border-radius: 999px;

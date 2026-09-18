@@ -13,8 +13,8 @@ const mockTx = {
   lesson: { create: jest.fn(), updateMany: jest.fn() },
   lessonSkill: { createMany: jest.fn(), deleteMany: jest.fn() },
   lessonSegment: { create: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
-  lessonCheckpoint: { createMany: jest.fn(), findMany: jest.fn(), upsert: jest.fn() },
-  checkpointQuestion: { createMany: jest.fn(), upsert: jest.fn() },
+  lessonCheckpoint: { createMany: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
+  checkpointQuestion: { createMany: jest.fn(), findMany: jest.fn(), updateMany: jest.fn() },
   badgeRequirement: {
     create: jest.fn(),
     findFirst: jest.fn(),
@@ -110,12 +110,13 @@ describe('badge creation API', () => {
     mockPrisma.__tx.lessonSegment.findMany.mockResolvedValue([]);
     mockPrisma.__tx.lessonCheckpoint.createMany.mockResolvedValue({ count: 2 });
     mockPrisma.__tx.lessonCheckpoint.findMany.mockResolvedValue([
-      { id: 'checkpoint-1', sortOrder: 0 },
-      { id: 'checkpoint-2', sortOrder: 1 },
+      { id: 'checkpoint-1', lessonId: 'lesson-1', sortOrder: 0 },
+      { id: 'checkpoint-2', lessonId: 'lesson-1', sortOrder: 1 },
     ]);
-    mockPrisma.__tx.lessonCheckpoint.upsert.mockResolvedValue({ id: 'checkpoint-1' });
+    mockPrisma.__tx.lessonCheckpoint.updateMany.mockResolvedValue({ count: 1 });
     mockPrisma.__tx.checkpointQuestion.createMany.mockResolvedValue({ count: 2 });
-    mockPrisma.__tx.checkpointQuestion.upsert.mockResolvedValue({ id: 'question-1' });
+    mockPrisma.__tx.checkpointQuestion.findMany.mockResolvedValue([]);
+    mockPrisma.__tx.checkpointQuestion.updateMany.mockResolvedValue({ count: 0 });
     mockPrisma.__tx.badgeRequirement.create.mockResolvedValue({ id: 'requirement-1' });
     mockPrisma.__tx.badge.update.mockResolvedValue({
       id: 'badge-1',
@@ -769,6 +770,47 @@ describe('badge creation API', () => {
     expect(mockPrisma.__tx.rubricGoal.deleteMany).toHaveBeenCalledWith({ where: { badgeId: 'course-copy-1' } });
   });
 
+  it('keeps checkpoint/question sync round-trips independent of family size', async () => {
+    // Regression for the timeout a large course-copy family used to trigger: the
+    // sync used to upsert once per (lesson x checkpoint x question), sequentially.
+    // With 25 lessons in the family it should still take one round-trip per
+    // checkpoint/question, not one per lesson.
+    const lessonIds = Array.from({ length: 25 }, (_, i) => `lesson-${i}`);
+    mockPrisma.__tx.badgeRequirement.findMany.mockResolvedValue(lessonIds.map((lessonId) => ({ lessonId })));
+    mockPrisma.__tx.lessonCheckpoint.findMany.mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.lessonId.in.flatMap((lessonId: string) =>
+          where.sortOrder.in.map((sortOrder: number) => ({ id: `${lessonId}-cp${sortOrder}`, lessonId, sortOrder }))
+        )
+      )
+    );
+    mockPrisma.__tx.checkpointQuestion.findMany.mockImplementation(({ where }) =>
+      Promise.resolve(
+        where.checkpointId.in.flatMap((checkpointId: string) =>
+          where.sortOrder.in.map((sortOrder: number) => ({ checkpointId, sortOrder }))
+        )
+      )
+    );
+
+    const response = await patchBadge({
+      id: 'badge-1',
+      badgeName: 'Updated Badge',
+      checkpoints: [
+        { title: 'Checkpoint 1', questions: [{ question: 'Q1?', options: ['A', 'B'], correctIndices: [0] }] },
+        { title: 'Checkpoint 2', questions: [{ question: 'Q2?', options: ['C', 'D'], correctIndices: [1] }] },
+      ],
+    });
+
+    expect(response.status).toBe(200);
+    // Every checkpoint/question already exists for every lesson, so nothing new is created.
+    expect(mockPrisma.__tx.lessonCheckpoint.createMany).not.toHaveBeenCalled();
+    expect(mockPrisma.__tx.checkpointQuestion.createMany).not.toHaveBeenCalled();
+    // One updateMany per checkpoint (2), not per (lesson x checkpoint) (would be 50).
+    expect(mockPrisma.__tx.lessonCheckpoint.updateMany).toHaveBeenCalledTimes(2);
+    // One updateMany per (checkpoint x question) (2), not per (lesson x checkpoint x question) (50).
+    expect(mockPrisma.__tx.checkpointQuestion.updateMany).toHaveBeenCalledTimes(2);
+  });
+
   it('syncs edited checkpoint questions into lesson question rows', async () => {
     const response = await patchBadge({
       id: 'badge-1',
@@ -797,41 +839,40 @@ describe('badge creation API', () => {
     });
 
     expect(response.status).toBe(200);
-    expect(mockPrisma.__tx.lessonCheckpoint.upsert).toHaveBeenCalledWith(
+    // The checkpoint row already exists (default findMany mock), so it's synced via
+    // a batched updateMany rather than a per-lesson upsert.
+    expect(mockPrisma.__tx.lessonCheckpoint.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: {
-          lessonId_sortOrder: {
-            lessonId: 'lesson-1',
-            sortOrder: 0,
-          },
-        },
-        create: expect.objectContaining({
-          questionCount: 2,
-          meta: '2 questions',
-        }),
-        update: expect.objectContaining({
+        where: { lessonId: { in: ['lesson-1'] }, sortOrder: 0 },
+        data: expect.objectContaining({
           questionCount: 2,
           meta: '2 questions',
         }),
       })
     );
-    expect(mockPrisma.__tx.checkpointQuestion.upsert).toHaveBeenCalledTimes(2);
-    expect(mockPrisma.__tx.checkpointQuestion.upsert).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        where: {
-          checkpointId_sortOrder: {
-            checkpointId: 'checkpoint-1',
-            sortOrder: 1,
-          },
-        },
-        create: expect.objectContaining({
+    // No existing questions (default findMany mock returns []), so both are batch-created...
+    expect(mockPrisma.__tx.checkpointQuestion.createMany).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          checkpointId: 'checkpoint-1',
+          sortOrder: 1,
           prompt: '<p>Second question?</p>',
           options: {
             type: 'multipleChoice',
             options: ['<p>Red</p>', '<p>Blue</p>'],
             correctIndices: [1],
           },
+          correctIndex: 1,
+        }),
+      ]),
+    });
+    // ...and then also synced via the batched per-question updateMany (harmless on a fresh
+    // row, and what keeps a family of course copies in sync on subsequent edits).
+    expect(mockPrisma.__tx.checkpointQuestion.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { checkpointId: { in: ['checkpoint-1'] }, sortOrder: 1 },
+        data: expect.objectContaining({
+          prompt: '<p>Second question?</p>',
           correctIndex: 1,
         }),
       })

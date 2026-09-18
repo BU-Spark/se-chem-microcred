@@ -135,15 +135,6 @@ describe('instructor student actions', () => {
       expect(response.status).toBe(400);
       await expect(response.json()).resolves.toEqual({ error: 'Unknown student action.' });
     });
-
-    it('still applies an ordinary config edit, which carries no action', async () => {
-      const response = await PATCH(actionRequest({ reassessmentLimit: 3 }), actionParams());
-
-      expect(response.status).toBe(200);
-      expect(mockPrisma.studentBadge.update).toHaveBeenCalledWith(
-        expect.objectContaining({ data: expect.objectContaining({ reassessmentLimit: 3 }) })
-      );
-    });
   });
 
   describe('reset progress', () => {

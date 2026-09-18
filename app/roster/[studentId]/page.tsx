@@ -11,7 +11,6 @@ import StudentProfileCard from '@/app/components/StudentProfileCard/StudentProfi
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import { BadgeDetailCard, type BadgeDetailResponse, type BadgeDetailTone } from './BadgeDetailCard';
-import { StudentBadgeConfigModal } from './StudentBadgeConfigModal';
 import { StudentActionsModal } from './StudentActionsModal';
 import { MessageComposeModal } from './MessageComposeModal';
 import styles from './page.module.css';
@@ -260,7 +259,6 @@ export default function InstructorStudentProfilePage() {
   const [isDemographicOpen, setIsDemographicOpen] = useState(false);
   const [isNotStartedOpen, setIsNotStartedOpen] = useState(false);
   const [isCompletedOpen, setIsCompletedOpen] = useState(false);
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [isMessageOpen, setIsMessageOpen] = useState(false);
   const [isOverridingCooldown, setIsOverridingCooldown] = useState(false);
@@ -529,9 +527,6 @@ export default function InstructorStudentProfilePage() {
                       <>
                         <BadgeDetailCard detail={selectedBadgeDetail} tone={selectedBadgeDisplayTone} />
                         <div className={styles.assessmentActionRow}>
-                          <button type="button" className={styles.assessmentLink} onClick={() => setIsConfigOpen(true)}>
-                            Edit configurations
-                          </button>
                           {canManageStudent ? (
                             <button
                               type="button"
@@ -653,24 +648,6 @@ export default function InstructorStudentProfilePage() {
           ) : null}
         </div>
       </main>
-
-      {isConfigOpen && selectedBadgeDetail && courseId && studentId && selectedBadgeId && email ? (
-        <StudentBadgeConfigModal
-          studentName={data?.member.name ?? 'Student'}
-          courseId={courseId}
-          studentId={studentId}
-          badgeId={selectedBadgeId}
-          email={email}
-          initial={{
-            reassessmentLimit: selectedBadgeDetail.badge.reassessmentLimit ?? null,
-            reassessmentRequired: selectedBadgeDetail.badge.reassessmentRequired ?? null,
-          }}
-          onClose={() => setIsConfigOpen(false)}
-          onSaved={() => {
-            void refreshBadgeDetail();
-          }}
-        />
-      ) : null}
 
       {isActionsOpen && canManageStudent && selectedBadgeDetail && courseId && studentId && email ? (
         <StudentActionsModal

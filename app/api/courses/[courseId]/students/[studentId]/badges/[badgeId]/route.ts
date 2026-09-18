@@ -3,8 +3,8 @@ import { BadgeStatus, EnrollmentStatus } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
-import { normalizeCheckpointQuestion, type NormalizedCheckpointQuestion } from '@/lib/checkpointQuestions';
-import { toPlainText } from '@/lib/question-rich-text';
+import { normalizeCheckpointQuestion } from '@/lib/checkpointQuestions';
+import { answerTextFromResponse } from '@/lib/checkpointAnswers';
 import { resolveEffectiveBadgePolicy } from '@/lib/badgePolicy';
 import { isBadgeClosed } from '@/lib/badgeAvailability';
 import {
@@ -30,38 +30,6 @@ async function sessionMatchesEmail(email: string) {
   const clerkUser = await currentUser();
   const sessionEmail = normalizeEmail(clerkUser?.emailAddresses?.[0]?.emailAddress);
   return Boolean(sessionEmail) && sessionEmail === email;
-}
-
-// Render a stored response against its (normalized) question. Multiple-choice
-// answers map indices onto the normalized option texts; short answers read the
-// persisted numericAnswer. Older responses predate the numericAnswer and
-// selectedIndices columns, so fall back to selectedIndex / "No answer recorded".
-function answerTextFromResponse(
-  question: NormalizedCheckpointQuestion,
-  response: { selectedIndex: number | null; selectedIndices: unknown; numericAnswer: number | null }
-) {
-  if (question.type === 'shortAnswer') {
-    return response.numericAnswer != null ? String(response.numericAnswer) : 'No answer recorded';
-  }
-
-  const indices = Array.isArray(response.selectedIndices)
-    ? response.selectedIndices.map((index) => Number(index)).filter((index) => Number.isInteger(index) && index >= 0)
-    : response.selectedIndex != null
-      ? [response.selectedIndex]
-      : [];
-
-  if (indices.length === 0) {
-    return 'No answer recorded';
-  }
-
-  const options = Array.isArray(question.options) ? question.options : [];
-  // Options are authored as rich text (issue #248); this history table renders
-  // plain text, so strip formatting rather than leaking raw HTML into the cell.
-  return indices
-    .map((index) =>
-      index < options.length ? toPlainText(String(options[index])) || `Option ${index + 1}` : `Option ${index + 1}`
-    )
-    .join(', ');
 }
 
 function formatCheckpointLabel(label: string | null | undefined, sortOrder: number) {
@@ -774,11 +742,7 @@ export async function GET(
           // unlocked without a finished lesson.
           qevWaivedAt: badgeProgress.qevWaivedAt?.toISOString() ?? null,
           qevWaivedByName: badgeProgress.qevWaivedBy?.name ?? badgeProgress.qevWaivedBy?.email ?? null,
-          // Raw per-student overrides (null = inherit) for the config editor …
-          reassessmentLimit: badgeProgress.reassessmentLimit ?? null,
-          cooldownDays: badgeProgress.cooldownDays ?? null,
-          reassessmentRequired: badgeProgress.reassessmentRequired ?? null,
-          // … and the resolved policy that actually applies to this student.
+          // The resolved policy (per-student override, if any, over the badge default).
           effectivePolicy: resolveEffectiveBadgePolicy(badgeProgress, badgeProgress.badge),
           allowCooldownOverride: course.settings?.allowCooldownOverride ?? false,
         },
@@ -1133,8 +1097,6 @@ export async function POST(
 }
 
 type StudentBadgeConfigPayload = {
-  reassessmentLimit?: unknown;
-  reassessmentRequired?: unknown;
   // One-click checker action: clear the cooldown so a student who failed the
   // in-person assessment can re-assess immediately. The cooldown *length* is
   // authored on the badge, not set per student here.
@@ -1261,8 +1223,7 @@ async function runStudentBadgeAction({
   }
 }
 
-// Update per-student badge configuration (reassessment count, whether reassessment
-// is mandatory) and/or override an active cooldown — instructor/checker. Also the
+// Override an active cooldown for a student's badge — instructor/checker. Also the
 // entry point for the instructor-only student actions, which arrive on the same
 // endpoint carrying an `action` discriminator.
 export async function PATCH(
@@ -1289,20 +1250,11 @@ export async function PATCH(
     const action = parsedAction?.payload ?? null;
     const body = rawBody as StudentBadgeConfigPayload;
 
-    const data: { reassessmentLimit?: number; reassessmentRequired?: boolean; cooldownUntil?: null } = {};
-
-    if (!action) {
-      if (typeof body.reassessmentLimit === 'number' && Number.isFinite(body.reassessmentLimit)) {
-        data.reassessmentLimit = Math.max(0, Math.round(body.reassessmentLimit));
-      }
-      if (typeof body.reassessmentRequired === 'boolean') {
-        data.reassessmentRequired = body.reassessmentRequired;
-      }
-    }
+    const data: { cooldownUntil?: null } = {};
 
     const wantsCooldownOverride = !action && body.overrideCooldown === true;
 
-    if (!action && Object.keys(data).length === 0 && !wantsCooldownOverride) {
+    if (!action && !wantsCooldownOverride) {
       return NextResponse.json({ error: 'No configuration fields provided.' }, { status: 400 });
     }
 
@@ -1416,9 +1368,6 @@ export async function PATCH(
       where: { id: badgeProgress.id },
       data,
       select: {
-        reassessmentLimit: true,
-        cooldownDays: true,
-        reassessmentRequired: true,
         cooldownUntil: true,
       },
     });

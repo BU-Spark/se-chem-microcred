@@ -16,9 +16,6 @@ export type BadgeDetailResponse = {
     awardedAt: string | null;
     score: number | null;
     cooldownUntil?: string | null;
-    reassessmentLimit?: number | null;
-    cooldownDays?: number | null;
-    reassessmentRequired?: boolean | null;
     allowCooldownOverride?: boolean;
     qevWaivedAt?: string | null;
     qevWaivedByName?: string | null;

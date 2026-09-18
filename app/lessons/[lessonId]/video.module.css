@@ -1409,3 +1409,64 @@
   font-weight: 700;
   font-size: 0.95rem;
 }
+
+/* End-of-QEV answer review (issue #287 follow-up). Left-aligned inside the
+   centred modal card, because prompts and answers are prose. */
+
+.reviewCheckpoint {
+  width: 100%;
+  text-align: left;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.reviewCheckpointTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.reviewQuestion {
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  background: rgba(248, 250, 255, 0.9);
+  border-radius: 1rem;
+  padding: 1.1rem 1.3rem;
+  display: grid;
+  gap: 0.5rem;
+  color: #1f2937;
+}
+
+.reviewQuestionHeading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  font-weight: 600;
+}
+
+.reviewVerdictCorrect {
+  color: #15803d;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.reviewVerdictIncorrect {
+  color: #b91c1c;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.reviewAnswerLabel {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #6b7280;
+}
+
+.reviewAnswer {
+  background: var(--checkd-white);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  border-radius: 0.75rem;
+  padding: 0.6rem 0.85rem;
+}
