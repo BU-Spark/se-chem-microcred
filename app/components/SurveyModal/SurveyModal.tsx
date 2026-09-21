@@ -1,14 +1,14 @@
 'use client';
 
-import Image, { type ImageProps } from 'next/image';
+import { Icon } from '@iconify/react';
 
 import Modal from '../Modal/Modal';
 
 export type SurveyOption = {
   value: number;
   label: string;
-  icon: ImageProps['src'];
-  selectedIcon?: ImageProps['src'];
+  /** An Iconify name, e.g. `lucide:smile`. */
+  icon: string;
 };
 
 export type SurveyModalClassNames = {
@@ -107,11 +107,9 @@ export default function SurveyModal({
               aria-pressed={isSelected}
               aria-label={option.label}
             >
-              <Image
-                src={isSelected ? (option.selectedIcon ?? option.icon) : option.icon}
-                alt={option.label}
-                className={imageClassName}
-              />
+              {/* Drawn in currentColor, so the selected state is the class
+                  above recolouring it rather than a second icon. */}
+              <Icon icon={option.icon} className={imageClassName} aria-hidden="true" />
             </button>
           );
         })}

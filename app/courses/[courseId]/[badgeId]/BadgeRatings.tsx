@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
+import { Icon } from '@iconify/react';
 
-import { FACE_ALTS, FACE_IMAGES, RATING_VALUES } from '@/app/components/SurveyModal/faces';
+import { FACE_ALTS, FACE_ICONS, RATING_VALUES } from '@/app/components/SurveyModal/faces';
 
 import styles from './BadgeRatings.module.css';
 
@@ -63,7 +63,9 @@ function RatingCard({
       ) : (
         <>
           <div className={styles.score}>
-            {face ? <Image src={FACE_IMAGES[face]} alt={FACE_ALTS[face]} className={styles.scoreFace} /> : null}
+            {face ? (
+              <Icon icon={FACE_ICONS[face]} className={styles.scoreFace} role="img" aria-label={FACE_ALTS[face]} />
+            ) : null}
             <p className={styles.scoreValue}>
               {summary.average.toFixed(1)}
               <span className={styles.scoreOutOf}>/ 5</span>

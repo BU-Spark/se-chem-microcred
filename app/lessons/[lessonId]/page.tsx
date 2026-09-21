@@ -11,7 +11,6 @@ import { useStudentData, type BadgeRecord } from '../../hooks/useStudentData';
 import styles from './page.module.css';
 import BadgeOverviewCard from './components/BadgeOverviewCard';
 import BadgeFlowSteps from './components/BadgeFlowSteps';
-import LessonOutline from './components/LessonOutline';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 
@@ -76,7 +75,7 @@ function LessonDetailContent() {
   const title = lessonRecord?.title ?? (isLoading ? 'Loading lesson…' : 'Lesson unavailable');
   const skills = lessonRecord?.skills.map((skill) => skill.trim()).filter(Boolean) ?? [];
   const badgeName = badge?.name ?? lessonRecord?.badgeRequirements?.[0]?.badgeName ?? null;
-  const description = lessonRecord?.description || lessonRecord?.summary || '';
+  const description = lessonRecord?.description || badge?.description || lessonRecord?.summary || '';
 
   return (
     <div className="page">
@@ -106,7 +105,6 @@ function LessonDetailContent() {
 
                 <BadgeOverviewCard
                   badgeName={badgeName}
-                  badgeDescription={badge?.description ?? null}
                   badgeImageUrl={badge?.imageUrl}
                   badgeImagePositionX={badge?.imagePositionX}
                   badgeImagePositionY={badge?.imagePositionY}
@@ -115,7 +113,23 @@ function LessonDetailContent() {
 
                 <BadgeFlowSteps />
 
-                <div className={styles.statsSection}>
+                <Link
+                  href={
+                    courseId
+                      ? `/lessons/${lessonRecord.slug}/video?courseId=${encodeURIComponent(courseId)}`
+                      : `/lessons/${lessonRecord.slug}/video`
+                  }
+                  className={styles.primaryButton}
+                >
+                  {lessonRecord.status === LessonStatus.COMPLETED ? 'Review Lesson' : 'Start Lesson'}
+                </Link>
+              </div>
+
+              <div className={styles.outlineColumn}>
+                <section className={styles.statsSection} aria-labelledby="video-lesson-outline">
+                  <h2 className={styles.statsHeading} id="video-lesson-outline">
+                    Video Lesson Outline
+                  </h2>
                   <dl className={styles.stats}>
                     <div className={styles.statRow}>
                       <dt>Parts</dt>
@@ -139,23 +153,7 @@ function LessonDetailContent() {
                       Finish every part and its checkpoint to unlock the closing survey.
                     </p>
                   ) : null}
-                </div>
-
-                <Link
-                  href={
-                    courseId
-                      ? `/lessons/${lessonRecord.slug}/video?courseId=${encodeURIComponent(courseId)}`
-                      : `/lessons/${lessonRecord.slug}/video`
-                  }
-                  className={styles.primaryButton}
-                >
-                  {lessonRecord.status === LessonStatus.COMPLETED ? 'Review Lesson' : 'Start Lesson'}
-                </Link>
-              </div>
-
-              {/* Right rail: the ordered walkthrough. */}
-              <div className={styles.outlineColumn}>
-                <LessonOutline outline={outline} />
+                </section>
               </div>
             </div>
           ) : (

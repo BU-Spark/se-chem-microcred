@@ -18,18 +18,8 @@ const classNames: SurveyModalClassNames = {
 };
 
 const options = [
-  {
-    value: 1,
-    label: 'Unhappy',
-    icon: { src: '/unhappy.svg', width: 32, height: 32 },
-    selectedIcon: { src: '/unhappy-selected.svg', width: 32, height: 32 },
-  },
-  {
-    value: 2,
-    label: 'Happy',
-    icon: { src: '/happy.svg', width: 32, height: 32 },
-    selectedIcon: { src: '/happy-selected.svg', width: 32, height: 32 },
-  },
+  { value: 1, label: 'Unhappy', icon: 'lucide:frown' },
+  { value: 2, label: 'Happy', icon: 'lucide:smile' },
 ];
 
 describe('SurveyModal', () => {

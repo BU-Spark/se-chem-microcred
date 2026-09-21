@@ -387,14 +387,18 @@
   transform: translateY(-4px);
 }
 
+/* Lucide line icons draw in currentColor, so the resting and selected states
+   are a colour change here rather than two separate SVG files. */
 .surveyFaceImage {
   width: 44px;
   height: 44px;
   display: block;
+  color: #94a3b8;
+  transition: color 0.2s ease;
 }
 
 .surveyFaceImageSelected {
-  filter: none;
+  color: var(--checkd-blue);
 }
 
 .surveySubmit {

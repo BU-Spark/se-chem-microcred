@@ -239,6 +239,28 @@
   padding: 1.15rem 1.4rem 1.25rem;
 }
 
+
+.heroMeta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.heroMetaLabel {
+  color: #7a8699;
+}
+
+.heroMetaValue {
+  font-weight: 700;
+  color: #0b1833;
+  letter-spacing: 0.01em;
+}
+
+.heroMetaSep {
+  margin: 0 0.45rem;
+  color: #9aa5b5;
+}
+
 .heroDetails {
   display: grid;
   align-content: center;
@@ -752,20 +774,18 @@
 }
 
 /* Icon size – tweak if needed (64–72px works well) */
+/* Lucide line icons draw in currentColor, so the resting and selected states
+   are a colour change here rather than two separate SVG files. */
 .surveyFaceImage {
   width: 44px;
   height: 44px;
   display: block;
+  color: #94a3b8;
+  transition: color 0.2s ease;
 }
 
-/* For the slightly_happy icon: source is yellow -> force it to blue in default state */
-.surveyFaceImageForceBlue {
-  filter: none;
-}
-
-/* When selected: turn faces into yellow (var(--checkd-green)) */
 .surveyFaceImageSelected {
-  filter: none;
+  color: var(--checkd-blue);
 }
 
 .surveySubmit {

@@ -46,3 +46,10 @@
   align-items: center;
   gap: 0.5rem;
 }
+
+.oneLineTitle {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
