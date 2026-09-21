@@ -1,9 +1,10 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
+import { useNavigationGuard } from '@/app/hooks/useNavigationGuard';
 import { useStudentData } from '../../hooks/useStudentData';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import styles from './page.module.css';
@@ -260,15 +261,56 @@ export default function CourseNewPage() {
 
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Synchronous guard against double/triple submission. The `isSubmitting` state flag
-  // only disables the button after a re-render, leaving a race window where rapid clicks
-  // (or clicks during a slow request) fire multiple create requests → duplicate courses.
-  // A ref mutates immediately, so it blocks re-entrant calls within the same tick.
   const isSubmittingRef = useRef(false);
   const [uploadDialog, setUploadDialog] = useState<UploadDialogState | null>(null);
-  // Pending roster-row removal awaiting confirmation. Only used in edit mode, where
-  // removing a row deletes a real enrollment on save. (#205)
   const [rowToRemove, setRowToRemove] = useState<PendingRowRemoval | null>(null);
+
+  const formSignature = useMemo(
+    () =>
+      JSON.stringify({
+        courseName,
+        sections,
+        iconName,
+        iconBgColor,
+        iconFgColor,
+        allowCooldownOverride,
+        allowCheckerMessages,
+        allowCrossSectionView,
+        studentRows,
+        checkerRows,
+      }),
+    [
+      courseName,
+      sections,
+      iconName,
+      iconBgColor,
+      iconFgColor,
+      allowCooldownOverride,
+      allowCheckerMessages,
+      allowCrossSectionView,
+      studentRows,
+      checkerRows,
+    ]
+  );
+
+  const [baselineSignature, setBaselineSignature] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Wait for the edit-mode fetch to finish, otherwise the baseline captures
+    // the empty form and every loaded field reads as an edit.
+    if (isLoadingCourse || (isEditMode && !editingCourseId)) return;
+    setBaselineSignature((current) => (current === null ? formSignature : current));
+  }, [isLoadingCourse, isEditMode, editingCourseId, formSignature]);
+
+  // `isSubmitting` suppresses the prompt during the save's own router.push.
+  const hasUnsavedCourseWork = baselineSignature !== null && formSignature !== baselineSignature && !isSubmitting;
+
+  useNavigationGuard(
+    hasUnsavedCourseWork,
+    isEditMode
+      ? 'You have unsaved changes to this course. Leave without saving them?'
+      : 'This course has not been created yet. Leave now and you will lose what you have filled in.'
+  );
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {

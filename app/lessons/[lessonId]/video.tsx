@@ -9,6 +9,7 @@ import AssessmentCodeModal from '@/app/components/AssessmentCodeModal/Assessment
 import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import type { LessonRecord } from '../../hooks/useStudentData';
+import { useNavigationGuard } from '../../hooks/useNavigationGuard';
 import styles from './video.module.css';
 import playIcon from '../../../public/assets/lesson/qev/Play.svg';
 import pauseIcon from '../../../public/assets/lesson/qev/Pause.svg';
@@ -33,9 +34,6 @@ type ModalState =
   | 'lessonFailed'
   | 'lessonReview';
 
-// The student's own end-of-QEV review, from GET /api/lessons/[id]/attempts/latest.
-// Answer-blind by construction: the payload carries what they picked and whether
-// it was right, never the correct answer.
 type LessonReview = {
   attemptId: string;
   passed: boolean;
@@ -477,16 +475,26 @@ export function LessonVideoPage({
     [orderedCheckpoints, answeredCheckpointIds]
   );
 
-  // The lesson can be finished once the video has played through and every
-  // checkpoint has been answered. This gates the Finish button (grey → blue).
   const lessonReadyToFinish = useMemo(
     () => (orderedCheckpoints.length === 0 || allCheckpointsAnswered) && videoEnded,
     [allCheckpointsAnswered, orderedCheckpoints.length, videoEnded]
   );
 
-  // Preview skips that gate: an instructor spot-checking two checkpoints out of
-  // ten still needs to reach the end card to see how the grade lands.
   const canFinishLesson = previewMode || lessonReadyToFinish;
+
+  const [lessonEngaged, setLessonEngaged] = useState(false);
+
+  useEffect(() => {
+    if (lessonEngaged || previewMode || reviewMode) return;
+    if (isPlaying || modalState === 'question' || answeredCheckpointIds.length > 0) {
+      setLessonEngaged(true);
+    }
+  }, [lessonEngaged, previewMode, reviewMode, isPlaying, modalState, answeredCheckpointIds.length]);
+
+  useNavigationGuard(
+    lessonEngaged && !lessonReadyToFinish && !previewMode && !reviewMode,
+    'You are in the middle of this lesson. Leave now and you will drop back to where you last saved.'
+  );
 
   const currentCheckpoint = useMemo(() => {
     if (activeCheckpointId) {
