@@ -1723,6 +1723,116 @@
 /* =========================
    Survey Modal
    ========================= */
+/* These rules had gone missing, so every `styles.survey*` the home page passes
+   to SurveyModal resolved to undefined and the modal rendered unstyled. They
+   mirror the course dashboard's copy so both surveys look the same. */
+.surveyOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.surveyModal {
+  position: relative;
+  width: min(640px, 92%);
+  display: flex;
+  flex-direction: column;
+  gap: 1.8rem;
+  padding: 2.75rem 3rem;
+  border-radius: 1.75rem;
+  background: var(--checkd-white);
+  box-shadow: 0 45px 60px rgba(15, 23, 42, 0.35);
+}
+
+.surveyClose {
+  position: absolute;
+  top: 1.2rem;
+  right: 1.5rem;
+  background: none;
+  border: none;
+  color: #6b7280;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.surveyTitle {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.surveyQuestion {
+  font-size: 1rem;
+  color: #374151;
+}
+
+.surveyError {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.95rem;
+}
+
+.surveyFaces {
+  display: flex;
+  justify-content: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.surveyFace {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.surveyFaceSelected {
+  transform: translateY(-4px);
+}
+
+/* Lucide line icons draw in currentColor, so the resting and selected states
+   are a colour change here rather than two separate SVG files. */
+.surveyFaceImage {
+  width: 44px;
+  height: 44px;
+  display: block;
+  color: #94a3b8;
+  transition: color 0.2s ease;
+}
+
+.surveyFaceImageSelected {
+  color: var(--checkd-blue);
+}
+
+.surveySubmit {
+  align-self: flex-end;
+  padding: 0.7rem 1.8rem;
+  border-radius: 999px;
+  border: none;
+  background: var(--checkd-green);
+  color: var(--checkd-black);
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.2s ease;
+}
+
+.surveySubmit:hover {
+  filter: brightness(0.95);
+}
+
+.surveySubmit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Generic centred modal backdrop (duplicate-course, join, assessment access). */
 .modalOverlay {
   position: fixed;

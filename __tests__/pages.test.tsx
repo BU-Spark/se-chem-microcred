@@ -658,7 +658,7 @@ describe('Lesson detail page', () => {
     answeredCheckpointIds: [],
   });
 
-  it('renders outline parts, derived durations and the badge overview', () => {
+  it('summarises the lesson as counts rather than a card per part', () => {
     const data = createStudentData();
     data.lessons.catalog = [baseLesson()];
 
@@ -667,19 +667,33 @@ describe('Lesson detail page', () => {
     render(<LessonDetailPage />);
 
     expect(screen.getByText(/Lesson 3/i)).toBeInTheDocument();
-    expect(screen.getByText(/Part 1/i)).toBeInTheDocument();
-    expect(screen.getByText('Checkpoint')).toBeInTheDocument();
-    expect(screen.getByText('2 questions')).toBeInTheDocument();
-    expect(screen.getByText('End of lesson')).toBeInTheDocument();
+
+    expect(screen.getByText('Video Lesson Outline')).toBeInTheDocument();
+    expect(screen.getByText('Parts')).toBeInTheDocument();
+    expect(screen.getByText('Checkpoints')).toBeInTheDocument();
+    expect(screen.getByText('Final survey')).toBeInTheDocument();
+    expect(screen.getByText('Est. time')).toBeInTheDocument();
+    expect(screen.queryByText(/^Part 1/)).not.toBeInTheDocument();
+    expect(screen.queryByText('End of lesson')).not.toBeInTheDocument();
     expect(screen.queryByText(/segmentLabel/)).not.toBeInTheDocument();
 
-    // The badge, its description and the earn-it lifecycle share one card.
     expect(screen.getByText('Assessment Badge')).toBeInTheDocument();
-    expect(screen.getByText('Needs in-person assessment')).toBeInTheDocument();
+    expect(screen.queryByText('Needs in-person assessment')).not.toBeInTheDocument();
     expect(screen.getByText(/Pass the in-person assessment/i)).toBeInTheDocument();
 
-    // 2s of segment video, so both the part and the lesson total round down.
+    // 2s of segment video, so the lesson total rounds down.
     expect(screen.getAllByText('<1 min').length).toBeGreaterThan(0);
+  });
+
+  it('introduces the lesson once, without repeating it on the badge', () => {
+    const data = createStudentData();
+    data.lessons.catalog = [baseLesson()];
+
+    mockUseStudentData.mockReturnValue({ data, isLoading: false, error: null });
+    mockParams = { lessonId: 'lesson-3' };
+    render(<LessonDetailPage />);
+
+    expect(screen.getAllByText('Desc')).toHaveLength(1);
   });
 
   it('reports a missing video length instead of a zero duration', () => {
@@ -699,7 +713,6 @@ describe('Lesson detail page', () => {
     render(<LessonDetailPage />);
 
     expect(screen.getByText(/Video length not recorded/i)).toBeInTheDocument();
-    expect(screen.getByText('Length unavailable')).toBeInTheDocument();
   });
 });
 

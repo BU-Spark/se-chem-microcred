@@ -1212,18 +1212,17 @@
   transform: translateY(-4px);
 }
 
+
 .lessonSurveyFaceImage {
   width: 44px;
   height: 44px;
   display: block;
-}
-
-.lessonSurveyFaceImageForceBlue {
-  filter: none;
+  color: #94a3b8;
+  transition: color 0.2s ease;
 }
 
 .lessonSurveyFaceImageSelected {
-  filter: none;
+  color: var(--checkd-blue);
 }
 
 .lessonSurveySubmit {

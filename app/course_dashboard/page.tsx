@@ -598,12 +598,22 @@ function HomePageContent() {
             {/* The shared page heading, so the course name reads like every other page's title (issue #261). */}
             <PageHeading
               bare
+              fitTitle
               eyebrow={`Welcome back, ${displayName}`}
               title={courseTitle || 'Your course'}
               subtitle={
-                courseCode || courseSection
-                  ? `${courseCode}${courseCode && courseSection ? ' · ' : ''}${courseSection ? `Section ${courseSection}` : ''}`
-                  : undefined
+                courseCode || courseSection ? (
+                  <>
+                    {courseCode ? (
+                      <span className={styles.heroMeta}>
+                        <span className={styles.heroMetaLabel}>Course Code:</span>
+                        <span className={styles.heroMetaValue}>{courseCode}</span>
+                      </span>
+                    ) : null}
+                    {courseCode && courseSection ? <span className={styles.heroMetaSep}>·</span> : null}
+                    {courseSection ? <span className={styles.heroMeta}>Section {courseSection}</span> : null}
+                  </>
+                ) : undefined
               }
             />
           </div>
