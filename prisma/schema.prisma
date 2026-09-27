@@ -43,11 +43,6 @@ model User {
   @@map("Student")
 }
 
-// One authored message. Who can see it lives in MessageReceipt rather than on
-// this row, so a blast is a single body with many receipts instead of a copy per
-// student. The audience is frozen when the message is sent: receipts are written
-// once and never recomputed, which is what makes a later enrollee invisible to
-// old messages and lets an unenrolled student keep the mail they already got.
 model Message {
   id        String          @id @default(cuid())
   senderId  String?
@@ -68,18 +63,13 @@ model Message {
   @@index([badgeId])
 }
 
-// How a message's audience was chosen. Kept for display and audit only — the
-// receipts are the authority on who actually received it.
 enum MessageAudience {
   DIRECT
   ALL_STUDENTS
   BADGE_INCOMPLETE
 }
 
-// One row per person a message reached, carrying their own read state.
-// createdAt mirrors the message's own so the inbox can sort and page on this
-// table alone. isObserver marks course staff copied on a blast: they see it in
-// their inbox but are excluded from the sender's read count.
+
 model MessageReceipt {
   id         String    @id @default(cuid())
   messageId  String

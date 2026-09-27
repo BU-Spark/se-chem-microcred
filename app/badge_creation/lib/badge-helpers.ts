@@ -195,13 +195,17 @@ export function checkpointFromCatalog(checkpoint: CatalogCheckpoint | undefined,
   };
 }
 
+export function goalNameForBadge(goalName: string, badgeName: string, previousBadgeName = '') {
+  return !goalName.trim() || goalName === previousBadgeName ? badgeName : goalName;
+}
+
 export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
   const requirement = badge.requirements[0];
   const lesson = requirement?.lesson ?? null;
   const segment = lesson?.segment ?? null;
   const rubricGoal = badge.rubricGoal
     ? {
-        name: badge.rubricGoal.name,
+        name: goalNameForBadge(badge.rubricGoal.name, badge.name),
         taInstructions: badge.rubricGoal.instructions ?? '',
         subgoals: badge.rubricGoal.subgoals.length
           ? badge.rubricGoal.subgoals.map((subgoal) => ({
@@ -218,7 +222,7 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
             }))
           : DEFAULT_DRAFT.rubricGoal.subgoals,
       }
-    : DEFAULT_DRAFT.rubricGoal;
+    : { ...DEFAULT_DRAFT.rubricGoal, name: badge.name };
 
   // Availability prefers the new per-badge columns; fall back to lesson.dueDate
   // for legacy badges created before those columns existed.

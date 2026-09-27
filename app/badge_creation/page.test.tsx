@@ -564,6 +564,28 @@ describe('Badge creation page', () => {
     expect(screen.getByLabelText('Paste YouTube link here')).toBeInTheDocument();
   });
 
+  it('fills the rubric goal from the badge name until the instructor writes their own', () => {
+    render(<BadgeCreationPage />);
+
+    fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Burner' } });
+    fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Bunsen Burner' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> video
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
+    fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> rubric
+
+    // Follows renames, and subgoal and task stay blank.
+    expect(screen.getByLabelText('Rubric goal name')).toHaveValue('Bunsen Burner');
+    expect(screen.getByLabelText('Subgoal 1 title')).toHaveValue('');
+    expect(screen.getByLabelText('Subgoal 1 task 1')).toHaveValue('');
+
+    // A goal the instructor typed is kept when the badge is renamed.
+    fireEvent.change(screen.getByLabelText('Rubric goal name'), { target: { value: 'Operate the burner safely' } });
+    for (let step = 0; step < 3; step += 1) fireEvent.click(screen.getByRole('button', { name: /Back/ }));
+    fireEvent.change(screen.getByLabelText('Badge Name'), { target: { value: 'Burner Safety' } });
+    for (let step = 0; step < 3; step += 1) fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    expect(screen.getByLabelText('Rubric goal name')).toHaveValue('Operate the burner safely');
+  });
+
   it('blocks advancing past the rubric step until goal, subgoal, and task text are provided', async () => {
     render(<BadgeCreationPage />);
 
@@ -572,7 +594,9 @@ describe('Badge creation page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> checkpoints
     fireEvent.click(screen.getByRole('button', { name: 'Next' })); // -> rubric
 
-    // 1. Leaving the goal name blank blocks the step and surfaces an error.
+    // 1. The goal starts as the badge name (#302); clearing it blocks the step.
+    expect(screen.getByLabelText('Rubric goal name')).toHaveValue('Burner');
+    fireEvent.change(screen.getByLabelText('Rubric goal name'), { target: { value: '' } });
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
     expect(screen.getByText('Add a rubric goal name before continuing.')).toBeInTheDocument();
     // Still on the rubric step (the goal name field remains visible).
