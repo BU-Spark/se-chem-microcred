@@ -136,12 +136,18 @@ export function AnalyticsPanel({ className }: { className?: string } = {}) {
   const { user } = useUser();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress);
 
-  const totalBadges =
-    (studentData?.badges.completed.length ?? 0) +
-    (studentData?.badges.readyForAssessment.length ?? 0) +
-    (studentData?.badges.learning.length ?? 0);
-  const completedPercent =
-    totalBadges > 0 ? Math.round(((studentData?.badges.completed.length ?? 0) / totalBadges) * 100) : 0;
+  // Every badge across the student's courses falls in exactly one of these (#300). Locked badges
+  // (attempts used up) aren't finished, so they count as in progress.
+  const badges = studentData?.badges;
+  const notStartedCount = badges?.notStarted?.length ?? 0;
+  const inProgressCount =
+    (badges?.learning.length ?? 0) +
+    (badges?.readyForAssessment.length ?? 0) +
+    (badges?.inReview.length ?? 0) +
+    (badges?.locked.length ?? 0);
+  const completedCount = badges?.completed.length ?? 0;
+  const totalBadges = notStartedCount + inProgressCount + completedCount;
+  const completedPercent = totalBadges > 0 ? Math.round((completedCount / totalBadges) * 100) : 0;
   const availablePercent = Math.max(0, 100 - completedPercent);
   const analytics = studentData?.analytics;
 
@@ -179,21 +185,9 @@ export function AnalyticsPanel({ className }: { className?: string } = {}) {
   }, [analytics, studentData?.badges.completed]);
 
   const progressItems: ProgressItem[] = [
-    {
-      id: 'badges-completed',
-      value: String(studentData?.badges.completed.length ?? 0),
-      label: 'badges completed',
-    },
-    {
-      id: 'badges-reassess',
-      value: String(studentData?.badges.readyForAssessment.length ?? analytics?.badgesReadyForAssessment ?? 0),
-      label: 'badges ready to be reassessed',
-    },
-    {
-      id: 'badges-not-attempted',
-      value: String(analytics?.badgesNotAttempted ?? 0),
-      label: 'badges not yet attempted',
-    },
+    { id: 'badges-not-started', value: String(notStartedCount), label: 'badges not started' },
+    { id: 'badges-in-progress', value: String(inProgressCount), label: 'badges in progress' },
+    { id: 'badges-completed', value: String(completedCount), label: 'badges completed' },
   ];
 
   const scoreItems: ScoreItem[] = [
