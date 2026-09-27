@@ -94,6 +94,7 @@
   font-family: Lato, sans-serif;
   font-size: 24px;
   font-weight: 400;
+  line-height: 1.3;
   color: var(--checkd-black);
 }
 
@@ -147,19 +148,31 @@
 
 .field {
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .courseNameInput {
-  width: 486px;
-  border: None;
+  width: 100%;
+  max-width: 486px;
+  min-height: 44px;
+  border: none;
   border-bottom: 1px solid var(--checkd-black);
   background: transparent;
   outline: none;
   font-size: 16px;
   font-weight: 400;
-  padding: 0 0 8px 0;
+  line-height: 1.5;
+  padding: 8px 0;
   color: var(--checkd-black);
   font-style: normal;
+}
+
+/* Replaces the removed outline: a thicker blue underline without shifting the layout. */
+.courseNameInput:focus-visible {
+  border-bottom-color: var(--checkd-blue);
+  box-shadow: 0 1px 0 var(--checkd-blue);
 }
 
 .courseNameInput::placeholder {
@@ -168,8 +181,10 @@
   font-style: italic;
 }
 
-.sectionsLabel {
+.fieldLabel {
   font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
   color: var(--checkd-black);
 }
 
@@ -286,13 +301,6 @@
   justify-content: space-between;
   gap: 28px;
   align-items: flex-start;
-}
-
-.configList {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 28px;
 }
 
 .configRow {
@@ -533,10 +541,23 @@
   gap: 12px;
 }
 
-.configList {
+/* Checker step: both cards share one width, sized to the wider of them (past .card's 1170px
+   cap so the settings fit on one line), and still shrink to the page on narrower screens. */
+.checkerStepCards {
   display: flex;
   flex-direction: column;
-  gap: 32px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.checkerStepCards > .card {
+  max-width: none;
+}
+
+.configList {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 32px 56px;
 }
 
 .configItem {
@@ -701,12 +722,48 @@
 }
 
 .reviewBody {
-  padding-left: 18px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   font-size: 14px;
   color: #222;
+}
+
+/* Review step rows: info + image at 2:1, then the two rosters at 1:2. */
+.reviewRow {
+  display: grid;
+  gap: 40px;
+}
+
+.reviewRowInfo {
+  grid-template-columns: 2fr 1fr;
+}
+
+.reviewRowRosters {
+  grid-template-columns: 1fr 2fr;
+}
+
+.reviewRow > .reviewSection {
+  min-width: 0;
+}
+
+.reviewRow > .reviewSection + .reviewSection {
+  border-left: 2px solid #d7d7d7;
+  padding-left: 40px;
+}
+
+@media (max-width: 720px) {
+  .reviewRowInfo,
+  .reviewRowRosters {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .reviewRow > .reviewSection + .reviewSection {
+    border-left: none;
+    border-top: 2px solid #d7d7d7;
+    padding: 16px 0 18px;
+  }
 }
 
 .reviewDivider {
@@ -729,10 +786,9 @@
 }
 
 .reviewConfigList {
-  padding-left: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 18px 48px;
 }
 
 .reviewConfigItem {

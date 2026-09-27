@@ -407,7 +407,7 @@ describe('Course new page edit mode', () => {
 
     render(<CourseNewPage />);
 
-    fireEvent.change(screen.getByLabelText('Course Name:'), {
+    fireEvent.change(screen.getByLabelText('Course Name'), {
       target: { value: 'Chemistry 101' },
     });
     expect(screen.queryByLabelText(/Number of Sections/i)).not.toBeInTheDocument();

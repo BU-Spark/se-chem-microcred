@@ -805,8 +805,8 @@ export default function CourseNewPage() {
 
             <form className={styles.form}>
               <div className={styles.field}>
-                <label htmlFor="courseName" className={styles.sectionsLabel}>
-                  Course Name:
+                <label htmlFor="courseName" className={styles.fieldLabel}>
+                  Course Name
                 </label>
                 <input
                   id="courseName"
@@ -981,200 +981,226 @@ export default function CourseNewPage() {
               />
             </div>
 
-            <section className={styles.card}>
-              <div className={styles.tableHeaderRow}>
-                <h2 className={styles.rosterTitle}>Checker Roster</h2>
-                <span className={styles.tableMeta}>
-                  Showing: {Math.min(checkerVisibleCount, checkerRows.length)} of {checkerRows.length}
-                </span>
-              </div>
+            <div className={styles.checkerStepCards}>
+              <section className={styles.card}>
+                <div className={styles.tableHeaderRow}>
+                  <h2 className={styles.rosterTitle}>Checker Roster</h2>
+                  <span className={styles.tableMeta}>
+                    Showing: {Math.min(checkerVisibleCount, checkerRows.length)} of {checkerRows.length}
+                  </span>
+                </div>
 
-              {checkerRows.length === 0 ? (
-                <p className={styles.emptyState}>No checker roster uploaded yet.</p>
-              ) : (
-                <>
-                  <div className={styles.tableWrap}>
-                    <table className={styles.table}>
-                      <thead>
-                        <tr>
-                          <th>Last Name</th>
-                          <th>First Name</th>
-                          <th>Email</th>
-                          <th>Sections</th>
-                          <th className={styles.actionsHeader}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {checkerRows.slice(0, checkerVisibleCount).map((checker) => {
-                          const selectedSections = checker.sections ?? [];
-                          const key = rosterKey(checker);
-                          const conflicted = isConflictRow(checker);
-                          const sectionOptions = Array.from(
-                            new Set([...knownSections, ...selectedSections].filter(Boolean))
-                          ).sort(compareSections);
-                          const name = `${checker.firstName} ${checker.lastName}`.trim() || checker.email;
-                          return (
-                            <tr key={key} className={conflicted ? styles.conflictRow : undefined}>
-                              <td>{checker.lastName}</td>
-                              <td>{checker.firstName}</td>
-                              <td>
-                                {checker.email}
-                                {conflicted ? <span className={styles.conflictBadge}>Also a student</span> : null}
-                              </td>
-                              <td>
-                                <SectionChips
-                                  options={sectionOptions}
-                                  selected={selectedSections}
-                                  onChange={(next) => updateCheckerSections(key, next)}
-                                  subject={name}
-                                />
-                              </td>
-                              <td className={styles.actionsCell}>
-                                <button
-                                  type="button"
-                                  className={styles.removeButton}
-                                  onClick={() => requestRowRemoval('checker', checker)}
-                                  aria-label={`Remove ${name} from the checker roster`}
-                                >
-                                  Remove
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                {checkerRows.length === 0 ? (
+                  <p className={styles.emptyState}>No checker roster uploaded yet.</p>
+                ) : (
+                  <>
+                    <div className={styles.tableWrap}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th>Last Name</th>
+                            <th>First Name</th>
+                            <th>Email</th>
+                            <th>Sections</th>
+                            <th className={styles.actionsHeader}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {checkerRows.slice(0, checkerVisibleCount).map((checker) => {
+                            const selectedSections = checker.sections ?? [];
+                            const key = rosterKey(checker);
+                            const conflicted = isConflictRow(checker);
+                            const sectionOptions = Array.from(
+                              new Set([...knownSections, ...selectedSections].filter(Boolean))
+                            ).sort(compareSections);
+                            const name = `${checker.firstName} ${checker.lastName}`.trim() || checker.email;
+                            return (
+                              <tr key={key} className={conflicted ? styles.conflictRow : undefined}>
+                                <td>{checker.lastName}</td>
+                                <td>{checker.firstName}</td>
+                                <td>
+                                  {checker.email}
+                                  {conflicted ? <span className={styles.conflictBadge}>Also a student</span> : null}
+                                </td>
+                                <td>
+                                  <SectionChips
+                                    options={sectionOptions}
+                                    selected={selectedSections}
+                                    onChange={(next) => updateCheckerSections(key, next)}
+                                    subject={name}
+                                  />
+                                </td>
+                                <td className={styles.actionsCell}>
+                                  <button
+                                    type="button"
+                                    className={styles.removeButton}
+                                    onClick={() => requestRowRemoval('checker', checker)}
+                                    aria-label={`Remove ${name} from the checker roster`}
+                                  >
+                                    Remove
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
 
-                  <div className={styles.showMoreWrapper}>
-                    {!showCheckerDropdown ? (
-                      <button type="button" className={styles.showMore} onClick={() => setShowCheckerDropdown(true)}>
-                        <span>Show more items</span>
-                        <svg className={styles.showMoreChevron} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path
-                            d="M6 9l6 6 6-6"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
-                    ) : (
-                      <select
-                        className={styles.dropdown}
-                        value={checkerVisibleCount}
-                        onChange={(e) => setCheckerVisibleCount(Number(e.target.value))}
-                      >
-                        <option value={10}>10</option>
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                      </select>
-                    )}
-                  </div>
-                </>
-              )}
-            </section>
+                    <div className={styles.showMoreWrapper}>
+                      {!showCheckerDropdown ? (
+                        <button type="button" className={styles.showMore} onClick={() => setShowCheckerDropdown(true)}>
+                          <span>Show more items</span>
+                          <svg className={styles.showMoreChevron} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path
+                              d="M6 9l6 6 6-6"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      ) : (
+                        <select
+                          className={styles.dropdown}
+                          value={checkerVisibleCount}
+                          onChange={(e) => setCheckerVisibleCount(Number(e.target.value))}
+                        >
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      )}
+                    </div>
+                  </>
+                )}
+              </section>
 
-            <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Checker Configurations</h2>
+              <section className={styles.card}>
+                <h2 className={styles.cardTitle}>Checker Configurations</h2>
 
-              <div className={styles.configList}>
-                {checkerConfigs.map((config) => (
-                  <ConfigRow
-                    key={config.label}
-                    label={config.label}
-                    checked={config.checked}
-                    onChange={config.setChecked}
-                    infoText={config.infoText}
-                  />
-                ))}
-              </div>
-            </section>
+                <div className={styles.configList}>
+                  {checkerConfigs.map((config) => (
+                    <ConfigRow
+                      key={config.label}
+                      label={config.label}
+                      checked={config.checked}
+                      onChange={config.setChecked}
+                      infoText={config.infoText}
+                    />
+                  ))}
+                </div>
+              </section>
+            </div>
           </>
         )}
 
         {currentStep === STEP_REVIEW && (
           <section className={styles.reviewCard}>
-            <div className={styles.reviewSection}>
-              <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Course Info</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_INFO)}>
-                  <span className={styles.editLabel}>Edit</span>
-                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
-                </button>
+            <div className={`${styles.reviewRow} ${styles.reviewRowInfo}`}>
+              <div className={styles.reviewSection}>
+                <div className={styles.reviewHeaderRow}>
+                  <h3 className={styles.reviewTitle}>Course Info</h3>
+                  <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_INFO)}>
+                    <span className={styles.editLabel}>Edit</span>
+                    <Image
+                      src="/assets/profile/edit.png"
+                      alt="Edit"
+                      width={18}
+                      height={18}
+                      className={styles.editIcon}
+                    />
+                  </button>
+                </div>
+
+                <div className={styles.reviewBody}>
+                  <p className={styles.reviewCourseInfo}>
+                    Course Name: <span className={styles.reviewCourseInfoBold}>{courseName || '—'}</span>
+                  </p>
+                  <p className={styles.reviewCourseInfo}>
+                    Number of Sections: <span className={styles.reviewCourseInfoBold}>{sectionCount}</span>
+                  </p>
+                </div>
               </div>
 
-              <div className={styles.reviewBody}>
-                <p className={styles.reviewCourseInfo}>
-                  Course Name: <span className={styles.reviewCourseInfoBold}>{courseName || '—'}</span>
-                </p>
-                <p className={styles.reviewCourseInfo}>
-                  Number of Sections: <span className={styles.reviewCourseInfoBold}>{sectionCount}</span>
-                </p>
-              </div>
-            </div>
+              <div className={styles.reviewSection}>
+                <div className={styles.reviewHeaderRow}>
+                  <h3 className={styles.reviewTitle}>Course Image</h3>
+                  <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_IMAGE)}>
+                    <span className={styles.editLabel}>Edit</span>
+                    <Image
+                      src="/assets/profile/edit.png"
+                      alt="Edit"
+                      width={18}
+                      height={18}
+                      className={styles.editIcon}
+                    />
+                  </button>
+                </div>
 
-            <div className={styles.reviewDivider} />
-
-            <div className={styles.reviewSection}>
-              <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Course Image</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_IMAGE)}>
-                  <span className={styles.editLabel}>Edit</span>
-                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
-                </button>
-              </div>
-
-              <div className={styles.reviewBody}>
-                <div className={styles.reviewImageTile}>
-                  <CourseTileImage
-                    iconName={iconName}
-                    iconBgColor={iconBgColor}
-                    iconFgColor={iconFgColor}
-                    title={courseName}
-                    fallback={<span className={styles.reviewCourseInfo}>No icon selected</span>}
-                  />
+                <div className={styles.reviewBody}>
+                  <div className={styles.reviewImageTile}>
+                    <CourseTileImage
+                      iconName={iconName}
+                      iconBgColor={iconBgColor}
+                      iconFgColor={iconFgColor}
+                      title={courseName}
+                      fallback={<span className={styles.reviewCourseInfo}>No icon selected</span>}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className={styles.reviewDivider} />
 
-            <div className={styles.reviewSection}>
-              <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Student Roster</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ROSTER)}>
-                  <span className={styles.editLabel}>Edit</span>
-                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
-                </button>
+            <div className={`${styles.reviewRow} ${styles.reviewRowRosters}`}>
+              <div className={styles.reviewSection}>
+                <div className={styles.reviewHeaderRow}>
+                  <h3 className={styles.reviewTitle}>Student Roster</h3>
+                  <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ROSTER)}>
+                    <span className={styles.editLabel}>Edit</span>
+                    <Image
+                      src="/assets/profile/edit.png"
+                      alt="Edit"
+                      width={18}
+                      height={18}
+                      className={styles.editIcon}
+                    />
+                  </button>
+                </div>
+
+                <div className={styles.reviewBody}>
+                  <p className={styles.rosterRows}>{studentRows.length} students enrolled</p>
+                  <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_ROSTER)}>
+                    View Student Roster
+                  </button>
+                </div>
               </div>
 
-              <div className={styles.reviewBody}>
-                <p className={styles.rosterRows}>{studentRows.length} students enrolled</p>
-                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_ROSTER)}>
-                  View Student Roster
-                </button>
-              </div>
-            </div>
+              <div className={styles.reviewSection}>
+                <div className={styles.reviewHeaderRow}>
+                  <h3 className={styles.reviewTitle}>Checker Roster</h3>
+                  <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_CHECKER)}>
+                    <span className={styles.editLabel}>Edit</span>
+                    <Image
+                      src="/assets/profile/edit.png"
+                      alt="Edit"
+                      width={18}
+                      height={18}
+                      className={styles.editIcon}
+                    />
+                  </button>
+                </div>
 
-            <div className={styles.reviewDivider} />
-
-            <div className={styles.reviewSection}>
-              <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Checker Roster</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_CHECKER)}>
-                  <span className={styles.editLabel}>Edit</span>
-                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
-                </button>
-              </div>
-
-              <div className={styles.reviewBody}>
-                <p className={styles.rosterRows}>{checkerRows.length} checkers enrolled</p>
-                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_CHECKER)}>
-                  View Checkers
-                </button>
+                <div className={styles.reviewBody}>
+                  <p className={styles.rosterRows}>{checkerRows.length} checkers enrolled</p>
+                  <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_CHECKER)}>
+                    View Checkers
+                  </button>
+                </div>
               </div>
             </div>
 
