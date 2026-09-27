@@ -20,6 +20,7 @@ type EnrollmentSummary = {
 type CourseRoster = {
   id: string;
   title: string;
+  sections?: string[];
   createdBy: {
     name: string | null;
     email: string | null;

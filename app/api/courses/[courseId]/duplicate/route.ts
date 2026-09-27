@@ -80,7 +80,9 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
         const newCourse = await tx.course.create({
           data: {
             title: `Copy of ${source.title}`,
-            sectionCount: source.sectionCount,
+            // Rosters aren't copied, so the copy has no sections until one is uploaded.
+            sectionCount: 1,
+            sections: [],
             description: source.description,
             createdById: creator.id,
             settings: {

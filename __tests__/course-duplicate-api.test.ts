@@ -86,7 +86,7 @@ describe('POST /api/courses/[courseId]/duplicate', () => {
     mockPrisma.user.findUnique.mockResolvedValue({ id: 'creator-1' });
   });
 
-  it('does not copy checker contacts into the duplicated course', async () => {
+  it('does not copy checker contacts or the section count into the duplicated course', async () => {
     const tx = {
       course: {
         findFirst: jest.fn().mockResolvedValue({
@@ -128,6 +128,10 @@ describe('POST /api/courses/[courseId]/duplicate', () => {
 
     expect(response.status).toBe(201);
     expect(tx.courseContact.createMany).not.toHaveBeenCalled();
+    // Sections come from the roster, which isn't copied.
+    expect(tx.course.create).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ sectionCount: 1 }) })
+    );
     expect(tx.enrollment.create).toHaveBeenCalledWith({
       data: {
         studentId: 'creator-1',

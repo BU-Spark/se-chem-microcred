@@ -151,7 +151,7 @@
 
 .courseNameInput {
   width: 486px;
-  border: none;
+  border: None;
   border-bottom: 1px solid var(--checkd-black);
   background: transparent;
   outline: none;
@@ -168,38 +168,9 @@
   font-style: italic;
 }
 
-.sectionsRow {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  margin-top: 24px;
-}
-
 .sectionsLabel {
   font-size: 16px;
   color: var(--checkd-black);
-}
-
-.sectionsInput {
-  width: 60px;
-  border: none;
-  border-bottom: 1px solid var(--checkd-black);
-  background: transparent;
-  outline: none;
-  font-size: 16px;
-  color: var(--checkd-black);
-  padding: 0 0 2px 0;
-  text-align: center;
-}
-
-.sectionsInput::-webkit-outer-spin-button,
-.sectionsInput::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.sectionsInput[type='number'] {
-  -moz-appearance: textfield;
 }
 
 .uploadRow {

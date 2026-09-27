@@ -7,10 +7,12 @@ import { resolveName } from '@/lib/text/name';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
+import SectionChips from '@/app/components/SectionChips/SectionChips';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useCourseRoster } from './hooks/useCourseRoster';
 import styles from './page.module.css';
 import { parseRosterCsv } from '@/lib/csv';
+import { uniqueSections } from '@/lib/sections';
 import { isInstructor } from '@/lib/roles';
 
 type RosterRole = 'STUDENT' | 'CHECKER';
@@ -115,7 +117,7 @@ export default function StudentRosterPage() {
   const [addError, setAddError] = useState<string | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [sectionMember, setSectionMember] = useState<RosterMemberRow | null>(null);
-  const [sectionValue, setSectionValue] = useState('');
+  const [sectionValue, setSectionValue] = useState<string[]>([]);
   const [sectionError, setSectionError] = useState<string | null>(null);
   const [isSavingSection, setIsSavingSection] = useState(false);
   const csvInputRef = useRef<HTMLInputElement | null>(null);
@@ -146,9 +148,6 @@ export default function StudentRosterPage() {
     }
   };
 
-  // One-click section filter. Applies immediately (and mirrors into the draft so
-  // the filter panel's Section control stays in sync). Passing '' (the "All"
-  // chip) or re-clicking the active section clears the section filter.
   const handleSectionQuickFilter = (section: string) => {
     const next = appliedFilters.section === section ? '' : section;
     setAppliedFilters((current) => ({ ...current, section: next }));
@@ -157,13 +156,11 @@ export default function StudentRosterPage() {
 
   const course = data?.course ?? null;
   const isInstructorFlag = isInstructor(data?.viewerRole);
-  // Only instructors can remove students, and only on the student roster.
   const canRemoveMembers = isInstructorFlag;
   const canAddMembers = isInstructorFlag;
   const canManageSections = isInstructorFlag;
   const displayName = course?.createdBy?.name || '';
 
-  // Pending checker requests an instructor can approve/decline (CHECKER roster only).
   const pendingCheckers = useMemo(() => {
     if (!course || !isCheckerRoster || !isInstructorFlag) return [];
     return course.enrollments
@@ -303,16 +300,13 @@ export default function StudentRosterPage() {
 
   const openSectionModal = (member: RosterMemberRow) => {
     setSectionMember(member);
-    setSectionValue(member.sections.join(' | '));
+    setSectionValue(member.sections);
     setSectionError(null);
   };
 
   const saveSections = async () => {
     if (!courseId || !sectionMember) return;
-    const sections = sectionValue
-      .split('|')
-      .map((section) => section.trim())
-      .filter(Boolean);
+    const sections = sectionValue;
     if (!isCheckerRoster && sections.length > 1) {
       setSectionError('Students can only belong to one section.');
       return;
@@ -359,6 +353,17 @@ export default function StudentRosterPage() {
         };
       });
   }, [course, rosterRole]);
+
+  // The course's saved sections (kept even when nobody is left in one) plus any on enrollments.
+  // Reassignment is limited to these.
+  const courseSections = useMemo(
+    () =>
+      uniqueSections([
+        ...(course?.sections ?? []),
+        ...(course?.enrollments ?? []).flatMap((enrollment) => enrollment.sections),
+      ]).sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    [course]
+  );
 
   const sectionOptions = useMemo(() => {
     const sections = Array.from(
@@ -867,11 +872,13 @@ export default function StudentRosterPage() {
                     })}
                     {isCheckerRoster ? (
                       <p className={styles.addHint}>
-                        Email is required (ID optional). Separate multiple checker sections with |.
+                        Email is required (ID optional). Separate multiple checker sections with |. Sections must
+                        already exist in this course.
                       </p>
                     ) : (
                       <p className={styles.addHint}>
-                        Email or ID is required. Students can only be assigned to one section.
+                        Email or ID is required. Students can only be assigned to one section, and it must already exist
+                        in this course.
                       </p>
                     )}
                   </div>
@@ -930,20 +937,40 @@ export default function StudentRosterPage() {
                   {sectionMember.sectionLabel ? 'Change' : 'Assign'}{' '}
                   {isCheckerRoster ? 'checker sections' : 'student section'}
                 </h2>
-                <label className={styles.filterField}>
-                  <span className={styles.filterFieldLabel}>{isCheckerRoster ? 'Sections' : 'Section'}</span>
-                  <input
-                    className={styles.filterInput}
-                    value={sectionValue}
-                    onChange={(event) => setSectionValue(event.target.value)}
-                    placeholder={isCheckerRoster ? 'A1 | A2' : 'A1'}
-                    autoFocus
-                  />
-                </label>
+                {isCheckerRoster ? (
+                  <div className={styles.filterField}>
+                    <span className={styles.filterFieldLabel}>Sections</span>
+                    <SectionChips
+                      options={courseSections}
+                      selected={sectionValue}
+                      onChange={setSectionValue}
+                      subject={`${sectionMember.firstName} ${sectionMember.lastName}`.trim() || sectionMember.email}
+                    />
+                  </div>
+                ) : (
+                  <label className={styles.filterField}>
+                    <span className={styles.filterFieldLabel}>Section</span>
+                    <select
+                      className={styles.filterSelect}
+                      value={sectionValue[0] ?? ''}
+                      onChange={(event) => setSectionValue(event.target.value ? [event.target.value] : [])}
+                      autoFocus
+                    >
+                      <option value="">No section</option>
+                      {courseSections.map((section) => (
+                        <option key={section} value={section}>
+                          {section}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
                 <p className={styles.addHint}>
-                  {isCheckerRoster
-                    ? 'Separate multiple sections with |. You can enter a new section name.'
-                    : 'You can enter an existing or new section name.'}
+                  {courseSections.length === 0
+                    ? 'This course has no sections yet. Add them by editing the course roster.'
+                    : isCheckerRoster
+                      ? 'Select every section this checker covers.'
+                      : 'Students can only be moved to a section that already exists in this course.'}
                 </p>
                 {sectionError ? <p className={styles.modalError}>{sectionError}</p> : null}
                 <div className={styles.modalActions}>
