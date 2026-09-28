@@ -41,8 +41,11 @@ async function addMembers(body: unknown) {
 describe('add course roster members API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Tests that return early leave these Once queues unconsumed, so start each test empty.
+    tx.user.findMany.mockReset();
+    tx.enrollment.findMany.mockReset();
     mockEnsureCurrentUser.mockResolvedValue({ id: 'instructor-1' });
-    mockPrisma.course.findUnique.mockResolvedValue({ createdById: 'instructor-1' });
+    mockPrisma.course.findUnique.mockResolvedValue({ createdById: 'instructor-1', sections: ['A1', 'A2', 'B2'] });
     tx.user.findMany
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'student-1', name: 'Ada Lovelace', email: 'ada@bu.edu', externalId: null }]);
@@ -80,7 +83,7 @@ describe('add course roster members API', () => {
       tx.user.findMany.mockReset();
       tx.enrollment.findMany.mockReset();
       mockEnsureCurrentUser.mockResolvedValue({ id: 'instructor-1' });
-      mockPrisma.course.findUnique.mockResolvedValue({ createdById: 'instructor-1' });
+      mockPrisma.course.findUnique.mockResolvedValue({ createdById: 'instructor-1', sections: ['A1', 'A2', 'B2'] });
       tx.user.createMany.mockResolvedValue({ count: 0 });
       // First call is the role-conflict check (none), second returns the ids.
       tx.enrollment.findMany
@@ -177,6 +180,56 @@ describe('add course roster members API', () => {
       skipDuplicates: true,
     });
     expect(tx.enrollment).not.toHaveProperty('deleteMany');
+  });
+
+  it('rejects a section that does not already exist in the course', async () => {
+    const response = await addMembers({
+      role: 'STUDENT',
+      members: [{ firstName: 'Ada', lastName: 'Lovelace', email: 'ada@bu.edu', sections: 'A11' }],
+    });
+
+    expect(response.status).toBe(400);
+    expect((await response.json()).error).toBe(
+      'Section "A11" does not exist in this course. Existing sections: A1, A2, B2.'
+    );
+    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('matches existing sections case-insensitively and stores the existing spelling', async () => {
+    const response = await addMembers({
+      role: 'STUDENT',
+      members: [{ firstName: 'Ada', lastName: 'Lovelace', email: 'ada@bu.edu', sections: ' a1 ' }],
+    });
+
+    expect(response.status).toBe(200);
+    expect(tx.enrollmentSection.createMany).toHaveBeenCalledWith({
+      data: [{ enrollmentId: 'enrollment-1', section: 'A1' }],
+      skipDuplicates: true,
+    });
+  });
+
+  it('accepts a student whose section is repeated in different cases', async () => {
+    const response = await addMembers({
+      role: 'STUDENT',
+      members: [{ firstName: 'Ada', lastName: 'Lovelace', email: 'ada@bu.edu', sections: 'A1|a1' }],
+    });
+
+    expect(response.status).toBe(200);
+    expect(tx.enrollmentSection.createMany).toHaveBeenCalledWith({
+      data: [{ enrollmentId: 'enrollment-1', section: 'A1' }],
+      skipDuplicates: true,
+    });
+  });
+
+  it('still adds members with no section', async () => {
+    mockPrisma.course.findUnique.mockResolvedValue({ createdById: 'instructor-1', sections: [] });
+    const response = await addMembers({
+      role: 'STUDENT',
+      members: [{ firstName: 'Ada', lastName: 'Lovelace', email: 'ada@bu.edu', sections: '' }],
+    });
+
+    expect(response.status).toBe(200);
+    expect(tx.enrollmentSection.createMany).not.toHaveBeenCalled();
   });
 
   it('rejects roster changes from a non-owner', async () => {

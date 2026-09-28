@@ -1,26 +1,26 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
+import { useNavigationGuard } from '@/app/hooks/useNavigationGuard';
 import { useStudentData } from '../../hooks/useStudentData';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import styles from './page.module.css';
 import Image from 'next/image';
 import BackButton from '@/app/components/BackButton/BackButton';
 import CourseImagePicker from './components/CourseImagePicker';
-import SectionChips from './components/SectionChips';
+import SectionChips from '@/app/components/SectionChips/SectionChips';
 import CourseTileImage from '@/app/components/Courses/CourseTileImage';
 import { CourseRole } from '@prisma/client';
 import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
 import { resolveName } from '@/lib/text/name';
 import { parseRosterCsv } from '@/lib/csv';
+import { uniqueSections, unifySectionSpellings } from '@/lib/sections';
 
 const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Checker Roster', 'Review'];
 
-// Named step indices so the wizard's conditionals and edit links stay readable
-// (and survive future reordering) rather than depending on bare numbers.
 const STEP_INFO = 0;
 const STEP_IMAGE = 1;
 const STEP_ROSTER = 2;
@@ -76,6 +76,7 @@ type EditableCourseResponse = {
     id: string;
     title: string;
     sectionCount: number;
+    sections?: string[];
     iconName: string | null;
     iconBgColor: string | null;
     iconFgColor: string | null;
@@ -123,10 +124,7 @@ function toRosterRow(person: Person): RosterRow {
 const compareSections = (a: string, b: string) => a.localeCompare(b, undefined, { numeric: true });
 
 function parseSections(sectionValue?: string | null): string[] {
-  return (sectionValue ?? '')
-    .split('|')
-    .map((section) => section.trim())
-    .filter(Boolean);
+  return uniqueSections((sectionValue ?? '').split('|'));
 }
 
 // Stable identity for a roster row: prefer email, fall back to ID, then name.
@@ -136,10 +134,6 @@ function rosterKey(row: RosterRow): string {
   return row.email.trim().toLowerCase() || row.externalId.trim() || `${row.firstName.trim()}|${row.lastName.trim()}`;
 }
 
-// Append incoming rows to the existing roster instead of replacing it. If a person
-// already exists (by rosterKey), keep the existing row untouched and skip the
-// incoming duplicate. This is the fix for #168: uploading a CSV in edit mode must
-// not wipe students already enrolled in the course.
 function mergeRosterRows(existing: RosterRow[], incoming: RosterRow[]): RosterRow[] {
   const seen = new Map<string, RosterRow>();
   for (const row of existing) {
@@ -156,8 +150,6 @@ function mergeRosterRows(existing: RosterRow[], incoming: RosterRow[]): RosterRo
   return merged;
 }
 
-// Checkers can cover several sections, so a person listed on more than one CSV row
-// collapses into a single roster entry whose sections are the union of those rows. (#206)
 function mergeCheckerRows(rows: RosterRow[]) {
   return Array.from(
     rows.reduce((map, row) => {
@@ -171,12 +163,12 @@ function mergeCheckerRows(rows: RosterRow[]) {
           ...row,
           email,
           externalId,
-          sections: Array.from(new Set(row.sections ?? [])),
+          sections: uniqueSections(row.sections ?? []),
         });
         return map;
       }
 
-      existing.sections = Array.from(new Set([...(existing.sections ?? []), ...(row.sections ?? [])]));
+      existing.sections = uniqueSections([...(existing.sections ?? []), ...(row.sections ?? [])]);
       // A later row may fill in an ID the first one omitted.
       if (!existing.externalId && externalId) existing.externalId = externalId;
       return map;
@@ -196,13 +188,10 @@ export default function CourseNewPage() {
   const isEditMode = Boolean(editCourseId);
 
   const [isSigningOut, setIsSigningOut] = useState(false);
-  // In edit mode, land directly on the Review step (the last step) so editing an
-  // existing course opens on the review screen rather than walking the wizard from step 0.
+
   const [currentStep, setCurrentStep] = useState(isEditMode ? STEP_REVIEW : STEP_INFO);
   const [editingCourseId, setEditingCourseId] = useState<string | null>(null);
-  // Guards against the preload effect re-running (e.g. when Clerk's `user` object
-  // identity changes) and overwriting rosters the user has since uploaded/edited.
-  // Tracks which course id we've already hydrated so we only load once. (#168)
+
   const loadedCourseIdRef = useRef<string | null>(null);
   const [isLoadingCourse, setIsLoadingCourse] = useState(false);
   const [loadError, setLoadError] = useState('');
@@ -210,7 +199,6 @@ export default function CourseNewPage() {
   // course info
   const [courseCode] = useState('');
   const [courseName, setCourseName] = useState('');
-  const [sections, setSections] = useState('');
 
   // course image (Iconify icon + background color)
   const [iconName, setIconName] = useState<string | null>(null);
@@ -226,14 +214,25 @@ export default function CourseNewPage() {
   const [studentRows, setStudentRows] = useState<RosterRow[]>([]);
   const [checkerRows, setCheckerRows] = useState<RosterRow[]>([]);
 
-  // Every section name seen on either roster so far. This accumulates rather than being
-  // derived from the current rows: a checker's section pills must stay on screen after
-  // the last person assigned to a section is toggled off, otherwise the pill would vanish
-  // and the section could never be re-selected. (#206)
+  // Edit mode: the course's saved sections, which stay valid even when no roster row uses them.
+  const [savedSections, setSavedSections] = useState<string[]>([]);
+
+  // Matches what the server saves: saved sections plus distinct roster sections, at least 1.
+  const sectionCount = useMemo(
+    () =>
+      Math.max(
+        1,
+        uniqueSections([...savedSections, ...[...studentRows, ...checkerRows].flatMap((row) => row.sections ?? [])])
+          .length
+      ),
+    [savedSections, studentRows, checkerRows]
+  );
+
   const [knownSections, setKnownSections] = useState<string[]>([]);
 
   useEffect(() => {
     const seen = [
+      ...savedSections,
       ...studentRows.flatMap((student) => student.sections ?? []),
       ...checkerRows.flatMap((checker) => checker.sections ?? []),
     ].filter(Boolean);
@@ -241,13 +240,11 @@ export default function CourseNewPage() {
     if (seen.length === 0) return;
 
     setKnownSections((prev) => {
-      const next = new Set(prev);
-      const sizeBefore = next.size;
-      for (const section of seen) next.add(section);
-      if (next.size === sizeBefore) return prev;
-      return Array.from(next).sort(compareSections);
+      const next = uniqueSections([...prev, ...seen]);
+      if (next.length === prev.length) return prev;
+      return next.sort(compareSections);
     });
-  }, [studentRows, checkerRows]);
+  }, [savedSections, studentRows, checkerRows]);
 
   const [visibleCount, setVisibleCount] = useState(10);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -260,15 +257,52 @@ export default function CourseNewPage() {
 
   const [submitError, setSubmitError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  // Synchronous guard against double/triple submission. The `isSubmitting` state flag
-  // only disables the button after a re-render, leaving a race window where rapid clicks
-  // (or clicks during a slow request) fire multiple create requests → duplicate courses.
-  // A ref mutates immediately, so it blocks re-entrant calls within the same tick.
   const isSubmittingRef = useRef(false);
   const [uploadDialog, setUploadDialog] = useState<UploadDialogState | null>(null);
-  // Pending roster-row removal awaiting confirmation. Only used in edit mode, where
-  // removing a row deletes a real enrollment on save. (#205)
   const [rowToRemove, setRowToRemove] = useState<PendingRowRemoval | null>(null);
+
+  const formSignature = useMemo(
+    () =>
+      JSON.stringify({
+        courseName,
+        iconName,
+        iconBgColor,
+        iconFgColor,
+        allowCooldownOverride,
+        allowCheckerMessages,
+        allowCrossSectionView,
+        studentRows,
+        checkerRows,
+      }),
+    [
+      courseName,
+      iconName,
+      iconBgColor,
+      iconFgColor,
+      allowCooldownOverride,
+      allowCheckerMessages,
+      allowCrossSectionView,
+      studentRows,
+      checkerRows,
+    ]
+  );
+
+  const [baselineSignature, setBaselineSignature] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isLoadingCourse || (isEditMode && !editingCourseId)) return;
+    setBaselineSignature((current) => (current === null ? formSignature : current));
+  }, [isLoadingCourse, isEditMode, editingCourseId, formSignature]);
+
+  // `isSubmitting` suppresses the prompt during the save's own router.push.
+  const hasUnsavedCourseWork = baselineSignature !== null && formSignature !== baselineSignature && !isSubmitting;
+
+  useNavigationGuard(
+    hasUnsavedCourseWork,
+    isEditMode
+      ? 'You have unsaved changes to this course. Leave without saving them?'
+      : 'This course has not been created yet. Leave now and you will lose what you have filled in.'
+  );
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
@@ -323,26 +357,23 @@ export default function CourseNewPage() {
 
         setEditingCourseId(course.id);
         setCourseName(course.title ?? '');
-        setSections(String(course.sectionCount ?? ''));
         if (course.iconName) setIconName(course.iconName);
         if (course.iconBgColor) setIconBgColor(course.iconBgColor);
         if (course.iconFgColor) setIconFgColor(course.iconFgColor);
         setAllowCooldownOverride(course.settings?.allowCooldownOverride ?? false);
         setAllowCheckerMessages(course.settings?.allowCheckerMessages ?? false);
         setAllowCrossSectionView(course.settings?.allowCrossSectionView ?? false);
-        setStudentRows(
-          studentEnrollments.map((enrollment) =>
-            toRosterRow({
-              name: enrollment.student.name,
-              firstName: enrollment.student.firstName,
-              lastName: enrollment.student.lastName,
-              email: enrollment.student.email,
-              externalId: enrollment.student.externalId,
-              sections: enrollment.sections,
-            })
-          )
+        const loadedStudents = studentEnrollments.map((enrollment) =>
+          toRosterRow({
+            name: enrollment.student.name,
+            firstName: enrollment.student.firstName,
+            lastName: enrollment.student.lastName,
+            email: enrollment.student.email,
+            externalId: enrollment.student.externalId,
+            sections: enrollment.sections,
+          })
         );
-        setCheckerRows(
+        const loadedCheckers =
           checkerEnrollments.length > 0
             ? checkerEnrollments.map((enrollment) =>
                 toRosterRow({
@@ -363,7 +394,16 @@ export default function CourseNewPage() {
                     externalId: null,
                     sections: [],
                   })
-                )
+                );
+        // Collapse sections saved before names were compared case-insensitively ("A1" vs "a1").
+        const unified = unifySectionSpellings([
+          course.sections ?? [],
+          ...[...loadedStudents, ...loadedCheckers].map((row) => row.sections ?? []),
+        ]);
+        setSavedSections(unified[0]);
+        setStudentRows(loadedStudents.map((row, index) => ({ ...row, sections: unified[index + 1] })));
+        setCheckerRows(
+          loadedCheckers.map((row, index) => ({ ...row, sections: unified[loadedStudents.length + index + 1] }))
         );
       } catch (error) {
         if (isCancelled) return;
@@ -402,8 +442,7 @@ export default function CourseNewPage() {
   };
 
   // The same person (by email) can't be both a student and a checker in one
-  // course (one enrollment per person per course). Catch it here with a clear message
-  // instead of letting the server reject it with a cryptic error.
+  // course (one enrollment per person per course).
   const findRosterRoleConflict = () => {
     const studentKeys = new Map<string, string>();
     for (const student of studentRows) {
@@ -428,8 +467,7 @@ export default function CourseNewPage() {
   };
 
   // Checkers are keyed by email now that the ID is optional, so a row with
-  // neither an email nor an ID can't be resolved server-side. Catch it here with
-  // a clear message instead of the server's generic rejection.
+  // neither an email nor an ID can't be resolved server-side.
   const findCheckersMissingIdentity = () => {
     const missing = checkerRows
       .filter((checker) => !checker.email.trim() && !checker.externalId?.trim())
@@ -440,24 +478,10 @@ export default function CourseNewPage() {
     return `${missing.join(', ')} ${missing.length === 1 ? 'is' : 'are'} missing an email. Checkers need an email address (their ID is optional) — add one to continue.`;
   };
 
-  const hasAtLeastOneSection = () => Number(sections) >= 1;
-
   const goNext = async () => {
-    if (currentStep === STEP_INFO && !hasAtLeastOneSection()) {
-      setSubmitError('Course must have at least 1 section.');
-      return;
-    }
     setSubmitError('');
     if (currentStep === STEP_REVIEW) {
-      // Re-entrancy guard: ignore clicks while a save is already in flight.
       if (isSubmittingRef.current) return;
-
-      setSubmitError('');
-
-      if (!hasAtLeastOneSection()) {
-        setSubmitError('Course must have at least 1 section.');
-        return;
-      }
 
       const checkerIdentityError = findCheckersMissingIdentity();
       if (checkerIdentityError) {
@@ -514,12 +538,17 @@ export default function CourseNewPage() {
         ...row,
         sections: parseSections(row.sections),
       }));
-      // Append to whatever's already loaded (DB roster in edit mode, or a prior
-      // upload) rather than replacing it, deduping by person. (#168) For checkers the
-      // merge also unions sections, so re-uploading adds sections to an existing
-      // checker instead of dropping them. (#206)
+
+      // Incoming names take the spelling already used on either roster.
+      const existingLists = [savedSections, ...[...studentRows, ...checkerRows].map((row) => row.sections ?? [])];
+      const unified = unifySectionSpellings([...existingLists, ...parsedRows.map((row) => row.sections)]);
+      const incomingRows = parsedRows.map((row, index) => ({
+        ...row,
+        sections: unified[existingLists.length + index],
+      }));
+
       setRows((prev) =>
-        target === 'checker' ? mergeCheckerRows([...prev, ...parsedRows]) : mergeRosterRows(prev, parsedRows)
+        target === 'checker' ? mergeCheckerRows([...prev, ...incomingRows]) : mergeRosterRows(prev, incomingRows)
       );
     } catch (error) {
       console.error('Failed to parse CSV:', error);
@@ -538,7 +567,6 @@ export default function CourseNewPage() {
     const payload = {
       id: editingCourseId ?? undefined,
       code: courseCode.trim().toUpperCase(),
-      sectionCount: sections,
       title: courseName.trim(),
       iconName,
       iconBgColor,
@@ -612,33 +640,18 @@ export default function CourseNewPage() {
     targetInput?.click();
   };
 
-  // Populates the per-student section dropdowns so the prof can reassign a student's
-  // section inline. Uses the accumulated list so moving the last student out of a
-  // section doesn't remove that section from the dropdown.
   const availableSections = knownSections;
 
-  // Rows are addressed by rosterKey rather than array index. The positional version
-  // was not itself wrong (the render slice always starts at 0, so slice index ==
-  // array index), but paired with `key={index}` React reuses a row's DOM node for a
-  // different person after a removal. Keying by identity makes both correct. (#205)
   const updateStudentSection = (key: string, value: string) => {
     setStudentRows((prev) =>
       prev.map((row) => (rosterKey(row) === key ? { ...row, sections: value ? [value] : [] } : row))
     );
   };
 
-  // Same inline-section-reassignment for the checker roster, except a checker can hold
-  // several sections at once, so the whole set is replaced rather than a single value. (#206)
   const updateCheckerSections = (key: string, nextSections: string[]) => {
     setCheckerRows((prev) => prev.map((row) => (rosterKey(row) === key ? { ...row, sections: nextSections } : row)));
   };
 
-  // Emails present in BOTH rosters. Used to highlight the offending rows so the
-  // person blocking submission can actually be found and removed, rather than only
-  // being named in the error text. (#205)
-  // Computed inline rather than memoized: this sits after the component's early
-  // returns, where a hook would break the rules-of-hooks call order (and the roster
-  // is small enough that the memo would not pay for itself).
   const conflictEmails = (() => {
     const studentEmails = new Set(studentRows.map((row) => row.email.trim().toLowerCase()).filter(Boolean));
 
@@ -660,9 +673,6 @@ export default function CourseNewPage() {
     setRows((prev) => prev.filter((row) => rosterKey(row) !== key));
   };
 
-  // Creating a course: the roster is unsaved wizard state, so removal is free and
-  // immediate. Editing: the save wipes and rebuilds enrollments from this roster, so
-  // removing a row deletes a real enrollment — confirm first.
   const requestRowRemoval = (target: UploadTarget, row: RosterRow) => {
     const key = rosterKey(row);
     if (!isEditMode) {
@@ -795,28 +805,15 @@ export default function CourseNewPage() {
 
             <form className={styles.form}>
               <div className={styles.field}>
+                <label htmlFor="courseName" className={styles.fieldLabel}>
+                  Course Name
+                </label>
                 <input
                   id="courseName"
                   type="text"
                   className={styles.courseNameInput}
-                  placeholder="Course Name"
                   value={courseName}
                   onChange={(e) => setCourseName(e.target.value)}
-                />
-              </div>
-
-              <div className={styles.sectionsRow}>
-                <label htmlFor="sections" className={styles.sectionsLabel}>
-                  Number of Sections:
-                </label>
-                <input
-                  id="sections"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  className={styles.sectionsInput}
-                  value={sections}
-                  onChange={(e) => setSections(e.target.value.replace(/\D/g, ''))}
                 />
               </div>
             </form>
@@ -984,200 +981,226 @@ export default function CourseNewPage() {
               />
             </div>
 
-            <section className={styles.card}>
-              <div className={styles.tableHeaderRow}>
-                <h2 className={styles.rosterTitle}>Checker Roster</h2>
-                <span className={styles.tableMeta}>
-                  Showing: {Math.min(checkerVisibleCount, checkerRows.length)} of {checkerRows.length}
-                </span>
-              </div>
+            <div className={styles.checkerStepCards}>
+              <section className={styles.card}>
+                <div className={styles.tableHeaderRow}>
+                  <h2 className={styles.rosterTitle}>Checker Roster</h2>
+                  <span className={styles.tableMeta}>
+                    Showing: {Math.min(checkerVisibleCount, checkerRows.length)} of {checkerRows.length}
+                  </span>
+                </div>
 
-              {checkerRows.length === 0 ? (
-                <p className={styles.emptyState}>No checker roster uploaded yet.</p>
-              ) : (
-                <>
-                  <div className={styles.tableWrap}>
-                    <table className={styles.table}>
-                      <thead>
-                        <tr>
-                          <th>Last Name</th>
-                          <th>First Name</th>
-                          <th>Email</th>
-                          <th>Sections</th>
-                          <th className={styles.actionsHeader}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {checkerRows.slice(0, checkerVisibleCount).map((checker) => {
-                          const selectedSections = checker.sections ?? [];
-                          const key = rosterKey(checker);
-                          const conflicted = isConflictRow(checker);
-                          const sectionOptions = Array.from(
-                            new Set([...knownSections, ...selectedSections].filter(Boolean))
-                          ).sort(compareSections);
-                          const name = `${checker.firstName} ${checker.lastName}`.trim() || checker.email;
-                          return (
-                            <tr key={key} className={conflicted ? styles.conflictRow : undefined}>
-                              <td>{checker.lastName}</td>
-                              <td>{checker.firstName}</td>
-                              <td>
-                                {checker.email}
-                                {conflicted ? <span className={styles.conflictBadge}>Also a student</span> : null}
-                              </td>
-                              <td>
-                                <SectionChips
-                                  options={sectionOptions}
-                                  selected={selectedSections}
-                                  onChange={(next) => updateCheckerSections(key, next)}
-                                  subject={name}
-                                />
-                              </td>
-                              <td className={styles.actionsCell}>
-                                <button
-                                  type="button"
-                                  className={styles.removeButton}
-                                  onClick={() => requestRowRemoval('checker', checker)}
-                                  aria-label={`Remove ${name} from the checker roster`}
-                                >
-                                  Remove
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
+                {checkerRows.length === 0 ? (
+                  <p className={styles.emptyState}>No checker roster uploaded yet.</p>
+                ) : (
+                  <>
+                    <div className={styles.tableWrap}>
+                      <table className={styles.table}>
+                        <thead>
+                          <tr>
+                            <th>Last Name</th>
+                            <th>First Name</th>
+                            <th>Email</th>
+                            <th>Sections</th>
+                            <th className={styles.actionsHeader}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {checkerRows.slice(0, checkerVisibleCount).map((checker) => {
+                            const selectedSections = checker.sections ?? [];
+                            const key = rosterKey(checker);
+                            const conflicted = isConflictRow(checker);
+                            const sectionOptions = Array.from(
+                              new Set([...knownSections, ...selectedSections].filter(Boolean))
+                            ).sort(compareSections);
+                            const name = `${checker.firstName} ${checker.lastName}`.trim() || checker.email;
+                            return (
+                              <tr key={key} className={conflicted ? styles.conflictRow : undefined}>
+                                <td>{checker.lastName}</td>
+                                <td>{checker.firstName}</td>
+                                <td>
+                                  {checker.email}
+                                  {conflicted ? <span className={styles.conflictBadge}>Also a student</span> : null}
+                                </td>
+                                <td>
+                                  <SectionChips
+                                    options={sectionOptions}
+                                    selected={selectedSections}
+                                    onChange={(next) => updateCheckerSections(key, next)}
+                                    subject={name}
+                                  />
+                                </td>
+                                <td className={styles.actionsCell}>
+                                  <button
+                                    type="button"
+                                    className={styles.removeButton}
+                                    onClick={() => requestRowRemoval('checker', checker)}
+                                    aria-label={`Remove ${name} from the checker roster`}
+                                  >
+                                    Remove
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
 
-                  <div className={styles.showMoreWrapper}>
-                    {!showCheckerDropdown ? (
-                      <button type="button" className={styles.showMore} onClick={() => setShowCheckerDropdown(true)}>
-                        <span>Show more items</span>
-                        <svg className={styles.showMoreChevron} viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path
-                            d="M6 9l6 6 6-6"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                        </svg>
-                      </button>
-                    ) : (
-                      <select
-                        className={styles.dropdown}
-                        value={checkerVisibleCount}
-                        onChange={(e) => setCheckerVisibleCount(Number(e.target.value))}
-                      >
-                        <option value={10}>10</option>
-                        <option value={25}>25</option>
-                        <option value={50}>50</option>
-                        <option value={100}>100</option>
-                      </select>
-                    )}
-                  </div>
-                </>
-              )}
-            </section>
+                    <div className={styles.showMoreWrapper}>
+                      {!showCheckerDropdown ? (
+                        <button type="button" className={styles.showMore} onClick={() => setShowCheckerDropdown(true)}>
+                          <span>Show more items</span>
+                          <svg className={styles.showMoreChevron} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path
+                              d="M6 9l6 6 6-6"
+                              stroke="currentColor"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            />
+                          </svg>
+                        </button>
+                      ) : (
+                        <select
+                          className={styles.dropdown}
+                          value={checkerVisibleCount}
+                          onChange={(e) => setCheckerVisibleCount(Number(e.target.value))}
+                        >
+                          <option value={10}>10</option>
+                          <option value={25}>25</option>
+                          <option value={50}>50</option>
+                          <option value={100}>100</option>
+                        </select>
+                      )}
+                    </div>
+                  </>
+                )}
+              </section>
 
-            <section className={styles.card}>
-              <h2 className={styles.cardTitle}>Checker Configurations</h2>
+              <section className={styles.card}>
+                <h2 className={styles.cardTitle}>Checker Configurations</h2>
 
-              <div className={styles.configList}>
-                {checkerConfigs.map((config) => (
-                  <ConfigRow
-                    key={config.label}
-                    label={config.label}
-                    checked={config.checked}
-                    onChange={config.setChecked}
-                    infoText={config.infoText}
-                  />
-                ))}
-              </div>
-            </section>
+                <div className={styles.configList}>
+                  {checkerConfigs.map((config) => (
+                    <ConfigRow
+                      key={config.label}
+                      label={config.label}
+                      checked={config.checked}
+                      onChange={config.setChecked}
+                      infoText={config.infoText}
+                    />
+                  ))}
+                </div>
+              </section>
+            </div>
           </>
         )}
 
         {currentStep === STEP_REVIEW && (
           <section className={styles.reviewCard}>
-            <div className={styles.reviewSection}>
-              <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Course Info</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_INFO)}>
-                  <span className={styles.editLabel}>Edit</span>
-                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
-                </button>
+            <div className={`${styles.reviewRow} ${styles.reviewRowInfo}`}>
+              <div className={styles.reviewSection}>
+                <div className={styles.reviewHeaderRow}>
+                  <h3 className={styles.reviewTitle}>Course Info</h3>
+                  <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_INFO)}>
+                    <span className={styles.editLabel}>Edit</span>
+                    <Image
+                      src="/assets/profile/edit.png"
+                      alt="Edit"
+                      width={18}
+                      height={18}
+                      className={styles.editIcon}
+                    />
+                  </button>
+                </div>
+
+                <div className={styles.reviewBody}>
+                  <p className={styles.reviewCourseInfo}>
+                    Course Name: <span className={styles.reviewCourseInfoBold}>{courseName || '—'}</span>
+                  </p>
+                  <p className={styles.reviewCourseInfo}>
+                    Number of Sections: <span className={styles.reviewCourseInfoBold}>{sectionCount}</span>
+                  </p>
+                </div>
               </div>
 
-              <div className={styles.reviewBody}>
-                <p className={styles.reviewCourseInfo}>
-                  Course Name: <span className={styles.reviewCourseInfoBold}>{courseName || '—'}</span>
-                </p>
-                <p className={styles.reviewCourseInfo}>
-                  Number of Sections*: <span className={styles.reviewCourseInfoBold}>{sections || '—'}</span>
-                </p>
-              </div>
-            </div>
+              <div className={styles.reviewSection}>
+                <div className={styles.reviewHeaderRow}>
+                  <h3 className={styles.reviewTitle}>Course Image</h3>
+                  <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_IMAGE)}>
+                    <span className={styles.editLabel}>Edit</span>
+                    <Image
+                      src="/assets/profile/edit.png"
+                      alt="Edit"
+                      width={18}
+                      height={18}
+                      className={styles.editIcon}
+                    />
+                  </button>
+                </div>
 
-            <div className={styles.reviewDivider} />
-
-            <div className={styles.reviewSection}>
-              <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Course Image</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_IMAGE)}>
-                  <span className={styles.editLabel}>Edit</span>
-                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
-                </button>
-              </div>
-
-              <div className={styles.reviewBody}>
-                <div className={styles.reviewImageTile}>
-                  <CourseTileImage
-                    iconName={iconName}
-                    iconBgColor={iconBgColor}
-                    iconFgColor={iconFgColor}
-                    title={courseName}
-                    fallback={<span className={styles.reviewCourseInfo}>No icon selected</span>}
-                  />
+                <div className={styles.reviewBody}>
+                  <div className={styles.reviewImageTile}>
+                    <CourseTileImage
+                      iconName={iconName}
+                      iconBgColor={iconBgColor}
+                      iconFgColor={iconFgColor}
+                      title={courseName}
+                      fallback={<span className={styles.reviewCourseInfo}>No icon selected</span>}
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             <div className={styles.reviewDivider} />
 
-            <div className={styles.reviewSection}>
-              <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Student Roster</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ROSTER)}>
-                  <span className={styles.editLabel}>Edit</span>
-                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
-                </button>
+            <div className={`${styles.reviewRow} ${styles.reviewRowRosters}`}>
+              <div className={styles.reviewSection}>
+                <div className={styles.reviewHeaderRow}>
+                  <h3 className={styles.reviewTitle}>Student Roster</h3>
+                  <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_ROSTER)}>
+                    <span className={styles.editLabel}>Edit</span>
+                    <Image
+                      src="/assets/profile/edit.png"
+                      alt="Edit"
+                      width={18}
+                      height={18}
+                      className={styles.editIcon}
+                    />
+                  </button>
+                </div>
+
+                <div className={styles.reviewBody}>
+                  <p className={styles.rosterRows}>{studentRows.length} students enrolled</p>
+                  <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_ROSTER)}>
+                    View Student Roster
+                  </button>
+                </div>
               </div>
 
-              <div className={styles.reviewBody}>
-                <p className={styles.rosterRows}>{studentRows.length} students enrolled</p>
-                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_ROSTER)}>
-                  View Student Roster
-                </button>
-              </div>
-            </div>
+              <div className={styles.reviewSection}>
+                <div className={styles.reviewHeaderRow}>
+                  <h3 className={styles.reviewTitle}>Checker Roster</h3>
+                  <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_CHECKER)}>
+                    <span className={styles.editLabel}>Edit</span>
+                    <Image
+                      src="/assets/profile/edit.png"
+                      alt="Edit"
+                      width={18}
+                      height={18}
+                      className={styles.editIcon}
+                    />
+                  </button>
+                </div>
 
-            <div className={styles.reviewDivider} />
-
-            <div className={styles.reviewSection}>
-              <div className={styles.reviewHeaderRow}>
-                <h3 className={styles.reviewTitle}>Checker Roster</h3>
-                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_CHECKER)}>
-                  <span className={styles.editLabel}>Edit</span>
-                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
-                </button>
-              </div>
-
-              <div className={styles.reviewBody}>
-                <p className={styles.rosterRows}>{checkerRows.length} checkers enrolled</p>
-                <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_CHECKER)}>
-                  View Checkers
-                </button>
+                <div className={styles.reviewBody}>
+                  <p className={styles.rosterRows}>{checkerRows.length} checkers enrolled</p>
+                  <button type="button" className={styles.viewRosterButton} onClick={() => goToStep(STEP_CHECKER)}>
+                    View Checkers
+                  </button>
+                </div>
               </div>
             </div>
 

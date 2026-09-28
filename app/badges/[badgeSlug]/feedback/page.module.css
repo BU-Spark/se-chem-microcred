@@ -306,14 +306,39 @@
   }
 }
 
-.finalizeBox {
+.acknowledgeBox {
   margin-top: 1.25rem;
   padding-top: 1.25rem;
   border-top: 1px solid rgba(148, 163, 184, 0.35);
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.9rem;
+}
+
+.acknowledgeLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.acknowledgeLabel input[type='checkbox'] {
+  width: 1.1rem;
+  height: 1.1rem;
+  accent-color: var(--checkd-blue);
+  cursor: pointer;
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.primaryButton:disabled:hover {
+  background: var(--checkd-blue);
 }
 
 .surveyOverlay {
@@ -387,14 +412,18 @@
   transform: translateY(-4px);
 }
 
+/* Lucide line icons draw in currentColor, so the resting and selected states
+   are a colour change here rather than two separate SVG files. */
 .surveyFaceImage {
   width: 44px;
   height: 44px;
   display: block;
+  color: #94a3b8;
+  transition: color 0.2s ease;
 }
 
 .surveyFaceImageSelected {
-  filter: none;
+  color: var(--checkd-blue);
 }
 
 .surveySubmit {

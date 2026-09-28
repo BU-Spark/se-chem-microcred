@@ -158,6 +158,8 @@ describe('Course new page edit mode', () => {
     // Edit mode opens directly on the Review step, which summarizes the preloaded course.
     expect(await screen.findByText('Chemistry 101')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Edit course' })).toBeInTheDocument();
+    // Derived from the distinct roster sections: '2' (student) + '3', '4' (checker).
+    expect(screen.getByText('Number of Sections:')).toHaveTextContent('Number of Sections: 3');
     expect(screen.getByText('1 students enrolled')).toBeInTheDocument();
     expect(screen.getByText('1 checkers enrolled')).toBeInTheDocument();
 
@@ -189,7 +191,6 @@ describe('Course new page edit mode', () => {
         id: 'course-1',
         code: '',
         title: 'Chemistry 101',
-        sectionCount: '3',
         settings: {
           allowCooldownOverride: false,
           allowCheckerMessages: true,
@@ -220,6 +221,52 @@ describe('Course new page edit mode', () => {
     await waitFor(() => {
       expect(mockPush).toHaveBeenCalledWith('/courses/course-1');
     });
+  });
+
+  it('counts saved sections and treats names that differ only by case as one section', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          course: {
+            id: 'course-1',
+            title: 'Chemistry 101',
+            sectionCount: 2,
+            // Z9 has no one in it any more but is still one of the course's sections.
+            sections: ['A1', 'Z9'],
+            settings: { allowCooldownOverride: false, allowCheckerMessages: true, allowCrossSectionView: false },
+            contacts: [],
+            enrollments: [
+              {
+                id: 'enrollment-1',
+                role: 'STUDENT',
+                sections: ['A1'],
+                student: { id: 'student-1', name: 'Jane Student', email: 'jane@bu.edu', externalId: 'U1' },
+              },
+              {
+                id: 'enrollment-2',
+                role: 'CHECKER',
+                sections: ['a1 '],
+                student: { id: 'checker-1', name: 'Alex Checker', email: 'checker@bu.edu', externalId: 'U2' },
+              },
+            ],
+          },
+        }),
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ course: { id: 'course-1' } }) });
+
+    render(<CourseNewPage />);
+
+    expect(await screen.findByText('Number of Sections:')).toHaveTextContent('Number of Sections: 2');
+
+    const saveButton = screen.getByRole('button', { name: 'Save Changes' });
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    fireEvent.click(saveButton);
+    await waitFor(() => expect(mockFetch).toHaveBeenCalledTimes(2));
+
+    const saveBody = JSON.parse((mockFetch.mock.calls[1][1] as RequestInit).body as string);
+    expect(saveBody).not.toHaveProperty('sectionCount');
+    expect(saveBody.roster.map((member: { sections: string[] }) => member.sections)).toEqual([['A1'], ['A1']]);
   });
 
   it('shows a warning modal before opening the student roster upload picker', async () => {
@@ -355,19 +402,19 @@ describe('Course new page edit mode', () => {
     });
   });
 
-  it('requires at least one section before leaving course information', () => {
+  it('does not ask for a section count on the course information step', () => {
     mockSearchParams = new URLSearchParams();
 
     render(<CourseNewPage />);
 
-    fireEvent.change(screen.getByPlaceholderText('Course Name'), {
+    fireEvent.change(screen.getByLabelText('Course Name'), {
       target: { value: 'Chemistry 101' },
     });
+    expect(screen.queryByLabelText(/Number of Sections/i)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
 
-    expect(screen.getByText('Course must have at least 1 section.')).toBeInTheDocument();
-    expect(screen.getByPlaceholderText('Course Name')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Course image' })).toBeInTheDocument();
     expect(mockFetch).not.toHaveBeenCalled();
   });
 

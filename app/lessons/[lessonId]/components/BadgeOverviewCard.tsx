@@ -6,14 +6,12 @@ import styles from './BadgeOverviewCard.module.css';
 
 export default function BadgeOverviewCard({
   badgeName,
-  badgeDescription,
   badgeImageUrl,
   badgeImagePositionX,
   badgeImagePositionY,
   skills,
 }: {
   badgeName: string | null;
-  badgeDescription: string | null;
   badgeImageUrl?: string | null;
   badgeImagePositionX?: number | null;
   badgeImagePositionY?: number | null;
@@ -40,9 +38,10 @@ export default function BadgeOverviewCard({
                 />
               </span>
             ) : null}
+            {/* Name only: the badge's description is the same paragraph the
+                title block already introduces the lesson with. */}
             <span className={styles.badgeText}>
               <span className={styles.badgeName}>{badgeName}</span>
-              {badgeDescription ? <span className={styles.badgeDescription}>{badgeDescription}</span> : null}
             </span>
           </div>
         </section>

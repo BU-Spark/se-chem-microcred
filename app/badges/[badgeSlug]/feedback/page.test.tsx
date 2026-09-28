@@ -181,6 +181,7 @@ describe('Badge feedback page', () => {
   });
 
   it('renders checker rubric feedback read-only and acknowledges failed feedback review', async () => {
+    const user = userEvent.setup();
     render(<BadgeFeedbackPage />);
 
     expect(await screen.findByRole('heading', { name: 'Assessment Rubric' })).toBeInTheDocument();
@@ -198,18 +199,76 @@ describe('Badge feedback page', () => {
     );
     expect(mockUseStudentData).toHaveBeenCalledWith('student@example.edu', 'course-1');
 
+    // Viewing the page alone must not acknowledge the feedback.
+    const confirmButton = screen.getByRole('button', { name: 'Confirm review' });
+    expect(confirmButton).toBeDisabled();
+    expect(pageFetch).not.toHaveBeenCalledWith('/api/badges/badge-1/feedback', { method: 'POST' });
+
+    await user.click(screen.getByRole('checkbox', { name: 'I have reviewed my feedback' }));
+    expect(confirmButton).toBeEnabled();
+    await user.click(confirmButton);
+
     await waitFor(() => {
       expect(pageFetch).toHaveBeenCalledWith('/api/badges/badge-1/feedback', { method: 'POST' });
     });
     expect(await screen.findByText(/ready for reassessment/i)).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: 'I have reviewed my feedback' })).not.toBeInTheDocument();
 
-    // Once acknowledged, the cooldown panel renders the real cooldown propagated
-    // from the acknowledge response (not the old hardcoded placeholders).
+    // Cooldown comes from the acknowledge response.
     expect(await screen.findByText('Cooldown')).toBeInTheDocument();
     expect(screen.getByText(/remaining/i)).toBeInTheDocument();
     // Next-attempt window = the returned cooldownUntil (Jan 5, 2099).
     expect(screen.getByText(/2099/)).toBeInTheDocument();
     expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+  });
+
+  it('requires the review checkbox before a passing student can finalize', async () => {
+    const passedStudentData = studentData();
+    passedStudentData.badges.inReview[0].latestAttemptPassed = true;
+    mockUseStudentData.mockReturnValue({ data: passedStudentData, isLoading: false, error: null, refresh: jest.fn() });
+
+    pageFetch = jest.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        badge: {
+          id: 'badge-1',
+          slug: 'learning-badge',
+          name: 'Learning Badge',
+          description: 'Passed',
+          status: 'IN_REVIEW',
+          score: 95,
+          awardedAt: null,
+          cooldownUntil: null,
+          cooldownDays: 3,
+        },
+        rubric: null,
+        latestAttempt: {
+          id: 'attempt-1',
+          passed: true,
+          score: 95,
+          pointsEarned: 5,
+          pointsPossible: 5,
+          feedback: null,
+          completedAt: '2026-07-02T12:00:00.000Z',
+          checkerName: 'Checker Demo',
+          responses: [],
+        },
+      }),
+    }));
+
+    const user = userEvent.setup();
+    render(<BadgeFeedbackPage />);
+
+    const finalizeButton = await screen.findByRole('button', { name: 'Finalize badge' });
+    expect(finalizeButton).toBeDisabled();
+    expect(screen.queryByRole('button', { name: 'Confirm review' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: 'I have reviewed my feedback' }));
+    expect(finalizeButton).toBeEnabled();
+    await user.click(finalizeButton);
+
+    expect(await screen.findByText(/Rate your experience earning the Learning Badge badge/)).toBeInTheDocument();
+    expect(pageFetch).not.toHaveBeenCalledWith('/api/badges/badge-1/feedback', { method: 'POST' });
   });
 
   it('lets a student who is ready for assessment view the QR and short code', async () => {

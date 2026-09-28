@@ -907,12 +907,23 @@ html.dark .rte-quote {
 .global-header {
   position: absolute;
   top: 32px;
-  /* tweak until it matches your Figma */
   right: 48px;
-  /* tweak until it matches your Figma */
-  z-index: 9999;
+  /* Above page content, below every modal/drawer overlay (the lowest is 40) so it never covers
+     their controls (#301). Pages keep clear of it with --page-logo-clearance. */
+  z-index: 30;
+  /* Decorative: clicks pass through. */
   pointer-events: none;
-  /* logo purely decorative, clicks pass through */
+}
+
+/* Where the sidebar becomes a top bar, the pinned logo would sit on it and on page headers
+   (--page-logo-clearance is 0 there), so it becomes its own row above the page instead. */
+@media (max-width: 960px) {
+  .global-header {
+    position: static;
+    display: flex;
+    justify-content: flex-end;
+    padding: 0.75rem 1.25rem 0;
+  }
 }
 
 .global-logo {

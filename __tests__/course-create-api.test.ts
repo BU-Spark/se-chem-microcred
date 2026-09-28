@@ -44,22 +44,28 @@ describe('POST /api/courses', () => {
     } as Awaited<ReturnType<typeof currentUser>>);
   });
 
-  it('rejects course creation without at least one section', async () => {
+  it('does not require a section count from the client', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+
+    const response = await postCourse({ title: 'Chemistry 101', roster: [] });
+
+    // The count is derived from the roster, so validation passes and reaches the creator lookup.
+    if (!response) throw new Error('Expected a response');
+    expect(response.status).toBe(404);
+    expect(mockPrisma.user.findUnique).toHaveBeenCalled();
+  });
+
+  it('treats section names that differ only by case or spacing as one section', async () => {
+    mockPrisma.user.findUnique.mockResolvedValue(null);
+
     const response = await postCourse({
       title: 'Chemistry 101',
-      sectionCount: 0,
-      roster: [],
+      roster: [{ email: 'ada@bu.edu', role: 'STUDENT', sections: 'A1| a1 ' }],
     });
 
-    expect(response).toBeDefined();
+    // Gets past the one-section-per-student check and on to the creator lookup.
     if (!response) throw new Error('Expected a response');
-    expect(response.status).toBe(400);
-    expect(await response.json()).toEqual(
-      expect.objectContaining({
-        error: 'Course must have at least 1 section.',
-      })
-    );
-    expect(mockPrisma.user.findUnique).not.toHaveBeenCalled();
-    expect(mockPrisma.$transaction).not.toHaveBeenCalled();
+    expect(response.status).toBe(404);
+    expect(mockPrisma.user.findUnique).toHaveBeenCalled();
   });
 });

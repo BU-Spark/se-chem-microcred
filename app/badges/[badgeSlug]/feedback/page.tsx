@@ -119,10 +119,9 @@ export default function BadgeFeedbackPage() {
   const [feedbackDetail, setFeedbackDetail] = useState<FeedbackDetail | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [reviewedStatus, setReviewedStatus] = useState<BadgeRecord['status'] | null>(null);
-  // cooldownUntil returned by the acknowledge POST — the freshest value, since the
-  // fail-path transition computes it at acknowledge time.
   const [reviewedCooldownUntil, setReviewedCooldownUntil] = useState<string | null | undefined>(undefined);
   const [reviewRequestState, setReviewRequestState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
+  const [hasConfirmedReview, setHasConfirmedReview] = useState(false);
   // Pass-path finalization (0–5 rating survey shown inline on the review page).
   const [isSurveyOpen, setIsSurveyOpen] = useState(false);
   const [surveyRating, setSurveyRating] = useState(3);
@@ -175,6 +174,7 @@ export default function BadgeFeedbackPage() {
       setReviewedStatus(null);
       setReviewedCooldownUntil(undefined);
       setReviewRequestState('idle');
+      setHasConfirmedReview(false);
       return;
     }
 
@@ -184,6 +184,7 @@ export default function BadgeFeedbackPage() {
     setReviewedStatus(null);
     setReviewedCooldownUntil(undefined);
     setReviewRequestState('idle');
+    setHasConfirmedReview(false);
 
     fetch(`/api/badges/${badge.id}/feedback`)
       .then(async (response) => {
@@ -205,51 +206,6 @@ export default function BadgeFeedbackPage() {
       isCancelled = true;
     };
   }, [badge]);
-
-  useEffect(() => {
-    // A failed attempt sits at IN_REVIEW until the student acknowledges it here.
-    // Acknowledging routes the badge to READY_FOR_ASSESSMENT (retry, gated by
-    // cooldown) or LOCKED. The pass path acknowledges + rates via the survey modal.
-    if (
-      !badge ||
-      !feedbackDetail ||
-      feedbackDetail.badge.status !== 'IN_REVIEW' ||
-      feedbackDetail.latestAttempt?.passed !== false ||
-      reviewRequestState !== 'idle'
-    ) {
-      return;
-    }
-
-    let isCancelled = false;
-    setReviewRequestState('pending');
-
-    fetch(`/api/badges/${badge.id}/feedback`, { method: 'POST' })
-      .then(async (response) => {
-        const payload = await response.json().catch(() => ({}));
-        if (!response.ok) {
-          throw new Error(payload.error ?? 'Unable to mark feedback as reviewed.');
-        }
-        if (!isCancelled) {
-          setReviewedStatus(payload.status as BadgeRecord['status']);
-          setReviewedCooldownUntil((payload.cooldownUntil as string | null) ?? null);
-          setReviewRequestState('done');
-          // The badge just changed status server-side. Local state alone would leave
-          // the course dashboard rendering the pre-transition status from its own
-          // cache entry, so invalidate every student-data key, not just this one.
-          refreshAllStudentData();
-        }
-      })
-      .catch((error) => {
-        if (!isCancelled) {
-          setFeedbackError(error instanceof Error ? error.message : 'Unable to mark feedback as reviewed.');
-          setReviewRequestState('error');
-        }
-      });
-
-    return () => {
-      isCancelled = true;
-    };
-  }, [badge, feedbackDetail, reviewRequestState, refreshAllStudentData]);
 
   if (!isLoaded || !isSignedIn) {
     return null;
@@ -311,6 +267,31 @@ export default function BadgeFeedbackPage() {
     }
   };
 
+  const handleAcknowledgeReview = async () => {
+    if (!badge || !hasConfirmedReview || reviewRequestState === 'pending') {
+      return;
+    }
+
+    setReviewRequestState('pending');
+    setFeedbackError(null);
+
+    try {
+      const response = await fetch(`/api/badges/${badge.id}/feedback`, { method: 'POST' });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(payload.error ?? 'Unable to mark feedback as reviewed.');
+      }
+      setReviewedStatus(payload.status as BadgeRecord['status']);
+      setReviewedCooldownUntil((payload.cooldownUntil as string | null) ?? null);
+      setReviewRequestState('done');
+      // Invalidate every student-data key so the dashboard picks up the new status.
+      refreshAllStudentData();
+    } catch (error) {
+      setFeedbackError(error instanceof Error ? error.message : 'Unable to mark feedback as reviewed.');
+      setReviewRequestState('error');
+    }
+  };
+
   if (!content) {
     return (
       <div className="page">
@@ -350,8 +331,7 @@ export default function BadgeFeedbackPage() {
   const displayedStatus = reviewedStatus ?? feedbackDetail?.badge.status ?? badge.status;
   const latestAttempt = feedbackDetail?.latestAttempt ?? null;
   const rubric = feedbackDetail?.rubric ?? null;
-  // Prefer the freshest cooldown: the acknowledge POST computes it at review time,
-  // then the feedback GET, then the (possibly stale) student-data snapshot.
+  // Prefer the acknowledge POST's cooldown, then the feedback GET, then student data.
   const cooldownUntil =
     reviewedCooldownUntil !== undefined
       ? reviewedCooldownUntil
@@ -363,11 +343,10 @@ export default function BadgeFeedbackPage() {
   const responseByKey = new Map(
     latestAttempt?.responses.map((response) => [`${response.subgoalText}::${response.taskText}`, response]) ?? []
   );
-  // Pass-path: a passing attempt still sitting in IN_REVIEW awaits the student's
-  // review + finalize on this page. Once finalized, displayedStatus flips to COMPLETED.
-  const canFinalize =
-    displayedStatus === 'IN_REVIEW' &&
-    (feedbackDetail?.latestAttempt?.passed === true || latestAttempt?.passed === true);
+  const canFinalize = displayedStatus === 'IN_REVIEW' && latestAttempt?.passed === true;
+  // IN_REVIEW attempts stay put until the student confirms they've read the feedback.
+  const needsReviewAcknowledgement = displayedStatus === 'IN_REVIEW' && latestAttempt?.passed === false;
+  const isConfirmPending = reviewRequestState === 'pending' || finalizeState === 'submitting';
 
   return (
     <div className="page">
@@ -387,7 +366,6 @@ export default function BadgeFeedbackPage() {
               Status: <span style={{ color: '#f3f27a' }}>{BADGE_STATUS_LABEL[displayedStatus] ?? 'Status'}</span>
             </h2>
             <p>{content.feedback}</p>
-            {reviewRequestState === 'pending' ? <p>Marking feedback reviewed...</p> : null}
             {reviewRequestState === 'done' ? (
               <p>
                 {reviewedStatus === 'LOCKED'
@@ -398,19 +376,10 @@ export default function BadgeFeedbackPage() {
             {feedbackError ? <p>{feedbackError}</p> : null}
 
             {canFinalize ? (
-              <div className={styles.finalizeBox}>
-                <p>You passed! Review your assessment below, then finalize to add this badge to your completed list.</p>
-                <button
-                  type="button"
-                  className={styles.primaryButton}
-                  onClick={() => {
-                    setFinalizeError(null);
-                    setIsSurveyOpen(true);
-                  }}
-                >
-                  Finalize badge
-                </button>
-              </div>
+              <p>
+                You passed! Review your assessment below, then confirm at the bottom to add this badge to your completed
+                list.
+              </p>
             ) : null}
 
             {finalizeState === 'done' && displayedStatus === 'COMPLETED' ? (
@@ -479,6 +448,42 @@ export default function BadgeFeedbackPage() {
             ) : (
               <p>No rubric has been recorded for this badge yet.</p>
             )}
+
+            {needsReviewAcknowledgement || canFinalize ? (
+              <div className={styles.acknowledgeBox}>
+                <label className={styles.acknowledgeLabel}>
+                  <input
+                    type="checkbox"
+                    checked={hasConfirmedReview}
+                    onChange={(event) => setHasConfirmedReview(event.target.checked)}
+                    disabled={isConfirmPending}
+                  />
+                  I have reviewed my feedback
+                </label>
+                {canFinalize ? (
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    onClick={() => {
+                      setFinalizeError(null);
+                      setIsSurveyOpen(true);
+                    }}
+                    disabled={!hasConfirmedReview || isConfirmPending}
+                  >
+                    Finalize badge
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.primaryButton}
+                    onClick={handleAcknowledgeReview}
+                    disabled={!hasConfirmedReview || isConfirmPending}
+                  >
+                    {reviewRequestState === 'pending' ? 'Confirming…' : 'Confirm review'}
+                  </button>
+                )}
+              </div>
+            ) : null}
           </div>
 
           {displayedStatus === 'READY_FOR_ASSESSMENT' ? (

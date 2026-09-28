@@ -3,7 +3,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { useMyCourses } from './hooks/useMyCourses';
 import { useDashboardAnalytics } from './hooks/useDashboardAnalytics';
-import Image, { type StaticImageData } from 'next/image';
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
@@ -12,16 +12,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData, type StudentData } from './hooks/useStudentData';
 import styles from './page.module.css';
 import courseStyles from './courses/page.module.css';
-import veryUnhappy from '../public/assets/survey_faces/very_unhappy.svg';
-import slightlyUnhappy from '../public/assets/survey_faces/slightly_unhappy.svg';
-import neutral from '../public/assets/survey_faces/neutral.svg';
-import slightlyHappy from '../public/assets/survey_faces/slightly_happy.svg';
-import veryHappy from '../public/assets/survey_faces/very_happy.svg';
-import veryUnhappySelected from '../public/assets/survey_faces/very_unhappy_selected.svg';
-import slightlyUnhappySelected from '../public/assets/survey_faces/slightly_unhappy_selected.svg';
-import neutralSelected from '../public/assets/survey_faces/neutral_selected.svg';
-import slightlyHappySelected from '../public/assets/survey_faces/slightly_happy_selected.svg';
-import veryHappySelected from '../public/assets/survey_faces/very_happy_selected.svg';
+import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import PageShell from '@/app/components/PageShell/PageShell';
 import PageHeading from '@/app/components/PageHeading/PageHeading';
@@ -111,30 +102,6 @@ type AnalyticsMetric = CourseCardMetric & {
 };
 
 const DEFAULT_LESSON_IMAGE = 'https://dummyimage.com/320x200/EBF2FF/1F5FAB&text=ChemSkills';
-
-const FACE_IMAGES: Record<number, StaticImageData> = {
-  1: veryUnhappy,
-  2: slightlyUnhappy,
-  3: neutral,
-  4: slightlyHappy,
-  5: veryHappy,
-};
-
-const FACE_IMAGES_SELECTED: Record<number, StaticImageData> = {
-  1: veryUnhappySelected,
-  2: slightlyUnhappySelected,
-  3: neutralSelected,
-  4: slightlyHappySelected,
-  5: veryHappySelected,
-};
-
-const FACE_ALTS: Record<number, string> = {
-  1: 'Very unhappy',
-  2: 'Slightly unhappy',
-  3: 'Neutral',
-  4: 'Slightly happy',
-  5: 'Very happy',
-};
 
 function extractYouTubeId(url?: string | null) {
   if (!url) return null;
@@ -917,12 +884,7 @@ function HomeContent() {
             <SurveyModal
               title="Tell us about your experience."
               question={activeSurvey.question}
-              options={[1, 2, 3, 4, 5].map((value) => ({
-                value,
-                label: FACE_ALTS[value],
-                icon: FACE_IMAGES[value],
-                selectedIcon: FACE_IMAGES_SELECTED[value],
-              }))}
+              options={surveyFaceOptions()}
               value={surveyRating}
               onChange={setSurveyRating}
               onSubmit={handleSubmitSurvey}
