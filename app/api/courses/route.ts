@@ -2,13 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 import { CourseContactType, CourseRole, Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
+import { uniqueSections, unifySectionSpellings } from '@/lib/sections';
 import { normalizeEmail } from '@/lib/text/email';
 
 type CreateOrUpdateCoursePayload = {
   id?: string;
   code?: string | null;
   title: string;
-  sectionCount: number;
   description?: string | null;
 
   iconName?: string | null;
@@ -52,18 +52,7 @@ function normalizeCourseCode(value?: string | null) {
 }
 
 function parseSections(sectionValue?: string[] | string | null) {
-  if (Array.isArray(sectionValue)) {
-    return Array.from(new Set(sectionValue.map((section) => section.trim()).filter(Boolean)));
-  }
-
-  return Array.from(
-    new Set(
-      (sectionValue ?? '')
-        .split('|')
-        .map((section) => section.trim())
-        .filter(Boolean)
-    )
-  );
+  return uniqueSections(Array.isArray(sectionValue) ? sectionValue : (sectionValue ?? '').split('|'));
 }
 
 function badRequest(message: string, details?: unknown) {
@@ -118,14 +107,9 @@ export async function POST(req: NextRequest) {
     const iconName = normalizeString(body.iconName);
     const iconBgColor = normalizeString(body.iconBgColor);
     const iconFgColor = normalizeString(body.iconFgColor);
-    const sectionCount = Number(body.sectionCount);
 
     if (!title) {
       return badRequest('Course title is required.');
-    }
-
-    if (!Number.isInteger(sectionCount) || sectionCount < 1) {
-      return badRequest('Course must have at least 1 section.');
     }
 
     const contacts = (body.contacts ?? []).map((contact) => ({
@@ -148,6 +132,9 @@ export async function POST(req: NextRequest) {
       role: member.role ?? CourseRole.STUDENT,
       sections: parseSections(member.sections),
     }));
+    unifySectionSpellings(roster.map((member) => member.sections)).forEach((sections, index) => {
+      roster[index].sections = sections;
+    });
 
     for (const member of roster) {
       if (!member.email && !member.externalId) {
@@ -173,7 +160,7 @@ export async function POST(req: NextRequest) {
 
     const txResult = await prisma.$transaction(
       async (tx) => {
-        let existingCourse: { id: string; createdById: string | null } | null = null;
+        let existingCourse: { id: string; createdById: string | null; sections: string[] } | null = null;
 
         if (courseId) {
           existingCourse = await tx.course.findFirst({
@@ -184,6 +171,7 @@ export async function POST(req: NextRequest) {
             select: {
               id: true,
               createdById: true,
+              sections: true,
             },
           });
 
@@ -198,6 +186,17 @@ export async function POST(req: NextRequest) {
             };
           }
         }
+
+        // Sections only grow: keep the saved ones and add the roster's, one spelling each.
+        const unified = unifySectionSpellings([
+          existingCourse?.sections ?? [],
+          ...roster.map((member) => member.sections),
+        ]);
+        roster.forEach((member, index) => {
+          member.sections = unified[index + 1];
+        });
+        const sections = uniqueSections(unified.flat());
+        const sectionCount = Math.max(1, sections.length);
 
         const isUpdate = Boolean(existingCourse);
         let savedCourseId: string;
@@ -240,6 +239,7 @@ export async function POST(req: NextRequest) {
               checkerCode: savedCheckerCode,
               title,
               sectionCount,
+              sections,
               description,
               iconName,
               iconBgColor,
@@ -299,6 +299,7 @@ export async function POST(req: NextRequest) {
               checkerCode: savedCheckerCode,
               title,
               sectionCount,
+              sections,
               description,
               iconName,
               iconBgColor,

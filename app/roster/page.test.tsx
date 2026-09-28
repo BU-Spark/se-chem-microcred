@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import StudentRosterPage from './page';
 
@@ -351,6 +351,32 @@ describe('Course roster page', () => {
     expect(mockFetch).toHaveBeenCalledTimes(3);
   });
 
+  it('shows the server error when an added student has a section that does not exist', async () => {
+    const rosterPayload = {
+      viewerRole: 'INSTRUCTOR',
+      course: {
+        id: 'course-1',
+        title: 'Course 1',
+        createdBy: { name: 'Professor Demo', email: 'prof@example.edu' },
+        enrollments: [],
+      },
+    };
+    const error = 'Section "A11" does not exist in this course. Existing sections: A1.';
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => rosterPayload })
+      .mockResolvedValueOnce({ ok: false, json: async () => ({ error }) });
+
+    render(<StudentRosterPage />);
+    fireEvent.click(await screen.findByRole('button', { name: '+ Add students' }));
+    fireEvent.change(screen.getByLabelText('Email'), { target: { value: 'ada@bu.edu' } });
+    fireEvent.change(screen.getByLabelText('Section'), { target: { value: 'A11' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Add student' }));
+
+    expect(await screen.findByText(error)).toBeInTheDocument();
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
   it('shows the checker add modal only to instructors', async () => {
     mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
     mockFetch.mockResolvedValue({
@@ -372,12 +398,14 @@ describe('Course roster page', () => {
     expect(screen.getByRole('tab', { name: 'CSV upload' })).toBeInTheDocument();
   });
 
-  it('lets an instructor assign an unassigned student to a new section', async () => {
+  it('lets an instructor assign an unassigned student to an existing section only', async () => {
     const payload = {
       viewerRole: 'INSTRUCTOR',
       course: {
         id: 'course-1',
         title: 'Course 1',
+        // C3 has no one left in it but is still a saved section.
+        sections: ['B2', 'C3'],
         createdBy: { name: 'Professor Demo', email: 'prof@example.edu' },
         enrollments: [
           {
@@ -387,21 +415,38 @@ describe('Course roster page', () => {
             sections: [],
             student: { id: 'student-1', name: 'Ada Lovelace', email: 'ada@bu.edu', externalId: 'U1' },
           },
+          {
+            id: 'checker-enrollment',
+            role: 'CHECKER',
+            status: 'ACTIVE',
+            sections: ['B2'],
+            student: { id: 'checker-1', name: 'Alex Checker', email: 'checker@bu.edu', externalId: 'U2' },
+          },
         ],
       },
     };
     mockFetch
       .mockResolvedValueOnce({ ok: true, json: async () => payload })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ sections: ['NEW-1'] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ sections: ['B2'] }) })
       .mockResolvedValueOnce({ ok: true, json: async () => payload });
     render(<StudentRosterPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'Assign section' }));
-    fireEvent.change(screen.getByLabelText('Section'), { target: { value: 'NEW-1' } });
+
+    // Sections are the course's saved ones plus any on enrollments, and nothing can be typed in.
+    const sectionSelect = screen.getByRole('combobox', { name: 'Section' });
+    expect(Array.from((sectionSelect as HTMLSelectElement).options).map((option) => option.value)).toEqual([
+      '',
+      'B2',
+      'C3',
+    ]);
+    expect(screen.queryByRole('textbox', { name: 'Section' })).not.toBeInTheDocument();
+
+    fireEvent.change(sectionSelect, { target: { value: 'B2' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save sections' }));
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(
         '/api/courses/course-1/enrollments/enrollment-1/sections',
-        expect.objectContaining({ method: 'PUT', body: JSON.stringify({ sections: ['NEW-1'] }) })
+        expect.objectContaining({ method: 'PUT', body: JSON.stringify({ sections: ['B2'] }) })
       )
     );
   });
@@ -422,6 +467,13 @@ describe('Course roster page', () => {
             sections: ['A1'],
             student: { id: 'checker-1', name: 'Alex Checker', email: 'checker@bu.edu', externalId: 'U2' },
           },
+          {
+            id: 'enrollment-1',
+            role: 'STUDENT',
+            status: 'ACTIVE',
+            sections: ['B2'],
+            student: { id: 'student-1', name: 'Ada Lovelace', email: 'ada@bu.edu', externalId: 'U1' },
+          },
         ],
       },
     };
@@ -431,7 +483,9 @@ describe('Course roster page', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => payload });
     render(<StudentRosterPage />);
     fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
-    fireEvent.change(screen.getByLabelText('Sections'), { target: { value: 'A1 | B2' } });
+    const dialog = screen.getByRole('dialog');
+    expect(within(dialog).getByRole('button', { name: 'A1', pressed: true })).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'B2', pressed: false }));
     fireEvent.click(screen.getByRole('button', { name: 'Save sections' }));
     await waitFor(() =>
       expect(mockFetch).toHaveBeenCalledWith(

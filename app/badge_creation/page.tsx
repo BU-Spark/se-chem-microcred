@@ -25,6 +25,7 @@ import {
   checkpointFromCatalog,
   extractYouTubeId,
   formatSecondsToTimecode,
+  goalNameForBadge,
   isValidVideoLength,
   isValidYouTubeUrl,
 } from './lib/badge-helpers';
@@ -149,13 +150,19 @@ export default function BadgeCreationPage() {
       const hydratedCheckpoints = parsedCheckpoints?.map((checkpoint, index) =>
         checkpoint.questions?.length ? checkpoint : checkpointFromCatalog(checkpoint, index)
       );
-      setDraft((current) => ({
-        ...current,
-        ...parsed,
-        checkpoints: hydratedCheckpoints ?? current.checkpoints,
-        reassessmentResources: parsed.reassessmentResources ?? current.reassessmentResources,
-        rubricGoal: parsed.rubricGoal ?? current.rubricGoal,
-      }));
+      setDraft((current) => {
+        const rubricGoal = parsed.rubricGoal ?? current.rubricGoal;
+        return {
+          ...current,
+          ...parsed,
+          checkpoints: hydratedCheckpoints ?? current.checkpoints,
+          reassessmentResources: parsed.reassessmentResources ?? current.reassessmentResources,
+          rubricGoal: {
+            ...rubricGoal,
+            name: goalNameForBadge(rubricGoal.name, parsed.badgeName ?? current.badgeName),
+          },
+        };
+      });
       setDidRestoreDraft(true);
     } catch {
       window.localStorage.removeItem(draftStorageKey);
@@ -249,14 +256,18 @@ export default function BadgeCreationPage() {
   };
 
   const updateDraft = <K extends keyof BadgeDraft>(field: K, value: BadgeDraft[K]) => {
-    setDraft((current) => ({ ...current, [field]: value }));
+    setDraft((current) => {
+      const next = { ...current, [field]: value };
+      if (field === 'badgeName') {
+        const name = goalNameForBadge(current.rubricGoal.name, next.badgeName, current.badgeName);
+        next.rubricGoal = { ...current.rubricGoal, name };
+      }
+      return next;
+    });
     setSubmissionState(null);
     setSubmitError('');
   };
 
-  // Apply a transform to the checkpoints list using the LATEST committed draft
-  // (functional setState), not the render-time closure. Reading draft.checkpoints
-  // directly would drop edits made in rapid succession / the same React batch.
   const mutateCheckpoints = (updater: (checkpoints: CheckpointDraft[]) => CheckpointDraft[]) => {
     setDraft((current) => ({ ...current, checkpoints: updater(current.checkpoints) }));
     setSubmissionState(null);

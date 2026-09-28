@@ -579,12 +579,15 @@ describe('Profile page', () => {
     expect(screen.queryByText(/Student Badges/i)).not.toBeInTheDocument();
   });
 
+  // #300: every badge is not started, in progress (learning, ready, in review, locked), or
+  // completed. Fixture: 1 completed, and 1 each of ready, in review, and learning.
   it('computes badge percentages and renders the analytics stat cards', () => {
     render(<ProfilePage />);
-    expect(screen.getAllByText(/badges completed/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/badges ready to be reassessed/i)).toBeInTheDocument();
-    expect(screen.getByText(/badges not yet attempted/i)).toBeInTheDocument();
-    expect(screen.getByText(/Badges Available/i)).toBeInTheDocument();
+    expect(screen.getByText('badges not started').parentElement).toHaveTextContent('0badges not started');
+    expect(screen.getByText('badges in progress').parentElement).toHaveTextContent('3badges in progress');
+    expect(screen.getByText('badges completed').parentElement).toHaveTextContent('1badges completed');
+    expect(screen.queryByText(/ready to be reassessed|not yet attempted/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Badges completed 25%, badges available 75%')).toBeInTheDocument();
   });
 
   // The circular score dials are gated off behind SHOW_CIRCULAR_SCORES in

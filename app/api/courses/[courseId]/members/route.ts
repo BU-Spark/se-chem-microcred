@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CourseRole, Prisma } from '@prisma/client';
 
+import { matchExistingSections, unknownSectionsMessage } from '@/app/api/courses/lib/course-sections';
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import prisma from '@/lib/prisma';
 
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
 
     const course = await prisma.course.findUnique({
       where: { id: courseId },
-      select: { createdById: true },
+      select: { createdById: true, sections: true },
     });
     if (!course) return NextResponse.json({ error: 'Course not found.' }, { status: 404 });
     if (course.createdById !== current.id) {
@@ -72,6 +73,21 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
     }
     if (members.some((member) => !member.email && !member.externalId)) {
       return NextResponse.json({ error: 'Every roster member must include an email or ID.' }, { status: 400 });
+    }
+
+    // New sections come from editing the course, so an unknown name here is treated as a typo.
+    const existingSections = course.sections;
+    const unknownSections = new Set<string>();
+    for (const member of members) {
+      const { matched, unknown } = matchExistingSections(member.sections, existingSections);
+      member.sections = matched;
+      unknown.forEach((section) => unknownSections.add(section));
+    }
+    if (unknownSections.size > 0) {
+      return NextResponse.json(
+        { error: unknownSectionsMessage(Array.from(unknownSections), existingSections) },
+        { status: 400 }
+      );
     }
     if (role === CourseRole.STUDENT && members.some((member) => member.sections.length > 1)) {
       return NextResponse.json({ error: 'Students can only belong to one section.' }, { status: 400 });

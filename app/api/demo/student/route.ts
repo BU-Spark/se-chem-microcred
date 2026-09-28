@@ -306,7 +306,7 @@ export async function GET(req: Request) {
   // adding two serial round-trips to Prisma Accelerate.
   const requestedCourseId = new URL(req.url).searchParams.get('courseId')?.trim() || null;
 
-  const [student, enrollment] = await Promise.all([
+  const [student, enrollment, studentEnrollments] = await Promise.all([
     prisma.user.findUnique({
       where: { id: provisioned.id },
       include: {
@@ -331,6 +331,14 @@ export async function GET(req: Request) {
         },
       },
     }),
+    // Without a course, "not started" spans every course the student is in (the profile's
+    // holistic totals, #300), not just the first enrollment.
+    requestedCourseId
+      ? Promise.resolve([])
+      : prisma.enrollment.findMany({
+          where: { studentId: provisioned.id, role: CourseRole.STUDENT },
+          select: { courseId: true },
+        }),
   ]);
 
   if (!student) {
@@ -351,6 +359,12 @@ export async function GET(req: Request) {
     courseId: enrollment?.courseId ?? null,
     courseRequested: Boolean(requestedCourseId),
   });
+
+  const notStartedCourseIds = requestedCourseId
+    ? enrollment
+      ? [enrollment.courseId]
+      : []
+    : Array.from(new Set(studentEnrollments.map((entry) => entry.courseId)));
 
   // Build the instructor + checker contact list from enrollments (the section-aware source
   // of truth) rather than CourseContact (which has no section). The query is folded into the
@@ -390,11 +404,11 @@ export async function GET(req: Request) {
           },
         })
       : Promise.resolve([]),
-    // Every badge attached to this course (via a lesson's badge requirement),
+    // Every badge attached to those courses (via a lesson's badge requirement),
     // used to derive the "not yet started" group below.
-    enrollment
+    notStartedCourseIds.length
       ? prisma.badge.findMany({
-          where: { requirements: { some: { lesson: { courseId: enrollment.courseId } } } },
+          where: { requirements: { some: { lesson: { courseId: { in: notStartedCourseIds } } } } },
           select: {
             id: true,
             slug: true,
@@ -404,6 +418,7 @@ export async function GET(req: Request) {
             imagePositionX: true,
             imagePositionY: true,
             imageScale: true,
+            requirements: { select: { lesson: { select: { courseId: true } } } },
           },
         })
       : Promise.resolve([]),
@@ -711,7 +726,9 @@ export async function GET(req: Request) {
     .filter((badge) => !studentBadgeIds.has(badge.id))
     .map((badge) => ({
       id: badge.id,
-      courseId: enrollment?.courseId ?? null,
+      courseId:
+        badge.requirements.find((requirement) => notStartedCourseIds.includes(requirement.lesson?.courseId ?? ''))
+          ?.lesson?.courseId ?? null,
       slug: badge.slug,
       name: badge.name,
       description: badge.description,
