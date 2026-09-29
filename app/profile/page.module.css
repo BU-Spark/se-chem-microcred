@@ -77,7 +77,7 @@
   margin: 2rem 0 1.25rem;
 }
 
-/* Date Created / Email / ID */
+/* Date Created / Email */
 .detailGridTop {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
