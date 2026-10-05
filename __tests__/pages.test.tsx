@@ -552,20 +552,19 @@ describe('Badge Feedback page', () => {
 });
 
 describe('Profile page', () => {
-  it('masks sensitive info after timeout and shows the demographic dropdown toggle', () => {
+  it('keeps demographics masked over time and shows no roster ID', () => {
     jest.useFakeTimers();
     render(<ProfilePage />);
 
-    // Sensitive ID is masked by default and revealing demographics is gated
-    // behind the "Demographic Info" dropdown (which requires re-auth to open).
     expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
-    expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);
+    expect(screen.queryByText('ID:')).not.toBeInTheDocument();
+    expect(screen.queryByText('UXXXXXXXX')).not.toBeInTheDocument();
 
     act(() => {
       jest.advanceTimersByTime(10 * 60 * 1000 + 50);
     });
 
-    expect(screen.getAllByText('UXXXXXXXX').length).toBeGreaterThan(0);
+    expect(screen.queryByText('UXXXXXXXX')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Demographic Info/i })).toBeInTheDocument();
     jest.useRealTimers();
   });

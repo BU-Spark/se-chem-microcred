@@ -8,10 +8,7 @@ import { normalizeEmail } from '@/lib/text/email';
 import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
 import { classifyStudentBadgeCohort, summarizeBadgeCohorts } from '@/lib/badgeCohorts';
 import { fetchBadgeRatings } from '@/app/api/courses/lib/badge-ratings';
-
-type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED';
-type AnalyticsStatus = 'PROFICIENT' | 'STILL_LEARNING' | 'NOT_STARTED';
-type StillLearningReason = 'VIDEO_IN_PROGRESS' | 'VIDEO_COMPLETED_ONLY' | 'IN_PERSON_FAILED';
+import { deriveBadgeAnalytics, type StoredBadgeStatus } from '@/lib/badgeAnalyticsStatus';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -146,46 +143,17 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     const requirementLessonIds = badge.lessons.map((lesson) => lesson.id);
     const students = badge.enrollments.map((enrollment) => {
       const progress = enrollment.student.badgeProgress[0] ?? null;
-      // StudentBadge rows are eagerly created with LEARNING status when a badge
-      // is created/imported, so a LEARNING row alone doesn't mean the student
-      // has started. Mirror the roster member route: they've started only once
-      // a requirement lesson shows activity.
-      const lessonStarted = enrollment.student.lessonProgress.some(
-        (lessonProgress) =>
-          Boolean(lessonProgress.startedAt || lessonProgress.completedAt) ||
-          lessonProgress.status === 'IN_PROGRESS' ||
-          lessonProgress.status === 'COMPLETED' ||
-          lessonProgress.percentComplete > 0
-      );
-      const lessonCompleted = enrollment.student.lessonProgress.some(
-        (lessonProgress) => lessonProgress.status === 'COMPLETED' || Boolean(lessonProgress.completedAt)
-      );
-      const storedStatus = (
-        !progress || (progress.status === 'LEARNING' && !lessonStarted) ? 'NOT_STARTED' : progress.status
-      ) as BadgeStatus | 'NOT_STARTED';
       const assessmentAttempts = enrollment.student.assessmentAttempts ?? [];
       const surveyResponses = enrollment.student.surveyResponses ?? [];
-      const latestAssessment = assessmentAttempts.at(-1) ?? null;
-      const latestAssessmentPassed = latestAssessment?.passed ?? null;
-      // The finalization endpoint records feedback and flips the badge to COMPLETED
-      // atomically. Reconcile legacy/stale IN_REVIEW rows here so instructor
-      // analytics agrees with the student projection and recorded feedback.
-      const status =
-        storedStatus === 'IN_REVIEW' && latestAssessmentPassed === true && surveyResponses.length > 0
-          ? 'COMPLETED'
-          : storedStatus;
-      const analyticsStatus: AnalyticsStatus =
-        status === 'COMPLETED' ? 'PROFICIENT' : status === 'NOT_STARTED' ? 'NOT_STARTED' : 'STILL_LEARNING';
-      const stillLearningReason: StillLearningReason | null =
-        analyticsStatus !== 'STILL_LEARNING'
-          ? null
-          : latestAssessmentPassed === false || status === 'LOCKED'
-            ? 'IN_PERSON_FAILED'
-            : status === 'IN_REVIEW'
-              ? null
-              : lessonCompleted || status === 'READY_FOR_ASSESSMENT'
-                ? 'VIDEO_COMPLETED_ONLY'
-                : 'VIDEO_IN_PROGRESS';
+      // Shared with POST /api/messages so a group message reaches exactly the
+      // students counted here.
+      const { status, analyticsStatus, stillLearningReason, lessonStarted, lessonCompleted, latestAssessmentPassed } =
+        deriveBadgeAnalytics({
+          progress: progress ? { status: progress.status as StoredBadgeStatus } : null,
+          lessonProgress: enrollment.student.lessonProgress,
+          assessmentAttempts,
+          surveyResponseCount: surveyResponses.length,
+        });
       const latestFeedback = surveyResponses[0] ?? null;
       const cohort = classifyStudentBadgeCohort({
         badgeStatus: progress?.status ?? null,

@@ -1,4 +1,4 @@
-/* Issues: #242 standardize headings */
+
 /* DO NOT redefine .sidebar or .main here */
 
 /* Optional: tiny sidebar tweaks without breaking the shell */
@@ -80,7 +80,7 @@
 /* Date Created / Email / ID */
 .detailGridTop {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.4rem 2rem;
 }
 

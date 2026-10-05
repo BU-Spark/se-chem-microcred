@@ -753,3 +753,27 @@
     text-align: left;
   }
 }
+
+.groupMessageButton {
+  display: inline-block;
+  margin-left: 0.6rem;
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--checkd-blue-high);
+  border-radius: 999px;
+  background: #fff;
+  color: var(--checkd-blue-high);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.statusCard .groupMessageButton {
+  display: block;
+  margin: 0.45rem 0 0;
+}
+
+.groupMessageButton:hover {
+  background: var(--checkd-blue-high);
+  color: #fff;
+}
