@@ -14,7 +14,7 @@ jest.mock('@clerk/nextjs/server', () => ({
 jest.mock('../lib/prisma', () => ({
   __esModule: true,
   default: {
-    user: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn(), findMany: jest.fn() },
     course: { findFirst: jest.fn() },
     enrollment: { findMany: jest.fn() },
     message: { create: jest.fn(), findMany: jest.fn() },
@@ -31,7 +31,7 @@ jest.mock('../lib/prisma', () => ({
 
 const mockCurrentUser = currentUser as jest.MockedFunction<typeof currentUser>;
 const mockPrisma = prisma as unknown as {
-  user: { findUnique: jest.Mock };
+  user: { findUnique: jest.Mock; findMany: jest.Mock };
   course: { findFirst: jest.Mock };
   enrollment: { findMany: jest.Mock };
   message: { create: jest.Mock; findMany: jest.Mock };
@@ -112,6 +112,8 @@ function asChecker(options: {
       allowCrossSectionView: options.allowCrossSectionView,
     },
     enrollments: [{ role: 'CHECKER', sections: options.sections.map((section) => ({ section })) }],
+    // The badge is assigned to the course (only read on badge sends).
+    lessons: [{ id: 'lesson-1' }],
     ...options.extra,
   });
 }
@@ -431,6 +433,7 @@ describe('POST /api/messages (badge audience)', () => {
       createdById: 'sender-1',
       settings: { allowCheckerMessages: false, allowCrossSectionView: false },
       enrollments: [],
+      lessons: [{ id: 'lesson-1' }],
     });
     mockPrisma.studentBadge.findMany.mockResolvedValue([]);
     mockPrisma.message.create.mockResolvedValue({ id: 'm1' });
@@ -499,6 +502,147 @@ describe('POST /api/messages (badge audience)', () => {
     const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1', body: 'Please finish.' }));
 
     expect((await response.json()).sent).toBe(1);
+  });
+
+  it('refuses a badge that is not assigned to the course', async () => {
+    mockPrisma.course.findFirst.mockResolvedValue({
+      createdById: 'sender-1',
+      settings: { allowCheckerMessages: false, allowCrossSectionView: false },
+      enrollments: [],
+      lessons: [],
+    });
+
+    const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'other-badge', body: 'Hi' }));
+
+    expect(response.status).toBe(404);
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
+  });
+});
+
+function groupStudent(
+  id: string,
+  overrides: {
+    status?: string | null;
+    lessonProgress?: Array<{
+      status: string | null;
+      startedAt: Date | null;
+      completedAt: Date | null;
+      percentComplete: number;
+    }>;
+    attempts?: Array<{ passed: boolean }>;
+  } = {}
+) {
+  const status = overrides.status === undefined ? 'LEARNING' : overrides.status;
+  return {
+    id,
+    badgeProgress: status ? [{ status }] : [],
+    assessmentAttempts: overrides.attempts ?? [],
+    surveyResponses: [],
+    lessonProgress: overrides.lessonProgress ?? [],
+  };
+}
+
+const VIDEO_STARTED = [{ status: 'IN_PROGRESS', startedAt: new Date(), completedAt: null, percentComplete: 40 }];
+const VIDEO_DONE = [{ status: 'COMPLETED', startedAt: new Date(), completedAt: new Date(), percentComplete: 100 }];
+
+describe('POST /api/messages (badge groups)', () => {
+  beforeEach(() => {
+    mockEnrollments({
+      students: [{ studentId: 'fresh' }, { studentId: 'watching' }, { studentId: 'ready' }, { studentId: 'failed' }],
+    });
+    mockPrisma.course.findFirst.mockResolvedValue({
+      createdById: 'sender-1',
+      settings: { allowCheckerMessages: false, allowCrossSectionView: false },
+      enrollments: [],
+      lessons: [{ id: 'lesson-1' }],
+    });
+    mockPrisma.studentBadge.findMany.mockResolvedValue([]);
+    mockPrisma.user.findMany.mockImplementation((args: { where: { id: { in: string[] } } }) =>
+      Promise.resolve(
+        [
+          groupStudent('fresh'),
+          groupStudent('watching', { lessonProgress: VIDEO_STARTED }),
+          groupStudent('ready', { status: 'READY_FOR_ASSESSMENT', lessonProgress: VIDEO_DONE }),
+          groupStudent('failed', { lessonProgress: VIDEO_DONE, attempts: [{ passed: false }] }),
+        ].filter((row) => args.where.id.in.includes(row.id))
+      )
+    );
+    mockPrisma.message.create.mockResolvedValue({ id: 'm1' });
+  });
+
+  function sentTo() {
+    const data = mockPrisma.message.create.mock.calls[0][0].data;
+    return {
+      audience: data.audience,
+      ids: data.receipts.create.map((receipt: { userId: string }) => receipt.userId),
+    };
+  }
+
+  it.each([
+    ['NOT_STARTED', 'BADGE_NOT_STARTED', ['fresh']],
+    ['VIDEO_IN_PROGRESS', 'BADGE_VIDEO_IN_PROGRESS', ['watching']],
+    // A failed in-person attempt is not "ready to assess", even with the video done.
+    ['READY_TO_ASSESS', 'BADGE_READY_TO_ASSESS', ['ready']],
+  ])('sends a %s group message only to that group', async (badgeGroup, audience, ids) => {
+    const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1', badgeGroup, body: 'Hi' }));
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).sent).toBe(ids.length);
+    expect(sentTo()).toEqual({ audience, ids });
+  });
+
+  it('sends nothing when the group is empty', async () => {
+    mockEnrollments({ students: [{ studentId: 'fresh' }] });
+
+    const response = await POST(
+      postRequest({ courseId: 'course-1', badgeId: 'badge-1', badgeGroup: 'READY_TO_ASSESS', body: 'Hi' })
+    );
+
+    expect((await response.json()).sent).toBe(0);
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an unknown group', async () => {
+    const response = await POST(
+      postRequest({ courseId: 'course-1', badgeId: 'badge-1', badgeGroup: 'EVERYONE', body: 'Hi' })
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it('rejects a group without a badge', async () => {
+    const response = await POST(
+      postRequest({ courseId: 'course-1', allStudents: true, badgeGroup: 'NOT_STARTED', body: 'Hi' })
+    );
+    expect(response.status).toBe(400);
+  });
+
+  it('blocks a checker when checker messaging is disabled', async () => {
+    asChecker({ allowCheckerMessages: false, allowCrossSectionView: false, sections: [] });
+
+    const response = await POST(
+      postRequest({ courseId: 'course-1', badgeId: 'badge-1', badgeGroup: 'NOT_STARTED', body: 'Hi' })
+    );
+
+    expect(response.status).toBe(403);
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
+  });
+
+  it('limits a checker group message to their own sections', async () => {
+    asChecker({ allowCheckerMessages: true, allowCrossSectionView: false, sections: ['A'] });
+    mockEnrollments({
+      students: [
+        { studentId: 'watching', sections: [{ section: 'A' }] },
+        { studentId: 'fresh', sections: [{ section: 'B' }] },
+      ],
+    });
+
+    // 'fresh' is in the group but outside the checker's section.
+    const response = await POST(
+      postRequest({ courseId: 'course-1', badgeId: 'badge-1', badgeGroup: 'NOT_STARTED', body: 'Hi' })
+    );
+
+    expect((await response.json()).sent).toBe(0);
+    expect(mockPrisma.message.create).not.toHaveBeenCalled();
   });
 });
 

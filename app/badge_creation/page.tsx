@@ -557,9 +557,6 @@ export default function BadgeCreationPage() {
 
   const handleSuccessClose = () => {
     setIsSuccessModalOpen(false);
-    // Always return to the badge list so the form can't be re-submitted (prevents
-    // duplicate badges). Hard navigation: router.push() no-ops from an async handler
-    // after setState in Next 15, and a full load shows the new badge with fresh data.
     if (typeof window !== 'undefined') {
       window.location.assign('/my_badges');
       return;

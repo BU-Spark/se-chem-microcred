@@ -5,6 +5,13 @@ import { BadgeStatus, CourseRole, MessageAudience } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { canSendCourseMessages, isInstructorEquivalent, scopeRecipientsToSender } from '@/lib/messaging/audience';
 import { buildBlastReceipts, buildDirectReceipts } from '@/lib/messaging/receipts.service';
+import {
+  badgeMessageGroupMatches,
+  deriveBadgeAnalytics,
+  isBadgeMessageGroup,
+  type BadgeMessageGroup,
+  type StoredBadgeStatus,
+} from '@/lib/badgeAnalyticsStatus';
 
 function normalize(value?: string | null) {
   const trimmed = value?.trim();
@@ -13,18 +20,59 @@ function normalize(value?: string | null) {
 
 type SendMessagePayload = {
   courseId?: string | null;
-  // Exactly one of these picks the audience: a single student, every student
-  // in the course, or every student who has not finished a given badge.
   recipientId?: string | null;
   allStudents?: boolean | null;
   badgeId?: string | null;
+  badgeGroup?: string | null;
   subject?: string | null;
   body?: string | null;
 };
 
-// Everything a sender needs to see about a message they authored: what it was,
-// who it was aimed at, and how many of those students have opened it. Staff
-// copies are excluded from both counts.
+const GROUP_AUDIENCE: Record<BadgeMessageGroup, MessageAudience> = {
+  NOT_STARTED: MessageAudience.BADGE_NOT_STARTED,
+  VIDEO_IN_PROGRESS: MessageAudience.BADGE_VIDEO_IN_PROGRESS,
+  READY_TO_ASSESS: MessageAudience.BADGE_READY_TO_ASSESS,
+};
+
+async function filterToBadgeGroup(options: {
+  courseId: string;
+  badgeId: string;
+  group: BadgeMessageGroup;
+  studentIds: string[];
+}) {
+  const { courseId, badgeId, group, studentIds } = options;
+  const students = await prisma.user.findMany({
+    where: { id: { in: studentIds } },
+    select: {
+      id: true,
+      badgeProgress: { where: { badgeId }, take: 1, select: { status: true } },
+      assessmentAttempts: {
+        where: { courseId, badgeId },
+        orderBy: [{ completedAt: 'asc' }, { createdAt: 'asc' }],
+        select: { passed: true },
+      },
+      surveyResponses: { where: { prompt: { badgeId, context: 'BADGE' } }, select: { id: true } },
+      lessonProgress: {
+        where: { lesson: { badgeRequirements: { some: { badgeId } } } },
+        select: { status: true, startedAt: true, completedAt: true, percentComplete: true },
+      },
+    },
+  });
+
+  return students
+    .filter((student) => {
+      const progress = student.badgeProgress[0] ?? null;
+      const analytics = deriveBadgeAnalytics({
+        progress: progress ? { status: progress.status as StoredBadgeStatus } : null,
+        lessonProgress: student.lessonProgress,
+        assessmentAttempts: student.assessmentAttempts,
+        surveyResponseCount: student.surveyResponses.length,
+      });
+      return badgeMessageGroupMatches(group, analytics);
+    })
+    .map((student) => student.id);
+}
+
 async function sentBox(senderId: string, direction: 'asc' | 'desc') {
   const messages = await prisma.message.findMany({
     where: { senderId },
@@ -49,9 +97,6 @@ async function sentBox(senderId: string, direction: 'asc' | 'desc') {
   });
 
   const messageIds = messages.map((message) => message.id);
-  // Counted in the database rather than by pulling every receipt back: a
-  // class-wide blast has one receipt per student, and there is no reason to
-  // ship those rows just to length them.
   const [totals, reads] = messageIds.length
     ? await Promise.all([
         prisma.messageReceipt.groupBy({
@@ -160,10 +205,6 @@ export async function GET(req: Request) {
   }
 }
 
-// POST: send a message from a course instructor/checker to one student, to every
-// student in the course, or to everyone still short of a badge. Only the course
-// creator or an enrolled INSTRUCTOR/CHECKER may send; CHECKERs additionally
-// require the course's allowCheckerMessages setting to be enabled.
 export async function POST(req: Request) {
   try {
     const clerkUser = await currentUser();
@@ -184,6 +225,15 @@ export async function POST(req: Request) {
     const recipientId = normalize(payload.recipientId);
     const badgeId = normalize(payload.badgeId);
     const allStudents = payload.allStudents === true;
+    const rawBadgeGroup = normalize(payload.badgeGroup);
+    const badgeGroup = isBadgeMessageGroup(rawBadgeGroup) ? rawBadgeGroup : null;
+
+    if (rawBadgeGroup && !badgeGroup) {
+      return NextResponse.json({ error: 'Unknown badge group.' }, { status: 400 });
+    }
+    if (badgeGroup && (!badgeId || recipientId)) {
+      return NextResponse.json({ error: 'A badge group requires a badgeId.' }, { status: 400 });
+    }
 
     if (!courseId) {
       return NextResponse.json({ error: 'A courseId is required.' }, { status: 400 });
@@ -214,10 +264,18 @@ export async function POST(req: Request) {
           where: { studentId: sender.id },
           select: { role: true, sections: { select: { section: true } } },
         },
+        // Only needed for a badge send: proves the badge is assigned to this
+        // course, so a sender can't aim at another course's badge.
+        ...(badgeId && !recipientId
+          ? { lessons: { where: { badgeRequirements: { some: { badgeId } } }, take: 1, select: { id: true } } }
+          : {}),
       },
     });
     if (!course) {
       return NextResponse.json({ error: 'Course not found or you do not have permission.' }, { status: 403 });
+    }
+    if (badgeId && !recipientId && (!('lessons' in course) || course.lessons.length === 0)) {
+      return NextResponse.json({ error: 'Badge is not part of this course.' }, { status: 404 });
     }
 
     const senderEnrollment = course.enrollments[0] ?? null;
@@ -236,7 +294,9 @@ export async function POST(req: Request) {
     const audience = recipientId
       ? MessageAudience.DIRECT
       : badgeId
-        ? MessageAudience.BADGE_INCOMPLETE
+        ? badgeGroup
+          ? GROUP_AUDIENCE[badgeGroup]
+          : MessageAudience.BADGE_INCOMPLETE
         : MessageAudience.ALL_STUDENTS;
 
     // Messaging the entire course is an instructor's call alone. Unlike the 1:1
@@ -279,6 +339,10 @@ export async function POST(req: Request) {
       });
       const completedIds = new Set(completed.map((row) => row.studentId));
       recipientIds = recipientIds.filter((id) => !completedIds.has(id));
+    }
+
+    if (badgeGroup && badgeId && recipientIds.length > 0) {
+      recipientIds = await filterToBadgeGroup({ courseId, badgeId, group: badgeGroup, studentIds: recipientIds });
     }
 
     if (recipientIds.length === 0) {
