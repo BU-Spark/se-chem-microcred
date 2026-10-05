@@ -1,3 +1,4 @@
+import { toLocalDateInput } from '@/lib/localDates';
 import { DEFAULT_DRAFT } from '../types';
 import type { BadgeCatalogItem, BadgeDraft, CheckpointDraft, CheckpointQuestionDraft } from '../types';
 
@@ -109,18 +110,12 @@ export function buildVideoThumbnail(url: string) {
   return videoId ? `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg` : null;
 }
 
+// Stored availability instants are read back as the viewer's local calendar day.
 export function formatDateInput(value?: string | null) {
   if (!value) return '';
-
-  // Prefer the leading YYYY-MM-DD verbatim so a stored UTC-midnight ISO string
-  // round-trips without any timezone shift; fall back to a UTC slice otherwise.
-  const isoDateMatch = /^(\d{4}-\d{2}-\d{2})/.exec(value);
-  if (isoDateMatch) return isoDateMatch[1];
-
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-
-  return date.toISOString().slice(0, 10);
+  // A bare YYYY-MM-DD is already a calendar day; don't shift it.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  return toLocalDateInput(value);
 }
 
 export function formatDurationInput(seconds?: number | null, fallbackMinutes?: number | null) {
