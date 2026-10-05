@@ -9,6 +9,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { generateInitials, getNameForProfile, type NamedPerson } from '@/lib/text/name';
 import { isInstructor } from '@/lib/roles';
 import { isBadgeClosed } from '@/lib/badgeAvailability';
+import { localDayEndIso, localDayStartIso, toLocalDateInput } from '@/lib/localDates';
 
 import { CourseBlastModal } from './CourseBlastModal';
 import RangeCalendar from '@/app/badge_creation/components/RangeCalendar';
@@ -274,15 +275,12 @@ export default function CreatedCourseDetailPage() {
     router.push(`/qr/assessment-code?code=${encodeURIComponent(code)}`);
   }, [assessmentCodeInput, router]);
 
-  // Badge availability dates are stored as DateTimes but edited as YYYY-MM-DD via
-  // RangeCalendar. Slice the UTC date to mirror how import wrote them (new Date('YYYY-MM-DD')
-  // is UTC midnight) and avoid a local-timezone off-by-one.
-  const toDateInput = (iso: string | null) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
-
+  // Badge availability dates are stored as instants but edited as YYYY-MM-DD via
+  // RangeCalendar; read them back as the viewer's local day.
   const openBadgeSettings = (badge: AssignedBadge) => {
     setBadgePendingEdit(badge);
-    setEditAvailableOn(toDateInput(badge.availableOn));
-    setEditClosesOn(toDateInput(badge.closesOn));
+    setEditAvailableOn(toLocalDateInput(badge.availableOn));
+    setEditClosesOn(toLocalDateInput(badge.closesOn));
     setEditNeverCloses(badge.neverCloses ?? true);
     setShowUnassignConfirm(false);
     setSettingsError('');
@@ -306,8 +304,8 @@ export default function CreatedCourseDetailPage() {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            availableOn: editAvailableOn || null,
-            closesOn: editNeverCloses ? null : editClosesOn || null,
+            availableOn: localDayStartIso(editAvailableOn),
+            closesOn: editNeverCloses ? null : localDayEndIso(editClosesOn),
             neverCloses: editNeverCloses,
           }),
         }
@@ -517,8 +515,8 @@ export default function CreatedCourseDetailPage() {
         },
         body: JSON.stringify({
           badgeId: selectedImportBadgeId,
-          availableOn: importAvailableOn || null,
-          closesOn: importNeverCloses ? null : importClosesOn || null,
+          availableOn: localDayStartIso(importAvailableOn),
+          closesOn: importNeverCloses ? null : localDayEndIso(importClosesOn),
           neverCloses: importNeverCloses,
         }),
       });

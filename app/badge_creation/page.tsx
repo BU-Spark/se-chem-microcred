@@ -7,6 +7,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import { useStudentData } from '../hooks/useStudentData';
+import { localDayEndIso, localDayStartIso } from '@/lib/localDates';
 import styles from './page.module.css';
 
 import { DEFAULT_DRAFT, DRAFT_MAX_AGE_MS, STEP_DEFINITIONS, badgeDraftStorageKey } from './types';
@@ -541,6 +542,9 @@ export default function BadgeCreationPage() {
         id: editBadgeId,
         courseId,
         ...draft,
+        // Picked calendar days -> instants in the instructor's local timezone.
+        availableOn: localDayStartIso(draft.availableOn),
+        closesOn: draft.neverCloses ? null : localDayEndIso(draft.closesOn),
       }),
     });
 

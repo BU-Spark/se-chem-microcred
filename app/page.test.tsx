@@ -340,8 +340,14 @@ describe('Courses Page', () => {
       '/courses/created-course-2'
     );
     expect(screen.queryByText('Checker Course 1')).not.toBeInTheDocument();
+    // Created dates render in the viewer's timezone.
+    const createdLabel = new Date('2026-03-30T18:35:48.000Z').toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: '2-digit',
+    });
     expect(screen.getByLabelText('Created Course 1 analytics')).toHaveTextContent(
-      '18Students enrolled3Checkers enrolled4Badges active03/30/26Date created'
+      `18Students enrolled3Checkers enrolled4Badges active${createdLabel}Date created`
     );
 
     fireEvent.click(screen.getByRole('tab', { name: /Checker/ }));
