@@ -37,7 +37,9 @@ export function parseDate(value?: string | null) {
   const trimmed = normalizeString(value);
   if (!trimmed) return null;
 
-  const date = new Date(`${trimmed}T00:00:00.000Z`);
+  // Clients send full ISO instants computed in the user's local timezone. A bare
+  // YYYY-MM-DD (legacy callers) is still read as UTC midnight.
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ? new Date(`${trimmed}T00:00:00.000Z`) : new Date(trimmed);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 

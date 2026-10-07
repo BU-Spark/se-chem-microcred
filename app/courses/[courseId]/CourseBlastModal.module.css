@@ -290,7 +290,24 @@
   border-color: var(--checkd-blue-high);
 }
 
-/* The labels are <label> elements here; keep them on their own line. */
 .fieldLabel {
   display: block;
+}
+
+.groupSelect {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px solid #e2e2e2;
+  border-radius: 12px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.35rem;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.92rem;
+  color: #1f2937;
+  background: #fff;
+}
+
+.groupSelect:focus {
+  outline: none;
+  border-color: var(--checkd-blue-high);
 }

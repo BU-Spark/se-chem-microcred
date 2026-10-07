@@ -1,4 +1,3 @@
-// Issues: #258 multi-word last names
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -11,6 +10,8 @@ import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import BadgeRatings, { type BadgeRatingsData } from './BadgeRatings';
 import BadgeRosterPanel, { type RosterCohort, type RosterStage } from './BadgeRosterPanel';
+import { CourseBlastModal } from '../CourseBlastModal';
+import type { BadgeMessageGroup } from '@/lib/badgeAnalyticsStatus';
 import styles from './page.module.css';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED' | 'NOT_STARTED';
@@ -36,6 +37,7 @@ type CourseDetail = {
     email: string | null;
     externalId: string | null;
   } | null;
+  settings?: { allowCheckerMessages?: boolean | null } | null;
 };
 
 type ProgressSummary = {
@@ -210,6 +212,8 @@ export default function CourseBadgeProgress() {
   const signOut = useSignOut();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isRosterOpen, setIsRosterOpen] = useState(false);
+  // null = closed; otherwise the badge group the message modal opens on.
+  const [messageGroup, setMessageGroup] = useState<BadgeMessageGroup | null>(null);
 
   const courseId = resolveParam(params?.courseId);
   const badgeId = resolveParam(params?.badgeId);
@@ -249,6 +253,10 @@ export default function CourseBadgeProgress() {
   const summary = data?.summary ?? null;
   const assessment = data?.assessment ?? null;
   const isInstructorFlag = isInstructor(data?.viewerRole);
+  // Same rule as the course page's Remind button: instructors always, checkers
+  // only while the course allows it. POST /api/messages enforces it again.
+  const canSendMessages =
+    isInstructorFlag || (data?.viewerRole === 'CHECKER' && course?.settings?.allowCheckerMessages === true);
   const displayName = course?.createdBy?.name || user?.fullName || '';
 
   // Progress breakdown bars driven by the real summary percentages.
@@ -394,6 +402,16 @@ export default function CourseBadgeProgress() {
                       <p>Not Started</p>
                       <strong>{summary.notStartedCount}</strong>
                       <span>{summary.notStartedPercent}% of students</span>
+                      {canSendMessages && summary.notStartedCount > 0 ? (
+                        <button
+                          type="button"
+                          className={styles.groupMessageButton}
+                          onClick={() => setMessageGroup('NOT_STARTED')}
+                          aria-label="Message students who haven't started"
+                        >
+                          Message
+                        </button>
+                      ) : null}
                     </div>
                   </article>
                 </div>
@@ -457,11 +475,13 @@ export default function CourseBadgeProgress() {
                                   {[
                                     {
                                       label: 'Started the video, haven’t finished',
+                                      group: 'VIDEO_IN_PROGRESS' as BadgeMessageGroup,
                                       count: summary.videoInProgressCount,
                                       percent: summary.videoInProgressPercent,
                                     },
                                     {
                                       label: 'Finished the video lesson, not yet assessed',
+                                      group: 'READY_TO_ASSESS' as BadgeMessageGroup,
                                       count: summary.videoCompletedOnlyCount,
                                       percent: summary.videoCompletedOnlyPercent,
                                     },
@@ -477,7 +497,19 @@ export default function CourseBadgeProgress() {
                                     },
                                   ].map((item) => (
                                     <div key={item.label} className={styles.analyticsRow}>
-                                      <span>{item.label}</span>
+                                      <span>
+                                        <span>{item.label}</span>
+                                        {'group' in item && item.group && canSendMessages && item.count > 0 ? (
+                                          <button
+                                            type="button"
+                                            className={styles.groupMessageButton}
+                                            onClick={() => setMessageGroup(item.group)}
+                                            aria-label={`Message students: ${item.label}`}
+                                          >
+                                            Message
+                                          </button>
+                                        ) : null}
+                                      </span>
                                       <strong>
                                         {item.count} student{item.count === 1 ? '' : 's'}
                                       </strong>
@@ -571,6 +603,16 @@ export default function CourseBadgeProgress() {
           badgeId={badgeId}
           rows={data?.students ?? []}
           onClose={() => setIsRosterOpen(false)}
+        />
+      ) : null}
+
+      {messageGroup && badge && course && courseId ? (
+        <CourseBlastModal
+          courseId={courseId}
+          courseName={course.title}
+          badge={{ id: badge.id, name: badge.name }}
+          group={messageGroup}
+          onClose={() => setMessageGroup(null)}
         />
       ) : null}
 

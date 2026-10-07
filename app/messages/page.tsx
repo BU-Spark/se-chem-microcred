@@ -10,7 +10,31 @@ import { notifyMessagesRead } from '@/app/hooks/useUnreadMessages';
 import shellStyles from '../page.module.css';
 import styles from './page.module.css';
 
-type Audience = 'DIRECT' | 'ALL_STUDENTS' | 'BADGE_INCOMPLETE';
+type Audience =
+  | 'DIRECT'
+  | 'ALL_STUDENTS'
+  | 'BADGE_INCOMPLETE'
+  | 'BADGE_NOT_STARTED'
+  | 'BADGE_VIDEO_IN_PROGRESS'
+  | 'BADGE_READY_TO_ASSESS';
+
+// The badge-scoped blasts, worded the same from either side of the message.
+function badgeAudienceLabel(audience: Audience, course: string | null, badgeName: string | null) {
+  const prefix = course ?? 'Course';
+  const badge = badgeName ?? 'the badge';
+  switch (audience) {
+    case 'BADGE_INCOMPLETE':
+      return `${prefix} – students without ${badge}`;
+    case 'BADGE_NOT_STARTED':
+      return `${prefix} – students who haven't started ${badge}`;
+    case 'BADGE_VIDEO_IN_PROGRESS':
+      return `${prefix} – students partway through ${badge}`;
+    case 'BADGE_READY_TO_ASSESS':
+      return `${prefix} – students ready to assess for ${badge}`;
+    default:
+      return null;
+  }
+}
 
 type InboxMessage = {
   id: string;
@@ -48,12 +72,10 @@ function receivedAudienceLabel(message: InboxMessage) {
   switch (message.audience) {
     case 'ALL_STUDENTS':
       return course ? `${course} – all students` : 'All students';
-    case 'BADGE_INCOMPLETE':
-      return message.badgeName
-        ? `${course ?? 'Course'} – students without ${message.badgeName}`
-        : `${course ?? 'Course'} – students without the badge`;
-    default:
+    case 'DIRECT':
       return course ? `${course} – you` : 'You';
+    default:
+      return badgeAudienceLabel(message.audience, course, message.badgeName) ?? (course ? `${course} – you` : 'You');
   }
 }
 
@@ -62,12 +84,10 @@ function sentAudienceLabel(message: SentMessage) {
   switch (message.audience) {
     case 'ALL_STUDENTS':
       return course ? `${course} – all students` : 'All students';
-    case 'BADGE_INCOMPLETE':
-      return message.badgeName
-        ? `${course ?? 'Course'} – students without ${message.badgeName}`
-        : `${course ?? 'Course'} – students without the badge`;
-    default:
+    case 'DIRECT':
       return message.recipientName ?? 'One student';
+    default:
+      return badgeAudienceLabel(message.audience, course, message.badgeName) ?? message.recipientName ?? 'One student';
   }
 }
 
