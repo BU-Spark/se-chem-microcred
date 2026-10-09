@@ -24,13 +24,13 @@ function badgeAudienceLabel(audience: Audience, course: string | null, badgeName
   const badge = badgeName ?? 'the badge';
   switch (audience) {
     case 'BADGE_INCOMPLETE':
-      return `${prefix} – students without ${badge}`;
+      return `${prefix} – ${badge} – All Students`;
     case 'BADGE_NOT_STARTED':
-      return `${prefix} – students who haven't started ${badge}`;
+      return `${prefix} – ${badge} – Not Started`;
     case 'BADGE_VIDEO_IN_PROGRESS':
-      return `${prefix} – students partway through ${badge}`;
+      return `${prefix} – ${badge} – In Progress`;
     case 'BADGE_READY_TO_ASSESS':
-      return `${prefix} – students ready to assess for ${badge}`;
+      return `${prefix} – ${badge} – Completed`;
     default:
       return null;
   }
@@ -71,7 +71,7 @@ function receivedAudienceLabel(message: InboxMessage) {
   const course = message.courseTitle;
   switch (message.audience) {
     case 'ALL_STUDENTS':
-      return course ? `${course} – all students` : 'All students';
+      return course ? `${course} – All Students` : 'All Students';
     case 'DIRECT':
       return course ? `${course} – you` : 'You';
     default:
@@ -83,7 +83,7 @@ function sentAudienceLabel(message: SentMessage) {
   const course = message.courseTitle;
   switch (message.audience) {
     case 'ALL_STUDENTS':
-      return course ? `${course} – all students` : 'All students';
+      return course ? `${course} – All Students` : 'All Students';
     case 'DIRECT':
       return message.recipientName ?? 'One student';
     default:
