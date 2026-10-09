@@ -83,10 +83,13 @@ function studentData() {
   };
 }
 
+let mockResources: unknown[] = [];
+
 describe('Badge feedback page', () => {
   let pageFetch: jest.Mock;
 
   beforeEach(() => {
+    mockResources = [];
     jest.clearAllMocks();
     mockUseUser.mockReturnValue({
       isLoaded: true,
@@ -176,8 +179,54 @@ describe('Badge feedback page', () => {
           json: async () => ({ count: 0 }),
         });
       }
+      if (href.includes('/resources')) {
+        return Promise.resolve({
+          ok: true,
+          json: async () => ({ resources: mockResources }),
+        });
+      }
       return pageFetch(url, init);
     }) as unknown as typeof fetch;
+  });
+
+  it('lists extra resources: links open externally, PDFs through the file route', async () => {
+    mockResources = [
+      {
+        id: 'r1',
+        kind: 'LINK',
+        title: 'Flame guide',
+        url: 'https://www.chem.org/flames',
+        sortOrder: 0,
+        fileName: null,
+        sizeBytes: null,
+      },
+      {
+        id: 'r2',
+        kind: 'FILE',
+        title: 'Lab handout',
+        url: null,
+        sortOrder: 1,
+        fileName: 'handout.pdf',
+        sizeBytes: 2048,
+      },
+    ];
+    render(<BadgeFeedbackPage />);
+
+    expect(await screen.findByRole('heading', { name: 'Extra Resources' })).toBeInTheDocument();
+    const link = screen.getByRole('link', { name: /Flame guide/ });
+    expect(link).toHaveAttribute('href', 'https://www.chem.org/flames');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(screen.getByText('chem.org')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Lab handout/ })).toHaveAttribute('href', '/api/badge-resources/r2/file');
+    expect(screen.getByText('handout.pdf · 2 KB')).toBeInTheDocument();
+  });
+
+  it('hides the Extra Resources section when a badge has none', async () => {
+    mockResources = [];
+    render(<BadgeFeedbackPage />);
+    expect(await screen.findByRole('heading', { name: 'Assessment Rubric' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Extra Resources' })).not.toBeInTheDocument();
   });
 
   it('renders checker rubric feedback read-only and acknowledges failed feedback review', async () => {

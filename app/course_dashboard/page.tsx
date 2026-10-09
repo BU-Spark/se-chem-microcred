@@ -30,6 +30,7 @@ interface LessonCard {
   waivedNote?: string;
   // Set when the badge is assessable now: the card shows the QR code instead of linking out.
   assessmentBadge?: { id: string; name: string };
+  reviewHref?: string;
 }
 
 function badgeStateForLesson(record: LessonRecord, badgesById?: Map<string, BadgeRecord>) {
@@ -253,6 +254,7 @@ function lessonRecordToCard(
     section: resolveLessonSection(record, badgesById),
     waivedNote: waivedBadgeName ? 'Your instructor has waived your QEV.' : undefined,
     assessmentBadge: canShowAssessmentCode && badge ? { id: badge.id, name: badge.name } : undefined,
+    reviewHref: badgeSlug ? `/badges/${encodeURIComponent(badgeSlug)}/feedback` : undefined,
   };
 }
 
@@ -275,12 +277,7 @@ function HomePageContent() {
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
   const [assessmentCodeBadge, setAssessmentCodeBadge] = useState<{ id: string; name: string } | null>(null);
-  // The submit button stayed live for the whole request plus the refresh that
-  // follows it, so a student on a slow connection saw nothing happen and clicked
-  // again. SurveyResponse has no unique key on (promptId, studentId) and the route
-  // does find-then-write, so two overlapping submits each insert a row and the
-  // student's rating counts twice. The badge route's IN_REVIEW → COMPLETED guard
-  // already covers sequential clicks; this covers the concurrent ones.
+
   const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false);
 
   const displayName = studentData?.student?.name || user?.fullName || 'Student';
@@ -542,9 +539,15 @@ function HomePageContent() {
     // the student's first enrollment and can't find the lesson.
     const lessonHref =
       lesson.href && courseId ? `${lesson.href}?courseId=${encodeURIComponent(courseId)}` : lesson.href;
+    // The feedback page also loads per-course student data, so it needs the courseId
+    // too or it can't find the badge and bounces to /badges.
+    const reviewHref =
+      lesson.reviewHref && courseId
+        ? `${lesson.reviewHref}?courseId=${encodeURIComponent(courseId)}`
+        : lesson.reviewHref;
 
     return (
-      <div key={lesson.id} className={styles.card}>
+      <div key={lesson.id} className={`${styles.card} ${reviewHref ? styles.cardClickable : ''}`.trim()}>
         <div className={styles.cardMedia}>
           {isYouTubeThumb ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -555,7 +558,15 @@ function HomePageContent() {
         </div>
 
         <div className={styles.cardTextBlock}>
-          <div className={styles.cardTitle}>{lesson.title}</div>
+          {/* Stretched link: its ::after covers the card, so the whole card opens the
+              feedback page while the action button (stacked above) keeps its own job. */}
+          {reviewHref ? (
+            <Link href={reviewHref} className={`${styles.cardTitle} ${styles.cardReviewLink}`}>
+              {lesson.title}
+            </Link>
+          ) : (
+            <div className={styles.cardTitle}>{lesson.title}</div>
+          )}
           <div className={styles.cardStatus}>{lesson.status}</div>
           <div className={styles.cardMeta}>{lesson.meta}</div>
           {lesson.waivedNote ? <p className={styles.cardWaivedNote}>{lesson.waivedNote}</p> : null}

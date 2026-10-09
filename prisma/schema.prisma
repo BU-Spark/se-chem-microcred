@@ -72,7 +72,6 @@ enum MessageAudience {
   BADGE_READY_TO_ASSESS
 }
 
-
 model MessageReceipt {
   id         String    @id @default(cuid())
   messageId  String
@@ -121,11 +120,11 @@ enum AvatarAccessory {
 }
 
 model Course {
-  id           String  @id @default(cuid())
-  code         String? @unique
+  id           String   @id @default(cuid())
+  code         String?  @unique
   // Field renamed assessor -> checker; the physical column keeps its original
   // name via @map so no migration is needed.
-  checkerCode  String? @unique @map("assessorCode")
+  checkerCode  String?  @unique @map("assessorCode")
   title        String
   section      String?
   sectionCount Int
@@ -474,9 +473,42 @@ model Badge {
   assessments          AssessmentAttempt[]
   messages             Message[]
   rubricGoal           RubricGoal?
+  resources            BadgeResource[]
 
   @@index([createdById])
   @@index([sourceBadgeId])
+}
+
+
+model BadgeResource {
+  id          String             @id @default(cuid())
+  badgeId     String
+  kind        BadgeResourceKind
+  title       String
+  url         String?
+  sortOrder   Int                @default(0)
+  createdById String?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  badge       Badge              @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  file        BadgeResourceFile?
+
+  @@index([badgeId])
+}
+
+// PDF bytes live apart from BadgeResource so list queries never load them.
+model BadgeResourceFile {
+  resourceId String        @id
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  data       Bytes
+  resource   BadgeResource @relation(fields: [resourceId], references: [id], onDelete: Cascade)
+}
+
+enum BadgeResourceKind {
+  LINK
+  FILE
 }
 
 model RubricGoal {

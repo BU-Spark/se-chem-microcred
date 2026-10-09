@@ -239,7 +239,6 @@
   padding: 1.15rem 1.4rem 1.25rem;
 }
 
-
 .heroMeta {
   display: inline-flex;
   align-items: baseline;
@@ -692,6 +691,37 @@
   transition:
     background-color 0.15s ease,
     transform 0.15s ease;
+}
+
+.cardClickable {
+  position: relative;
+  cursor: pointer;
+}
+
+.cardReviewLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.cardReviewLink::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+}
+
+.cardReviewLink:focus-visible {
+  outline: none;
+}
+
+.cardClickable:has(.cardReviewLink:focus-visible) {
+  outline: 2px solid var(--checkd-blue);
+  outline-offset: 2px;
+}
+
+.cardClickable .cardButton {
+  position: relative;
+  z-index: 1;
 }
 
 .cardButton:hover {

@@ -12,6 +12,7 @@ export default function SuccessModal({
   imagePositionY,
   imageScale,
   youtubeUrl,
+  warning,
   onClose,
 }: {
   isEditMode: boolean;
@@ -22,6 +23,7 @@ export default function SuccessModal({
   imagePositionY: number;
   imageScale: number;
   youtubeUrl: string;
+  warning?: string;
   onClose: () => void;
 }) {
   // The dialog's accessible name is set via aria-label so the visible heading can
@@ -65,6 +67,12 @@ export default function SuccessModal({
               ? 'This badge was created and assigned to the selected course.'
               : 'This badge was created independently and can be assigned to a course later.'}
         </p>
+
+        {warning ? (
+          <p className={styles.errorText} role="alert">
+            {warning}
+          </p>
+        ) : null}
 
         <Link href="/my_badges" className={styles.successButton}>
           Go to Badge Page

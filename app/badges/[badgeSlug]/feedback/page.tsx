@@ -14,6 +14,16 @@ import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import styles from './page.module.css';
 import { toTitleCase } from '@/lib/utils';
 import { BADGE_STATUS_LABEL } from '@/lib/badgeStatusLabels';
+import { formatFileSize, type ResourceDto } from '@/app/badge_creation/lib/resources';
+
+function hostnameOf(url: string | null) {
+  if (!url) return '';
+  try {
+    return new URL(url).hostname.replace(/^www\./, '');
+  } catch {
+    return url;
+  }
+}
 
 function formatDate(iso: string | null) {
   if (!iso) return null;
@@ -128,6 +138,7 @@ export default function BadgeFeedbackPage() {
   const [finalizeState, setFinalizeState] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
   const [finalizeError, setFinalizeError] = useState<string | null>(null);
   const [isAssessmentCodeOpen, setIsAssessmentCodeOpen] = useState(false);
+  const [resources, setResources] = useState<ResourceDto[]>([]);
   const refreshAllStudentData = useRefreshAllStudentData();
   const { data: studentData } = useStudentData(user?.primaryEmailAddress?.emailAddress, requestedCourseId);
 
@@ -153,7 +164,6 @@ export default function BadgeFeedbackPage() {
       lessonSummary:
         'We are preparing detailed review points for this badge. In the meantime, revisit your lesson checkpoints.',
       checkpoints: [] as Array<{ title: string; image: string; subtitle: string; duration: string }>,
-      optional: [] as Array<{ title: string; image: string; duration: string; summary: string }>,
     };
   }, [badge]);
 
@@ -189,6 +199,10 @@ export default function BadgeFeedbackPage() {
     fetch(`/api/badges/${badge.id}/feedback`)
       .then(async (response) => {
         const payload = await response.json().catch(() => ({}));
+        // No StudentBadge row yet (badge not started): nothing assessed, not an error.
+        if (response.status === 404) {
+          return;
+        }
         if (!response.ok) {
           throw new Error(payload.error ?? 'Unable to load badge feedback.');
         }
@@ -207,6 +221,27 @@ export default function BadgeFeedbackPage() {
     };
   }, [badge]);
 
+  const badgeId = badge?.id ?? null;
+  useEffect(() => {
+    setResources([]);
+    if (!badgeId) return;
+
+    let isCancelled = false;
+    fetch(`/api/badges/${encodeURIComponent(badgeId)}/resources`)
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = (await response.json().catch(() => ({}))) as { resources?: ResourceDto[] };
+        if (!isCancelled) setResources(payload.resources ?? []);
+      })
+      .catch(() => {
+        // Resources are optional extras; the rest of the page still works without them.
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [badgeId]);
+
   if (!isLoaded || !isSignedIn) {
     return null;
   }
@@ -223,7 +258,7 @@ export default function BadgeFeedbackPage() {
       return;
     }
 
-    router.push('/badges');
+    router.push(requestedCourseId ? `/course_dashboard?courseId=${encodeURIComponent(requestedCourseId)}` : '/badges');
   };
 
   const handleSignOut = async () => {
@@ -526,19 +561,37 @@ export default function BadgeFeedbackPage() {
             ) : null}
           </div>
 
-          <div className={styles.section}>
-            <h3>Optional Learning</h3>
-            <div className={styles.optionalGrid}>
-              {content.optional.map((item) => (
-                <div key={item.title} className={styles.optionalCard}>
-                  <Image src={item.image} alt={item.title} width={320} height={180} />
-                  <strong>{item.title}</strong>
-                  <div style={{ opacity: 0.75 }}>{item.duration}</div>
-                  <p style={{ opacity: 0.8 }}>{item.summary}</p>
-                </div>
-              ))}
+          {resources.length > 0 ? (
+            <div className={styles.section}>
+              <h3>Extra Resources</h3>
+              <ul className={styles.resourceList}>
+                {resources.map((resource) => {
+                  const href =
+                    resource.kind === 'LINK'
+                      ? resource.url
+                      : `/api/badge-resources/${encodeURIComponent(resource.id)}/file`;
+                  if (!href) return null;
+                  return (
+                    <li key={resource.id}>
+                      <a href={href} target="_blank" rel="noopener noreferrer" className={styles.resourceItem}>
+                        <span className={styles.resourceKind}>{resource.kind === 'LINK' ? 'Link' : 'PDF'}</span>
+                        <span className={styles.resourceText}>
+                          <strong>{resource.title}</strong>
+                          <span className={styles.resourceMeta}>
+                            {resource.kind === 'LINK'
+                              ? hostnameOf(resource.url)
+                              : `${resource.fileName ?? 'PDF'}${resource.sizeBytes ? ` · ${formatFileSize(resource.sizeBytes)}` : ''}`}
+                          </span>
+                        </span>
+                        <span aria-hidden="true">↗</span>
+                        <span className={styles.srOnly}>(opens in a new tab)</span>
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
-          </div>
+          ) : null}
         </div>
       </main>
 

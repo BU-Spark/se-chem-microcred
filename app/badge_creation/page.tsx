@@ -31,6 +31,13 @@ import {
   isValidYouTubeUrl,
 } from './lib/badge-helpers';
 import ProgressStep from './components/ProgressStep';
+import {
+  dropUnsavedFileResources,
+  resourcesFromApi,
+  stripResourcesForSave,
+  syncBadgeResources,
+  type ResourceDto,
+} from './lib/resources';
 import SuccessModal from './components/SuccessModal';
 import BadgeInfoStep from './steps/BadgeInfoStep';
 import LessonVideoStep from './steps/LessonVideoStep';
@@ -120,6 +127,9 @@ export default function BadgeCreationPage() {
   const draftStorageKey = badgeDraftStorageKey(user?.primaryEmailAddress?.emailAddress);
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
   const [didRestoreDraft, setDidRestoreDraft] = useState(false);
+  const [initialResourceIds, setInitialResourceIds] = useState<string[]>([]);
+  const [droppedResourceFileCount, setDroppedResourceFileCount] = useState(0);
+  const [resourceSyncError, setResourceSyncError] = useState('');
 
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
@@ -151,13 +161,15 @@ export default function BadgeCreationPage() {
       const hydratedCheckpoints = parsedCheckpoints?.map((checkpoint, index) =>
         checkpoint.questions?.length ? checkpoint : checkpointFromCatalog(checkpoint, index)
       );
+      const restoredResources = dropUnsavedFileResources(parsed.resources);
+      setDroppedResourceFileCount(restoredResources.dropped);
       setDraft((current) => {
         const rubricGoal = parsed.rubricGoal ?? current.rubricGoal;
         return {
           ...current,
           ...parsed,
           checkpoints: hydratedCheckpoints ?? current.checkpoints,
-          reassessmentResources: parsed.reassessmentResources ?? current.reassessmentResources,
+          resources: restoredResources.kept,
           rubricGoal: {
             ...rubricGoal,
             name: goalNameForBadge(rubricGoal.name, parsed.badgeName ?? current.badgeName),
@@ -188,6 +200,7 @@ export default function BadgeCreationPage() {
     setDraft(DEFAULT_DRAFT);
     setCurrentStep(0);
     setDidRestoreDraft(false);
+    setDroppedResourceFileCount(0);
   }, [draftStorageKey]);
 
   useEffect(() => {
@@ -216,8 +229,18 @@ export default function BadgeCreationPage() {
           throw new Error('Badge not found.');
         }
 
+        // Resources live behind their own endpoint; a failure here only hides them.
+        const resourcesResponse = await fetch(`/api/badges/${encodeURIComponent(editBadgeId)}/resources`, {
+          headers: { Accept: 'application/json' },
+        });
+        const resourcesPayload = (await resourcesResponse.json().catch(() => ({}))) as {
+          resources?: ResourceDto[];
+        };
+        const resources = resourcesResponse.ok ? resourcesFromApi(resourcesPayload.resources ?? []) : [];
+
         if (isActive) {
-          setDraft(badgeToDraft(badge));
+          setDraft({ ...badgeToDraft(badge), resources });
+          setInitialResourceIds(resources.flatMap((resource) => (resource.existingId ? [resource.existingId] : [])));
         }
       } catch (error) {
         if (isActive) {
@@ -541,7 +564,7 @@ export default function BadgeCreationPage() {
       body: JSON.stringify({
         id: editBadgeId,
         courseId,
-        ...draft,
+        ...stripResourcesForSave(draft),
         // Picked calendar days -> instants in the instructor's local timezone.
         availableOn: localDayStartIso(draft.availableOn),
         closesOn: draft.neverCloses ? null : localDayEndIso(draft.closesOn),
@@ -580,8 +603,6 @@ export default function BadgeCreationPage() {
       }
     }
 
-    // Require every multiple-choice checkpoint question to have at least one
-    // correct option marked before leaving the Create Checkpoints step (#116).
     if (currentStep === 2) {
       const hasUnmarkedChoice = draft.checkpoints.some((checkpoint) =>
         checkpoint.questions.some(
@@ -615,7 +636,19 @@ export default function BadgeCreationPage() {
     setIsSubmitting(true);
 
     try {
-      await saveBadge();
+      const saved = (await saveBadge()) as { sourceBadgeId?: string; badge?: { id?: string } };
+      const savedBadgeId = isEditMode ? editBadgeId : (saved.sourceBadgeId ?? saved.badge?.id ?? null);
+      setResourceSyncError('');
+      if (savedBadgeId) {
+        const keptIds = new Set(draft.resources.map((resource) => resource.existingId).filter(Boolean));
+        const removedIds = initialResourceIds.filter((id) => !keptIds.has(id));
+        const { failures } = await syncBadgeResources(savedBadgeId, draft.resources, removedIds);
+        if (failures.length > 0) {
+          setResourceSyncError(
+            `Badge saved, but ${failures.length} resource change${failures.length === 1 ? '' : 's'} failed (${failures.join('; ')}). Retry from Edit.`
+          );
+        }
+      }
       if (typeof window !== 'undefined') {
         if (draftStorageKey) window.localStorage.removeItem(draftStorageKey);
       }
@@ -662,23 +695,25 @@ export default function BadgeCreationPage() {
             <div className={styles.cardHeader}>
               <div>
                 <p className={styles.cardEyebrow}>{activeStep.label}</p>
-                {/* The rubric step leads straight into its Goal field — repeating the
-                    badge name under the eyebrow duplicated the goal it seeds. Review
-                    repeats it too, in its own Badge Info field (issue #268). */}
+
                 {activeStep.key !== 'rubric' && activeStep.key !== 'review' && (
                   <h2 className={styles.cardTitle}>
                     {activeStep.key === 'checkpoints' ? 'Add Checkpoints for:' : draft.badgeName}
                   </h2>
                 )}
-                {/* The checkpoints step owns its own subtitle so it can swap it
-                    out when the instructor switches to the student preview tab. */}
               </div>
             </div>
 
             {submissionState ? <div className={styles.noticeBanner}>{submissionState}</div> : null}
             {isLoadingEditBadge ? <div className={styles.noticeBanner}>Loading badge details...</div> : null}
             {submitError ? <p className={styles.errorText}>{submitError}</p> : null}
-            {currentStep === 0 && <BadgeInfoStep draft={draft} updateDraft={updateDraft} />}
+            {currentStep === 0 && (
+              <BadgeInfoStep
+                draft={draft}
+                updateDraft={updateDraft}
+                droppedResourceFileCount={droppedResourceFileCount}
+              />
+            )}
             {currentStep === 1 && (
               <LessonVideoStep draft={draft} updateDraft={updateDraft} videoThumbnail={videoThumbnail} />
             )}
@@ -765,6 +800,7 @@ export default function BadgeCreationPage() {
           imagePositionY={draft.imagePositionY}
           imageScale={draft.imageScale}
           youtubeUrl={draft.youtubeUrl}
+          warning={resourceSyncError || undefined}
           onClose={handleSuccessClose}
         />
       ) : null}

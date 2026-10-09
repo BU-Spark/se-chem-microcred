@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 
 import styles from './BadgeOverviewCard.module.css';
@@ -10,12 +12,14 @@ export default function BadgeOverviewCard({
   badgeImagePositionX,
   badgeImagePositionY,
   skills,
+  reviewHref,
 }: {
   badgeName: string | null;
   badgeImageUrl?: string | null;
   badgeImagePositionX?: number | null;
   badgeImagePositionY?: number | null;
   skills: string[];
+  reviewHref?: string | null;
 }) {
   const hasBadge = Boolean(badgeName);
   if (!hasBadge && skills.length === 0) return null;
@@ -43,6 +47,16 @@ export default function BadgeOverviewCard({
             <span className={styles.badgeText}>
               <span className={styles.badgeName}>{badgeName}</span>
             </span>
+            {reviewHref ? (
+              <Link
+                href={reviewHref}
+                className={styles.infoLink}
+                aria-label={`Badge info and extra resources for ${badgeName}`}
+                title="Badge info and extra resources"
+              >
+                i
+              </Link>
+            ) : null}
           </div>
         </section>
       ) : null}

@@ -18,7 +18,6 @@
   text-transform: uppercase;
 }
 
-
 .badgeRow {
   display: flex;
   gap: 0.85rem;
@@ -82,4 +81,26 @@
   font-family: 'Lato', sans-serif;
   font-size: 0.92rem;
   font-weight: 700;
+}
+
+.infoLink {
+  flex: 0 0 auto;
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1.5px solid var(--checkd-blue);
+  border-radius: 50%;
+  color: var(--checkd-blue);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.95rem;
+  font-style: italic;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.infoLink:hover,
+.infoLink:focus-visible {
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
 }
