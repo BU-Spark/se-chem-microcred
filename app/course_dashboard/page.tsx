@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useId, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -16,6 +16,45 @@ import { useStudentData, useRefreshAllStudentData, type BadgeRecord, type Lesson
 import { describeBadgeStatus } from '@/lib/badgeStatusLabels';
 import { classifyBadgeProgress, type BadgeProgressInput, type ProgressBucket } from '@/lib/badgeBuckets';
 import styles from './page.module.css';
+
+const CARD_REVIEW_HINT = 'Click into the badge to go to the review page to review extra materials.';
+
+// Issue #135: an "i" button whose small popup explains that the card opens the
+// review page. Opens on hover, keyboard focus and tap; Escape closes it. It is a
+// button, not a link, so tapping it on touch screens shows the hint instead of
+// navigating away.
+function CardInfoPopover({ lessonTitle }: { lessonTitle: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const popoverId = useId();
+
+  return (
+    <span className={styles.cardInfo} onMouseEnter={() => setIsOpen(true)} onMouseLeave={() => setIsOpen(false)}>
+      <button
+        type="button"
+        className={styles.cardInfoButton}
+        aria-label={`About reviewing ${lessonTitle}`}
+        aria-describedby={popoverId}
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setIsOpen(false);
+        }}
+      >
+        i
+      </button>
+      <span
+        id={popoverId}
+        role="tooltip"
+        className={`${styles.cardInfoPopover} ${isOpen ? styles.cardInfoPopoverOpen : ''}`.trim()}
+      >
+        <strong className={styles.cardInfoPopoverTitle}>Review &amp; extra materials</strong>
+        {CARD_REVIEW_HINT}
+      </span>
+    </span>
+  );
+}
 
 interface LessonCard {
   id: string;
@@ -228,6 +267,7 @@ function lessonRecordToCard(
   const variant: LessonCard['variant'] =
     record.status === 'COMPLETED' ? 'completed' : record.status === 'IN_PROGRESS' ? 'continue' : 'start';
 
+  const section = resolveLessonSection(record, badgesById);
   const badgeSlug = record.badgeRequirements?.[0]?.badgeSlug ?? null;
   const badgeStarted = badgeSlug ? (startedBadgeSlugs?.has(badgeSlug) ?? false) : false;
   const href =
@@ -251,10 +291,15 @@ function lessonRecordToCard(
     variant,
     image: resolveLessonImage(record),
     href: canShowAssessmentCode ? undefined : href,
-    section: resolveLessonSection(record, badgesById),
+    section,
     waivedNote: waivedBadgeName ? 'Your instructor has waived your QEV.' : undefined,
     assessmentBadge: canShowAssessmentCode && badge ? { id: badge.id, name: badge.name } : undefined,
-    reviewHref: badgeSlug ? `/badges/${encodeURIComponent(badgeSlug)}/feedback` : undefined,
+    // Not Started cards stay unclickable: with no StudentBadge row the feedback page
+    // can't resolve the badge and bounces the student to /badges.
+    reviewHref:
+      badgeSlug && badgeStarted && section !== 'NOT_STARTED'
+        ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
+        : undefined,
   };
 }
 
@@ -589,6 +634,9 @@ function HomePageContent() {
             {lesson.actionLabel}
           </button>
         )}
+
+        {/* Issue #135: hint that the card itself opens the review page. */}
+        {reviewHref ? <CardInfoPopover lessonTitle={lesson.title} /> : null}
       </div>
     );
   };

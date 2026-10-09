@@ -724,6 +724,108 @@
   z-index: 1;
 }
 
+/* "i" button in the card's bottom-right corner; sits above the stretched link
+   and opens a small popup explaining that the card opens the review page. */
+.cardInfo {
+  position: absolute;
+  right: 0.85rem;
+  bottom: 0.85rem;
+  z-index: 2;
+}
+
+.cardInfoButton {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1.5px solid var(--checkd-blue);
+  border-radius: 50%;
+  background: var(--checkd-white);
+  color: var(--checkd-blue);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 0.9rem;
+  font-style: italic;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+}
+
+.cardInfoButton:hover,
+.cardInfoButton:focus-visible,
+.cardInfoButton[aria-expanded='true'] {
+  background: var(--checkd-blue);
+  color: var(--checkd-white);
+}
+
+.cardInfoButton:focus-visible {
+  outline: 2px solid var(--checkd-blue);
+  outline-offset: 2px;
+}
+
+.cardInfoPopover {
+  position: absolute;
+  right: -6px;
+  bottom: calc(100% + 10px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  width: 220px;
+  max-width: calc(100vw - 32px);
+  padding: 0.7rem 0.8rem;
+  border: 1px solid #dfe6ef;
+  border-radius: 12px;
+  background: var(--checkd-white);
+  color: #374151;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  text-align: left;
+  box-shadow: 0 12px 28px rgba(30, 64, 105, 0.16);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition:
+    opacity 0.12s ease,
+    transform 0.12s ease,
+    visibility 0.12s;
+}
+
+/* Small arrow pointing down at the "i". */
+.cardInfoPopover::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  top: 100%;
+  width: 10px;
+  height: 10px;
+  margin-top: -5px;
+  border-right: 1px solid #dfe6ef;
+  border-bottom: 1px solid #dfe6ef;
+  background: var(--checkd-white);
+  transform: rotate(45deg);
+}
+
+.cardInfoPopoverOpen {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.cardInfoPopoverTitle {
+  color: var(--checkd-black);
+  font-family: 'Lato', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardInfoPopover {
+    transition: none;
+  }
+}
+
 .cardButton:hover {
   background: var(--checkd-blue-low);
   transform: translateY(-1px);
