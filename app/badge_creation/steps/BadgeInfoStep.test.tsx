@@ -50,14 +50,6 @@ describe('BadgeInfoStep assessment policy fields', () => {
     fireEvent.change(screen.getByLabelText('Cooldown Duration (days)'), { target: { value: '30' } });
     expect(updateDraft).toHaveBeenCalledWith('cooldownDays', 14);
   });
-
-  it('toggles the reassessment-required checkbox from its checked state', () => {
-    const { updateDraft } = renderStep({ reassessmentRequired: false });
-    const checkbox = screen.getByRole('checkbox', { name: /Re-assessment Required/i }) as HTMLInputElement;
-    expect(checkbox.checked).toBe(false);
-    fireEvent.click(checkbox);
-    expect(updateDraft).toHaveBeenCalledWith('reassessmentRequired', true);
-  });
 });
 
 describe('BadgeInfoStep image upload', () => {

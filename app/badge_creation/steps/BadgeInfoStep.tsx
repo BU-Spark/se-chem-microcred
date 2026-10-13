@@ -389,21 +389,6 @@ export default function BadgeInfoStep({
           placeholder="0"
         />
       </div>
-      <div className={styles.badgeInfoField}>
-        <label className={styles.checkboxRow} htmlFor="reassessment-required">
-          <input
-            type="checkbox"
-            name="reassessment-required"
-            id="reassessment-required"
-            checked={draft.reassessmentRequired}
-            onChange={(event) => updateDraft('reassessmentRequired', event.target.checked)}
-          />
-          <span className={styles.sectionLabel}>Re-assessment Required</span>
-        </label>
-        <p className={styles.fieldHelp}>
-          Check if a re-assessment is required when a student fails an in-person assessment.
-        </p>
-      </div>
     </div>
   );
 }

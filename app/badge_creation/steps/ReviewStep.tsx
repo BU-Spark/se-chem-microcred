@@ -65,9 +65,6 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
             </strong>{' '}
             between attempts
           </p>
-          <p className={styles.reviewMeta}>
-            Re-assessment required: <strong>{draft.reassessmentRequired ? 'Yes' : 'No'}</strong>
-          </p>
         </div>
 
         <div className={styles.reviewField}>
