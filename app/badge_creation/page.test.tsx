@@ -441,6 +441,11 @@ describe('Badge creation page', () => {
           ],
         }),
       })
+
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ resources: [] }),
+      })
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -474,7 +479,7 @@ describe('Badge creation page', () => {
       );
     });
 
-    const [, options] = mockFetch.mock.calls[1];
+    const [, options] = mockFetch.mock.calls[2];
     const body = JSON.parse((options as RequestInit).body as string);
 
     expect(body).toEqual(

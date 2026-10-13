@@ -76,6 +76,10 @@ function LessonDetailContent() {
   const skills = lessonRecord?.skills.map((skill) => skill.trim()).filter(Boolean) ?? [];
   const badgeName = badge?.name ?? lessonRecord?.badgeRequirements?.[0]?.badgeName ?? null;
   const description = lessonRecord?.description || badge?.description || lessonRecord?.summary || '';
+  const reviewBadgeSlug = badge?.slug ?? lessonRecord?.badgeRequirements?.[0]?.badgeSlug ?? null;
+  const reviewHref = reviewBadgeSlug
+    ? `/badges/${encodeURIComponent(reviewBadgeSlug)}/feedback${courseId ? `?courseId=${encodeURIComponent(courseId)}` : ''}`
+    : null;
 
   return (
     <div className="page">
@@ -109,6 +113,7 @@ function LessonDetailContent() {
                   badgeImagePositionX={badge?.imagePositionX}
                   badgeImagePositionY={badge?.imagePositionY}
                   skills={skills}
+                  reviewHref={reviewHref}
                 />
 
                 <BadgeFlowSteps />

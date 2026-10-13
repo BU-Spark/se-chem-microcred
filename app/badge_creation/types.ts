@@ -54,6 +54,19 @@ export type RubricGoalDraft = {
   taInstructions: string;
 };
 
+//A new PDF's File cannot, so a restored draft drops it (see dropUnsavedFileResources). `existingId` marks a saved resource.
+export type ResourceDraft =
+  | { tempId: string; kind: 'LINK'; title: string; url: string; existingId?: string }
+  | {
+      tempId: string;
+      kind: 'FILE';
+      title: string;
+      fileName: string;
+      sizeBytes: number;
+      file?: File;
+      existingId?: string;
+    };
+
 export type BadgeDraft = {
   badgeName: string;
   badgeDescription: string;
@@ -75,7 +88,7 @@ export type BadgeDraft = {
   reassessmentLimit: number;
   cooldownDays: number;
   reassessmentRequired: boolean;
-  reassessmentResources: string[];
+  resources: ResourceDraft[];
   rubricGoal: RubricGoalDraft;
 };
 
@@ -185,7 +198,7 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   reassessmentLimit: 3,
   cooldownDays: 0,
   reassessmentRequired: false,
-  reassessmentResources: [],
+  resources: [],
   rubricGoal: {
     name: '',
     subgoals: [

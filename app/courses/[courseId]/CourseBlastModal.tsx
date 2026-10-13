@@ -11,10 +11,10 @@ import styles from './CourseBlastModal.module.css';
 type GroupChoice = 'ALL' | BadgeMessageGroup;
 
 const GROUP_OPTIONS: Array<{ value: GroupChoice; label: string }> = [
-  { value: 'ALL', label: 'Everyone who hasn’t finished' },
-  { value: 'NOT_STARTED', label: 'Haven’t started' },
-  { value: 'VIDEO_IN_PROGRESS', label: 'Started the video, haven’t finished' },
-  { value: 'READY_TO_ASSESS', label: 'Finished the video, ready to assess' },
+  { value: 'ALL', label: 'All Students' },
+  { value: 'NOT_STARTED', label: 'Not Started' },
+  { value: 'VIDEO_IN_PROGRESS', label: 'In Progress' },
+  { value: 'READY_TO_ASSESS', label: 'Completed' },
 ];
 
 // Instructor-typed badge names are never rewritten. Append "Badge" only when the
@@ -75,24 +75,24 @@ function groupDefaults(group: GroupChoice, courseName: string, displayName: stri
 function groupSubtitle(group: GroupChoice, displayName: string) {
   switch (group) {
     case 'NOT_STARTED':
-      return `Students who haven't started ${displayName}`;
+      return `Not Started – ${displayName}`;
     case 'VIDEO_IN_PROGRESS':
-      return `Students partway through the ${displayName} video`;
+      return `In Progress – ${displayName}`;
     case 'READY_TO_ASSESS':
-      return `Students ready to assess for ${displayName}`;
+      return `Completed – ${displayName}`;
     default:
-      return `Students who haven't finished ${displayName}`;
+      return `All Students – ${displayName}`;
   }
 }
 
 function groupEmptyText(group: GroupChoice) {
   switch (group) {
     case 'NOT_STARTED':
-      return 'Every student has started this badge — nothing was sent.';
+      return 'No students are Not Started on this badge — nothing was sent.';
     case 'VIDEO_IN_PROGRESS':
-      return 'No students are partway through the video — nothing was sent.';
+      return 'No students are In Progress on this badge — nothing was sent.';
     case 'READY_TO_ASSESS':
-      return 'No students are waiting to be assessed — nothing was sent.';
+      return 'No students are Completed on this badge — nothing was sent.';
     default:
       return 'No students currently have this badge incomplete — nothing was sent.';
   }

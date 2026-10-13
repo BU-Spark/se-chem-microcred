@@ -1,6 +1,7 @@
 import { buildVideoThumbnail } from '../lib/badge-helpers';
 import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
+import { formatFileSize } from '../lib/resources';
 
 function EditButton({ onClick }: { onClick: () => void }) {
   return (
@@ -68,11 +69,26 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
             Re-assessment required: <strong>{draft.reassessmentRequired ? 'Yes' : 'No'}</strong>
           </p>
         </div>
+
+        <div className={styles.reviewField}>
+          <span className={styles.reviewFieldLabel}>Extra Resources</span>
+          {draft.resources.length > 0 ? (
+            <ul className={styles.reviewTaskList}>
+              {draft.resources.map((resource) => (
+                <li key={resource.tempId}>
+                  {resource.title}{' '}
+                  <span className={styles.reviewMuted}>
+                    ({resource.kind === 'LINK' ? resource.url : `PDF, ${formatFileSize(resource.sizeBytes)}`})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <span className={styles.reviewMuted}>No extra resources</span>
+          )}
+        </div>
       </section>
 
-      {/* Lesson Video, Checkpoints, and the Rubric all describe the same lesson, so
-          they live in one section: video + checkpoint totals side by side, rubric
-          underneath. The per-checkpoint list is authored a step earlier (issue #268). */}
       <section className={styles.reviewCard}>
         <div className={styles.reviewLessonAssessmentGrid}>
           <div className={styles.reviewLessonColumn}>
@@ -80,7 +96,6 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
               <h3>Lesson Video</h3>
               <EditButton onClick={() => goToStep(1)} />
             </div>
-            {/* Title first: the link is reference detail, not the headline (issue #268). */}
             <h4 className={styles.reviewVideoTitle}>{draft.videoTitle || 'Untitled video'}</h4>
             <p className={styles.reviewVideoUrl}>{draft.youtubeUrl || 'No video linked'}</p>
             <p className={styles.reviewMeta}>

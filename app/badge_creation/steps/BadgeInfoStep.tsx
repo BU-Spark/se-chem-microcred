@@ -10,6 +10,7 @@ import {
 import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 import ChipInput from '../components/ChipInput';
+import ResourcesEditor from '../components/ResourcesEditor';
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import { badgeImageFileFromDataUrl, prepareBadgeImage } from '../lib/badge-image';
 import { DEFAULT_BADGE_IMAGE_SCALE, MAX_BADGE_IMAGE_SCALE, MIN_BADGE_IMAGE_SCALE } from '@/lib/badges/badge-image';
@@ -17,9 +18,11 @@ import { DEFAULT_BADGE_IMAGE_SCALE, MAX_BADGE_IMAGE_SCALE, MIN_BADGE_IMAGE_SCALE
 export default function BadgeInfoStep({
   draft,
   updateDraft,
+  droppedResourceFileCount = 0,
 }: {
   draft: BadgeDraft;
   updateDraft: <K extends keyof BadgeDraft>(field: K, value: BadgeDraft[K]) => void;
+  droppedResourceFileCount?: number;
 }) {
   const [imageError, setImageError] = useState('');
   const [localPreviewUrl, setLocalPreviewUrl] = useState('');
@@ -342,6 +345,11 @@ export default function BadgeInfoStep({
           placeholder="Describe what students will learn and demonstrate."
         />
       </div>
+      <ResourcesEditor
+        resources={draft.resources}
+        onChange={(next) => updateDraft('resources', next)}
+        droppedFileCount={droppedResourceFileCount}
+      />
       <div className={styles.badgeInfoField}>
         <label className={styles.sectionLabel} htmlFor="reassessment-limit">
           Re-assessment Limit

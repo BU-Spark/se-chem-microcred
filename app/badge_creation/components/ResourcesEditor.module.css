@@ -1,0 +1,139 @@
+
+.addRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.addRow input[type='text'],
+.addRow input[type='url'] {
+  flex: 1 1 200px;
+  min-width: 0;
+  border: none;
+  border-bottom: 1px solid var(--checkd-black);
+  background: transparent;
+  outline: none;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 16px;
+  padding: 0 0 8px;
+  color: var(--checkd-black);
+}
+
+.addRow input:focus {
+  border-bottom-color: var(--checkd-blue-high);
+}
+
+.addButton {
+  padding: 8px 16px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: var(--checkd-white);
+  color: #111418;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addButton:hover:not(:disabled) {
+  background: #f1f3f6;
+}
+
+.addButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.fileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d7dbe1;
+  border-radius: 8px;
+  background: var(--checkd-white);
+}
+
+.kind {
+  flex: 0 0 auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #374151;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.itemText {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Open Sans', sans-serif;
+}
+
+.itemTitle {
+  font-size: 15px;
+  font-weight: 600;
+  color: #111418;
+  overflow-wrap: anywhere;
+}
+
+.itemMeta {
+  font-size: 13px;
+  color: #6b7280;
+  overflow-wrap: anywhere;
+}
+
+.itemActions {
+  display: flex;
+  gap: 4px;
+}
+
+.iconButton {
+  min-width: 32px;
+  height: 32px;
+  border: 1px solid #d7dbe1;
+  border-radius: 6px;
+  background: var(--checkd-white);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.iconButton:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.error {
+  margin: 0;
+  color: #b42318;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+}
+
+.notice {
+  margin: 0;
+  color: #92400e;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 14px;
+}

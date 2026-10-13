@@ -237,6 +237,42 @@ describe('Course dashboard page', () => {
     expect(review.getAttribute('href')).toBe('/lessons/lab-safety/video?courseId=course-2');
   });
 
+  // Issue #135: the card body and its "i" hint open the badge review page.
+  const REVIEW_HINT = 'Click into the badge to go to the review page to review extra materials.';
+
+  it('does not make a not-started badge card clickable', async () => {
+    mockUseStudentData.mockReturnValue(dataWithCompletedLesson('safety', 'notStarted', 'NOT_STARTED', null));
+
+    render(<CourseDashboardPage />);
+
+    await screen.findByRole('link', { name: 'Review' });
+    expect(screen.queryByRole('link', { name: 'Lab Safety Basics' })).not.toBeInTheDocument();
+    expect(screen.queryByText(REVIEW_HINT)).not.toBeInTheDocument();
+  });
+
+  it('links a started badge card and its "i" hint to the review page, keeping Show Code', async () => {
+    mockUseStudentData.mockReturnValue(
+      dataWithCompletedLesson('safety', 'readyForAssessment', 'READY_FOR_ASSESSMENT', null)
+    );
+
+    render(<CourseDashboardPage />);
+
+    expect(await screen.findByRole('button', { name: 'Show Code' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Lab Safety Basics' })).toHaveAttribute(
+      'href',
+      '/badges/safety/feedback?courseId=course-2'
+    );
+    // The "i" is a button that opens a small popup rather than navigating itself.
+    const info = screen.getByRole('button', { name: 'About reviewing Lab Safety Basics' });
+    expect(info).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.mouseEnter(info.parentElement!);
+    expect(info).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('tooltip')).toHaveTextContent(REVIEW_HINT);
+    expect(info).toHaveAccessibleDescription(`Review & extra materials ${REVIEW_HINT}`);
+    fireEvent.mouseLeave(info.parentElement!);
+    expect(info).toHaveAttribute('aria-expanded', 'false');
+  });
+
   it.each([
     ['awaiting a first assessment', 'READY_FOR_ASSESSMENT', null, 'Ready for assessment', 'In progress'],
     ['awaiting failed-feedback review', 'IN_REVIEW', false, 'In review', 'In progress'],

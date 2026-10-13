@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useId, useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -17,6 +17,45 @@ import { describeBadgeStatus } from '@/lib/badgeStatusLabels';
 import { classifyBadgeProgress, type BadgeProgressInput, type ProgressBucket } from '@/lib/badgeBuckets';
 import styles from './page.module.css';
 
+const CARD_REVIEW_HINT = 'Click into the badge to go to the review page to review extra materials.';
+
+// Issue #135: an "i" button whose small popup explains that the card opens the
+// review page. Opens on hover, keyboard focus and tap; Escape closes it. It is a
+// button, not a link, so tapping it on touch screens shows the hint instead of
+// navigating away.
+function CardInfoPopover({ lessonTitle }: { lessonTitle: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const popoverId = useId();
+
+  return (
+    <span className={styles.cardInfo} onMouseEnter={() => setIsOpen(true)} onMouseLeave={() => setIsOpen(false)}>
+      <button
+        type="button"
+        className={styles.cardInfoButton}
+        aria-label={`About reviewing ${lessonTitle}`}
+        aria-describedby={popoverId}
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setIsOpen(false)}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') setIsOpen(false);
+        }}
+      >
+        i
+      </button>
+      <span
+        id={popoverId}
+        role="tooltip"
+        className={`${styles.cardInfoPopover} ${isOpen ? styles.cardInfoPopoverOpen : ''}`.trim()}
+      >
+        <strong className={styles.cardInfoPopoverTitle}>Review &amp; extra materials</strong>
+        {CARD_REVIEW_HINT}
+      </span>
+    </span>
+  );
+}
+
 interface LessonCard {
   id: string;
   title: string;
@@ -30,6 +69,7 @@ interface LessonCard {
   waivedNote?: string;
   // Set when the badge is assessable now: the card shows the QR code instead of linking out.
   assessmentBadge?: { id: string; name: string };
+  reviewHref?: string;
 }
 
 function badgeStateForLesson(record: LessonRecord, badgesById?: Map<string, BadgeRecord>) {
@@ -227,6 +267,7 @@ function lessonRecordToCard(
   const variant: LessonCard['variant'] =
     record.status === 'COMPLETED' ? 'completed' : record.status === 'IN_PROGRESS' ? 'continue' : 'start';
 
+  const section = resolveLessonSection(record, badgesById);
   const badgeSlug = record.badgeRequirements?.[0]?.badgeSlug ?? null;
   const badgeStarted = badgeSlug ? (startedBadgeSlugs?.has(badgeSlug) ?? false) : false;
   const href =
@@ -250,9 +291,15 @@ function lessonRecordToCard(
     variant,
     image: resolveLessonImage(record),
     href: canShowAssessmentCode ? undefined : href,
-    section: resolveLessonSection(record, badgesById),
+    section,
     waivedNote: waivedBadgeName ? 'Your instructor has waived your QEV.' : undefined,
     assessmentBadge: canShowAssessmentCode && badge ? { id: badge.id, name: badge.name } : undefined,
+    // Not Started cards stay unclickable: with no StudentBadge row the feedback page
+    // can't resolve the badge and bounces the student to /badges.
+    reviewHref:
+      badgeSlug && badgeStarted && section !== 'NOT_STARTED'
+        ? `/badges/${encodeURIComponent(badgeSlug)}/feedback`
+        : undefined,
   };
 }
 
@@ -275,12 +322,7 @@ function HomePageContent() {
   } | null>(null);
   const [surveyRating, setSurveyRating] = useState(3);
   const [assessmentCodeBadge, setAssessmentCodeBadge] = useState<{ id: string; name: string } | null>(null);
-  // The submit button stayed live for the whole request plus the refresh that
-  // follows it, so a student on a slow connection saw nothing happen and clicked
-  // again. SurveyResponse has no unique key on (promptId, studentId) and the route
-  // does find-then-write, so two overlapping submits each insert a row and the
-  // student's rating counts twice. The badge route's IN_REVIEW → COMPLETED guard
-  // already covers sequential clicks; this covers the concurrent ones.
+
   const [isSubmittingSurvey, setIsSubmittingSurvey] = useState(false);
 
   const displayName = studentData?.student?.name || user?.fullName || 'Student';
@@ -542,9 +584,15 @@ function HomePageContent() {
     // the student's first enrollment and can't find the lesson.
     const lessonHref =
       lesson.href && courseId ? `${lesson.href}?courseId=${encodeURIComponent(courseId)}` : lesson.href;
+    // The feedback page also loads per-course student data, so it needs the courseId
+    // too or it can't find the badge and bounces to /badges.
+    const reviewHref =
+      lesson.reviewHref && courseId
+        ? `${lesson.reviewHref}?courseId=${encodeURIComponent(courseId)}`
+        : lesson.reviewHref;
 
     return (
-      <div key={lesson.id} className={styles.card}>
+      <div key={lesson.id} className={`${styles.card} ${reviewHref ? styles.cardClickable : ''}`.trim()}>
         <div className={styles.cardMedia}>
           {isYouTubeThumb ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -555,7 +603,15 @@ function HomePageContent() {
         </div>
 
         <div className={styles.cardTextBlock}>
-          <div className={styles.cardTitle}>{lesson.title}</div>
+          {/* Stretched link: its ::after covers the card, so the whole card opens the
+              feedback page while the action button (stacked above) keeps its own job. */}
+          {reviewHref ? (
+            <Link href={reviewHref} className={`${styles.cardTitle} ${styles.cardReviewLink}`}>
+              {lesson.title}
+            </Link>
+          ) : (
+            <div className={styles.cardTitle}>{lesson.title}</div>
+          )}
           <div className={styles.cardStatus}>{lesson.status}</div>
           <div className={styles.cardMeta}>{lesson.meta}</div>
           {lesson.waivedNote ? <p className={styles.cardWaivedNote}>{lesson.waivedNote}</p> : null}
@@ -578,6 +634,9 @@ function HomePageContent() {
             {lesson.actionLabel}
           </button>
         )}
+
+        {/* Issue #135: hint that the card itself opens the review page. */}
+        {reviewHref ? <CardInfoPopover lessonTitle={lesson.title} /> : null}
       </div>
     );
   };
