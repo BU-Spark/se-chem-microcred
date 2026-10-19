@@ -37,6 +37,7 @@ const mockTx = {
 const mockPrisma = {
   user: { findUnique: jest.fn() },
   badge: { findMany: jest.fn() },
+  badgeRelation: { findMany: jest.fn(async (): Promise<unknown[]> => []) },
   $transaction: jest.fn((callback) => callback(mockTx)),
   __tx: mockTx,
 };
@@ -549,6 +550,7 @@ describe('badge creation API', () => {
     const body = await response.json();
     expect(body).toEqual({
       count: 1,
+      prerequisiteEdges: [],
       badges: [
         expect.objectContaining({
           id: 'badge-1',

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { BadgeRef, getPrerequisiteStatusForStudent } from '@/lib/badges/badge-prerequisites.service';
 import {
   BadgeStatus,
   CourseContactType,
@@ -617,15 +618,35 @@ export async function GET(req: Request) {
     };
   });
 
+  // Badges still locked behind an unfinished prerequisite, by course copy id. The
+  // lesson routes enforce the same rule; this only lets the UI grey them out.
+  const lockedByBadgeId = new Map<string, BadgeRef[]>();
+  const prerequisiteStatuses = await Promise.all(
+    notStartedCourseIds.map((courseId) =>
+      getPrerequisiteStatusForStudent(prisma, {
+        studentId: student.id,
+        courseId,
+        badgeIds: courseBadges.map((badge) => badge.id),
+      })
+    )
+  );
+  for (const statuses of prerequisiteStatuses) {
+    for (const [badgeId, status] of statuses) {
+      if (status.locked) lockedByBadgeId.set(badgeId, status.unmet);
+    }
+  }
+  const lessonLockedBy = (lesson: { badgeRequirements: Array<{ badgeId: string }> }) =>
+    lesson.badgeRequirements.flatMap((requirement) => lockedByBadgeId.get(requirement.badgeId) ?? []);
+
   // Hide lessons whose badge hasn't been released yet — everywhere a student
   // sees them (the row lists below and the catalog used by lesson pages).
   const now = new Date();
-  const visibleLessons = lessonCatalog.filter((lesson) =>
-    isLessonReleased(lesson.availableOn ? new Date(lesson.availableOn) : null, now)
-  );
+  const visibleLessons = lessonCatalog
+    .filter((lesson) => isLessonReleased(lesson.availableOn ? new Date(lesson.availableOn) : null, now))
+    .map((lesson) => ({ ...lesson, lockedBy: lessonLockedBy(lesson) }));
 
   const upNextLessons = visibleLessons
-    .filter((lesson) => lesson.status === LessonStatus.NOT_STARTED)
+    .filter((lesson) => lesson.status === LessonStatus.NOT_STARTED && lesson.lockedBy.length === 0)
     .sort((a, b) => (a.dueDate && b.dueDate ? Date.parse(a.dueDate) - Date.parse(b.dueDate) : 0));
 
   const continueLessons = visibleLessons
@@ -711,9 +732,11 @@ export async function GET(req: Request) {
   };
 
   const startedStudentBadges = normalizedStudentBadges.filter((entry) => !isUnstartedLearningBadge(entry));
-  const unstartedLearningBadges = normalizedStudentBadges
-    .filter(isUnstartedLearningBadge)
-    .map((entry) => ({ ...formatBadge(entry), status: 'NOT_STARTED' as const }));
+  const unstartedLearningBadges = normalizedStudentBadges.filter(isUnstartedLearningBadge).map((entry) => ({
+    ...formatBadge(entry),
+    status: 'NOT_STARTED' as const,
+    lockedBy: lockedByBadgeId.get(entry.badgeId) ?? [],
+  }));
 
   const badgeGroups = groupBadgesByStatus(
     startedStudentBadges.map((entry) => formatBadge(entry, latestAssessmentPassedByBadgeId.get(entry.badgeId) ?? null))
@@ -739,6 +762,7 @@ export async function GET(req: Request) {
       cooldownUntil: null,
       qevWaivedAt: null,
       requirements: [] as Array<{ summary: string | null; lessonSlug: string | null; lessonTitle: string | null }>,
+      lockedBy: lockedByBadgeId.get(badge.id) ?? [],
     }));
   const notStartedBadges = [...neverAttemptedBadges, ...unstartedLearningBadges];
 

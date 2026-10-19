@@ -14,6 +14,7 @@ import AssessmentCodeModal from '@/app/components/AssessmentCodeModal/Assessment
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import { useStudentData, useRefreshAllStudentData, type BadgeRecord, type LessonRecord } from '../hooks/useStudentData';
 import { describeBadgeStatus } from '@/lib/badgeStatusLabels';
+import { formatBadgeNameList } from '@/lib/badgePrerequisites';
 import { classifyBadgeProgress, type BadgeProgressInput, type ProgressBucket } from '@/lib/badgeBuckets';
 import styles from './page.module.css';
 
@@ -62,11 +63,13 @@ interface LessonCard {
   status: string;
   meta: string;
   actionLabel: string;
-  variant?: 'start' | 'continue' | 'completed';
+  variant?: 'start' | 'continue' | 'completed' | 'locked';
   image?: string;
   href?: string;
   section: ProgressBucket;
   waivedNote?: string;
+  // Names the badges still needed when a prerequisite locks this one.
+  lockedNote?: string;
   // Set when the badge is assessable now: the card shows the QR code instead of linking out.
   assessmentBadge?: { id: string; name: string };
   reviewHref?: string;
@@ -268,6 +271,23 @@ function lessonRecordToCard(
     record.status === 'COMPLETED' ? 'completed' : record.status === 'IN_PROGRESS' ? 'continue' : 'start';
 
   const section = resolveLessonSection(record, badgesById);
+  const lockedBy = record.lockedBy ?? [];
+  if (lockedBy.length > 0) {
+    // Locked behind a prerequisite: nothing to open yet. The lesson routes refuse
+    // a start too, so this card only explains why.
+    return {
+      id: record.id,
+      title: record.title,
+      status: 'Locked',
+      meta: metaParts.join(' • ') || 'No due date',
+      actionLabel: 'Locked',
+      variant: 'locked',
+      image: resolveLessonImage(record),
+      section,
+      lockedNote: `Requires ${formatBadgeNameList(lockedBy.map((badge) => badge.name))}`,
+    };
+  }
+
   const badgeSlug = record.badgeRequirements?.[0]?.badgeSlug ?? null;
   const badgeStarted = badgeSlug ? (startedBadgeSlugs?.has(badgeSlug) ?? false) : false;
   const href =
@@ -575,6 +595,7 @@ function HomePageContent() {
   const renderCard = (lesson: LessonCard) => {
     const buttonClass =
       lesson.variant === 'continue' ? `${styles.cardButton} ${styles.secondaryAction}` : styles.cardButton;
+    const isLocked = lesson.variant === 'locked';
 
     const imageSrc = lesson.image ?? DEFAULT_LESSON_IMAGE;
     const isYouTubeThumb = imageSrc.includes('ytimg.com') || imageSrc.includes('youtube.com');
@@ -592,7 +613,10 @@ function HomePageContent() {
         : lesson.reviewHref;
 
     return (
-      <div key={lesson.id} className={`${styles.card} ${reviewHref ? styles.cardClickable : ''}`.trim()}>
+      <div
+        key={lesson.id}
+        className={`${styles.card} ${reviewHref ? styles.cardClickable : ''} ${isLocked ? styles.cardLocked : ''}`.trim()}
+      >
         <div className={styles.cardMedia}>
           {isYouTubeThumb ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -615,9 +639,14 @@ function HomePageContent() {
           <div className={styles.cardStatus}>{lesson.status}</div>
           <div className={styles.cardMeta}>{lesson.meta}</div>
           {lesson.waivedNote ? <p className={styles.cardWaivedNote}>{lesson.waivedNote}</p> : null}
+          {lesson.lockedNote ? <p className={styles.cardLockedNote}>{lesson.lockedNote}</p> : null}
         </div>
 
-        {lesson.assessmentBadge ? (
+        {isLocked ? (
+          <button type="button" className={buttonClass} disabled aria-disabled="true">
+            {lesson.actionLabel}
+          </button>
+        ) : lesson.assessmentBadge ? (
           <button
             type="button"
             className={buttonClass}

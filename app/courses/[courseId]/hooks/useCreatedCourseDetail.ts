@@ -1,4 +1,3 @@
-// Issues: #247 badge image zoom, #258 multi-word last names
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
@@ -36,12 +35,14 @@ export type CourseBadge = {
   imageUrl: string | null;
   imagePositionX: number;
   imagePositionY: number;
-  // Issue #247: zoom percentage for the badge artwork (115 = the legacy fixed crop).
   imageScale: number;
   availableOn: string | null;
   closesOn: string | null;
   neverCloses: boolean | null;
   createdAt: string;
+  // Template ids; inCourse false means students here are locked out of this badge.
+  prerequisites?: Array<{ id: string; name: string; inCourse: boolean }>;
+  sourceBadgeId?: string | null;
 };
 
 type CourseLesson = {
@@ -70,7 +71,6 @@ type CourseDetail = {
   createdBy: {
     id: string;
     name: string | null;
-    // Issue #258: discrete name parts, preferred over re-splitting `name`.
     firstName: string | null;
     lastName: string | null;
     email: string | null;

@@ -669,6 +669,34 @@
   color: var(--checkd-blue);
 }
 
+/* Badge still locked behind an unfinished prerequisite badge. */
+.cardLocked .cardMedia {
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.cardLocked .cardStatus {
+  color: #64748b;
+}
+
+.cardLocked .cardButton {
+  background: #cbd5e1;
+  color: #475569;
+  cursor: not-allowed;
+}
+
+.cardLockedNote {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.65rem;
+  border-radius: 0.6rem;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: #334155;
+}
+
 .cardButton {
   margin-left: 0.35rem;
   padding: 0.52rem 1.15rem;

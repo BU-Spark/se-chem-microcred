@@ -10,6 +10,7 @@ import PageShell from '@/app/components/PageShell/PageShell';
 import PageHeading from '@/app/components/PageHeading/PageHeading';
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import BadgeToken from '@/app/components/BadgeToken/BadgeToken';
+import { formatBadgeNameList } from '@/lib/badgePrerequisites';
 import styles from './page.module.css';
 
 // A badge's "main page" lives at /courses/[courseId]/[badgeId], so we need the course it's
@@ -180,6 +181,11 @@ export default function MyBadgesPage() {
                     />
                   </BadgeToken>
                   <span className={styles.badgeName}>{badge.name}</span>
+                  {badge.prerequisites?.length ? (
+                    <span className={styles.badgePrereqs}>
+                      Requires {formatBadgeNameList(badge.prerequisites.map((prereq) => prereq.name))}
+                    </span>
+                  ) : null}
                 </Link>
                 <div className={styles.badgeCardActions}>
                   <button

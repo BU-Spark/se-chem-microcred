@@ -4,6 +4,8 @@ import { currentUser } from '@clerk/nextjs/server';
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
+import { formatBadgeNameList } from '@/lib/badgePrerequisites';
+import { findCourseDependents, resolveFamilyRootId } from '@/lib/badges/badge-prerequisites.service';
 
 function normalizeId(value?: string | null) {
   const trimmed = value?.trim();
@@ -59,6 +61,25 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ cour
 
     if (requirements.length === 0) {
       return NextResponse.json({ error: 'Badge is not assigned to this course.' }, { status: 404 });
+    }
+
+    // A course always holds its badges' prerequisites; removing one would lock
+    // every student out of the badges that depend on it.
+    const unassigned = await prisma.badge.findUnique({
+      where: { id: badgeId },
+      select: { id: true, sourceBadgeId: true },
+    });
+    const dependents = unassigned ? await findCourseDependents(prisma, courseId, resolveFamilyRootId(unassigned)) : [];
+    if (dependents.length > 0) {
+      const names = formatBadgeNameList(dependents.map((badge) => badge.name));
+      const plural = dependents.length > 1;
+      return NextResponse.json(
+        {
+          error: `${names} in this course ${plural ? 'require' : 'requires'} this badge. Remove ${plural ? 'them' : 'it'}, or remove the prerequisite, first.`,
+          dependents,
+        },
+        { status: 409 }
+      );
     }
 
     const lessonIds = requirements

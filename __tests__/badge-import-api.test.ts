@@ -15,11 +15,12 @@ const mockTx = {
   lessonSegment: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn() },
   lessonCheckpoint: { create: jest.fn(), createMany: jest.fn(), findMany: jest.fn() },
   checkpointQuestion: { createMany: jest.fn() },
-  badgeRequirement: { create: jest.fn() },
+  badgeRequirement: { create: jest.fn(), findMany: jest.fn(async (): Promise<unknown[]> => []) },
   surveyPrompt: { create: jest.fn() },
   studentBadge: { createMany: jest.fn() },
   rubricGoal: { create: jest.fn() },
   rubricSubgoal: { createMany: jest.fn() },
+  badgeRelation: { findMany: jest.fn(async (): Promise<unknown[]> => []) },
 };
 
 const mockPrisma = {
@@ -369,5 +370,20 @@ describe('badge import API', () => {
         ],
       })
     );
+  });
+
+  it('refuses to import a badge whose prerequisite is not in the course', async () => {
+    mockPrisma.__tx.badgeRelation.findMany.mockResolvedValueOnce([
+      { toBadgeId: 'source-badge-1', fromBadge: { id: 'gas-safety', name: 'Gas Safety' } },
+    ]);
+
+    const response = await importBadge({ badgeId: 'source-badge-1' });
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toEqual({
+      error: 'Bunsen Burner Badge requires Gas Safety. Add that badge to this course first.',
+      missingPrerequisites: [{ id: 'gas-safety', name: 'Gas Safety' }],
+    });
+    expect(mockPrisma.__tx.badge.create).not.toHaveBeenCalled();
   });
 });

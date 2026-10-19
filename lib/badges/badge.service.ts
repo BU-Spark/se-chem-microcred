@@ -14,6 +14,7 @@ import {
   buildQuestionOptions,
 } from '@/lib/checkpoints/normalizeWrite';
 import { parseFiniteNumber, parseTimeToSeconds, slugify, formatQuestionCount } from '@/lib/utils';
+import { syncBadgePrerequisites } from '@/lib/badges/badge-prerequisites.service';
 
 // --Constants--
 const DEFAULT_PASSING_PERCENT = 70;
@@ -273,6 +274,7 @@ export async function executeFetchBadges(args: FetchBadgesArgs) {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
+      sourceBadgeId: true,
       slug: true,
       name: true,
       description: true,
@@ -375,6 +377,8 @@ export interface CreateBadgeArgs {
   videoLength?: string | null;
   // Authored assessment policy that flows to students via inheritance.
   badgePolicy?: BadgePolicy;
+  // Badges that must be COMPLETED first; undefined leaves prerequisites unset.
+  prerequisiteBadgeIds?: string[];
 }
 
 // --Badge Creation--
@@ -401,6 +405,7 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
     videoDurationSeconds,
     videoLength,
     badgePolicy = {},
+    prerequisiteBadgeIds,
   } = args;
 
   const dueDate = closesOn;
@@ -590,6 +595,14 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
         });
       }
 
+      // Last, so a badge created straight into a course is checked against that
+      // course's badges like any other placement.
+      await syncBadgePrerequisites(tx, {
+        rootId: sourceBadge.id,
+        editorId: creatorId,
+        prereqIds: prerequisiteBadgeIds,
+      });
+
       return {
         badge: sourceBadge,
         courseBadge,
@@ -629,6 +642,8 @@ interface PatchBadgeArgs {
   thumbnailUrl?: string | null;
   passingPercentage: number | null;
   badgePolicy?: BadgePolicy;
+  // Set on the family root only (never family-synced); undefined = untouched.
+  prerequisiteBadgeIds?: string[];
 }
 
 export async function executeBadgePatchTx(args: PatchBadgeArgs) {
@@ -653,6 +668,7 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
     videoSeconds,
     passingPercentage,
     badgePolicy = {},
+    prerequisiteBadgeIds,
   } = args;
 
   const videoId = extractYouTubeId(youtubeVideoUrl);
@@ -905,6 +921,9 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
           }
         }
       }
+
+      await syncBadgePrerequisites(tx, { rootId: familyRootId, editorId, prereqIds: prerequisiteBadgeIds });
+
       return badge;
     },
     // Matches the create/duplicate transactions' cap (Prisma Accelerate limits

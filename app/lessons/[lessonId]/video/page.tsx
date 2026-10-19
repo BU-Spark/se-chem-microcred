@@ -7,6 +7,7 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
+import { formatBadgeNameList } from '@/lib/badgePrerequisites';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 
 function buildAvatarUrlFromAvatar(
@@ -106,6 +107,18 @@ function LessonVideoRouteContent() {
     return (
       <div style={{ padding: '2rem' }}>
         <p>This badge deadline has passed. Contact your instructor if you need an extension.</p>
+        <button type="button" onClick={handleBack}>
+          Back to lessons
+        </button>
+      </div>
+    );
+  }
+
+  const lockedBy = lessonRecord.lockedBy ?? [];
+  if (lockedBy.length > 0) {
+    return (
+      <div style={{ padding: '2rem' }}>
+        <p>Complete {formatBadgeNameList(lockedBy.map((prereq) => prereq.name))} to unlock this lesson.</p>
         <button type="button" onClick={handleBack}>
           Back to lessons
         </button>

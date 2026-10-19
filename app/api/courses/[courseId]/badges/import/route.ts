@@ -68,7 +68,13 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
     });
 
     if ('error' in imported) {
-      return NextResponse.json({ error: imported.error }, { status: imported.status || 400 });
+      return NextResponse.json(
+        {
+          error: imported.error,
+          ...('missingPrerequisites' in imported ? { missingPrerequisites: imported.missingPrerequisites } : {}),
+        },
+        { status: imported.status || 400 }
+      );
     }
 
     return NextResponse.json(

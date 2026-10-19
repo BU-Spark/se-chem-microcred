@@ -3,6 +3,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
+import { loadPrerequisitesByRoot, resolveFamilyRootId } from '@/lib/badges/badge-prerequisites.service';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -65,6 +66,17 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         : [];
     const avatarBaseByEmail = new Map(contactUsers.map((u) => [u.email, u.avatar?.base ?? null]));
 
+    // Each course badge's prerequisites (template ids), flagged when the course is
+    // missing one so the instructor sees why students are locked.
+    const courseBadges = course.lessons.flatMap((lesson) => lesson.badgeRequirements.map((req) => req.badge));
+    const courseRootIds = new Set(courseBadges.map(resolveFamilyRootId));
+    const prerequisitesByRoot = await loadPrerequisitesByRoot(prisma, [...courseRootIds]);
+    const prerequisitesFor = (badge: { id: string; sourceBadgeId: string | null }) =>
+      (prerequisitesByRoot.get(resolveFamilyRootId(badge)) ?? []).map((prereq) => ({
+        ...prereq,
+        inCourse: courseRootIds.has(prereq.id),
+      }));
+
     return NextResponse.json(
       {
         viewerRole,
@@ -79,6 +91,13 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           contacts: course.contacts.map((contact) => ({
             ...contact,
             avatarBase: avatarBaseByEmail.get(contact.email) ?? null,
+          })),
+          lessons: course.lessons.map((lesson) => ({
+            ...lesson,
+            badgeRequirements: lesson.badgeRequirements.map((requirement) => ({
+              ...requirement,
+              badge: { ...requirement.badge, prerequisites: prerequisitesFor(requirement.badge) },
+            })),
           })),
           enrollments: course.enrollments.map((enrollment) => ({
             ...enrollment,

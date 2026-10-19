@@ -26,6 +26,7 @@ import BadgeToken from '@/app/components/BadgeToken/BadgeToken';
 import { useCreatedCourseDetail, type CourseBadge } from './hooks/useCreatedCourseDetail';
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import styles from './page.module.css';
+import { formatBadgeNameList } from '@/lib/badgePrerequisites';
 
 type AssignedBadge = CourseBadge & {
   lessonCount: number;
@@ -38,6 +39,7 @@ type BadgeLibraryItem = {
   name: string;
   description: string | null;
   assignedStudentCount: number;
+  prerequisites?: Array<{ id: string; name: string }>;
   requirements: Array<{
     displayText: string;
     lesson: {
@@ -85,8 +87,6 @@ function PersonCard({
 }: {
   label?: string;
   name?: string | null;
-  // Issue #258: prefer the stored parts; `name` remains the fallback for rows
-  // written before they existed.
   firstName?: string | null;
   lastName?: string | null;
   email?: string | null;
@@ -426,6 +426,18 @@ export default function CreatedCourseDetailPage() {
     [badgeLibrary, course?.id]
   );
 
+  // Library badges are templates; a course badge matches through its template.
+  // Import is refused until a badge's prerequisites are in the course.
+  const missingPrereqsByLibraryId = useMemo(() => {
+    const courseRootIds = new Set(assignedBadges.map((badge) => badge.sourceBadgeId ?? badge.id));
+    return new Map(
+      badgeLibrary.map((badge) => [
+        badge.id,
+        (badge.prerequisites ?? []).filter((prereq) => !courseRootIds.has(prereq.id)),
+      ])
+    );
+  }, [assignedBadges, badgeLibrary]);
+
   const loadBadgeLibrary = useCallback(async () => {
     if (!isInstructorFlag) return;
 
@@ -736,6 +748,17 @@ export default function CreatedCourseDetailPage() {
                             </BadgeToken>
                             <div className={styles.badgeCopy}>
                               <h3 className={styles.badgeName}>{badge.name}</h3>
+                              {badge.prerequisites?.length ? (
+                                <p
+                                  className={styles.badgePrereqs}
+                                  data-missing={badge.prerequisites.some((prereq) => !prereq.inCourse) || undefined}
+                                >
+                                  Requires {formatBadgeNameList(badge.prerequisites.map((prereq) => prereq.name))}
+                                  {badge.prerequisites.some((prereq) => !prereq.inCourse)
+                                    ? ' (not all in this course, students are locked out)'
+                                    : ''}
+                                </p>
+                              ) : null}
                             </div>
                           </Link>
                           <div className={styles.availability}>
@@ -858,11 +881,16 @@ export default function CreatedCourseDetailPage() {
                           onChange={(event) => setSelectedImportBadgeId(event.target.value)}
                         >
                           <option value="">Select a badge</option>
-                          {importableBadges.map((badge) => (
-                            <option key={badge.id} value={badge.id}>
-                              {badge.name}
-                            </option>
-                          ))}
+                          {importableBadges.map((badge) => {
+                            const missing = missingPrereqsByLibraryId.get(badge.id) ?? [];
+                            return (
+                              <option key={badge.id} value={badge.id} disabled={missing.length > 0}>
+                                {missing.length > 0
+                                  ? `${badge.name} (add ${formatBadgeNameList(missing.map((prereq) => prereq.name))} first)`
+                                  : badge.name}
+                              </option>
+                            );
+                          })}
                         </select>
                       </label>
                     )}

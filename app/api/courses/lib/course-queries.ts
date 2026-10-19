@@ -1,4 +1,3 @@
-// Issues: #258 multi-word last names
 import prisma from '@/lib/prisma';
 
 export async function fetchUserByEmail(email: string) {
@@ -67,8 +66,7 @@ export async function fetchCheckerCourseEnrollments(userId: string) {
             select: {
               id: true,
               name: true,
-              // Issue #258: the discrete name parts travel with every student payload
-              // so screens render the real surname instead of guessing at the split.
+
               firstName: true,
               lastName: true,
               email: true,
@@ -110,8 +108,7 @@ export async function fetchCreatedCourseDetail(userId: string, courseId: string)
             select: {
               id: true,
               name: true,
-              // Issue #258: the discrete name parts travel with every student payload
-              // so screens render the real surname instead of guessing at the split.
+
               firstName: true,
               lastName: true,
               email: true,
@@ -294,8 +291,6 @@ export async function fetchAccessibleBadgeDetail(userId: string, courseId: strin
             select: {
               id: true,
               name: true,
-              // Issue #258: the discrete name parts travel with every student payload
-              // so screens render the real surname instead of guessing at the split.
               firstName: true,
               lastName: true,
               email: true,
@@ -395,8 +390,6 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
             select: {
               id: true,
               name: true,
-              // Issue #258: the discrete name parts travel with every student payload
-              // so screens render the real surname instead of guessing at the split.
               firstName: true,
               lastName: true,
               email: true,
@@ -435,6 +428,7 @@ export async function fetchAccessibleCourseDetail(userId: string, courseId: stri
                   imagePositionX: true,
                   imagePositionY: true,
                   imageScale: true,
+                  sourceBadgeId: true,
                   availableOn: true,
                   closesOn: true,
                   neverCloses: true,

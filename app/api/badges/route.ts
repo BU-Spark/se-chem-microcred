@@ -14,11 +14,26 @@ import {
   normalizeBadgeImageUrl,
 } from '@/lib/badges/badge-image';
 import {
+  BadgePrerequisiteError,
+  loadPrerequisiteEdges,
+  loadPrerequisitesByRoot,
+  resolveFamilyRootId,
+} from '@/lib/badges/badge-prerequisites.service';
+import {
   executeBadgeCreationTx,
   executeBadgePatchTx,
   executeFetchBadges,
   parseRequirementSummary,
 } from '@/lib/badges/badge.service';
+
+// undefined (field omitted) leaves prerequisites untouched; null/[] clears them.
+function normalizePrerequisiteIds(value: unknown): string[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((id) => (typeof id === 'string' ? normalizeString(id) : null))
+    .filter((id): id is string => Boolean(id));
+}
 
 // Rich-text (HTML) fields are stored verbatim, but an "empty" editor still
 // serializes to markup like `<p><br></p>`. Treat markup with no visible text
@@ -55,9 +70,18 @@ export async function GET(req: NextRequest) {
     if (!badges) {
       return NextResponse.json({ error: 'No badges found.' }, { status: 404 });
     }
+
+    // Prerequisites live on the family root, so an edited course copy shows its
+    // template's. The full edge list lets the wizard hide choices that would loop.
+    const [prerequisitesByRoot, prerequisiteEdges] = await Promise.all([
+      loadPrerequisitesByRoot(prisma, badges.map(resolveFamilyRootId)),
+      loadPrerequisiteEdges(prisma),
+    ]);
+
     return NextResponse.json(
       {
         count: badges.length,
+        prerequisiteEdges,
         badges: badges.map((badge) => ({
           id: badge.id,
           slug: badge.slug,
@@ -75,6 +99,8 @@ export async function GET(req: NextRequest) {
           reassessmentLimit: badge.reassessmentLimit ?? null,
           cooldownDays: badge.cooldownDays ?? null,
           reassessmentRequired: badge.reassessmentRequired ?? null,
+          familyRootId: resolveFamilyRootId(badge),
+          prerequisites: prerequisitesByRoot.get(resolveFamilyRootId(badge)) ?? [],
           createdAt: badge.createdAt.toISOString(),
           assignedStudentCount: badge._count.studentProgress,
           rubricGoal: badge.rubricGoal,
@@ -165,6 +191,7 @@ export async function PATCH(req: NextRequest) {
     const videoDurationSeconds = parseTimeToSeconds(videoLength);
     const passingPercent = normalizePassingPercent(body.passingPercent);
     const badgePolicy = normalizeBadgePolicy(body);
+    const prerequisiteBadgeIds = normalizePrerequisiteIds(body.prerequisiteBadgeIds);
 
     if (!badgeId) {
       return NextResponse.json({ error: 'Badge id is required.' }, { status: 400 });
@@ -199,6 +226,7 @@ export async function PATCH(req: NextRequest) {
       videoSeconds: videoDurationSeconds,
       passingPercentage: passingPercent,
       badgePolicy,
+      prerequisiteBadgeIds,
     });
 
     if (!updated) {
@@ -213,6 +241,10 @@ export async function PATCH(req: NextRequest) {
     );
   } catch (error) {
     console.error('PATCH /api/badges failed:', error);
+
+    if (error instanceof BadgePrerequisiteError) {
+      return NextResponse.json({ error: error.message, ...error.details }, { status: error.status });
+    }
 
     if (error instanceof BadgeImageValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
@@ -269,6 +301,7 @@ export async function POST(req: NextRequest) {
     const availableOn = parseDate(body.availableOn);
     const closesOn = body.neverCloses ? null : parseDate(body.closesOn);
     const videoDurationSeconds = parseTimeToSeconds(body.videoLength);
+    const prerequisiteBadgeIds = normalizePrerequisiteIds(body.prerequisiteBadgeIds);
 
     if (!badgeName) {
       return NextResponse.json({ error: 'Badge name is required.' }, { status: 400 });
@@ -299,6 +332,7 @@ export async function POST(req: NextRequest) {
       videoDurationSeconds: videoDurationSeconds,
       passingPercentage: passingPercent,
       badgePolicy,
+      prerequisiteBadgeIds,
     });
 
     if ('error' in created) {
@@ -314,6 +348,10 @@ export async function POST(req: NextRequest) {
     );
   } catch (error) {
     console.error('POST /api/badges failed:', error);
+
+    if (error instanceof BadgePrerequisiteError) {
+      return NextResponse.json({ error: error.message, ...error.details }, { status: error.status });
+    }
 
     if (error instanceof BadgeImageValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });

@@ -14,6 +14,12 @@ jest.mock('../lib/badgeProgress', () => ({
   syncLessonBadgesForStudent: jest.fn(),
 }));
 
+// Prerequisite gating has its own tests (lesson-prerequisite-gate-api.test.ts).
+jest.mock('../lib/badges/badge-prerequisites.service', () => ({
+  ...jest.requireActual('../lib/badges/badge-prerequisites.service'),
+  findLessonPrerequisiteLock: jest.fn(async () => null),
+}));
+
 jest.mock('../lib/prisma', () => ({
   __esModule: true,
   default: {

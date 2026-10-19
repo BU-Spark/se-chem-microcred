@@ -474,11 +474,32 @@ model Badge {
   messages             Message[]
   rubricGoal           RubricGoal?
   resources            BadgeResource[]
+  outgoingRelations    BadgeRelation[]     @relation("BadgeRelationFrom")
+  incomingRelations    BadgeRelation[]     @relation("BadgeRelationTo")
 
   @@index([createdById])
   @@index([sourceBadgeId])
 }
 
+// Arrows between badge family roots (templates, sourceBadgeId = null). Course
+// copies resolve their arrows through their root at runtime.
+//   PREREQUISITE  from must be COMPLETED before a student can start to
+enum BadgeRelationType {
+  PREREQUISITE
+}
+
+model BadgeRelation {
+  id          String            @id @default(cuid())
+  type        BadgeRelationType @default(PREREQUISITE)
+  fromBadgeId String
+  toBadgeId   String
+  createdAt   DateTime          @default(now())
+  fromBadge   Badge             @relation("BadgeRelationFrom", fields: [fromBadgeId], references: [id], onDelete: Cascade)
+  toBadge     Badge             @relation("BadgeRelationTo", fields: [toBadgeId], references: [id], onDelete: Cascade)
+
+  @@unique([type, fromBadgeId, toBadgeId])
+  @@index([toBadgeId, type])
+}
 
 model BadgeResource {
   id          String             @id @default(cuid())

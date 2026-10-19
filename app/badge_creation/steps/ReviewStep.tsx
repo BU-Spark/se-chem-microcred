@@ -2,6 +2,7 @@ import { buildVideoThumbnail } from '../lib/badge-helpers';
 import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 import { formatFileSize } from '../lib/resources';
+import { formatBadgeNameList } from '@/lib/badgePrerequisites';
 
 function EditButton({ onClick }: { onClick: () => void }) {
   return (
@@ -67,6 +68,20 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
           </p>
           <p className={styles.reviewMeta}>
             Re-assessment required: <strong>{draft.reassessmentRequired ? 'Yes' : 'No'}</strong>
+          </p>
+        </div>
+
+        <div className={styles.reviewField}>
+          <span className={styles.reviewFieldLabel}>Prerequisites</span>
+          <p className={styles.reviewMeta}>
+            {draft.hasPrerequisites && draft.prerequisites.length > 0 ? (
+              <>
+                Students must complete{' '}
+                <strong>{formatBadgeNameList(draft.prerequisites.map((prereq) => prereq.name))}</strong> first
+              </>
+            ) : (
+              'None'
+            )}
           </p>
         </div>
 

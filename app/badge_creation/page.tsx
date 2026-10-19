@@ -115,6 +115,7 @@ export default function BadgeCreationPage() {
   const courseId = searchParams.get('courseId');
   const editBadgeId = searchParams.get('badgeId');
   const isEditMode = Boolean(editBadgeId);
+  const [editFamilyRootId, setEditFamilyRootId] = useState<string | null>(null);
 
   const [currentStep, setCurrentStep] = useState(0);
   const [draft, setDraft] = useState<BadgeDraft>(DEFAULT_DRAFT);
@@ -240,6 +241,7 @@ export default function BadgeCreationPage() {
 
         if (isActive) {
           setDraft({ ...badgeToDraft(badge), resources });
+          setEditFamilyRootId(badge.familyRootId ?? badge.id);
           setInitialResourceIds(resources.flatMap((resource) => (resource.existingId ? [resource.existingId] : [])));
         }
       } catch (error) {
@@ -565,6 +567,7 @@ export default function BadgeCreationPage() {
         id: editBadgeId,
         courseId,
         ...stripResourcesForSave(draft),
+        prerequisiteBadgeIds: draft.hasPrerequisites ? draft.prerequisites.map((prereq) => prereq.id) : [],
         // Picked calendar days -> instants in the instructor's local timezone.
         availableOn: localDayStartIso(draft.availableOn),
         closesOn: draft.neverCloses ? null : localDayEndIso(draft.closesOn),
@@ -712,6 +715,7 @@ export default function BadgeCreationPage() {
                 draft={draft}
                 updateDraft={updateDraft}
                 droppedResourceFileCount={droppedResourceFileCount}
+                familyRootId={editFamilyRootId}
               />
             )}
             {currentStep === 1 && (

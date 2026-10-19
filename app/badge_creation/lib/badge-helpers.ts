@@ -241,6 +241,8 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
     reassessmentLimit: badge.reassessmentLimit ?? DEFAULT_DRAFT.reassessmentLimit,
     cooldownDays: badge.cooldownDays ?? DEFAULT_DRAFT.cooldownDays,
     reassessmentRequired: badge.reassessmentRequired ?? DEFAULT_DRAFT.reassessmentRequired,
+    hasPrerequisites: (badge.prerequisites?.length ?? 0) > 0,
+    prerequisites: badge.prerequisites ?? [],
     // Prefer the summary-stored video (the only copy the editor can see, since it
     // loads the source badge which has no lesson row); fall back to the lesson
     // segment for legacy badges created before video was stored in the summary.

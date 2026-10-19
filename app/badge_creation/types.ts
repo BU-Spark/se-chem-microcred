@@ -88,6 +88,10 @@ export type BadgeDraft = {
   reassessmentLimit: number;
   cooldownDays: number;
   reassessmentRequired: boolean;
+  // Badges a student must COMPLETE before starting this one. Saved as
+  // prerequisiteBadgeIds; [] whenever hasPrerequisites is off.
+  hasPrerequisites: boolean;
+  prerequisites: Array<{ id: string; name: string }>;
   resources: ResourceDraft[];
   rubricGoal: RubricGoalDraft;
 };
@@ -108,6 +112,9 @@ export type BadgeCatalogItem = {
   reassessmentLimit?: number | null;
   cooldownDays?: number | null;
   reassessmentRequired?: boolean | null;
+  // Prerequisites live on the template, so a course copy reports its template's.
+  familyRootId?: string;
+  prerequisites?: Array<{ id: string; name: string }>;
   rubricGoal?: {
     id: string;
     name: string;
@@ -198,6 +205,8 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   reassessmentLimit: 3,
   cooldownDays: 0,
   reassessmentRequired: false,
+  hasPrerequisites: false,
+  prerequisites: [],
   resources: [],
   rubricGoal: {
     name: '',
