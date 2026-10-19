@@ -1,7 +1,7 @@
 // Issues: #247 badge image zoom
 import { NextRequest, NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { Prisma } from '@prisma/client';
+import { BadgeRelationType, Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { normalizeRubricGoal, normalizePassingPercent, normalizeBadgePolicy } from '@/lib/badges/badge.service';
 import { parseTimeToSeconds, parseDate } from '@/lib/utils';
@@ -14,11 +14,12 @@ import {
   normalizeBadgeImageUrl,
 } from '@/lib/badges/badge-image';
 import {
-  BadgePrerequisiteError,
-  loadPrerequisiteEdges,
-  loadPrerequisitesByRoot,
+  BadgeRelationError,
+  loadRelationEdges,
+  loadRelationsByRoot,
   resolveFamilyRootId,
-} from '@/lib/badges/badge-prerequisites.service';
+} from '@/lib/badges/badge-relations.service';
+import { reconcileCoursesForFamilies } from '@/lib/badges/badge-satisfaction.service';
 import {
   executeBadgeCreationTx,
   executeBadgePatchTx,
@@ -26,8 +27,8 @@ import {
   parseRequirementSummary,
 } from '@/lib/badges/badge.service';
 
-// undefined (field omitted) leaves prerequisites untouched; null/[] clears them.
-function normalizePrerequisiteIds(value: unknown): string[] | undefined {
+// undefined (field omitted) leaves relations untouched; null/[] clears them.
+function normalizeRelationIds(value: unknown): string[] | undefined {
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) return [];
   return value
@@ -73,15 +74,17 @@ export async function GET(req: NextRequest) {
 
     // Prerequisites live on the family root, so an edited course copy shows its
     // template's. The full edge list lets the wizard hide choices that would loop.
-    const [prerequisitesByRoot, prerequisiteEdges] = await Promise.all([
-      loadPrerequisitesByRoot(prisma, badges.map(resolveFamilyRootId)),
-      loadPrerequisiteEdges(prisma),
+    const rootIds = badges.map(resolveFamilyRootId);
+    const [prerequisitesByRoot, satisfiesByRoot, relationEdges] = await Promise.all([
+      loadRelationsByRoot(prisma, rootIds, BadgeRelationType.PREREQUISITE),
+      loadRelationsByRoot(prisma, rootIds, BadgeRelationType.SATISFIES),
+      loadRelationEdges(prisma),
     ]);
 
     return NextResponse.json(
       {
         count: badges.length,
-        prerequisiteEdges,
+        relationEdges,
         badges: badges.map((badge) => ({
           id: badge.id,
           slug: badge.slug,
@@ -101,6 +104,7 @@ export async function GET(req: NextRequest) {
           reassessmentRequired: badge.reassessmentRequired ?? null,
           familyRootId: resolveFamilyRootId(badge),
           prerequisites: prerequisitesByRoot.get(resolveFamilyRootId(badge)) ?? [],
+          satisfies: satisfiesByRoot.get(resolveFamilyRootId(badge)) ?? [],
           createdAt: badge.createdAt.toISOString(),
           assignedStudentCount: badge._count.studentProgress,
           rubricGoal: badge.rubricGoal,
@@ -191,7 +195,8 @@ export async function PATCH(req: NextRequest) {
     const videoDurationSeconds = parseTimeToSeconds(videoLength);
     const passingPercent = normalizePassingPercent(body.passingPercent);
     const badgePolicy = normalizeBadgePolicy(body);
-    const prerequisiteBadgeIds = normalizePrerequisiteIds(body.prerequisiteBadgeIds);
+    const prerequisiteBadgeIds = normalizeRelationIds(body.prerequisiteBadgeIds);
+    const satisfiesBadgeIds = normalizeRelationIds(body.satisfiesBadgeIds);
 
     if (!badgeId) {
       return NextResponse.json({ error: 'Badge id is required.' }, { status: 400 });
@@ -227,22 +232,35 @@ export async function PATCH(req: NextRequest) {
       passingPercentage: passingPercent,
       badgePolicy,
       prerequisiteBadgeIds,
+      satisfiesBadgeIds,
     });
 
     if (!updated) {
       return NextResponse.json({ error: 'Badge not found.' }, { status: 404 });
     }
+
+    const { familyRootId, satisfiesChanged, ...badge } = updated;
+    // Retroactive: students who already completed this badge earn (or lose) its
+    // targets as soon as the edges change.
+    const reconcile = satisfiesChanged ? await reconcileCoursesForFamilies([familyRootId]) : null;
+
     return NextResponse.json(
       {
         message: 'Badge updated successfully.',
-        badge: updated,
+        badge,
+        ...(reconcile?.failedCourseIds.length
+          ? {
+              warning:
+                'Saved, but some students could not be awarded the badges this one earns yet. They will be updated the next time their progress changes.',
+            }
+          : {}),
       },
       { status: 200 }
     );
   } catch (error) {
     console.error('PATCH /api/badges failed:', error);
 
-    if (error instanceof BadgePrerequisiteError) {
+    if (error instanceof BadgeRelationError) {
       return NextResponse.json({ error: error.message, ...error.details }, { status: error.status });
     }
 
@@ -301,7 +319,8 @@ export async function POST(req: NextRequest) {
     const availableOn = parseDate(body.availableOn);
     const closesOn = body.neverCloses ? null : parseDate(body.closesOn);
     const videoDurationSeconds = parseTimeToSeconds(body.videoLength);
-    const prerequisiteBadgeIds = normalizePrerequisiteIds(body.prerequisiteBadgeIds);
+    const prerequisiteBadgeIds = normalizeRelationIds(body.prerequisiteBadgeIds);
+    const satisfiesBadgeIds = normalizeRelationIds(body.satisfiesBadgeIds);
 
     if (!badgeName) {
       return NextResponse.json({ error: 'Badge name is required.' }, { status: 400 });
@@ -333,6 +352,7 @@ export async function POST(req: NextRequest) {
       passingPercentage: passingPercent,
       badgePolicy,
       prerequisiteBadgeIds,
+      satisfiesBadgeIds,
     });
 
     if ('error' in created) {
@@ -349,7 +369,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('POST /api/badges failed:', error);
 
-    if (error instanceof BadgePrerequisiteError) {
+    if (error instanceof BadgeRelationError) {
       return NextResponse.json({ error: error.message, ...error.details }, { status: error.status });
     }
 

@@ -4,8 +4,8 @@ import { currentUser } from '@clerk/nextjs/server';
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
-import { formatBadgeNameList } from '@/lib/badgePrerequisites';
-import { findCourseDependents, resolveFamilyRootId } from '@/lib/badges/badge-prerequisites.service';
+import { formatBadgeNameList } from '@/lib/badgeRelations';
+import { findCourseDependents, resolveFamilyRootId } from '@/lib/badges/badge-relations.service';
 
 function normalizeId(value?: string | null) {
   const trimmed = value?.trim();

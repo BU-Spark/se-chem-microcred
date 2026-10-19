@@ -3,7 +3,8 @@ import { currentUser } from '@clerk/nextjs/server';
 import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
-import { loadPrerequisitesByRoot, resolveFamilyRootId } from '@/lib/badges/badge-prerequisites.service';
+import { BadgeRelationType } from '@prisma/client';
+import { loadRelationsByRoot, resolveFamilyRootId } from '@/lib/badges/badge-relations.service';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -66,15 +67,19 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         : [];
     const avatarBaseByEmail = new Map(contactUsers.map((u) => [u.email, u.avatar?.base ?? null]));
 
-    // Each course badge's prerequisites (template ids), flagged when the course is
-    // missing one so the instructor sees why students are locked.
+    // Each course badge's prerequisites and the badges it earns (template ids),
+    // flagged when the course lacks one: a missing prerequisite locks students
+    // out, a missing earned badge is simply not awarded here.
     const courseBadges = course.lessons.flatMap((lesson) => lesson.badgeRequirements.map((req) => req.badge));
     const courseRootIds = new Set(courseBadges.map(resolveFamilyRootId));
-    const prerequisitesByRoot = await loadPrerequisitesByRoot(prisma, [...courseRootIds]);
-    const prerequisitesFor = (badge: { id: string; sourceBadgeId: string | null }) =>
-      (prerequisitesByRoot.get(resolveFamilyRootId(badge)) ?? []).map((prereq) => ({
-        ...prereq,
-        inCourse: courseRootIds.has(prereq.id),
+    const [prerequisitesByRoot, satisfiesByRoot] = await Promise.all([
+      loadRelationsByRoot(prisma, [...courseRootIds], BadgeRelationType.PREREQUISITE),
+      loadRelationsByRoot(prisma, [...courseRootIds], BadgeRelationType.SATISFIES),
+    ]);
+    const relatedFor = (byRoot: typeof prerequisitesByRoot, badge: { id: string; sourceBadgeId: string | null }) =>
+      (byRoot.get(resolveFamilyRootId(badge)) ?? []).map((related) => ({
+        ...related,
+        inCourse: courseRootIds.has(related.id),
       }));
 
     return NextResponse.json(
@@ -96,7 +101,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
             ...lesson,
             badgeRequirements: lesson.badgeRequirements.map((requirement) => ({
               ...requirement,
-              badge: { ...requirement.badge, prerequisites: prerequisitesFor(requirement.badge) },
+              badge: {
+                ...requirement.badge,
+                prerequisites: relatedFor(prerequisitesByRoot, requirement.badge),
+                satisfies: relatedFor(satisfiesByRoot, requirement.badge),
+              },
             })),
           })),
           enrollments: course.enrollments.map((enrollment) => ({

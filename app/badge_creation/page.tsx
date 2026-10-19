@@ -568,6 +568,7 @@ export default function BadgeCreationPage() {
         courseId,
         ...stripResourcesForSave(draft),
         prerequisiteBadgeIds: draft.hasPrerequisites ? draft.prerequisites.map((prereq) => prereq.id) : [],
+        satisfiesBadgeIds: draft.hasSatisfies ? draft.satisfies.map((badge) => badge.id) : [],
         // Picked calendar days -> instants in the instructor's local timezone.
         availableOn: localDayStartIso(draft.availableOn),
         closesOn: draft.neverCloses ? null : localDayEndIso(draft.closesOn),

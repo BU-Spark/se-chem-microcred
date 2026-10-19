@@ -3,7 +3,7 @@
 import { currentUser } from '@clerk/nextjs/server';
 
 import { POST } from '../app/api/lessons/[lessonId]/start/route';
-import { findLessonPrerequisiteLock } from '../lib/badges/badge-prerequisites.service';
+import { findLessonPrerequisiteLock } from '../lib/badges/badge-relations.service';
 import prisma from '../lib/prisma';
 
 jest.mock('@clerk/nextjs/server', () => ({
@@ -14,8 +14,8 @@ jest.mock('../lib/badgeProgress', () => ({
   syncLessonBadgesForStudent: jest.fn(),
 }));
 
-jest.mock('../lib/badges/badge-prerequisites.service', () => ({
-  ...jest.requireActual('../lib/badges/badge-prerequisites.service'),
+jest.mock('../lib/badges/badge-relations.service', () => ({
+  ...jest.requireActual('../lib/badges/badge-relations.service'),
   findLessonPrerequisiteLock: jest.fn(),
 }));
 

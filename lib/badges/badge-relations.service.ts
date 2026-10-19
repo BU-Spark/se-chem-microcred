@@ -2,15 +2,19 @@ import { BadgeRelationType, BadgeStatus, Prisma } from '@prisma/client';
 
 import {
   BadgeEdge,
+  RelationDirection,
   formatBadgeNameList,
   isPrerequisiteLocked,
-  validatePrerequisiteSet,
-} from '@/lib/badgePrerequisites';
+  validateRelationSet,
+} from '@/lib/badgeRelations';
 
-// Prerequisite arrows live between badge family roots (templates). A course never
-// stores its own arrows: its copy of B requires its copy of A because both share
-// roots joined by an arrow. Invariant kept by import, wizard save and unassign: a
-// course always contains every direct prerequisite of each of its badges.
+// Relation arrows live between badge family roots (templates). A course never
+// stores its own arrows: its copy of B requires (or is earned by) its copy of A
+// because both share roots joined by an arrow.
+//
+// PREREQUISITE invariant, kept by import, wizard save and unassign: a course
+// always contains every direct prerequisite of each of its badges. SATISFIES has
+// no such invariant: a badge earns its targets only where they share a course.
 
 // PrismaClient is assignable to TransactionClient, so these accept either.
 type Db = Prisma.TransactionClient;
@@ -30,15 +34,22 @@ export type PrerequisiteStatus = {
   locked: boolean;
 };
 
+// The side of the edited badge each relation type is authored from: a badge lists
+// its prerequisites (incoming) and the badges it earns (outgoing).
+const RELATION_DIRECTION: Record<BadgeRelationType, RelationDirection> = {
+  PREREQUISITE: 'incoming',
+  SATISFIES: 'outgoing',
+};
+
 // Thrown inside a transaction so the whole save rolls back; routes turn it into
 // a JSON error with the extra detail (e.g. which courses block the save).
-export class BadgePrerequisiteError extends Error {
+export class BadgeRelationError extends Error {
   status: number;
   details?: Record<string, unknown>;
 
   constructor(message: string, status: number, details?: Record<string, unknown>) {
     super(message);
-    this.name = 'BadgePrerequisiteError';
+    this.name = 'BadgeRelationError';
     this.status = status;
     this.details = details;
   }
@@ -48,37 +59,47 @@ export function resolveFamilyRootId(badge: { id: string; sourceBadgeId: string |
   return badge.sourceBadgeId ?? badge.id;
 }
 
-export async function loadPrerequisiteEdges(db: Db): Promise<BadgeEdge[]> {
+export type RelationEdge = BadgeEdge & { type: BadgeRelationType };
+
+export async function loadRelationEdges(db: Db, type?: BadgeRelationType): Promise<RelationEdge[]> {
   return db.badgeRelation.findMany({
-    where: { type: BadgeRelationType.PREREQUISITE },
-    select: { fromBadgeId: true, toBadgeId: true },
+    where: type ? { type } : {},
+    select: { type: true, fromBadgeId: true, toBadgeId: true },
   });
 }
 
-// Prerequisites of each root, in a stable order.
-export async function loadPrerequisitesByRoot(db: Db, rootIds: string[]) {
+// Each root's related badges of one type, in a stable order: its prerequisites
+// for PREREQUISITE, the badges it earns for SATISFIES.
+export async function loadRelationsByRoot(db: Db, rootIds: string[], type: BadgeRelationType) {
   const byRoot = new Map<string, BadgeRef[]>();
   if (rootIds.length === 0) return byRoot;
 
+  const incoming = RELATION_DIRECTION[type] === 'incoming';
   const relations = await db.badgeRelation.findMany({
-    where: { type: BadgeRelationType.PREREQUISITE, toBadgeId: { in: rootIds } },
+    where: incoming ? { type, toBadgeId: { in: rootIds } } : { type, fromBadgeId: { in: rootIds } },
     orderBy: { createdAt: 'asc' },
-    select: { toBadgeId: true, fromBadge: { select: { id: true, name: true } } },
+    select: {
+      fromBadgeId: true,
+      toBadgeId: true,
+      fromBadge: { select: { id: true, name: true } },
+      toBadge: { select: { id: true, name: true } },
+    },
   });
 
   for (const relation of relations) {
-    const list = byRoot.get(relation.toBadgeId) ?? [];
-    list.push(relation.fromBadge);
-    byRoot.set(relation.toBadgeId, list);
+    const rootId = incoming ? relation.toBadgeId : relation.fromBadgeId;
+    const list = byRoot.get(rootId) ?? [];
+    list.push(incoming ? relation.fromBadge : relation.toBadge);
+    byRoot.set(rootId, list);
   }
   return byRoot;
 }
 
-type CourseBadge = { badgeId: string; rootId: string; name: string; lessonIds: string[] };
+export type CourseBadge = { badgeId: string; rootId: string; name: string; lessonIds: string[] };
 
 // Each course's badges keyed by family root. Course membership is
 // Badge -> BadgeRequirement -> Lesson.courseId, as everywhere else.
-async function loadCourseBadges(db: Db, courseIds: string[]) {
+export async function loadCourseBadges(db: Db, courseIds: string[]) {
   const byCourse = new Map<string, Map<string, CourseBadge>>();
   if (courseIds.length === 0) return byCourse;
 
@@ -114,7 +135,7 @@ async function loadCourseBadges(db: Db, courseIds: string[]) {
 // Prerequisites of rootId that the course does not contain. Import uses this to
 // refuse adding a badge before its prerequisites.
 export async function findMissingPrereqsForCourse(db: Db, courseId: string, rootId: string) {
-  const prereqs = (await loadPrerequisitesByRoot(db, [rootId])).get(rootId) ?? [];
+  const prereqs = (await loadRelationsByRoot(db, [rootId], BadgeRelationType.PREREQUISITE)).get(rootId) ?? [];
   if (prereqs.length === 0) return [];
 
   const courseBadges = (await loadCourseBadges(db, [courseId])).get(courseId) ?? new Map();
@@ -170,22 +191,50 @@ export async function findCourseDependents(db: Db, courseId: string, rootId: str
     .map((badge) => ({ id: badge.badgeId, name: badge.name }));
 }
 
-// Replaces rootId's prerequisites with prereqIds (any family member's id is
-// accepted and resolved to its root). undefined means "leave untouched".
-export async function syncBadgePrerequisites(
-  db: Db,
-  { rootId, editorId, prereqIds }: { rootId: string; editorId: string; prereqIds: string[] | undefined }
-) {
-  if (prereqIds === undefined) return;
+const RELATION_COPY: Record<
+  BadgeRelationType,
+  { missing: string; library: string; self: string; cycle: (name: string) => string }
+> = {
+  PREREQUISITE: {
+    missing: 'One of the selected prerequisite badges no longer exists.',
+    library: 'You can only require badges from your badge library.',
+    self: 'A badge cannot be its own prerequisite.',
+    cycle: (name) =>
+      `${name} already requires this badge, directly or through another badge, so it cannot also be its prerequisite.`,
+  },
+  SATISFIES: {
+    missing: 'One of the selected badges to earn no longer exists.',
+    library: 'You can only award badges from your badge library.',
+    self: 'A badge cannot earn itself.',
+    cycle: (name) =>
+      `${name} already earns this badge, directly or through another badge, so this badge cannot also earn it.`,
+  },
+};
 
-  const requested = prereqIds.length
+// Replaces rootId's relations of one type with ids (any family member's id is
+// accepted and resolved to its root). undefined means "leave untouched". Returns
+// the roots added and removed so callers can react (e.g. re-award SATISFIES).
+export async function syncBadgeRelations(
+  db: Db,
+  {
+    rootId,
+    editorId,
+    type,
+    ids,
+  }: { rootId: string; editorId: string; type: BadgeRelationType; ids: string[] | undefined }
+) {
+  if (ids === undefined) return { added: [] as string[], removed: [] as string[] };
+
+  const copy = RELATION_COPY[type];
+  const direction = RELATION_DIRECTION[type];
+  const requested = ids.length
     ? await db.badge.findMany({
-        where: { id: { in: prereqIds } },
+        where: { id: { in: ids } },
         select: { id: true, sourceBadgeId: true },
       })
     : [];
-  if (requested.length !== new Set(prereqIds).size) {
-    throw new BadgePrerequisiteError('One of the selected prerequisite badges no longer exists.', 400);
+  if (requested.length !== new Set(ids).size) {
+    throw new BadgeRelationError(copy.missing, 400);
   }
 
   const nextRootIds = [...new Set(requested.map(resolveFamilyRootId))];
@@ -196,56 +245,70 @@ export async function syncBadgePrerequisites(
       })
     : [];
   if (roots.length !== nextRootIds.length) {
-    throw new BadgePrerequisiteError('You can only require badges from your badge library.', 400);
+    throw new BadgeRelationError(copy.library, 400);
   }
   const nameById = new Map(roots.map((root) => [root.id, root.name]));
 
-  const validation = validatePrerequisiteSet(await loadPrerequisiteEdges(db), rootId, nextRootIds);
+  const validation = validateRelationSet(await loadRelationEdges(db, type), rootId, nextRootIds, direction);
   if (!validation.ok) {
     const name = nameById.get(validation.badgeId) ?? 'That badge';
     const message =
       validation.reason === 'CYCLE'
-        ? `${name} already requires this badge, directly or through another badge, so it cannot also be its prerequisite.`
+        ? copy.cycle(name)
         : validation.reason === 'SELF'
-          ? 'A badge cannot be its own prerequisite.'
+          ? copy.self
           : `${name} is listed more than once.`;
-    throw new BadgePrerequisiteError(message, 400);
+    throw new BadgeRelationError(message, 400);
   }
 
+  // The other end of each of rootId's existing arrows on the edited side.
+  const otherEnd = (relation: { fromBadgeId: string; toBadgeId: string }) =>
+    direction === 'incoming' ? relation.fromBadgeId : relation.toBadgeId;
   const current = await db.badgeRelation.findMany({
-    where: { type: BadgeRelationType.PREREQUISITE, toBadgeId: rootId },
-    select: { fromBadgeId: true },
+    where: direction === 'incoming' ? { type, toBadgeId: rootId } : { type, fromBadgeId: rootId },
+    select: { fromBadgeId: true, toBadgeId: true },
   });
-  const currentIds = new Set(current.map((relation) => relation.fromBadgeId));
+  const currentIds = new Set(current.map(otherEnd));
   const added = nextRootIds.filter((id) => !currentIds.has(id));
   const removed = [...currentIds].filter((id) => !nextRootIds.includes(id));
 
-  const blocked = await findCoursesMissingPrereqs(
-    db,
-    rootId,
-    added.map((id) => ({ id, name: nameById.get(id) ?? '' }))
-  );
-  if (blocked.length > 0) {
-    const first = blocked[0];
-    const more = blocked.length > 1 ? ` (and ${blocked.length - 1} more course${blocked.length > 2 ? 's' : ''})` : '';
-    throw new BadgePrerequisiteError(
-      `Add ${formatBadgeNameList(first.missing.map((badge) => badge.name))} to ${first.title}${more} before requiring it, or students there would be locked out of this badge.`,
-      409,
-      { courses: blocked }
+  if (type === BadgeRelationType.PREREQUISITE) {
+    const blocked = await findCoursesMissingPrereqs(
+      db,
+      rootId,
+      added.map((id) => ({ id, name: nameById.get(id) ?? '' }))
     );
+    if (blocked.length > 0) {
+      const first = blocked[0];
+      const more = blocked.length > 1 ? ` (and ${blocked.length - 1} more course${blocked.length > 2 ? 's' : ''})` : '';
+      throw new BadgeRelationError(
+        `Add ${formatBadgeNameList(first.missing.map((badge) => badge.name))} to ${first.title}${more} before requiring it, or students there would be locked out of this badge.`,
+        409,
+        { courses: blocked }
+      );
+    }
   }
 
+  const edge = (otherId: string) =>
+    direction === 'incoming'
+      ? { fromBadgeId: otherId, toBadgeId: rootId }
+      : { fromBadgeId: rootId, toBadgeId: otherId };
   if (removed.length > 0) {
     await db.badgeRelation.deleteMany({
-      where: { type: BadgeRelationType.PREREQUISITE, toBadgeId: rootId, fromBadgeId: { in: removed } },
+      where:
+        direction === 'incoming'
+          ? { type, toBadgeId: rootId, fromBadgeId: { in: removed } }
+          : { type, fromBadgeId: rootId, toBadgeId: { in: removed } },
     });
   }
   if (added.length > 0) {
     await db.badgeRelation.createMany({
-      data: added.map((fromBadgeId) => ({ type: BadgeRelationType.PREREQUISITE, fromBadgeId, toBadgeId: rootId })),
+      data: added.map((otherId) => ({ type, ...edge(otherId) })),
       skipDuplicates: true,
     });
   }
+
+  return { added, removed };
 }
 
 // Per-student lock state for course badges (by course copy id). Computed live,
@@ -259,9 +322,10 @@ export async function getPrerequisiteStatusForStudent(
 
   const courseBadges = (await loadCourseBadges(db, [courseId])).get(courseId) ?? new Map<string, CourseBadge>();
   const requested = [...courseBadges.values()].filter((badge) => badgeIds.includes(badge.badgeId));
-  const prereqsByRoot = await loadPrerequisitesByRoot(
+  const prereqsByRoot = await loadRelationsByRoot(
     db,
-    requested.map((badge) => badge.rootId)
+    requested.map((badge) => badge.rootId),
+    BadgeRelationType.PREREQUISITE
   );
 
   const withPrereqs = requested.filter((badge) => (prereqsByRoot.get(badge.rootId) ?? []).length > 0);

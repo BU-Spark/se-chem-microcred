@@ -222,6 +222,10 @@ export async function resetBadgeProgress(
       feedbackReviewedAt: null,
       gradeOverriddenAt: null,
       gradeOverriddenById: null,
+      // A reset badge is the student's own again; the caller reconciles, which
+      // re-awards it straight away if another completed badge still earns it.
+      satisfiedByBadgeId: null,
+      satisfiedPriorStatus: null,
     },
     select: { status: true },
   });
@@ -337,6 +341,9 @@ export async function overrideAssessmentGrade(
       feedbackReviewedAt: now,
       gradeOverriddenAt: now,
       gradeOverriddenById: instructorId,
+      // The instructor's grade replaces any award earned through another badge.
+      satisfiedByBadgeId: null,
+      satisfiedPriorStatus: null,
     },
     select: { status: true },
   });

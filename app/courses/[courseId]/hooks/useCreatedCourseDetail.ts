@@ -42,6 +42,8 @@ export type CourseBadge = {
   createdAt: string;
   // Template ids; inCourse false means students here are locked out of this badge.
   prerequisites?: Array<{ id: string; name: string; inCourse: boolean }>;
+  // Badges completing this one also earns; only those inCourse are awarded here.
+  satisfies?: Array<{ id: string; name: string; inCourse: boolean }>;
   sourceBadgeId?: string | null;
 };
 

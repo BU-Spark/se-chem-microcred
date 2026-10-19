@@ -14,7 +14,7 @@ import AssessmentCodeModal from '@/app/components/AssessmentCodeModal/Assessment
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
 import { useStudentData, useRefreshAllStudentData, type BadgeRecord, type LessonRecord } from '../hooks/useStudentData';
 import { describeBadgeStatus } from '@/lib/badgeStatusLabels';
-import { formatBadgeNameList } from '@/lib/badgePrerequisites';
+import { formatBadgeNameList } from '@/lib/badgeRelations';
 import { classifyBadgeProgress, type BadgeProgressInput, type ProgressBucket } from '@/lib/badgeBuckets';
 import styles from './page.module.css';
 
@@ -70,6 +70,8 @@ interface LessonCard {
   waivedNote?: string;
   // Names the badges still needed when a prerequisite locks this one.
   lockedNote?: string;
+  // Names the badge whose completion earned this one (SATISFIES).
+  earnedNote?: string;
   // Set when the badge is assessable now: the card shows the QR code instead of linking out.
   assessmentBadge?: { id: string; name: string };
   reviewHref?: string;
@@ -285,6 +287,22 @@ function lessonRecordToCard(
       image: resolveLessonImage(record),
       section,
       lockedNote: `Requires ${formatBadgeNameList(lockedBy.map((badge) => badge.name))}`,
+    };
+  }
+
+  if (badge?.status === 'COMPLETED' && badge.satisfiedBy) {
+    // Earned through another badge: there is no attempt of its own to review, so
+    // the card just records how it was earned.
+    return {
+      id: record.id,
+      title: record.title,
+      status: describeBadgeStatus('COMPLETED'),
+      meta: metaParts.join(' • ') || 'No due date',
+      actionLabel: 'Earned',
+      variant: 'completed',
+      image: resolveLessonImage(record),
+      section,
+      earnedNote: `Earned by completing ${badge.satisfiedBy.name}.`,
     };
   }
 
@@ -640,9 +658,10 @@ function HomePageContent() {
           <div className={styles.cardMeta}>{lesson.meta}</div>
           {lesson.waivedNote ? <p className={styles.cardWaivedNote}>{lesson.waivedNote}</p> : null}
           {lesson.lockedNote ? <p className={styles.cardLockedNote}>{lesson.lockedNote}</p> : null}
+          {lesson.earnedNote ? <p className={styles.cardWaivedNote}>{lesson.earnedNote}</p> : null}
         </div>
 
-        {isLocked ? (
+        {isLocked || lesson.earnedNote ? (
           <button type="button" className={buttonClass} disabled aria-disabled="true">
             {lesson.actionLabel}
           </button>

@@ -8,7 +8,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { LessonStatus } from '@prisma/client';
 import { buildLessonOutline } from '@/lib/lessonOutline';
 import { useStudentData, type BadgeRecord } from '../../hooks/useStudentData';
-import { formatBadgeNameList } from '@/lib/badgePrerequisites';
+import { formatBadgeNameList } from '@/lib/badgeRelations';
 import styles from './page.module.css';
 import BadgeOverviewCard from './components/BadgeOverviewCard';
 import BadgeFlowSteps from './components/BadgeFlowSteps';

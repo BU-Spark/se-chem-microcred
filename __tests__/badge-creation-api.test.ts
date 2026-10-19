@@ -550,7 +550,7 @@ describe('badge creation API', () => {
     const body = await response.json();
     expect(body).toEqual({
       count: 1,
-      prerequisiteEdges: [],
+      relationEdges: [],
       badges: [
         expect.objectContaining({
           id: 'badge-1',

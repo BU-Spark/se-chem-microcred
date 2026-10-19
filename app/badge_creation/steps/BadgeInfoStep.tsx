@@ -11,7 +11,7 @@ import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 import ChipInput from '../components/ChipInput';
 import ResourcesEditor from '../components/ResourcesEditor';
-import PrerequisitePicker from '../components/PrerequisitePicker';
+import BadgeRelationPicker from '../components/BadgeRelationPicker';
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import { badgeImageFileFromDataUrl, prepareBadgeImage } from '../lib/badge-image';
 import { DEFAULT_BADGE_IMAGE_SCALE, MAX_BADGE_IMAGE_SCALE, MIN_BADGE_IMAGE_SCALE } from '@/lib/badges/badge-image';
@@ -406,7 +406,8 @@ export default function BadgeInfoStep({
           Check if a re-assessment is required when a student fails an in-person assessment.
         </p>
       </div>
-      <PrerequisitePicker draft={draft} updateDraft={updateDraft} familyRootId={familyRootId} />
+      <BadgeRelationPicker type="PREREQUISITE" draft={draft} updateDraft={updateDraft} familyRootId={familyRootId} />
+      <BadgeRelationPicker type="SATISFIES" draft={draft} updateDraft={updateDraft} familyRootId={familyRootId} />
     </div>
   );
 }

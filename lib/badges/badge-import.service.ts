@@ -6,8 +6,8 @@ import { CheckpointPayload, CheckpointQuestionPayload } from '@/lib/checkpoints/
 import { buildQuestionOptions, normalizePoints, normalizeString, normalizeSkills } from '../checkpoints/normalizeWrite';
 import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
 import { buildYoutubeThumbnail } from '@/lib/video';
-import { formatBadgeNameList } from '@/lib/badgePrerequisites';
-import { findMissingPrereqsForCourse } from '@/lib/badges/badge-prerequisites.service';
+import { formatBadgeNameList } from '@/lib/badgeRelations';
+import { findMissingPrereqsForCourse } from '@/lib/badges/badge-relations.service';
 
 function getQuestionPrompt(question: CheckpointQuestionPayload) {
   return normalizeString(question.question) ?? normalizeString(question.prompt);

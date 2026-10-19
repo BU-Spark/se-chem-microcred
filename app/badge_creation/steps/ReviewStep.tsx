@@ -2,7 +2,7 @@ import { buildVideoThumbnail } from '../lib/badge-helpers';
 import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 import { formatFileSize } from '../lib/resources';
-import { formatBadgeNameList } from '@/lib/badgePrerequisites';
+import { formatBadgeNameList } from '@/lib/badgeRelations';
 
 function EditButton({ onClick }: { onClick: () => void }) {
   return (
@@ -78,6 +78,20 @@ export default function ReviewStep({ draft, goToStep }: { draft: BadgeDraft; goT
               <>
                 Students must complete{' '}
                 <strong>{formatBadgeNameList(draft.prerequisites.map((prereq) => prereq.name))}</strong> first
+              </>
+            ) : (
+              'None'
+            )}
+          </p>
+        </div>
+
+        <div className={styles.reviewField}>
+          <span className={styles.reviewFieldLabel}>Also Earns</span>
+          <p className={styles.reviewMeta}>
+            {draft.hasSatisfies && draft.satisfies.length > 0 ? (
+              <>
+                Completing this badge also earns{' '}
+                <strong>{formatBadgeNameList(draft.satisfies.map((badge) => badge.name))}</strong>
               </>
             ) : (
               'None'

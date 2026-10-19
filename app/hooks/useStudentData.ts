@@ -166,6 +166,8 @@ export interface LessonRecord {
 export interface BadgeRecord {
   id: string;
   lockedBy?: PrerequisiteLock;
+  // Set when this badge was earned by completing another badge (SATISFIES).
+  satisfiedBy?: { id: string; name: string } | null;
   courseId: string | null;
   slug: string;
   name: string;

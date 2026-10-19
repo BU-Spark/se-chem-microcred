@@ -5,7 +5,7 @@ import prisma from '../../../../../lib/prisma';
 import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
 import { normalizeCheckpointQuestion } from '../../../../../lib/checkpointQuestions';
 import { evaluateCheckpointAttempt } from '../../../../../lib/checkpointGrading';
-import { findLessonPrerequisiteLock, prerequisiteLockResponseBody } from '@/lib/badges/badge-prerequisites.service';
+import { findLessonPrerequisiteLock, prerequisiteLockResponseBody } from '@/lib/badges/badge-relations.service';
 import { isLessonClosed } from '../../../../../lib/badgeAvailability';
 
 interface AttemptRequestBody {
@@ -102,7 +102,7 @@ export async function POST(request: Request, context: RouteContext) {
   }
 
   // Students cannot start a badge until its prerequisites are COMPLETED; anyone
-  // already working on it is grandfathered (lib/badgePrerequisites.ts).
+  // already working on it is grandfathered (lib/badgeRelations.ts).
   const prerequisiteLock = await findLessonPrerequisiteLock(prisma, {
     studentId: user.id,
     lessonId: checkpoint.lessonId,

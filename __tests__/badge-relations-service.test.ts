@@ -1,12 +1,12 @@
 /** @jest-environment node */
-import { BadgeStatus, Prisma } from '@prisma/client';
+import { BadgeRelationType, BadgeStatus, Prisma } from '@prisma/client';
 
 import {
-  BadgePrerequisiteError,
+  BadgeRelationError,
   findCourseDependents,
   findLessonPrerequisiteLock,
-  syncBadgePrerequisites,
-} from '../lib/badges/badge-prerequisites.service';
+  syncBadgeRelations,
+} from '../lib/badges/badge-relations.service';
 
 function buildDb() {
   return {
@@ -24,6 +24,7 @@ function buildDb() {
 }
 
 type FakeDb = ReturnType<typeof buildDb>;
+const PREREQ = BadgeRelationType.PREREQUISITE;
 const asDb = (db: FakeDb) => db as unknown as Prisma.TransactionClient;
 
 // Course c1 holds copies of A and B; template B requires template A.
@@ -36,10 +37,10 @@ function courseWithAandB(db: FakeDb) {
   db.badgeRelation.findMany.mockResolvedValue([{ toBadgeId: 'B', fromBadge: { id: 'A', name: 'A' } }]);
 }
 
-describe('syncBadgePrerequisites', () => {
+describe('syncBadgeRelations (PREREQUISITE)', () => {
   it('leaves prerequisites untouched when the field is omitted', async () => {
     const db = buildDb();
-    await syncBadgePrerequisites(asDb(db), { rootId: 'B', editorId: 'u1', prereqIds: undefined });
+    await syncBadgeRelations(asDb(db), { rootId: 'B', editorId: 'u1', type: PREREQ, ids: undefined });
     expect(db.badge.findMany).not.toHaveBeenCalled();
     expect(db.badgeRelation.deleteMany).not.toHaveBeenCalled();
     expect(db.badgeRelation.createMany).not.toHaveBeenCalled();
@@ -55,7 +56,7 @@ describe('syncBadgePrerequisites', () => {
       { fromBadgeId: 'B', toBadgeId: 'C' },
     ]);
 
-    const result = syncBadgePrerequisites(asDb(db), { rootId: 'A', editorId: 'u1', prereqIds: ['C'] });
+    const result = syncBadgeRelations(asDb(db), { rootId: 'A', editorId: 'u1', type: PREREQ, ids: ['C'] });
     await expect(result).rejects.toMatchObject({
       status: 400,
       message: expect.stringContaining('Badge C already requires'),
@@ -69,7 +70,7 @@ describe('syncBadgePrerequisites', () => {
       .mockResolvedValueOnce([{ id: 'a-copy', sourceBadgeId: 'A' }])
       .mockResolvedValueOnce([{ id: 'A', name: 'A' }]);
 
-    await syncBadgePrerequisites(asDb(db), { rootId: 'B', editorId: 'u1', prereqIds: ['a-copy'] });
+    await syncBadgeRelations(asDb(db), { rootId: 'B', editorId: 'u1', type: PREREQ, ids: ['a-copy'] });
 
     expect(db.badgeRelation.createMany).toHaveBeenCalledWith({
       data: [{ type: 'PREREQUISITE', fromBadgeId: 'A', toBadgeId: 'B' }],
@@ -90,11 +91,14 @@ describe('syncBadgePrerequisites', () => {
         { lessonId: 'lesson-b', lesson: { courseId: 'c1' }, badge: { id: 'b-copy', name: 'B', sourceBadgeId: 'B' } },
       ]);
 
-    const error = await syncBadgePrerequisites(asDb(db), { rootId: 'B', editorId: 'u1', prereqIds: ['A'] }).catch(
-      (caught) => caught
-    );
+    const error = (await syncBadgeRelations(asDb(db), {
+      rootId: 'B',
+      editorId: 'u1',
+      type: PREREQ,
+      ids: ['A'],
+    }).catch((caught: unknown) => caught)) as BadgeRelationError;
 
-    expect(error).toBeInstanceOf(BadgePrerequisiteError);
+    expect(error).toBeInstanceOf(BadgeRelationError);
     expect(error.status).toBe(409);
     expect(error.message).toContain('Add Gas Safety to CHEM 101');
     expect(error.details).toEqual({
@@ -115,7 +119,7 @@ describe('syncBadgePrerequisites', () => {
       ])
       .mockResolvedValueOnce([{ fromBadgeId: 'A' }, { fromBadgeId: 'X' }]);
 
-    await syncBadgePrerequisites(asDb(db), { rootId: 'B', editorId: 'u1', prereqIds: ['A'] });
+    await syncBadgeRelations(asDb(db), { rootId: 'B', editorId: 'u1', type: PREREQ, ids: ['A'] });
 
     expect(db.badgeRelation.deleteMany).toHaveBeenCalledWith({
       where: { type: 'PREREQUISITE', toBadgeId: 'B', fromBadgeId: { in: ['X'] } },
@@ -127,7 +131,7 @@ describe('syncBadgePrerequisites', () => {
     const db = buildDb();
     db.badge.findMany.mockResolvedValueOnce([{ id: 'P', sourceBadgeId: null }]).mockResolvedValueOnce([]);
     await expect(
-      syncBadgePrerequisites(asDb(db), { rootId: 'B', editorId: 'u1', prereqIds: ['P'] })
+      syncBadgeRelations(asDb(db), { rootId: 'B', editorId: 'u1', type: PREREQ, ids: ['P'] })
     ).rejects.toMatchObject({ status: 400 });
   });
 });

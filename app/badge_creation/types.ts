@@ -92,6 +92,10 @@ export type BadgeDraft = {
   // prerequisiteBadgeIds; [] whenever hasPrerequisites is off.
   hasPrerequisites: boolean;
   prerequisites: Array<{ id: string; name: string }>;
+  // Badges completing this one also earns (same course only). Saved as
+  // satisfiesBadgeIds; [] whenever hasSatisfies is off.
+  hasSatisfies: boolean;
+  satisfies: Array<{ id: string; name: string }>;
   resources: ResourceDraft[];
   rubricGoal: RubricGoalDraft;
 };
@@ -115,6 +119,7 @@ export type BadgeCatalogItem = {
   // Prerequisites live on the template, so a course copy reports its template's.
   familyRootId?: string;
   prerequisites?: Array<{ id: string; name: string }>;
+  satisfies?: Array<{ id: string; name: string }>;
   rubricGoal?: {
     id: string;
     name: string;
@@ -207,6 +212,8 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   reassessmentRequired: false,
   hasPrerequisites: false,
   prerequisites: [],
+  hasSatisfies: false,
+  satisfies: [],
   resources: [],
   rubricGoal: {
     name: '',

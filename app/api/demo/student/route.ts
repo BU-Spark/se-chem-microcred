@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { BadgeRef, getPrerequisiteStatusForStudent } from '@/lib/badges/badge-prerequisites.service';
+import { BadgeRef, getPrerequisiteStatusForStudent } from '@/lib/badges/badge-relations.service';
 import {
   BadgeStatus,
   CourseContactType,
@@ -53,6 +53,8 @@ const STUDENT_BADGE_INCLUDE = {
       },
     },
   },
+  // The badge whose completion earned this one, when earned through SATISFIES.
+  satisfiedBy: { select: { id: true, name: true } },
 } satisfies Prisma.StudentBadgeInclude;
 
 function groupBadgesByStatus(badges: Array<ReturnType<typeof formatBadge>>) {
@@ -79,6 +81,7 @@ function formatBadge(
     awardedAt: Date | null;
     cooldownUntil?: Date | null;
     qevWaivedAt?: Date | null;
+    satisfiedBy?: { id: string; name: string } | null;
     badge: {
       id: string;
       slug: string;
@@ -124,6 +127,8 @@ function formatBadge(
     // progress is untouched, so without this the assessment would appear to have
     // unlocked itself.
     qevWaivedAt: studentBadge.qevWaivedAt?.toISOString() ?? null,
+    // Earned by completing another badge rather than on its own.
+    satisfiedBy: studentBadge.satisfiedBy ?? null,
     youtubeUrl: youtubeUrl ?? null,
     requirements: studentBadge.badge.requirements.map((requirement) => ({
       summary: requirement.summary,

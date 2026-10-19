@@ -26,7 +26,7 @@ import BadgeToken from '@/app/components/BadgeToken/BadgeToken';
 import { useCreatedCourseDetail, type CourseBadge } from './hooks/useCreatedCourseDetail';
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import styles from './page.module.css';
-import { formatBadgeNameList } from '@/lib/badgePrerequisites';
+import { formatBadgeNameList } from '@/lib/badgeRelations';
 
 type AssignedBadge = CourseBadge & {
   lessonCount: number;
@@ -757,6 +757,14 @@ export default function CreatedCourseDetailPage() {
                                   {badge.prerequisites.some((prereq) => !prereq.inCourse)
                                     ? ' (not all in this course, students are locked out)'
                                     : ''}
+                                </p>
+                              ) : null}
+                              {badge.satisfies?.some((earned) => earned.inCourse) ? (
+                                <p className={styles.badgePrereqs}>
+                                  Also earns{' '}
+                                  {formatBadgeNameList(
+                                    badge.satisfies.filter((earned) => earned.inCourse).map((earned) => earned.name)
+                                  )}
                                 </p>
                               ) : null}
                             </div>

@@ -7,7 +7,7 @@ import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
 import { useStudentData } from '../../../hooks/useStudentData';
 import { LessonVideoPage } from '../video';
-import { formatBadgeNameList } from '@/lib/badgePrerequisites';
+import { formatBadgeNameList } from '@/lib/badgeRelations';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 
 function buildAvatarUrlFromAvatar(

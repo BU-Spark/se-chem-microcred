@@ -24,6 +24,7 @@ export type CreateBadgePayload = {
   reassessmentRequired?: boolean | null;
   // Omitted = leave prerequisites as they are; [] clears them.
   prerequisiteBadgeIds?: string[] | null;
+  satisfiesBadgeIds?: string[] | null;
 };
 
 export type UpdateBadgePayload = {
@@ -49,6 +50,7 @@ export type UpdateBadgePayload = {
   reassessmentRequired?: boolean | null;
   // Omitted = leave prerequisites as they are; [] clears them.
   prerequisiteBadgeIds?: string[] | null;
+  satisfiesBadgeIds?: string[] | null;
 };
 
 export type ImportBadgePayload = {
