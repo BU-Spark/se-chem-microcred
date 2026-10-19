@@ -650,8 +650,10 @@ export async function GET(req: Request) {
     .filter((lesson) => isLessonReleased(lesson.availableOn ? new Date(lesson.availableOn) : null, now))
     .map((lesson) => ({ ...lesson, lockedBy: lessonLockedBy(lesson) }));
 
+  // Locked lessons stay in: the course dashboard renders them greyed out with
+  // "Requires X" (lockedBy) until their prerequisites are complete.
   const upNextLessons = visibleLessons
-    .filter((lesson) => lesson.status === LessonStatus.NOT_STARTED && lesson.lockedBy.length === 0)
+    .filter((lesson) => lesson.status === LessonStatus.NOT_STARTED)
     .sort((a, b) => (a.dueDate && b.dueDate ? Date.parse(a.dueDate) - Date.parse(b.dueDate) : 0));
 
   const continueLessons = visibleLessons

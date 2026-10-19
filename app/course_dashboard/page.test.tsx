@@ -142,6 +142,45 @@ describe('Course dashboard page', () => {
     expect(img.getAttribute('src')).not.toContain('ChemSkills');
   });
 
+  it('shows a badge locked behind a prerequisite as a greyed card naming what it requires', async () => {
+    mockUseStudentData.mockReturnValue({
+      data: {
+        student: { name: 'Student Demo', email: 'student@example.edu' },
+        lessons: {
+          upNext: [
+            {
+              id: 'lesson-walk',
+              slug: 'walk',
+              title: 'Walking Lesson',
+              status: 'NOT_STARTED',
+              percentComplete: 0,
+              dueDate: null,
+              estimatedMinutes: null,
+              thumbnailUrl: null,
+              segments: [],
+              badgeRequirements: [{ badgeId: 'walk', badgeName: 'Walk', badgeSlug: 'walk', youtubeUrl: null }],
+              lockedBy: [{ id: 'crawl', name: 'Crawl' }],
+            },
+          ],
+          inProgress: [],
+          completed: [],
+        },
+        badges: { inReview: [] },
+        surveys: { pendingBadge: [] },
+      },
+      isLoading: false,
+      refresh: jest.fn(),
+    });
+
+    render(<CourseDashboardPage />);
+
+    expect(await screen.findByText('Walking Lesson')).toBeInTheDocument();
+    expect(screen.getByText('Requires Crawl')).toBeInTheDocument();
+    const action = screen.getByRole('button', { name: 'Locked' });
+    expect(action).toBeDisabled();
+    expect(screen.queryByRole('link', { name: 'Locked' })).not.toBeInTheDocument();
+  });
+
   const completedBadgeLesson = (badgeSlug: string) => ({
     id: 'lesson-done',
     slug: 'lab-safety',
