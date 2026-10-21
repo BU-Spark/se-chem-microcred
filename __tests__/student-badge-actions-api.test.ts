@@ -6,6 +6,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { PATCH } from '../app/api/courses/[courseId]/students/[studentId]/badges/[badgeId]/route';
 import { fetchUserByEmail } from '../app/api/courses/lib/course-queries';
 import prisma from '../lib/prisma';
+import { reconcileSatisfiedBadges } from '../lib/badges/badge-satisfaction.service';
 
 jest.mock('@clerk/nextjs/server', () => ({
   currentUser: jest.fn(),
@@ -13,6 +14,12 @@ jest.mock('@clerk/nextjs/server', () => ({
 
 jest.mock('../app/api/courses/lib/course-queries', () => ({
   fetchUserByEmail: jest.fn(),
+}));
+
+// The SATISFIES reconcile has its own suite (badge-satisfaction-service.test.ts);
+// here we only check reset and override trigger it.
+jest.mock('../lib/badges/badge-satisfaction.service', () => ({
+  reconcileSatisfiedBadges: jest.fn(async () => ({ awarded: 0, revoked: 0, repointed: 0 })),
 }));
 
 // The reset and override paths run inside $transaction; the waiver and the
@@ -26,7 +33,7 @@ const mockTx = {
   lessonAttempt: { deleteMany: jest.fn() },
   segmentProgress: { deleteMany: jest.fn() },
   lessonProgress: { deleteMany: jest.fn() },
-  studentBadge: { update: jest.fn() },
+  studentBadge: { update: jest.fn(), findUnique: jest.fn(async () => ({ status: 'LEARNING' })) },
 };
 
 jest.mock('../lib/prisma', () => ({
@@ -222,6 +229,14 @@ describe('instructor student actions', () => {
         feedbackReviewedAt: null,
         gradeOverriddenAt: null,
         gradeOverriddenById: null,
+        satisfiedByBadgeId: null,
+        satisfiedPriorStatus: null,
+      });
+      // A reset badge is the student's own again, so any badge that still earns it
+      // gets to re-award it.
+      expect(reconcileSatisfiedBadges).toHaveBeenCalledWith(mockTx, {
+        courseId: 'course-1',
+        studentIds: ['student-1'],
       });
       // Instructor policy is not student progress — a reset must not silently
       // revoke extra attempts the instructor granted.
@@ -406,6 +421,13 @@ describe('instructor student actions', () => {
       expect(update.data.awardedAt).toBeInstanceOf(Date);
       expect(update.data.cooldownUntil).toBeNull();
       expect(update.data.gradeOverriddenById).toBe('prof-1');
+      // The instructor's grade replaces any award earned through another badge,
+      // then completing this badge may earn the badges it satisfies.
+      expect(update.data.satisfiedByBadgeId).toBeNull();
+      expect(reconcileSatisfiedBadges).toHaveBeenCalledWith(mockTx, {
+        courseId: 'course-1',
+        studentIds: ['student-1'],
+      });
     });
 
     it('sends a still-learning override back to assessable with the cooldown cleared', async () => {

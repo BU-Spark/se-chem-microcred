@@ -500,6 +500,7 @@ export default function BadgePassportPage() {
               <p className={styles.detailMeta}>
                 {activeEntry.course?.title ?? 'Independent badge'}
                 {activeEntry.badge.awardedAt ? ` · Earned ${formatPassportDate(activeEntry.badge.awardedAt)}` : ''}
+                {activeEntry.badge.satisfiedBy ? ` by completing ${activeEntry.badge.satisfiedBy.name}` : ''}
               </p>
             </div>
           </div>

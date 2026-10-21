@@ -5,6 +5,7 @@ import prisma from '../../../../../lib/prisma';
 import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
 import { normalizeCheckpointQuestion } from '../../../../../lib/checkpointQuestions';
 import { evaluateCheckpointAttempt } from '../../../../../lib/checkpointGrading';
+import { findLessonPrerequisiteLock, prerequisiteLockResponseBody } from '@/lib/badges/badge-relations.service';
 import { isLessonClosed } from '../../../../../lib/badgeAvailability';
 
 interface AttemptRequestBody {
@@ -98,6 +99,16 @@ export async function POST(request: Request, context: RouteContext) {
     )
   ) {
     return NextResponse.json({ error: 'This badge deadline has passed.' }, { status: 410 });
+  }
+
+  // Students cannot start a badge until its prerequisites are COMPLETED; anyone
+  // already working on it is grandfathered (lib/badgeRelations.ts).
+  const prerequisiteLock = await findLessonPrerequisiteLock(prisma, {
+    studentId: user.id,
+    lessonId: checkpoint.lessonId,
+  });
+  if (prerequisiteLock) {
+    return NextResponse.json(prerequisiteLockResponseBody(prerequisiteLock), { status: 409 });
   }
 
   const attempt = await prisma.$transaction(async (tx) => {

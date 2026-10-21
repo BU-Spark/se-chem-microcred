@@ -2,7 +2,7 @@ import { CheckpointPayload, CheckpointQuestionPayload } from '@/lib/checkpoints/
 import { RubricGoalPayload } from '@/lib/rubric/types';
 import { hasVisibleQuestionText, sanitizeQuestionRichText } from '@/lib/question-rich-text';
 import { extractYouTubeId } from '@/lib/video';
-import { BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
+import { BadgeRelationType, BadgeStatus, CourseRole, Prisma, SurveyContext } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 import {
@@ -14,6 +14,7 @@ import {
   buildQuestionOptions,
 } from '@/lib/checkpoints/normalizeWrite';
 import { parseFiniteNumber, parseTimeToSeconds, slugify, formatQuestionCount } from '@/lib/utils';
+import { syncBadgeRelations } from '@/lib/badges/badge-relations.service';
 
 // --Constants--
 const DEFAULT_PASSING_PERCENT = 70;
@@ -273,6 +274,7 @@ export async function executeFetchBadges(args: FetchBadgesArgs) {
     orderBy: { createdAt: 'desc' },
     select: {
       id: true,
+      sourceBadgeId: true,
       slug: true,
       name: true,
       description: true,
@@ -375,6 +377,10 @@ export interface CreateBadgeArgs {
   videoLength?: string | null;
   // Authored assessment policy that flows to students via inheritance.
   badgePolicy?: BadgePolicy;
+  // Badges that must be COMPLETED first / badges completing this one also earns;
+  // undefined leaves them unset.
+  prerequisiteBadgeIds?: string[];
+  satisfiesBadgeIds?: string[];
 }
 
 // --Badge Creation--
@@ -401,6 +407,8 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
     videoDurationSeconds,
     videoLength,
     badgePolicy = {},
+    prerequisiteBadgeIds,
+    satisfiesBadgeIds,
   } = args;
 
   const dueDate = closesOn;
@@ -590,6 +598,23 @@ export async function executeBadgeCreationTx(args: CreateBadgeArgs) {
         });
       }
 
+      // Last, so a badge created straight into a course is checked against that
+      // course's badges like any other placement.
+      // A brand-new badge has no completions yet, so its SATISFIES edges have
+      // nothing to award until a student finishes it.
+      await syncBadgeRelations(tx, {
+        rootId: sourceBadge.id,
+        editorId: creatorId,
+        type: BadgeRelationType.PREREQUISITE,
+        ids: prerequisiteBadgeIds,
+      });
+      await syncBadgeRelations(tx, {
+        rootId: sourceBadge.id,
+        editorId: creatorId,
+        type: BadgeRelationType.SATISFIES,
+        ids: satisfiesBadgeIds,
+      });
+
       return {
         badge: sourceBadge,
         courseBadge,
@@ -629,6 +654,9 @@ interface PatchBadgeArgs {
   thumbnailUrl?: string | null;
   passingPercentage: number | null;
   badgePolicy?: BadgePolicy;
+  // Set on the family root only (never family-synced); undefined = untouched.
+  prerequisiteBadgeIds?: string[];
+  satisfiesBadgeIds?: string[];
 }
 
 export async function executeBadgePatchTx(args: PatchBadgeArgs) {
@@ -653,6 +681,8 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
     videoSeconds,
     passingPercentage,
     badgePolicy = {},
+    prerequisiteBadgeIds,
+    satisfiesBadgeIds,
   } = args;
 
   const videoId = extractYouTubeId(youtubeVideoUrl);
@@ -905,7 +935,27 @@ export async function executeBadgePatchTx(args: PatchBadgeArgs) {
           }
         }
       }
-      return badge;
+
+      await syncBadgeRelations(tx, {
+        rootId: familyRootId,
+        editorId,
+        type: BadgeRelationType.PREREQUISITE,
+        ids: prerequisiteBadgeIds,
+      });
+      const satisfies = await syncBadgeRelations(tx, {
+        rootId: familyRootId,
+        editorId,
+        type: BadgeRelationType.SATISFIES,
+        ids: satisfiesBadgeIds,
+      });
+
+      // The route re-awards SATISFIES after commit when these changed; doing it
+      // here could blow the 15s transaction cap on a large course.
+      return {
+        ...badge,
+        familyRootId,
+        satisfiesChanged: satisfies.added.length > 0 || satisfies.removed.length > 0,
+      };
     },
     // Matches the create/duplicate transactions' cap (Prisma Accelerate limits
     // interactive transactions to 15s); the default 5s was too tight once a

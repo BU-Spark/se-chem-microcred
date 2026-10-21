@@ -8,6 +8,7 @@ import { useSignOut } from '@/app/hooks/useSignOut';
 import { LessonStatus } from '@prisma/client';
 import { buildLessonOutline } from '@/lib/lessonOutline';
 import { useStudentData, type BadgeRecord } from '../../hooks/useStudentData';
+import { formatBadgeNameList } from '@/lib/badgeRelations';
 import styles from './page.module.css';
 import BadgeOverviewCard from './components/BadgeOverviewCard';
 import BadgeFlowSteps from './components/BadgeFlowSteps';
@@ -76,6 +77,7 @@ function LessonDetailContent() {
   const skills = lessonRecord?.skills.map((skill) => skill.trim()).filter(Boolean) ?? [];
   const badgeName = badge?.name ?? lessonRecord?.badgeRequirements?.[0]?.badgeName ?? null;
   const description = lessonRecord?.description || badge?.description || lessonRecord?.summary || '';
+  const lockedBy = lessonRecord?.lockedBy ?? [];
   const reviewBadgeSlug = badge?.slug ?? lessonRecord?.badgeRequirements?.[0]?.badgeSlug ?? null;
   const reviewHref = reviewBadgeSlug
     ? `/badges/${encodeURIComponent(reviewBadgeSlug)}/feedback${courseId ? `?courseId=${encodeURIComponent(courseId)}` : ''}`
@@ -118,16 +120,23 @@ function LessonDetailContent() {
 
                 <BadgeFlowSteps />
 
-                <Link
-                  href={
-                    courseId
-                      ? `/lessons/${lessonRecord.slug}/video?courseId=${encodeURIComponent(courseId)}`
-                      : `/lessons/${lessonRecord.slug}/video`
-                  }
-                  className={styles.primaryButton}
-                >
-                  {lessonRecord.status === LessonStatus.COMPLETED ? 'Review Lesson' : 'Start Lesson'}
-                </Link>
+                {lockedBy.length > 0 ? (
+                  // Locked behind a prerequisite badge; the start route refuses too.
+                  <p className={styles.statsHint} role="status">
+                    Complete {formatBadgeNameList(lockedBy.map((prereq) => prereq.name))} to unlock this lesson.
+                  </p>
+                ) : (
+                  <Link
+                    href={
+                      courseId
+                        ? `/lessons/${lessonRecord.slug}/video?courseId=${encodeURIComponent(courseId)}`
+                        : `/lessons/${lessonRecord.slug}/video`
+                    }
+                    className={styles.primaryButton}
+                  >
+                    {lessonRecord.status === LessonStatus.COMPLETED ? 'Review Lesson' : 'Start Lesson'}
+                  </Link>
+                )}
               </div>
 
               <div className={styles.outlineColumn}>

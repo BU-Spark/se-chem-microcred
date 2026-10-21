@@ -3,6 +3,8 @@ import { currentUser } from '@clerk/nextjs/server';
 import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
+import { BadgeRelationType } from '@prisma/client';
+import { loadRelationsByRoot, resolveFamilyRootId } from '@/lib/badges/badge-relations.service';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -65,6 +67,21 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         : [];
     const avatarBaseByEmail = new Map(contactUsers.map((u) => [u.email, u.avatar?.base ?? null]));
 
+    // Each course badge's prerequisites and the badges it earns (template ids),
+    // flagged when the course lacks one: a missing prerequisite locks students
+    // out, a missing earned badge is simply not awarded here.
+    const courseBadges = course.lessons.flatMap((lesson) => lesson.badgeRequirements.map((req) => req.badge));
+    const courseRootIds = new Set(courseBadges.map(resolveFamilyRootId));
+    const [prerequisitesByRoot, satisfiesByRoot] = await Promise.all([
+      loadRelationsByRoot(prisma, [...courseRootIds], BadgeRelationType.PREREQUISITE),
+      loadRelationsByRoot(prisma, [...courseRootIds], BadgeRelationType.SATISFIES),
+    ]);
+    const relatedFor = (byRoot: typeof prerequisitesByRoot, badge: { id: string; sourceBadgeId: string | null }) =>
+      (byRoot.get(resolveFamilyRootId(badge)) ?? []).map((related) => ({
+        ...related,
+        inCourse: courseRootIds.has(related.id),
+      }));
+
     return NextResponse.json(
       {
         viewerRole,
@@ -79,6 +96,17 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
           contacts: course.contacts.map((contact) => ({
             ...contact,
             avatarBase: avatarBaseByEmail.get(contact.email) ?? null,
+          })),
+          lessons: course.lessons.map((lesson) => ({
+            ...lesson,
+            badgeRequirements: lesson.badgeRequirements.map((requirement) => ({
+              ...requirement,
+              badge: {
+                ...requirement.badge,
+                prerequisites: relatedFor(prerequisitesByRoot, requirement.badge),
+                satisfies: relatedFor(satisfiesByRoot, requirement.badge),
+              },
+            })),
           })),
           enrollments: course.enrollments.map((enrollment) => ({
             ...enrollment,

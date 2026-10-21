@@ -16,6 +16,9 @@ export type BadgeCatalogItem = {
   imageScale: number;
   createdAt: string;
   assignedStudentCount: number;
+  familyRootId: string;
+  prerequisites: Array<{ id: string; name: string }>;
+  satisfies: Array<{ id: string; name: string }>;
   requirements: Array<{
     id: string;
     summary: string | null;
@@ -35,6 +38,8 @@ export type BadgeCatalogItem = {
 type BadgesResponse = {
   count: number;
   badges: BadgeCatalogItem[];
+  // Every relation arrow (template ids), for client-side cycle filtering.
+  relationEdges: Array<{ type: 'PREREQUISITE' | 'SATISFIES'; fromBadgeId: string; toBadgeId: string }>;
 };
 
 export function useBadgesCatalog(enabled: boolean) {

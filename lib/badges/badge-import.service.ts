@@ -6,6 +6,8 @@ import { CheckpointPayload, CheckpointQuestionPayload } from '@/lib/checkpoints/
 import { buildQuestionOptions, normalizePoints, normalizeString, normalizeSkills } from '../checkpoints/normalizeWrite';
 import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
 import { buildYoutubeThumbnail } from '@/lib/video';
+import { formatBadgeNameList } from '@/lib/badgeRelations';
+import { findMissingPrereqsForCourse } from '@/lib/badges/badge-relations.service';
 
 function getQuestionPrompt(question: CheckpointQuestionPayload) {
   return normalizeString(question.question) ?? normalizeString(question.prompt);
@@ -178,6 +180,17 @@ export async function executeBadgeImportTx(args: BadgeImportArgs) {
       const badgeSlug = `${slugify(sourceBadge.name)}-${slugSuffix}`;
       const lessonSlug = `${badgeSlug}-lesson`;
       const rootSourceBadgeId = sourceBadge.sourceBadgeId ?? sourceBadge.id;
+
+      // No auto-import: students would be locked out of this badge until its
+      // prerequisites are in the course, so the instructor adds those first.
+      const missingPrereqs = await findMissingPrereqsForCourse(tx, courseId, rootSourceBadgeId);
+      if (missingPrereqs.length > 0) {
+        return {
+          error: `${sourceBadge.name} requires ${formatBadgeNameList(missingPrereqs.map((badge) => badge.name))}. Add ${missingPrereqs.length > 1 ? 'those badges' : 'that badge'} to this course first.`,
+          status: 409,
+          missingPrerequisites: missingPrereqs,
+        };
+      }
 
       const badge = await tx.badge.create({
         data: {

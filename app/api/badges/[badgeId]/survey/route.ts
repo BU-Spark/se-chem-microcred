@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { BadgeStatus, SurveyContext } from '@prisma/client';
 import prisma from '../../../../../lib/prisma';
+import { reconcileStudentBadgeCourse } from '../../../../../lib/badges/badge-satisfaction.service';
 
 type RouteContext = {
   params: Promise<{
@@ -119,7 +120,7 @@ export async function POST(request: Request, context: RouteContext) {
     // Submitting the rating is the single action that finalizes: it acknowledges
     // the feedback and awards the badge together (pass-path acknowledge + rate).
     const finalizedAt = new Date();
-    return tx.studentBadge.update({
+    const finalized = await tx.studentBadge.update({
       where: { id: studentBadge.id },
       data: {
         status: BadgeStatus.COMPLETED,
@@ -127,6 +128,11 @@ export async function POST(request: Request, context: RouteContext) {
         feedbackReviewedAt: studentBadge.feedbackReviewedAt ?? finalizedAt,
       },
     });
+
+    // Completing this badge also earns any badge it SATISFIES in this course.
+    await reconcileStudentBadgeCourse(tx, { studentId: user.id, badgeId });
+
+    return finalized;
   });
 
   return NextResponse.json({ status: updated.status }, { status: 200 });
