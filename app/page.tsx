@@ -915,7 +915,7 @@ function HomeContent() {
       {readyBadgeAlerts.length > 0 ? (
         <div className={styles.topRow}>
           <div className={styles.alertWrapper}>
-            <div className={styles.alert} data-active="true" onClick={() => handleStartSurvey()}>
+            <button type="button" className={styles.alert} data-active="true" onClick={() => handleStartSurvey()}>
               <Image
                 src="/assets/survey_alarm/survey_alarm_x_icon.png"
                 alt="Survey reminder"
@@ -928,7 +928,7 @@ function HomeContent() {
                   ? `Review feedback for ${readyBadgeAlerts[0]?.badgeName ?? 'your badge'} to finalize it.`
                   : `You have ${readyBadgeAlerts.length} badges ready to finalize. Review them to finish.`}
               </span>
-            </div>
+            </button>
           </div>
         </div>
       ) : null}
