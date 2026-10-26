@@ -11,6 +11,7 @@ import styles from '../page.module.css';
 import type { BadgeDraft } from '../types';
 import ChipInput from '../components/ChipInput';
 import ResourcesEditor from '../components/ResourcesEditor';
+import BadgeRelationPicker from '../components/BadgeRelationPicker';
 import BadgeImage from '@/app/components/BadgeImage/BadgeImage';
 import { badgeImageFileFromDataUrl, prepareBadgeImage } from '../lib/badge-image';
 import { DEFAULT_BADGE_IMAGE_SCALE, MAX_BADGE_IMAGE_SCALE, MIN_BADGE_IMAGE_SCALE } from '@/lib/badges/badge-image';
@@ -19,15 +20,16 @@ export default function BadgeInfoStep({
   draft,
   updateDraft,
   droppedResourceFileCount = 0,
+  familyRootId = null,
 }: {
   draft: BadgeDraft;
   updateDraft: <K extends keyof BadgeDraft>(field: K, value: BadgeDraft[K]) => void;
   droppedResourceFileCount?: number;
+  familyRootId?: string | null;
 }) {
   const [imageError, setImageError] = useState('');
   const [localPreviewUrl, setLocalPreviewUrl] = useState('');
   const [isPositionDialogOpen, setIsPositionDialogOpen] = useState(false);
-  // Issue #246: alternatives to the file picker -- drag-and-drop, paste, and a URL.
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [imageUrlInput, setImageUrlInput] = useState('');
   const [isLoadingUrl, setIsLoadingUrl] = useState(false);
@@ -404,6 +406,8 @@ export default function BadgeInfoStep({
           Check if a re-assessment is required when a student fails an in-person assessment.
         </p>
       </div>
+      <BadgeRelationPicker type="PREREQUISITE" draft={draft} updateDraft={updateDraft} familyRootId={familyRootId} />
+      <BadgeRelationPicker type="SATISFIES" draft={draft} updateDraft={updateDraft} familyRootId={familyRootId} />
     </div>
   );
 }

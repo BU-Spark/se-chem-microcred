@@ -446,39 +446,63 @@ model LessonAttempt {
 }
 
 model Badge {
-  id                   String              @id @default(cuid())
-  slug                 String              @unique
-  name                 String
-  description          String?
-  imageUrl             String?
-  imagePositionX       Int                 @default(50)
-  imagePositionY       Int                 @default(50)
-  imageScale           Int                 @default(115)
-  createdById          String?
-  sourceBadgeId        String?
-  availableOn          DateTime?
-  closesOn             DateTime?
-  neverCloses          Boolean?
-  reassessmentLimit    Int?
-  cooldownDays         Int?
-  reassessmentRequired Boolean?
-  createdAt            DateTime            @default(now())
-  updatedAt            DateTime            @updatedAt
-  createdBy            User?               @relation("BadgeCreator", fields: [createdById], references: [id], onDelete: SetNull)
-  sourceBadge          Badge?              @relation("BadgeSource", fields: [sourceBadgeId], references: [id], onDelete: SetNull)
-  importedCopies       Badge[]             @relation("BadgeSource")
-  requirements         BadgeRequirement[]
-  studentProgress      StudentBadge[]
-  surveys              SurveyPrompt[]
-  assessments          AssessmentAttempt[]
-  messages             Message[]
-  rubricGoal           RubricGoal?
-  resources            BadgeResource[]
+  id                     String              @id @default(cuid())
+  slug                   String              @unique
+  name                   String
+  description            String?
+  imageUrl               String?
+  imagePositionX         Int                 @default(50)
+  imagePositionY         Int                 @default(50)
+  imageScale             Int                 @default(115)
+  createdById            String?
+  sourceBadgeId          String?
+  availableOn            DateTime?
+  closesOn               DateTime?
+  neverCloses            Boolean?
+  reassessmentLimit      Int?
+  cooldownDays           Int?
+  reassessmentRequired   Boolean?
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  createdBy              User?               @relation("BadgeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  sourceBadge            Badge?              @relation("BadgeSource", fields: [sourceBadgeId], references: [id], onDelete: SetNull)
+  importedCopies         Badge[]             @relation("BadgeSource")
+  requirements           BadgeRequirement[]
+  studentProgress        StudentBadge[]
+  surveys                SurveyPrompt[]
+  assessments            AssessmentAttempt[]
+  messages               Message[]
+  rubricGoal             RubricGoal?
+  resources              BadgeResource[]
+  outgoingRelations      BadgeRelation[]     @relation("BadgeRelationFrom")
+  satisfiedStudentBadges StudentBadge[]      @relation("StudentBadgeSatisfiedBy")
+  incomingRelations      BadgeRelation[]     @relation("BadgeRelationTo")
 
   @@index([createdById])
   @@index([sourceBadgeId])
 }
 
+// Arrows between badge family roots (templates, sourceBadgeId = null). Course
+// copies resolve their arrows through their root at runtime.
+//   PREREQUISITE  from must be COMPLETED before a student can start to
+//   SATISFIES     completing from also earns to (same course only)
+enum BadgeRelationType {
+  PREREQUISITE
+  SATISFIES
+}
+
+model BadgeRelation {
+  id          String            @id @default(cuid())
+  type        BadgeRelationType @default(PREREQUISITE)
+  fromBadgeId String
+  toBadgeId   String
+  createdAt   DateTime          @default(now())
+  fromBadge   Badge             @relation("BadgeRelationFrom", fields: [fromBadgeId], references: [id], onDelete: Cascade)
+  toBadge     Badge             @relation("BadgeRelationTo", fields: [toBadgeId], references: [id], onDelete: Cascade)
+
+  @@unique([type, fromBadgeId, toBadgeId])
+  @@index([toBadgeId, type])
+}
 
 model BadgeResource {
   id          String             @id @default(cuid())
@@ -570,13 +594,13 @@ model BadgeRequirement {
 }
 
 model StudentBadge {
-  id                   String      @id @default(cuid())
+  id                   String       @id @default(cuid())
   studentId            String
   badgeId              String
-  status               BadgeStatus @default(LEARNING)
+  status               BadgeStatus  @default(LEARNING)
   awardedAt            DateTime?
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
   score                Int?
   qevPassedAt          DateTime? // set when QEV is cleared and status leaves LEARNING
   cooldownUntil        DateTime? // assessment blocked while now < cooldownUntil
@@ -594,17 +618,24 @@ model StudentBadge {
   // only — the override attempt itself carries the checker and the reason.
   gradeOverriddenAt    DateTime?
   gradeOverriddenById  String?
+  // Earned through a SATISFIES relation rather than on its own: the course copy
+  // that awarded it, and the status to restore if that award is revoked. Kept in
+  // step by lib/badges/badge-satisfaction.service.ts.
+  satisfiedByBadgeId   String?
+  satisfiedPriorStatus BadgeStatus?
 
-  student           User  @relation(fields: [studentId], references: [id])
-  badge             Badge @relation(fields: [badgeId], references: [id])
-  qevWaivedBy       User? @relation("BadgeQevWaiver", fields: [qevWaivedById], references: [id], onDelete: SetNull)
-  gradeOverriddenBy User? @relation("BadgeGradeOverride", fields: [gradeOverriddenById], references: [id], onDelete: SetNull)
+  student           User   @relation(fields: [studentId], references: [id])
+  badge             Badge  @relation(fields: [badgeId], references: [id])
+  qevWaivedBy       User?  @relation("BadgeQevWaiver", fields: [qevWaivedById], references: [id], onDelete: SetNull)
+  gradeOverriddenBy User?  @relation("BadgeGradeOverride", fields: [gradeOverriddenById], references: [id], onDelete: SetNull)
+  satisfiedBy       Badge? @relation("StudentBadgeSatisfiedBy", fields: [satisfiedByBadgeId], references: [id], onDelete: SetNull)
 
   @@unique([studentId, badgeId])
   @@index([badgeId])
   @@index([status, badgeId])
   @@index([qevWaivedById])
   @@index([gradeOverriddenById])
+  @@index([satisfiedByBadgeId])
 }
 
 model StudentAnalytics {

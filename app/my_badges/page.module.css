@@ -1,4 +1,3 @@
-
 .page {
   display: flex;
   min-height: calc(100vh - 80px);
@@ -212,6 +211,14 @@
   font-family: 'Open Sans', sans-serif;
   font-size: 1rem;
   font-weight: 400;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.badgePrereqs {
+  color: #657188;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 0.8rem;
   line-height: 1.25;
   text-align: center;
 }

@@ -6,6 +6,7 @@ import { normalizeString } from '@/lib/checkpoints/normalizeWrite';
 import prisma from '@/lib/prisma';
 
 import { executeBadgeImportTx } from '@/lib/badges/badge-import.service';
+import { reconcileCourses } from '@/lib/badges/badge-satisfaction.service';
 
 export async function POST(req: NextRequest, context: { params: Promise<{ courseId: string }> }) {
   try {
@@ -68,8 +69,18 @@ export async function POST(req: NextRequest, context: { params: Promise<{ course
     });
 
     if ('error' in imported) {
-      return NextResponse.json({ error: imported.error }, { status: imported.status || 400 });
+      return NextResponse.json(
+        {
+          error: imported.error,
+          ...('missingPrerequisites' in imported ? { missingPrerequisites: imported.missingPrerequisites } : {}),
+        },
+        { status: imported.status || 400 }
+      );
     }
+
+    // Students who already completed a badge that earns this one get it now (and
+    // the reverse). Failures are logged and healed by the next reconcile.
+    await reconcileCourses([courseId]);
 
     return NextResponse.json(
       {

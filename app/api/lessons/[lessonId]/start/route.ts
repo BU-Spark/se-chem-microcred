@@ -3,6 +3,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
 import prisma from '../../../../../lib/prisma';
 import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
+import { findLessonPrerequisiteLock, prerequisiteLockResponseBody } from '@/lib/badges/badge-relations.service';
 import { isLessonClosed } from '../../../../../lib/badgeAvailability';
 
 type RouteContext = {
@@ -50,6 +51,13 @@ export async function POST(_request: Request, context: RouteContext) {
     )
   ) {
     return NextResponse.json({ error: 'This badge deadline has passed.' }, { status: 410 });
+  }
+
+  // Students cannot start a badge until its prerequisites are COMPLETED; anyone
+  // already working on it is grandfathered (lib/badgeRelations.ts).
+  const prerequisiteLock = await findLessonPrerequisiteLock(prisma, { studentId: user.id, lessonId: lessonId });
+  if (prerequisiteLock) {
+    return NextResponse.json(prerequisiteLockResponseBody(prerequisiteLock), { status: 409 });
   }
 
   await prisma.$transaction(async (tx) => {

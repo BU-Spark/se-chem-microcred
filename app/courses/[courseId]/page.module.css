@@ -1,4 +1,4 @@
-/* Issues: #242 standardize headings */
+
 .page {
   display: flex;
   min-height: calc(100vh - 80px);
@@ -770,7 +770,6 @@
     align-items: flex-start;
   }
 
-
   .badgesTitle {
     font-size: 2rem;
   }
@@ -1132,6 +1131,15 @@
 }
 .badgeCopy {
   min-width: 0;
+}
+.badgePrereqs {
+  margin: 0.2rem 0 0;
+  color: #657188;
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+.badgePrereqs[data-missing] {
+  color: #b42318;
 }
 .badgeName {
   color: #0b1833;

@@ -19,9 +19,6 @@ export type CheckpointQuestionDraft = {
   // Optional feedback shown when a learner answers incorrectly.
   incorrectFeedback: string;
   incorrectFeedbackEnabled: boolean;
-  // Point value for this question; weights lesson (QEV) grading (issue #248).
-  // Authored per question rather than per checkpoint, since a checkpoint can
-  // hold several questions worth different amounts.
   points: number;
 };
 
@@ -88,6 +85,14 @@ export type BadgeDraft = {
   reassessmentLimit: number;
   cooldownDays: number;
   reassessmentRequired: boolean;
+  // Badges a student must COMPLETE before starting this one. Saved as
+  // prerequisiteBadgeIds; [] whenever hasPrerequisites is off.
+  hasPrerequisites: boolean;
+  prerequisites: Array<{ id: string; name: string }>;
+  // Badges completing this one also earns (same course only). Saved as
+  // satisfiesBadgeIds; [] whenever hasSatisfies is off.
+  hasSatisfies: boolean;
+  satisfies: Array<{ id: string; name: string }>;
   resources: ResourceDraft[];
   rubricGoal: RubricGoalDraft;
 };
@@ -108,6 +113,10 @@ export type BadgeCatalogItem = {
   reassessmentLimit?: number | null;
   cooldownDays?: number | null;
   reassessmentRequired?: boolean | null;
+  // Prerequisites live on the template, so a course copy reports its template's.
+  familyRootId?: string;
+  prerequisites?: Array<{ id: string; name: string }>;
+  satisfies?: Array<{ id: string; name: string }>;
   rubricGoal?: {
     id: string;
     name: string;
@@ -198,6 +207,10 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   reassessmentLimit: 3,
   cooldownDays: 0,
   reassessmentRequired: false,
+  hasPrerequisites: false,
+  prerequisites: [],
+  hasSatisfies: false,
+  satisfies: [],
   resources: [],
   rubricGoal: {
     name: '',

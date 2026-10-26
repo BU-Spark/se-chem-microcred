@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { BadgeStatus, EnrollmentStatus } from '@prisma/client';
+import { BadgeStatus, EnrollmentStatus, Prisma } from '@prisma/client';
 import { currentUser } from '@clerk/nextjs/server';
 
 import { fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
@@ -18,6 +18,7 @@ import {
 } from '@/lib/students/badgeActions';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
+import { reconcileSatisfiedBadges } from '@/lib/badges/badge-satisfaction.service';
 
 function normalizeId(value?: string | null) {
   const trimmed = value?.trim();
@@ -1112,6 +1113,18 @@ type ManagedBadgeProgress = {
 
 // Execute one instructor student action. Each returns the fields the badge detail
 // view re-reads, so the client can render the outcome before its own refresh lands.
+// Re-derives SATISFIES awards after a reset or override changed this student's
+// completions, then reports this badge's final status: an instructor reset or fail
+// is re-awarded on the spot if another completed badge in the course earns it.
+async function reconcileAndReadStatus(
+  tx: Prisma.TransactionClient,
+  { courseId, studentId, badgeProgressId }: { courseId: string; studentId: string; badgeProgressId: string }
+) {
+  await reconcileSatisfiedBadges(tx, { courseId, studentIds: [studentId] });
+  const row = await tx.studentBadge.findUnique({ where: { id: badgeProgressId }, select: { status: true } });
+  return row?.status ?? BadgeStatus.LEARNING;
+}
+
 async function runStudentBadgeAction({
   action,
   badgeProgress,
@@ -1152,9 +1165,13 @@ async function runStudentBadgeAction({
         }
       }
 
-      const result = await prisma.$transaction((tx) =>
-        resetBadgeProgress(tx, { studentBadgeId: badgeProgress.id, studentId, badgeId, lessonIds })
-      );
+      const result = await prisma.$transaction(async (tx) => {
+        const reset = await resetBadgeProgress(tx, { studentBadgeId: badgeProgress.id, studentId, badgeId, lessonIds });
+        return {
+          ...reset,
+          status: await reconcileAndReadStatus(tx, { courseId, studentId, badgeProgressId: badgeProgress.id }),
+        };
+      });
 
       return NextResponse.json({ badge: { status: result.status }, reset: result }, { status: 200 });
     }
@@ -1195,8 +1212,8 @@ async function runStudentBadgeAction({
         );
       }
 
-      const result = await prisma.$transaction((tx) =>
-        overrideAssessmentGrade(tx, {
+      const result = await prisma.$transaction(async (tx) => {
+        const override = await overrideAssessmentGrade(tx, {
           studentBadgeId: badgeProgress.id,
           courseId,
           studentId,
@@ -1204,8 +1221,12 @@ async function runStudentBadgeAction({
           instructorId,
           passed: action.passed,
           reason: action.reason,
-        })
-      );
+        });
+        return {
+          ...override,
+          status: await reconcileAndReadStatus(tx, { courseId, studentId, badgeProgressId: badgeProgress.id }),
+        };
+      });
 
       return NextResponse.json(
         {

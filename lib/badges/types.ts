@@ -22,6 +22,9 @@ export type CreateBadgePayload = {
   reassessmentLimit?: number | string | null;
   cooldownDays?: number | string | null;
   reassessmentRequired?: boolean | null;
+  // Omitted = leave prerequisites as they are; [] clears them.
+  prerequisiteBadgeIds?: string[] | null;
+  satisfiesBadgeIds?: string[] | null;
 };
 
 export type UpdateBadgePayload = {
@@ -45,6 +48,9 @@ export type UpdateBadgePayload = {
   reassessmentLimit?: number | string | null;
   cooldownDays?: number | string | null;
   reassessmentRequired?: boolean | null;
+  // Omitted = leave prerequisites as they are; [] clears them.
+  prerequisiteBadgeIds?: string[] | null;
+  satisfiesBadgeIds?: string[] | null;
 };
 
 export type ImportBadgePayload = {
