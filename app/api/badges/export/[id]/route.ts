@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BadgeStatus } from '@prisma/client';
 import prisma from '../../../../../lib/prisma';
+import { getPublicOrigin } from '../../../../../lib/requestOrigin';
 
 interface BadgeExportContext {
   params: Promise<{ id: string }>;
@@ -46,16 +47,18 @@ export async function GET(request: NextRequest, context: BadgeExportContext) {
   const issuedDate = studentBadge.awardedAt ?? new Date();
   const issuedOn = issuedDate.toISOString();
 
+  const publicOrigin = getPublicOrigin(request);
+
   const exportPayload = {
     credentialName: studentBadge.badge.name,
     credentialId: studentBadge.id,
-    credentialUrl: `https://checkd.example.com/badges/${studentBadge.badge.slug}`,
+    credentialUrl: new URL(`/badges/${studentBadge.badge.slug}`, publicOrigin).toString(),
     issuedOn,
     studentName: user.name ?? 'Student',
     studentEmail: user.email,
     issuer: {
       name: 'ChemSkills Microcredential',
-      website: 'https://checkd.example.com',
+      website: publicOrigin,
     },
     description: studentBadge.badge.description,
   };
