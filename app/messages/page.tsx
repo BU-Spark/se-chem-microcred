@@ -16,7 +16,8 @@ type Audience =
   | 'BADGE_INCOMPLETE'
   | 'BADGE_NOT_STARTED'
   | 'BADGE_VIDEO_IN_PROGRESS'
-  | 'BADGE_READY_TO_ASSESS';
+  | 'BADGE_READY_TO_ASSESS'
+  | 'BADGE_NEEDS_FEEDBACK_REVIEW';
 
 // The badge-scoped blasts, worded the same from either side of the message.
 function badgeAudienceLabel(audience: Audience, course: string | null, badgeName: string | null) {
@@ -30,7 +31,9 @@ function badgeAudienceLabel(audience: Audience, course: string | null, badgeName
     case 'BADGE_VIDEO_IN_PROGRESS':
       return `${prefix} – ${badge} – In Progress`;
     case 'BADGE_READY_TO_ASSESS':
-      return `${prefix} – ${badge} – Completed`;
+      return `${prefix} – ${badge} – Ready to Assess`;
+    case 'BADGE_NEEDS_FEEDBACK_REVIEW':
+      return `${prefix} – ${badge} – Needs Feedback Review`;
     default:
       return null;
   }

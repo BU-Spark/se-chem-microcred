@@ -1,4 +1,5 @@
 import {
+  BADGE_MESSAGE_GROUPS,
   badgeMessageGroupMatches,
   deriveBadgeAnalytics,
   isBadgeMessageGroup,
@@ -29,12 +30,10 @@ function input(overrides: Partial<BadgeAnalyticsInput> = {}): BadgeAnalyticsInpu
   };
 }
 
-// Which of the three message groups a student lands in (null = none of them).
+// Which of the message groups a student lands in (null = none of them).
 function groupOf(value: BadgeAnalyticsInput): BadgeMessageGroup | null {
   const analytics = deriveBadgeAnalytics(value);
-  const groups = (['NOT_STARTED', 'VIDEO_IN_PROGRESS', 'READY_TO_ASSESS'] as const).filter((group) =>
-    badgeMessageGroupMatches(group, analytics)
-  );
+  const groups = BADGE_MESSAGE_GROUPS.filter((group) => badgeMessageGroupMatches(group, analytics));
   expect(groups.length).toBeLessThanOrEqual(1);
   return groups[0] ?? null;
 }
@@ -66,8 +65,12 @@ describe('deriveBadgeAnalytics + badgeMessageGroupMatches', () => {
     expect(groupOf(input({ lessonProgress: [VIDEO_DONE], assessmentAttempts: [{ passed: false }] }))).toBeNull();
   });
 
-  it('leaves out locked, in-review, and completed students', () => {
+  it('leaves out locked and completed students', () => {
     expect(groupOf(input({ progress: { status: 'LOCKED' }, lessonProgress: [VIDEO_DONE] }))).toBeNull();
+    expect(groupOf(input({ progress: { status: 'COMPLETED' }, lessonProgress: [VIDEO_DONE] }))).toBeNull();
+  });
+
+  it('puts a passed, unfinalized IN_REVIEW student in NEEDS_FEEDBACK_REVIEW', () => {
     expect(
       groupOf(
         input({
@@ -76,8 +79,32 @@ describe('deriveBadgeAnalytics + badgeMessageGroupMatches', () => {
           assessmentAttempts: [{ passed: true }],
         })
       )
+    ).toBe('NEEDS_FEEDBACK_REVIEW');
+  });
+
+  it('leaves a failed IN_REVIEW student out of NEEDS_FEEDBACK_REVIEW', () => {
+    expect(
+      groupOf(
+        input({
+          progress: { status: 'IN_REVIEW' },
+          lessonProgress: [VIDEO_DONE],
+          assessmentAttempts: [{ passed: false }],
+        })
+      )
     ).toBeNull();
-    expect(groupOf(input({ progress: { status: 'COMPLETED' }, lessonProgress: [VIDEO_DONE] }))).toBeNull();
+  });
+
+  it('drops a student from NEEDS_FEEDBACK_REVIEW once feedback is recorded', () => {
+    expect(
+      groupOf(
+        input({
+          progress: { status: 'IN_REVIEW' },
+          lessonProgress: [VIDEO_DONE],
+          assessmentAttempts: [{ passed: true }],
+          surveyResponseCount: 1,
+        })
+      )
+    ).toBeNull();
   });
 
   it('reconciles a stale IN_REVIEW row with recorded feedback to COMPLETED', () => {
@@ -90,9 +117,10 @@ describe('deriveBadgeAnalytics + badgeMessageGroupMatches', () => {
 });
 
 describe('isBadgeMessageGroup', () => {
-  it('accepts only the three known groups', () => {
+  it('accepts only the known groups', () => {
     expect(isBadgeMessageGroup('NOT_STARTED')).toBe(true);
     expect(isBadgeMessageGroup('READY_TO_ASSESS')).toBe(true);
+    expect(isBadgeMessageGroup('NEEDS_FEEDBACK_REVIEW')).toBe(true);
     expect(isBadgeMessageGroup('EVERYONE')).toBe(false);
     expect(isBadgeMessageGroup(null)).toBe(false);
   });

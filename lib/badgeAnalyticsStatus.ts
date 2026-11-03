@@ -3,7 +3,12 @@ export type AnalyticsStatus = 'PROFICIENT' | 'STILL_LEARNING' | 'NOT_STARTED';
 export type StillLearningReason = 'VIDEO_IN_PROGRESS' | 'VIDEO_COMPLETED_ONLY' | 'IN_PERSON_FAILED';
 
 // The student groups an instructor (or a permitted checker) can message for a badge.
-export const BADGE_MESSAGE_GROUPS = ['NOT_STARTED', 'VIDEO_IN_PROGRESS', 'READY_TO_ASSESS'] as const;
+export const BADGE_MESSAGE_GROUPS = [
+  'NOT_STARTED',
+  'VIDEO_IN_PROGRESS',
+  'READY_TO_ASSESS',
+  'NEEDS_FEEDBACK_REVIEW',
+] as const;
 export type BadgeMessageGroup = (typeof BADGE_MESSAGE_GROUPS)[number];
 
 export function isBadgeMessageGroup(value: unknown): value is BadgeMessageGroup {
@@ -77,8 +82,9 @@ export function deriveBadgeAnalytics(input: BadgeAnalyticsInput): BadgeAnalytics
 }
 
 // Each group lines up with a count on the badge detail page: the Not Started
-// card and the two still-learning rows ("Started the video, haven't finished"
-// and "Finished the video lesson, not yet assessed").
+// card and three still-learning rows ("Started the video, haven't finished",
+// "Finished the video lesson, not yet assessed" and "Passed in person, badge
+// not awarded yet").
 export function badgeMessageGroupMatches(group: BadgeMessageGroup, analytics: BadgeAnalytics) {
   switch (group) {
     case 'NOT_STARTED':
@@ -87,5 +93,10 @@ export function badgeMessageGroupMatches(group: BadgeMessageGroup, analytics: Ba
       return analytics.stillLearningReason === 'VIDEO_IN_PROGRESS';
     case 'READY_TO_ASSESS':
       return analytics.stillLearningReason === 'VIDEO_COMPLETED_ONLY';
+    case 'NEEDS_FEEDBACK_REVIEW':
+      // IN_REVIEW also holds failed attempts awaiting acknowledgement; only a
+      // pass still needs the student to review feedback and finalize. Finalizing
+      // reconciles to COMPLETED above, so students drop out on their own.
+      return analytics.status === 'IN_REVIEW' && analytics.latestAssessmentPassed === true;
   }
 }

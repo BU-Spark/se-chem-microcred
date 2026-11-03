@@ -492,6 +492,7 @@ export default function CourseBadgeProgress() {
                                     },
                                     {
                                       label: 'Passed in person, badge not awarded yet',
+                                      group: 'NEEDS_FEEDBACK_REVIEW' as BadgeMessageGroup,
                                       count: summary.inReviewCount,
                                       percent: summary.inReviewPercent,
                                     },

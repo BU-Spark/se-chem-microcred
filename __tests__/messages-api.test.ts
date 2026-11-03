@@ -530,6 +530,7 @@ function groupStudent(
       percentComplete: number;
     }>;
     attempts?: Array<{ passed: boolean }>;
+    surveys?: number;
   } = {}
 ) {
   const status = overrides.status === undefined ? 'LEARNING' : overrides.status;
@@ -537,7 +538,7 @@ function groupStudent(
     id,
     badgeProgress: status ? [{ status }] : [],
     assessmentAttempts: overrides.attempts ?? [],
-    surveyResponses: [],
+    surveyResponses: Array.from({ length: overrides.surveys ?? 0 }, (_, index) => ({ id: `survey-${index}` })),
     lessonProgress: overrides.lessonProgress ?? [],
   };
 }
@@ -548,7 +549,15 @@ const VIDEO_DONE = [{ status: 'COMPLETED', startedAt: new Date(), completedAt: n
 describe('POST /api/messages (badge groups)', () => {
   beforeEach(() => {
     mockEnrollments({
-      students: [{ studentId: 'fresh' }, { studentId: 'watching' }, { studentId: 'ready' }, { studentId: 'failed' }],
+      students: [
+        { studentId: 'fresh' },
+        { studentId: 'watching' },
+        { studentId: 'ready' },
+        { studentId: 'failed' },
+        { studentId: 'passed' },
+        { studentId: 'failedReview' },
+        { studentId: 'finalized' },
+      ],
     });
     mockPrisma.course.findFirst.mockResolvedValue({
       createdById: 'sender-1',
@@ -564,6 +573,18 @@ describe('POST /api/messages (badge groups)', () => {
           groupStudent('watching', { lessonProgress: VIDEO_STARTED }),
           groupStudent('ready', { status: 'READY_FOR_ASSESSMENT', lessonProgress: VIDEO_DONE }),
           groupStudent('failed', { lessonProgress: VIDEO_DONE, attempts: [{ passed: false }] }),
+          groupStudent('passed', { status: 'IN_REVIEW', lessonProgress: VIDEO_DONE, attempts: [{ passed: true }] }),
+          groupStudent('failedReview', {
+            status: 'IN_REVIEW',
+            lessonProgress: VIDEO_DONE,
+            attempts: [{ passed: false }],
+          }),
+          groupStudent('finalized', {
+            status: 'IN_REVIEW',
+            lessonProgress: VIDEO_DONE,
+            attempts: [{ passed: true }],
+            surveys: 1,
+          }),
         ].filter((row) => args.where.id.in.includes(row.id))
       )
     );
@@ -583,6 +604,8 @@ describe('POST /api/messages (badge groups)', () => {
     ['VIDEO_IN_PROGRESS', 'BADGE_VIDEO_IN_PROGRESS', ['watching']],
     // A failed in-person attempt is not "ready to assess", even with the video done.
     ['READY_TO_ASSESS', 'BADGE_READY_TO_ASSESS', ['ready']],
+    // Failed reviews and students who already finalized are left out.
+    ['NEEDS_FEEDBACK_REVIEW', 'BADGE_NEEDS_FEEDBACK_REVIEW', ['passed']],
   ])('sends a %s group message only to that group', async (badgeGroup, audience, ids) => {
     const response = await POST(postRequest({ courseId: 'course-1', badgeId: 'badge-1', badgeGroup, body: 'Hi' }));
 

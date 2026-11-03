@@ -70,6 +70,7 @@ enum MessageAudience {
   BADGE_NOT_STARTED
   BADGE_VIDEO_IN_PROGRESS
   BADGE_READY_TO_ASSESS
+  BADGE_NEEDS_FEEDBACK_REVIEW
 }
 
 model MessageReceipt {
