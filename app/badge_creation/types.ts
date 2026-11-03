@@ -84,7 +84,6 @@ export type BadgeDraft = {
   checkpoints: CheckpointDraft[];
   reassessmentLimit: number;
   cooldownDays: number;
-  reassessmentRequired: boolean;
   // Badges a student must COMPLETE before starting this one. Saved as
   // prerequisiteBadgeIds; [] whenever hasPrerequisites is off.
   hasPrerequisites: boolean;
@@ -108,12 +107,11 @@ export type BadgeCatalogItem = {
   availableOn?: string | null;
   closesOn?: string | null;
   neverCloses?: boolean | null;
-  // Authored assessment policy (null = inherit the system default). Round-tripped
-  // so the editor can rehydrate these on edit.
+
   reassessmentLimit?: number | null;
   cooldownDays?: number | null;
   reassessmentRequired?: boolean | null;
-  // Prerequisites live on the template, so a course copy reports its template's.
+
   familyRootId?: string;
   prerequisites?: Array<{ id: string; name: string }>;
   satisfies?: Array<{ id: string; name: string }>;
@@ -139,8 +137,7 @@ export type BadgeCatalogItem = {
         questions?: Array<Partial<CheckpointQuestionDraft> & { prompt?: string | null; correctIndex?: number | null }>;
       }
     >;
-    // Video + passing threshold stored in the requirement summary JSON (source
-    // badges have no lesson row, so these are the durable copy).
+
     youtubeUrl?: string | null;
     videoTitle?: string | null;
     videoLength?: string | null;
@@ -206,7 +203,6 @@ export const DEFAULT_DRAFT: BadgeDraft = {
   checkpoints: [],
   reassessmentLimit: 3,
   cooldownDays: 0,
-  reassessmentRequired: false,
   hasPrerequisites: false,
   prerequisites: [],
   hasSatisfies: false,

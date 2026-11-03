@@ -35,9 +35,6 @@ export function extractYouTubeId(url?: string | null) {
   return null;
 }
 
-// Accepts youtube.com/youtu.be links (with or without scheme/www), rejecting
-// arbitrary strings like "a". A missing scheme is normalized before parsing,
-// and the host must be a YouTube host that yields a non-empty video id.
 export function isValidYouTubeUrl(url?: string | null) {
   if (!url || !url.trim()) return false;
 
@@ -167,8 +164,7 @@ function questionFromCatalog(
     unit: question?.unit ? String(question.unit) : '',
     incorrectFeedback: question?.incorrectFeedback ? String(question.incorrectFeedback) : '',
     incorrectFeedbackEnabled: Boolean(question?.incorrectFeedback) || Boolean(question?.incorrectFeedbackEnabled),
-    // Points are authored per question (issue #248); default to 1 for legacy
-    // catalog entries saved before questions carried their own point value.
+
     points: question?.points != null && Number.isFinite(Number(question.points)) ? Number(question.points) : 1,
   };
 }
@@ -219,8 +215,6 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
       }
     : { ...DEFAULT_DRAFT.rubricGoal, name: badge.name };
 
-  // Availability prefers the new per-badge columns; fall back to lesson.dueDate
-  // for legacy badges created before those columns existed.
   const closesOnSource = badge.closesOn ?? lesson?.dueDate ?? null;
   const neverCloses = badge.neverCloses ?? !lesson?.dueDate;
 
@@ -236,23 +230,18 @@ export function badgeToDraft(badge: BadgeCatalogItem): BadgeDraft {
     availableOn: formatDateInput(badge.availableOn),
     closesOn: neverCloses ? '' : formatDateInput(closesOnSource),
     neverCloses,
-    // Authored assessment policy; fall back to the draft defaults for legacy badges
-    // created before these columns existed (null = inherit the system default).
+
     reassessmentLimit: badge.reassessmentLimit ?? DEFAULT_DRAFT.reassessmentLimit,
     cooldownDays: badge.cooldownDays ?? DEFAULT_DRAFT.cooldownDays,
-    reassessmentRequired: badge.reassessmentRequired ?? DEFAULT_DRAFT.reassessmentRequired,
     hasPrerequisites: (badge.prerequisites?.length ?? 0) > 0,
     prerequisites: badge.prerequisites ?? [],
     hasSatisfies: (badge.satisfies?.length ?? 0) > 0,
     satisfies: badge.satisfies ?? [],
-    // Prefer the summary-stored video (the only copy the editor can see, since it
-    // loads the source badge which has no lesson row); fall back to the lesson
-    // segment for legacy badges created before video was stored in the summary.
+
     youtubeUrl: requirement?.youtubeUrl ?? segment?.videoUrl ?? '',
     videoTitle: requirement?.videoTitle ?? segment?.title ?? lesson?.title ?? '',
     videoLength: requirement?.videoLength ?? formatDurationInput(segment?.duration, lesson?.estimatedMinutes),
-    // Source badges have no lesson row, so the threshold lives in the requirement
-    // summary JSON; fall back to the lesson (course copies), then the default.
+
     passingPercent: requirement?.passingPercent ?? lesson?.passingPercent ?? DEFAULT_DRAFT.passingPercent,
     checkpoints: requirement?.checkpoints?.length
       ? requirement.checkpoints.map((checkpoint, index) => checkpointFromCatalog(checkpoint, index))
