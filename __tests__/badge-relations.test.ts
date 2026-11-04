@@ -1,6 +1,7 @@
 import {
   formatBadgeNameList,
   isPrerequisiteLocked,
+  resolveEarnedThrough,
   resolveSatisfiedBadges,
   selectableRelationIds,
   validateRelationSet,
@@ -171,5 +172,23 @@ describe('resolveSatisfiedBadges', () => {
 
   it('awards nothing when nothing was earned', () => {
     expect(resolveSatisfiedBadges(earns, [])).toEqual(new Map());
+  });
+});
+
+describe('resolveEarnedThrough', () => {
+  // Walk was awarded by Run, which was awarded by Sprint.
+  const awardedBy = (badgeId: string) => ({ walk: 'run', run: 'sprint' })[badgeId] ?? null;
+
+  it('returns the badge itself for an own completion', () => {
+    expect(resolveEarnedThrough('sprint', awardedBy)).toBe('sprint');
+  });
+
+  it('follows a chain of awards back to the badge the student completed', () => {
+    expect(resolveEarnedThrough('walk', awardedBy)).toBe('sprint');
+  });
+
+  it('stops on a loop instead of spinning', () => {
+    const looped = (badgeId: string) => ({ a: 'b', b: 'a' })[badgeId] ?? null;
+    expect(resolveEarnedThrough('a', looped)).toBe('b');
   });
 });

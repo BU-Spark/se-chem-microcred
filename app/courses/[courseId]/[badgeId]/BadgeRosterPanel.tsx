@@ -19,8 +19,6 @@ export type BadgeRosterRow = {
   student: {
     id: string;
     name: string | null;
-    // Issue #258: sorting and the CSV export both need the real surname, which a
-    // joined name cannot give up when the surname is more than one word.
     firstName: string | null;
     lastName: string | null;
     email: string | null;
@@ -29,6 +27,7 @@ export type BadgeRosterRow = {
   cohort?: RosterCohort;
   stage?: RosterStage;
   locked?: boolean;
+  earnedVia?: string | null;
 };
 
 const COHORT_LABEL: Record<RosterCohort, string> = {
@@ -67,12 +66,15 @@ export default function BadgeRosterPanel({
   courseId,
   badgeId,
   rows,
+  showEarnedVia = false,
   onClose,
 }: {
   badgeName: string;
   courseId: string;
   badgeId: string;
   rows: BadgeRosterRow[];
+  // True when another badge in the course can earn this one.
+  showEarnedVia?: boolean;
   onClose: () => void;
 }) {
   const panelRef = useFocusTrap<HTMLDivElement>(true, onClose);
@@ -107,6 +109,7 @@ export default function BadgeRosterPanel({
         Email: row.student.email ?? '',
         Sections: row.sections.join(' '),
         Progress: COHORT_LABEL[cohortOf(row)],
+        ...(showEarnedVia ? { 'Earned Via': row.earnedVia ?? '' } : {}),
         Detail: detailOf(row),
       };
     });

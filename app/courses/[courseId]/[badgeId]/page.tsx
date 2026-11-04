@@ -123,6 +123,7 @@ type StudentProgressRow = {
   cohort?: RosterCohort;
   stage?: RosterStage;
   locked?: boolean;
+  earnedVia?: string | null;
 };
 
 type BadgeDetailResponse = {
@@ -138,6 +139,7 @@ type BadgeDetailResponse = {
   } | null;
   ratings: BadgeRatingsData | null;
   assessment: AssessmentDetails;
+  earnableThroughOtherBadge?: boolean;
   students: StudentProgressRow[];
 };
 
@@ -603,6 +605,7 @@ export default function CourseBadgeProgress() {
           courseId={courseId}
           badgeId={badgeId}
           rows={data?.students ?? []}
+          showEarnedVia={data?.earnableThroughOtherBadge ?? false}
           onClose={() => setIsRosterOpen(false)}
         />
       ) : null}

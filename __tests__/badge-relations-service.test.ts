@@ -5,6 +5,7 @@ import {
   BadgeRelationError,
   findCourseDependents,
   findLessonPrerequisiteLock,
+  loadEarnedVia,
   syncBadgeRelations,
 } from '../lib/badges/badge-relations.service';
 
@@ -203,5 +204,48 @@ describe('findCourseDependents', () => {
     courseWithAandB(db);
     db.badgeRelation.findMany.mockResolvedValue([{ toBadgeId: 'Z' }]);
     await expect(findCourseDependents(asDb(db), 'c1', 'A')).resolves.toEqual([]);
+  });
+});
+
+describe('loadEarnedVia', () => {
+  // Course c1 holds copies of Sprint, Run and Walk; Sprint earns Run earns Walk.
+  function courseWithChain(db: FakeDb) {
+    db.badgeRequirement.findMany.mockResolvedValue(
+      ['sprint', 'run', 'walk'].map((root) => ({
+        lessonId: `lesson-${root}`,
+        lesson: { courseId: 'c1' },
+        badge: { id: `${root}-copy`, name: root, sourceBadgeId: root },
+      }))
+    );
+    db.badgeRelation.findMany.mockResolvedValue([
+      { fromBadgeId: 'sprint', toBadgeId: 'run' },
+      { fromBadgeId: 'run', toBadgeId: 'walk' },
+    ]);
+  }
+
+  it('returns null for a badge nothing in the course earns', async () => {
+    const db = buildDb();
+    courseWithChain(db);
+    await expect(
+      loadEarnedVia(asDb(db), { courseId: 'c1', badgeId: 'sprint-copy', studentIds: ['s1'] })
+    ).resolves.toBeNull();
+  });
+
+  it('names the badge each student completed, following chained awards', async () => {
+    const db = buildDb();
+    courseWithChain(db);
+    db.studentBadge.findMany.mockResolvedValue([
+      { studentId: 's1', badgeId: 'walk-copy', satisfiedByBadgeId: 'run-copy', satisfiedBy: { name: 'Run' } },
+      { studentId: 's1', badgeId: 'run-copy', satisfiedByBadgeId: 'sprint-copy', satisfiedBy: { name: 'Sprint' } },
+    ]);
+
+    const earnedVia = await loadEarnedVia(asDb(db), { courseId: 'c1', badgeId: 'walk-copy', studentIds: ['s1', 's2'] });
+
+    expect(earnedVia).toEqual(
+      new Map([
+        ['s1', 'Sprint'],
+        ['s2', 'Self'],
+      ])
+    );
   });
 });

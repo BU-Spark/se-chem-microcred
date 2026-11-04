@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { BadgeStatus } from '@prisma/client';
 import { fetchAccessibleCourseDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
+import { resolveEarnedThrough } from '@/lib/badgeRelations';
+import { loadCourseSatisfiesEdges } from '@/lib/badges/badge-relations.service';
 import { resolveName } from '@/lib/text/name';
 import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
@@ -75,11 +77,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     // then; a student who joined afterwards has an enrollment but no progress row.
     // So drive the export off enrolled students × course badges rather than the
     // progress rows, and derive each status below.
-    const [progressRows, lessonProgressRows] = await Promise.all([
+    const [progressRows, lessonProgressRows, { courseBadges, edges: satisfiesEdges }] = await Promise.all([
       studentIds.length > 0 && badgeIds.length > 0
         ? prisma.studentBadge.findMany({
             where: { studentId: { in: studentIds }, badgeId: { in: badgeIds } },
-            select: { studentId: true, badgeId: true, status: true },
+            select: { studentId: true, badgeId: true, status: true, satisfiedByBadgeId: true },
           })
         : Promise.resolve([]),
       studentIds.length > 0 && requirementLessonIds.length > 0
@@ -95,12 +97,31 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
             },
           })
         : Promise.resolve([]),
+      loadCourseSatisfiesEdges(prisma, courseId),
     ]);
 
     const statusByStudentBadge = new Map<string, BadgeStatus>();
+    const satisfiedByStudentBadge = new Map<string, string>();
     for (const progress of progressRows) {
       statusByStudentBadge.set(`${progress.studentId}:${progress.badgeId}`, progress.status);
+      if (progress.satisfiedByBadgeId) {
+        satisfiedByStudentBadge.set(`${progress.studentId}:${progress.badgeId}`, progress.satisfiedByBadgeId);
+      }
     }
+
+    const earnableRootIds = new Set(satisfiesEdges.map((edge) => edge.toBadgeId));
+    const earnableBadgeIds = new Set(
+      [...courseBadges.values()].filter((badge) => earnableRootIds.has(badge.rootId)).map((badge) => badge.badgeId)
+    );
+    const badgeNameById = new Map(badges.map((badge) => [badge.id, badge.name]));
+
+    // "Self" when the student completed the badge themselves, otherwise the badge
+    // they did complete (followed back through chained awards).
+    const earnedVia = (studentId: string, badgeId: string) => {
+      if (statusByStudentBadge.get(`${studentId}:${badgeId}`) !== BadgeStatus.COMPLETED) return '';
+      const sourceId = resolveEarnedThrough(badgeId, (id) => satisfiedByStudentBadge.get(`${studentId}:${id}`));
+      return sourceId === badgeId ? 'Self' : (badgeNameById.get(sourceId) ?? '');
+    };
 
     // A student has "started" a requirement lesson once it shows any activity.
     // Mirrors the badge-detail route so the export agrees with the dashboard.
@@ -130,20 +151,23 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       return 'Still Learning';
     };
 
-    // Wide/pivot layout (issue #120, "Option B"): one row per student, with a
-    // column per badge whose value is the student's status for that badge. Two
-    // badges can share a display name, which would collide as object keys, so
-    // build a unique column label per badge (suffixing duplicates) while keeping
-    // the badge's lesson order for the column sequence.
     const columnLabelByBadgeId = new Map<string, string>();
+    const earnedViaLabelByBadgeId = new Map<string, string>();
     const usedColumnLabels = new Set(['First Name', 'Last Name', 'ID', 'Email']);
-    for (const badge of badges) {
-      let label = badge.name;
+    const uniqueLabel = (base: string) => {
+      let label = base;
       for (let suffix = 2; usedColumnLabels.has(label); suffix += 1) {
-        label = `${badge.name} (${suffix})`;
+        label = `${base} (${suffix})`;
       }
       usedColumnLabels.add(label);
+      return label;
+    };
+    for (const badge of badges) {
+      const label = uniqueLabel(badge.name);
       columnLabelByBadgeId.set(badge.id, label);
+      if (earnableBadgeIds.has(badge.id)) {
+        earnedViaLabelByBadgeId.set(badge.id, uniqueLabel(`${label} – Earned Via`));
+      }
     }
 
     const rows: Record<string, string>[] = [];
@@ -159,6 +183,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       };
       for (const badge of badges) {
         row[columnLabelByBadgeId.get(badge.id) as string] = displayStatus(student.id, badge);
+        const earnedViaLabel = earnedViaLabelByBadgeId.get(badge.id);
+        if (earnedViaLabel) row[earnedViaLabel] = earnedVia(student.id, badge.id);
       }
       rows.push(row);
     }

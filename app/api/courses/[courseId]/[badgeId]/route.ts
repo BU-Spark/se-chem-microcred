@@ -9,6 +9,8 @@ import { parseRequirementSummary } from '@/lib/badges/requirement-summary';
 import { classifyStudentBadgeCohort, summarizeBadgeCohorts } from '@/lib/badgeCohorts';
 import { fetchBadgeRatings } from '@/app/api/courses/lib/badge-ratings';
 import { deriveBadgeAnalytics, type StoredBadgeStatus } from '@/lib/badgeAnalyticsStatus';
+import { loadEarnedVia } from '@/lib/badges/badge-relations.service';
+import prisma from '@/lib/prisma';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -204,6 +206,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         locked: cohort.locked,
       };
     });
+    const earnedVia = await loadEarnedVia(prisma, {
+      courseId,
+      badgeId,
+      studentIds: students.filter((student) => student.status === 'COMPLETED').map((student) => student.student.id),
+    });
     const cohorts = summarizeBadgeCohorts(
       students.map((student) => ({ cohort: student.cohort, stage: student.stage, locked: student.locked }))
     );
@@ -308,7 +315,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         cohorts,
         ratings,
         assessment,
-        students,
+        students: students.map((student) => ({
+          ...student,
+          earnedVia: earnedVia?.get(student.student.id) ?? null,
+        })),
+        earnableThroughOtherBadge: earnedVia !== null,
       },
       { status: 200 }
     );

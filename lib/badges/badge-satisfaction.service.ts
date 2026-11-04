@@ -1,8 +1,8 @@
-import { BadgeRelationType, BadgeStatus, Prisma } from '@prisma/client';
+import { BadgeStatus, Prisma } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
 import { resolveSatisfiedBadges } from '@/lib/badgeRelations';
-import { loadCourseBadges } from '@/lib/badges/badge-relations.service';
+import { loadCourseSatisfiesEdges } from '@/lib/badges/badge-relations.service';
 
 // SATISFIES: completing Run earns Walk, in the same course only.
 //
@@ -44,18 +44,11 @@ export async function reconcileSatisfiedBadges(
   const result: ReconcileResult = { awarded: 0, revoked: 0, repointed: 0 };
   if (studentIds?.length === 0) return result;
 
-  const courseBadges = (await loadCourseBadges(db, [courseId])).get(courseId);
-  if (!courseBadges || courseBadges.size === 0) return result;
+  const { courseBadges, edges } = await loadCourseSatisfiesEdges(db, courseId);
+  if (courseBadges.size === 0) return result;
 
   const rootByCopy = new Map([...courseBadges.values()].map((badge) => [badge.badgeId, badge.rootId]));
   const copyIds = [...rootByCopy.keys()];
-  const roots = [...courseBadges.keys()];
-
-  const edges = await db.badgeRelation.findMany({
-    where: { type: BadgeRelationType.SATISFIES, fromBadgeId: { in: roots }, toBadgeId: { in: roots } },
-    orderBy: { createdAt: 'asc' },
-    select: { fromBadgeId: true, toBadgeId: true },
-  });
 
   // Only students with a completion (something that could award) or an existing
   // award (something that could need revoking) can change.
