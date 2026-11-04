@@ -123,6 +123,7 @@ type StudentProgressRow = {
   cohort?: RosterCohort;
   stage?: RosterStage;
   locked?: boolean;
+  earnedVia?: string | null;
 };
 
 type BadgeDetailResponse = {
@@ -138,6 +139,7 @@ type BadgeDetailResponse = {
   } | null;
   ratings: BadgeRatingsData | null;
   assessment: AssessmentDetails;
+  earnableThroughOtherBadge?: boolean;
   students: StudentProgressRow[];
 };
 
@@ -492,6 +494,7 @@ export default function CourseBadgeProgress() {
                                     },
                                     {
                                       label: 'Passed in person, badge not awarded yet',
+                                      group: 'NEEDS_FEEDBACK_REVIEW' as BadgeMessageGroup,
                                       count: summary.inReviewCount,
                                       percent: summary.inReviewPercent,
                                     },
@@ -602,6 +605,7 @@ export default function CourseBadgeProgress() {
           courseId={courseId}
           badgeId={badgeId}
           rows={data?.students ?? []}
+          showEarnedVia={data?.earnableThroughOtherBadge ?? false}
           onClose={() => setIsRosterOpen(false)}
         />
       ) : null}

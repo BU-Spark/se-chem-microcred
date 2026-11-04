@@ -40,6 +40,12 @@ jest.mock('@/lib/prisma', () => ({
   },
 }));
 
+const mockLoadEarnedVia = jest.fn();
+
+jest.mock('@/lib/badges/badge-relations.service', () => ({
+  loadEarnedVia: (...args: unknown[]) => mockLoadEarnedVia(...args),
+}));
+
 function buildRequest() {
   return new NextRequest('http://localhost/api/courses/course-1/badge-1?email=prof%40example.edu', {
     headers: { Accept: 'application/json' },
@@ -57,6 +63,7 @@ describe('course badge detail API', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockSurveyResponseFindMany.mockResolvedValue([]);
+    mockLoadEarnedVia.mockResolvedValue(null);
     mockFetchUserByEmail.mockResolvedValue({ id: 'instructor-1' });
     mockFetchCreatedCourseDetail.mockResolvedValue({
       id: 'course-1',
@@ -569,5 +576,32 @@ describe('course badge detail API', () => {
         });
       }
     });
+  });
+
+  // Issue #318: the roster CSV gets an Earned Via column when another badge in the
+  // course can earn this one.
+  it('reports how each proficient student earned a badge another badge can earn', async () => {
+    mockLoadEarnedVia.mockResolvedValue(new Map([['student-1', 'Run']]));
+
+    const body = await (await getBadgeDetail()).json();
+
+    expect(mockLoadEarnedVia).toHaveBeenCalledWith(expect.anything(), {
+      courseId: 'course-1',
+      badgeId: 'badge-1',
+      studentIds: ['student-1'],
+    });
+    expect(body.earnableThroughOtherBadge).toBe(true);
+    expect(body.students.map((student: { earnedVia: string | null }) => student.earnedVia)).toEqual([
+      'Run',
+      null,
+      null,
+    ]);
+  });
+
+  it('leaves Earned Via out when nothing in the course earns the badge', async () => {
+    const body = await (await getBadgeDetail()).json();
+
+    expect(body.earnableThroughOtherBadge).toBe(false);
+    expect(body.students.every((student: { earnedVia: string | null }) => student.earnedVia === null)).toBe(true);
   });
 });

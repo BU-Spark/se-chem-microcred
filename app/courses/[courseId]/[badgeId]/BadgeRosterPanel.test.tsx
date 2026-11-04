@@ -1,4 +1,3 @@
-// Issues: #247 badge image zoom, #258 multi-word last names
 import { fireEvent, render, screen, within } from '@testing-library/react';
 
 import BadgeRosterPanel, { type BadgeRosterRow } from './BadgeRosterPanel';
@@ -136,6 +135,34 @@ describe('BadgeRosterPanel', () => {
       },
     ]);
     expect(mockDownloadCsv).toHaveBeenCalledWith('csv-content:3', 'Waste Handling Badge_2026-08-06_09-00-00.csv');
+  });
+
+  it('adds an Earned Via column when another badge can earn this one', () => {
+    render(
+      <BadgeRosterPanel
+        badgeName="Waste Handling Badge"
+        courseId="course-1"
+        badgeId="badge-1"
+        rows={rows.map((row) => (row.student.id === 'student-1' ? { ...row, earnedVia: 'Run' } : row))}
+        showEarnedVia
+        onClose={jest.fn()}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+    const exported = mockBuildCsv.mock.calls[0][0] as Record<string, string>[];
+    expect(Object.keys(exported[0])).toEqual([
+      'First Name',
+      'Last Name',
+      'ID',
+      'Email',
+      'Sections',
+      'Progress',
+      'Earned Via',
+      'Detail',
+    ]);
+    expect(exported.map((row) => row['Earned Via'])).toEqual(['Run', '', '']);
   });
 
   it('closes from the close button', () => {

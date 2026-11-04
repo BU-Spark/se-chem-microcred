@@ -32,6 +32,7 @@ const GROUP_AUDIENCE: Record<BadgeMessageGroup, MessageAudience> = {
   NOT_STARTED: MessageAudience.BADGE_NOT_STARTED,
   VIDEO_IN_PROGRESS: MessageAudience.BADGE_VIDEO_IN_PROGRESS,
   READY_TO_ASSESS: MessageAudience.BADGE_READY_TO_ASSESS,
+  NEEDS_FEEDBACK_REVIEW: MessageAudience.BADGE_NEEDS_FEEDBACK_REVIEW,
 };
 
 async function filterToBadgeGroup(options: {

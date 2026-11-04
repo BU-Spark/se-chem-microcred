@@ -14,7 +14,8 @@ const GROUP_OPTIONS: Array<{ value: GroupChoice; label: string }> = [
   { value: 'ALL', label: 'All Students' },
   { value: 'NOT_STARTED', label: 'Not Started' },
   { value: 'VIDEO_IN_PROGRESS', label: 'In Progress' },
-  { value: 'READY_TO_ASSESS', label: 'Completed' },
+  { value: 'READY_TO_ASSESS', label: 'Ready to Assess' },
+  { value: 'NEEDS_FEEDBACK_REVIEW', label: 'Needs Feedback Review' },
 ];
 
 // Instructor-typed badge names are never rewritten. Append "Badge" only when the
@@ -61,6 +62,14 @@ function groupDefaults(group: GroupChoice, courseName: string, displayName: stri
           `You've finished the lesson for ${name} and are ready for your in-person assessment. Please find a checker to get assessed.`
         ),
       };
+    case 'NEEDS_FEEDBACK_REVIEW':
+      return {
+        subject: `Review your feedback: ${displayName}`,
+        body: signed(
+          courseName,
+          `You passed your in-person assessment for ${name}. Please log in to review your feedback and finalize your badge.`
+        ),
+      };
     default:
       return {
         subject: `Lesson reminder: ${displayName}`,
@@ -79,7 +88,9 @@ function groupSubtitle(group: GroupChoice, displayName: string) {
     case 'VIDEO_IN_PROGRESS':
       return `In Progress – ${displayName}`;
     case 'READY_TO_ASSESS':
-      return `Completed – ${displayName}`;
+      return `Ready to Assess – ${displayName}`;
+    case 'NEEDS_FEEDBACK_REVIEW':
+      return `Needs Feedback Review – ${displayName}`;
     default:
       return `All Students – ${displayName}`;
   }
@@ -92,7 +103,9 @@ function groupEmptyText(group: GroupChoice) {
     case 'VIDEO_IN_PROGRESS':
       return 'No students are In Progress on this badge — nothing was sent.';
     case 'READY_TO_ASSESS':
-      return 'No students are Completed on this badge — nothing was sent.';
+      return 'No students are Ready to Assess on this badge — nothing was sent.';
+    case 'NEEDS_FEEDBACK_REVIEW':
+      return 'No students need to review feedback on this badge — nothing was sent.';
     default:
       return 'No students currently have this badge incomplete — nothing was sent.';
   }

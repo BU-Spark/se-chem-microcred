@@ -5,6 +5,7 @@ import {
   RelationDirection,
   formatBadgeNameList,
   isPrerequisiteLocked,
+  resolveEarnedThrough,
   validateRelationSet,
 } from '@/lib/badgeRelations';
 
@@ -130,6 +131,59 @@ export async function loadCourseBadges(db: Db, courseIds: string[]) {
     byCourse.set(requirement.lesson.courseId, courseBadges);
   }
   return byCourse;
+}
+
+// A course's badges plus the SATISFIES arrows between them (root ids, oldest
+// first). Arrows reaching outside the course are dropped: a badge only earns its
+// targets where they share a course.
+export async function loadCourseSatisfiesEdges(db: Db, courseId: string) {
+  const courseBadges = (await loadCourseBadges(db, [courseId])).get(courseId) ?? new Map<string, CourseBadge>();
+  const roots = [...courseBadges.keys()];
+  const edges: BadgeEdge[] =
+    roots.length > 0
+      ? await db.badgeRelation.findMany({
+          where: { type: BadgeRelationType.SATISFIES, fromBadgeId: { in: roots }, toBadgeId: { in: roots } },
+          orderBy: { createdAt: 'asc' },
+          select: { fromBadgeId: true, toBadgeId: true },
+        })
+      : [];
+  return { courseBadges, edges };
+}
+
+// Issue #318: how each student holds badgeId when another badge in the course can
+// earn it: "Self", or the name of the badge they completed. Null when nothing in
+// the course earns badgeId, so callers can leave the column out.
+export async function loadEarnedVia(
+  db: Db,
+  { courseId, badgeId, studentIds }: { courseId: string; badgeId: string; studentIds: string[] }
+) {
+  const { courseBadges, edges } = await loadCourseSatisfiesEdges(db, courseId);
+  const rootId = [...courseBadges.values()].find((badge) => badge.badgeId === badgeId)?.rootId;
+  if (!rootId || !edges.some((edge) => edge.toBadgeId === rootId)) return null;
+
+  const earnedVia = new Map<string, string>();
+  if (studentIds.length === 0) return earnedVia;
+
+  const awards = await db.studentBadge.findMany({
+    where: {
+      studentId: { in: studentIds },
+      badgeId: { in: [...courseBadges.values()].map((badge) => badge.badgeId) },
+      satisfiedByBadgeId: { not: null },
+    },
+    select: { studentId: true, badgeId: true, satisfiedByBadgeId: true, satisfiedBy: { select: { name: true } } },
+  });
+  const awardedBy = new Map(awards.map((award) => [`${award.studentId}:${award.badgeId}`, award.satisfiedByBadgeId]));
+  const nameById = new Map(
+    awards.flatMap((award) =>
+      award.satisfiedByBadgeId && award.satisfiedBy ? [[award.satisfiedByBadgeId, award.satisfiedBy.name] as const] : []
+    )
+  );
+
+  for (const studentId of studentIds) {
+    const sourceId = resolveEarnedThrough(badgeId, (id) => awardedBy.get(`${studentId}:${id}`));
+    earnedVia.set(studentId, sourceId === badgeId ? 'Self' : (nameById.get(sourceId) ?? ''));
+  }
+  return earnedVia;
 }
 
 // Prerequisites of rootId that the course does not contain. Import uses this to

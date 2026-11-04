@@ -120,6 +120,21 @@ export function resolveSatisfiedBadges(edges: BadgeEdge[], ownCompletedIds: Iter
   return satisfiedBy;
 }
 
+// The badge a student actually completed to hold badgeId. Awards chain (Sprint
+// earns Run earns Walk, and Walk's row points at Run), so follow each award back
+// to the student's own completion. Returns badgeId itself for an own completion.
+export function resolveEarnedThrough(badgeId: string, awardedBy: (badgeId: string) => string | null | undefined) {
+  let sourceId = badgeId;
+  const seen = new Set([badgeId]);
+  let next = awardedBy(sourceId);
+  while (next && !seen.has(next)) {
+    seen.add(next);
+    sourceId = next;
+    next = awardedBy(sourceId);
+  }
+  return sourceId;
+}
+
 // The lock only stops a student starting a badge. Anyone with progress on it is
 // grandfathered, so adding a prerequisite or resetting one never strands work.
 export function isPrerequisiteLocked({ unmetCount, started }: { unmetCount: number; started: boolean }) {
