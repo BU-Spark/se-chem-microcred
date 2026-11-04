@@ -746,13 +746,9 @@ function HomePageContent() {
           <div className={styles.topRow}>
             <div className={styles.alertWrapper}>
               <button type="button" className={styles.alert} data-active="true" onClick={() => handleStartSurvey()}>
-                <Image
-                  src="/assets/survey_alarm/survey_alarm_x_icon.png"
-                  alt=""
-                  className={styles.alertIcon}
-                  width={24}
-                  height={24}
-                />
+                <span className={styles.alertIcon} aria-hidden="true">
+                  !
+                </span>
                 <span className={styles.alertText}>
                   {readyBadgeAlerts.length === 1
                     ? `Review feedback for ${readyBadgeAlerts[0]?.badgeName ?? 'your badge'} to finalize it.`
