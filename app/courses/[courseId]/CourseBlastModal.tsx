@@ -3,6 +3,13 @@
 import { useState } from 'react';
 
 import type { BadgeMessageGroup } from '@/lib/badgeAnalyticsStatus';
+import {
+  DELIVERY_OPTIONS,
+  describeEmailOutcome,
+  readSendResult,
+  type DeliveryChannel,
+  type SendResult,
+} from '../../components/Messaging/deliveryChannel';
 import Modal from '../../components/Modal/Modal';
 import styles from './CourseBlastModal.module.css';
 
@@ -135,7 +142,8 @@ export function CourseBlastModal({
   );
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState('');
-  const [result, setResult] = useState<number | null>(null);
+  const [channel, setChannel] = useState<DeliveryChannel>('IN_APP');
+  const [result, setResult] = useState<SendResult | null>(null);
 
   // Swap in the new group's template, but only for text the sender hasn't
   // touched — switching groups should never throw away a typed message.
@@ -165,13 +173,14 @@ export function CourseBlastModal({
           ...(badge ? { badgeId: badge.id, ...(group !== 'ALL' ? { badgeGroup: group } : {}) } : { allStudents: true }),
           subject: subject.trim() || undefined,
           body,
+          channel,
         }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(payload.error ?? 'Failed to send message.');
       }
-      setResult(typeof payload.sent === 'number' ? payload.sent : 0);
+      setResult(readSendResult(payload));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to send message.');
     } finally {
@@ -228,6 +237,22 @@ export function CourseBlastModal({
             </>
           ) : null}
 
+          <label className={styles.fieldLabel} htmlFor="blast-channel">
+            Deliver via
+          </label>
+          <select
+            id="blast-channel"
+            className={styles.groupSelect}
+            value={channel}
+            onChange={(event) => setChannel(event.target.value as DeliveryChannel)}
+          >
+            {DELIVERY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+
           <label className={styles.fieldLabel} htmlFor="blast-subject">
             Subject
           </label>
@@ -265,8 +290,13 @@ export function CourseBlastModal({
             ✓
           </div>
           <p className={styles.resultText}>
-            {result === 0 ? emptyResultText : `Sent to ${result} student${result === 1 ? '' : 's'}.`}
+            {result.sent === 0 ? emptyResultText : `Sent to ${result.sent} student${result.sent === 1 ? '' : 's'}.`}
           </p>
+          {describeEmailOutcome(channel, result) ? (
+            <p className={result.emailFailed > 0 || result.emailNotConfigured > 0 ? styles.error : styles.resultText}>
+              {describeEmailOutcome(channel, result)}
+            </p>
+          ) : null}
           <div className={styles.actions}>
             <button type="button" className={styles.sendButton} onClick={onClose}>
               Done

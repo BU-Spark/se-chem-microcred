@@ -2,11 +2,8 @@ import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
 
 import prisma from '@/lib/prisma';
+import { IN_APP_CHANNELS } from '@/lib/messaging/emailDelivery';
 
-// GET: how many messages the signed-in user has not opened, across every course
-// they are in. Staff copies of a blast count like any other unread mail. Kept
-// separate from the inbox route so the sidebar can ask for a number without
-// pulling a hundred message bodies on every page load.
 export async function GET() {
   try {
     const clerkUser = await currentUser();
@@ -21,7 +18,7 @@ export async function GET() {
     }
 
     const count = await prisma.messageReceipt.count({
-      where: { userId: user.id, readAt: null },
+      where: { userId: user.id, readAt: null, message: { channel: IN_APP_CHANNELS } },
     });
 
     return NextResponse.json({ count }, { status: 200 });

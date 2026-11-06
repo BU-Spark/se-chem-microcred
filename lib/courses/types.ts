@@ -50,6 +50,8 @@ export type CourseDetail = {
     allowCooldownOverride: boolean;
     allowCheckerMessages: boolean;
     allowCrossSectionView: boolean;
+    feedbackRemindersEnabled?: boolean;
+    feedbackReminderIntervalDays?: number;
   } | null;
   contacts: CourseContact[];
   enrollments: EnrollmentSummary[];

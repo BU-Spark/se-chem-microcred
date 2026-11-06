@@ -72,6 +72,8 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
       allowCheckerMessages: true,
       allowCooldownOverride: false,
       allowCrossSectionView: true,
+      feedbackRemindersEnabled: false,
+      feedbackReminderIntervalDays: 3,
       createdAt,
       updatedAt: createdAt,
     },

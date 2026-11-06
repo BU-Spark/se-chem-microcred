@@ -4,6 +4,12 @@ import { useState } from 'react';
 
 import { useFocusTrap } from '@/app/hooks/useFocusTrap';
 import styles from './StudentBadgeConfigModal.module.css';
+import {
+  DELIVERY_OPTIONS,
+  EMAIL_NOT_CONFIGURED_TEXT,
+  readSendResult,
+  type DeliveryChannel,
+} from '@/app/components/Messaging/deliveryChannel';
 
 // A compose form for an instructor/checker to message a single student. Posts
 // to /api/messages, which authorizes the sender against the course.
@@ -22,6 +28,7 @@ export function MessageComposeModal({
 }) {
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');
+  const [channel, setChannel] = useState<DeliveryChannel>('IN_APP');
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,12 +47,27 @@ export function MessageComposeModal({
       const response = await fetch('/api/messages', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ courseId, recipientId: studentId, subject: subject.trim() || undefined, body }),
+        body: JSON.stringify({ courseId, recipientId: studentId, subject: subject.trim() || undefined, body, channel }),
       });
 
       const payload = await response.json().catch(() => ({ error: `Request failed: ${response.status}` }));
       if (!response.ok) {
         throw new Error(payload.error ?? 'Unable to send message.');
+      }
+
+      // The message is saved either way; keep the modal open so the sender
+      // knows the email half did not go out.
+      const result = readSendResult(payload);
+      if (channel !== 'IN_APP' && result.emailed === 0) {
+        onSent?.();
+        setError(
+          result.emailNotConfigured > 0
+            ? `Message saved. ${EMAIL_NOT_CONFIGURED_TEXT}`
+            : result.emailSkipped > 0
+              ? 'Message saved, but this student has no email address on file.'
+              : 'Message saved, but the email could not be sent.'
+        );
+        return;
       }
 
       onSent?.();
@@ -68,6 +90,24 @@ export function MessageComposeModal({
         onClick={(event) => event.stopPropagation()}
       >
         <h2 className={styles.title}>Message {studentName}</h2>
+
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="message-channel">
+            Deliver via
+          </label>
+          <select
+            id="message-channel"
+            className={styles.input}
+            value={channel}
+            onChange={(event) => setChannel(event.target.value as DeliveryChannel)}
+          >
+            {DELIVERY_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="message-subject">

@@ -773,6 +773,17 @@
   margin: 0.45rem 0 0;
 }
 
+.reminderStatus {
+  display: inline-block;
+  margin-left: 0.6rem;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .groupMessageButton:hover {
   background: var(--checkd-blue-high);
   color: #fff;

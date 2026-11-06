@@ -104,6 +104,8 @@ describe('Course new page edit mode', () => {
               allowCooldownOverride: false,
               allowCheckerMessages: true,
               allowCrossSectionView: false,
+              feedbackRemindersEnabled: true,
+              feedbackReminderIntervalDays: 7,
             },
             contacts: [
               {
@@ -195,6 +197,8 @@ describe('Course new page edit mode', () => {
           allowCooldownOverride: false,
           allowCheckerMessages: true,
           allowCrossSectionView: false,
+          feedbackRemindersEnabled: true,
+          feedbackReminderIntervalDays: 7,
         },
       })
     );
