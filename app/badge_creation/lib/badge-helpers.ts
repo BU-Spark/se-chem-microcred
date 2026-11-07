@@ -162,6 +162,11 @@ function questionFromCatalog(
     numericRangeMin: question?.numericRangeMin ? String(question.numericRangeMin) : '',
     numericRangeMax: question?.numericRangeMax ? String(question.numericRangeMax) : '',
     unit: question?.unit ? String(question.unit) : '',
+    optionFeedback: options.map((_, optionIndex) => {
+      const feedback = question?.optionFeedback?.[optionIndex];
+      return feedback ? String(feedback) : '';
+    }),
+    correctFeedback: question?.correctFeedback ? String(question.correctFeedback) : '',
     incorrectFeedback: question?.incorrectFeedback ? String(question.incorrectFeedback) : '',
     incorrectFeedbackEnabled: Boolean(question?.incorrectFeedback) || Boolean(question?.incorrectFeedbackEnabled),
 

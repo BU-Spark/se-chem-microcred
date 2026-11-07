@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 import prisma from '@/lib/prisma';
 import {
   normalizeCorrectIndices,
-  normalizeOptions,
+  normalizeOptionsWithFeedback,
   normalizePoints,
   normalizeRichText,
   normalizeString,
@@ -33,7 +33,10 @@ function buildCheckpointQuestionsWithSummary(checkpoint: CheckpointPayload) {
     .map((question, questionIndex) => {
       const prompt = getQuestionPrompt(question);
       const questionType = question.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice';
-      const options = questionType === 'multipleChoice' ? normalizeOptions(question.options) : [];
+      const { options, optionFeedback } =
+        questionType === 'multipleChoice'
+          ? normalizeOptionsWithFeedback(question.options, question.optionFeedback)
+          : { options: [], optionFeedback: [] };
       const points = normalizePoints(question.points, 1);
       return {
         sortOrder: questionIndex,
@@ -50,6 +53,9 @@ function buildCheckpointQuestionsWithSummary(checkpoint: CheckpointPayload) {
           numericRangeMin: parseFiniteNumber(question.numericRangeMin),
           numericRangeMax: parseFiniteNumber(question.numericRangeMax),
           unit: normalizeString(question.unit),
+          // Per-answer feedback (issue #320) round-trips to the editor and imports.
+          optionFeedback: optionFeedback.some(Boolean) ? optionFeedback : [],
+          correctFeedback: normalizeString(question.correctFeedback),
           incorrectFeedback: normalizeString(question.incorrectFeedback),
           incorrectFeedbackEnabled: Boolean(normalizeString(question.incorrectFeedback)),
           points,

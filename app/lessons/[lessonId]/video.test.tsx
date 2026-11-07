@@ -373,7 +373,7 @@ describe('LessonVideoPage', () => {
   // Issue #287: getting a checkpoint question wrong used to offer "Rewatch
   // section" alongside Continue. The summary now only moves forward.
   describe('a failed checkpoint', () => {
-    async function failCheckpointOne() {
+    async function failCheckpointOne(feedback: { kind: string; messages: string[] } | null = null) {
       const player = installFakeYouTubePlayer();
       global.fetch = jest.fn(async (url: RequestInfo | URL) => {
         if (String(url).includes('/attempt')) {
@@ -381,7 +381,7 @@ describe('LessonVideoPage', () => {
             ok: true,
             json: async () => ({
               isPassing: false,
-              questions: [{ questionId: 'question-1', isCorrect: false }],
+              questions: [{ questionId: 'question-1', isCorrect: false, feedback }],
             }),
           };
         }
@@ -419,6 +419,19 @@ describe('LessonVideoPage', () => {
 
       expect(screen.queryByRole('button', { name: /Rewatch/i })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Continue' })).toBeInTheDocument();
+    });
+
+    // Issue #320: the summary shows the feedback the server resolved for the answer.
+    it('shows per-answer feedback under the question', async () => {
+      await failCheckpointOne({ kind: 'options', messages: ['B confuses heat with color.'] });
+
+      expect(screen.getByText('B confuses heat with color.')).toBeInTheDocument();
+    });
+
+    it('shows nothing extra when the question has no feedback', async () => {
+      await failCheckpointOne(null);
+
+      expect(document.querySelector('[data-feedback-kind]')).toBeNull();
     });
   });
 

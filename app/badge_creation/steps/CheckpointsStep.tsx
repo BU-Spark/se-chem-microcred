@@ -23,6 +23,7 @@ export default function CheckpointsStep({
   updateCheckpoint,
   updateCheckpointQuestion,
   updateCheckpointQuestionOption,
+  updateCheckpointQuestionOptionFeedback,
   toggleCheckpointQuestionCorrectOption,
   addCheckpointQuestion,
   removeCheckpointQuestion,
@@ -47,6 +48,12 @@ export default function CheckpointsStep({
     value: CheckpointQuestionDraft[K]
   ) => void;
   updateCheckpointQuestionOption: (
+    checkpointId: string,
+    questionId: string,
+    optionIndex: number,
+    value: string
+  ) => void;
+  updateCheckpointQuestionOptionFeedback: (
     checkpointId: string,
     questionId: string,
     optionIndex: number,
@@ -363,6 +370,22 @@ export default function CheckpointsStep({
                                       )
                                     }
                                   />
+
+                                  <textarea
+                                    className={`${styles.cpInput} ${styles.cpFeedbackInput}`}
+                                    rows={2}
+                                    aria-label={`Question ${questionIndex + 1} choice ${optionIndex + 1} feedback`}
+                                    placeholder="Feedback for this choice (optional)"
+                                    value={question.optionFeedback?.[optionIndex] ?? ''}
+                                    onChange={(event) =>
+                                      updateCheckpointQuestionOptionFeedback(
+                                        selectedCheckpoint.id,
+                                        question.id,
+                                        optionIndex,
+                                        event.target.value
+                                      )
+                                    }
+                                  />
                                 </div>
                                 {question.options.length > 2 ? (
                                   <button
@@ -460,6 +483,42 @@ export default function CheckpointsStep({
                                     selectedCheckpoint.id,
                                     question.id,
                                     'unit',
+                                    event.target.value
+                                  )
+                                }
+                              />
+                            </label>
+                            <label className={`${styles.cpField} ${styles.cpFieldWide}`}>
+                              <span className={styles.cpFieldLabel}>Feedback if correct</span>
+                              <textarea
+                                aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} feedback if correct`}
+                                className={`${styles.cpInput} ${styles.cpFeedbackInput}`}
+                                rows={2}
+                                value={question.correctFeedback ?? ''}
+                                placeholder="Optional"
+                                onChange={(event) =>
+                                  updateCheckpointQuestion(
+                                    selectedCheckpoint.id,
+                                    question.id,
+                                    'correctFeedback',
+                                    event.target.value
+                                  )
+                                }
+                              />
+                            </label>
+                            <label className={`${styles.cpField} ${styles.cpFieldWide}`}>
+                              <span className={styles.cpFieldLabel}>Feedback if incorrect</span>
+                              <textarea
+                                aria-label={`${selectedCheckpoint.title} question ${questionIndex + 1} feedback if incorrect`}
+                                className={`${styles.cpInput} ${styles.cpFeedbackInput}`}
+                                rows={2}
+                                value={question.incorrectFeedback ?? ''}
+                                placeholder="Optional"
+                                onChange={(event) =>
+                                  updateCheckpointQuestion(
+                                    selectedCheckpoint.id,
+                                    question.id,
+                                    'incorrectFeedback',
                                     event.target.value
                                   )
                                 }

@@ -68,7 +68,12 @@ describe('POST /api/checkpoints/[checkpointId]/attempt', () => {
           id: 'question-1',
           prompt: 'Pick A',
           correctIndex: 0,
-          options: { type: 'multipleChoice', options: ['A', 'B'], correctIndices: [0] },
+          options: {
+            type: 'multipleChoice',
+            options: ['A', 'B'],
+            correctIndices: [0],
+            optionFeedback: ['A is right.', 'B is wrong.'],
+          },
         },
       ],
       lesson: { id: 'lesson-1' },
@@ -98,5 +103,20 @@ describe('POST /api/checkpoints/[checkpointId]/attempt', () => {
 
     expect(response.status).toBe(200);
     expect(mockPrisma.$transaction).toHaveBeenCalledTimes(1);
+  });
+
+  // Issue #320: per-answer feedback is for graded runs only.
+  it('returns per-answer feedback on a graded attempt', async () => {
+    mockPrisma.$transaction.mockResolvedValue({ id: 'attempt-1', responses: [] });
+
+    const body = await (await submitAttempt(correctAnswer)).json();
+
+    expect(body.questions[0].feedback).toEqual({ kind: 'options', messages: ['A is right.'] });
+  });
+
+  it('strips per-answer feedback from practice attempts', async () => {
+    const body = await (await submitAttempt({ ...correctAnswer, practice: true })).json();
+
+    expect(body.questions[0].feedback).toBeNull();
   });
 });

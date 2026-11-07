@@ -12,6 +12,10 @@ export type CheckpointQuestionPayload = {
   numericRangeMin?: string | number | null;
   numericRangeMax?: string | number | null;
   unit?: string | null;
+  // Per-answer feedback (issue #320). optionFeedback is index-aligned with
+  // options (multiple choice); correct/incorrectFeedback are for short answer.
+  optionFeedback?: Array<string | null> | null;
+  correctFeedback?: string | null;
   incorrectFeedback?: string | null;
   incorrectFeedbackEnabled?: boolean | null;
   // Point value for this question; weights lesson (QEV) grading (issue #248).

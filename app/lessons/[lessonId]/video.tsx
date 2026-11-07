@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { sanitizeQuestionRichText } from '@/lib/question-rich-text';
 import { evaluateCheckpointAttempt } from '@/lib/checkpointGrading';
+import type { QuestionFeedback } from '@/lib/checkpointFeedback';
 import AssessmentCodeModal from '@/app/components/AssessmentCodeModal/AssessmentCodeModal';
 import SurveyModal from '@/app/components/SurveyModal/SurveyModal';
 import { surveyFaceOptions } from '@/app/components/SurveyModal/faces';
@@ -124,6 +125,8 @@ interface AttemptSummary {
     acceptedRange: { min: number; max: number } | null;
     type: QuestionType;
     isCorrect: boolean;
+    // Per-answer feedback (issue #320); null on practice runs or when none is authored.
+    feedback?: QuestionFeedback | null;
   }>;
 }
 
@@ -2013,11 +2016,20 @@ export function LessonVideoPage({
                       </p>
                       <ul className={styles.questionList}>
                         {attemptSummary.questions.map((question, index) => (
-                          <li key={question.questionId}>
-                            <span>
-                              {question.isCorrect ? '✓' : '✗'} Question {index + 1}
-                            </span>
-                            <span className={styles.statusIcon}>{question.isCorrect ? '✓' : '✗'}</span>
+                          <li key={question.questionId} className={styles.summaryItem}>
+                            <div className={styles.summaryRow}>
+                              <span>
+                                {question.isCorrect ? '✓' : '✗'} Question {index + 1}
+                              </span>
+                              <span className={styles.statusIcon}>{question.isCorrect ? '✓' : '✗'}</span>
+                            </div>
+                            {question.feedback ? (
+                              <ul className={styles.feedbackList} data-feedback-kind={question.feedback.kind}>
+                                {question.feedback.messages.map((message, messageIndex) => (
+                                  <li key={messageIndex}>{message}</li>
+                                ))}
+                              </ul>
+                            ) : null}
                           </li>
                         ))}
                       </ul>
