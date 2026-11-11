@@ -20,7 +20,9 @@
     "test:coverage": "jest --coverage",
     "prepare": "husky",
     "db:seed": "prisma db seed",
-    "db:seed-user": "node prisma/seed-user.js"
+    "db:seed-user": "node prisma/seed-user.js",
+    "email:test": "tsx scripts/send-test-email.ts",
+    "reminders:run": "tsx scripts/run-reminders.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.35.5",
@@ -36,6 +38,7 @@
     "qrcode": "^1.5.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "resend": "^6.4.2",
     "svix": "^1.37.0",
     "swr": "^2.4.2"
   },
@@ -65,6 +68,7 @@
     "lint-staged": "^15.4.3",
     "prettier": "3.4.2",
     "ts-node": "^10.9.2",
+    "tsx": "^4.23.15",
     "typescript": "^5",
     "typescript-eslint": "^8.22.0"
   },

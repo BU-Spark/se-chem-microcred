@@ -4,6 +4,7 @@ import { CourseContactType, CourseRole, Prisma } from '@prisma/client';
 import prisma from '@/lib/prisma';
 import { uniqueSections, unifySectionSpellings } from '@/lib/sections';
 import { normalizeEmail } from '@/lib/text/email';
+import { normalizeReminderInterval } from '@/lib/reminders/settings';
 
 type CreateOrUpdateCoursePayload = {
   id?: string;
@@ -19,6 +20,8 @@ type CreateOrUpdateCoursePayload = {
     allowCooldownOverride?: boolean;
     allowCheckerMessages?: boolean;
     allowCrossSectionView?: boolean;
+    feedbackRemindersEnabled?: boolean;
+    feedbackReminderIntervalDays?: number;
   };
 
   contacts?: Array<{
@@ -59,10 +62,6 @@ function badRequest(message: string, details?: unknown) {
   return NextResponse.json({ error: message, details: details ?? null }, { status: 400 });
 }
 
-// Generate a code that is unique across BOTH the student `code` and the
-// `checkerCode` columns, so a single join box can unambiguously resolve which
-// role a pasted code grants. `exclude` guards against colliding with another
-// code generated earlier in the same transaction (not yet persisted).
 async function generateUniqueCourseCode(tx: Prisma.TransactionClient, exclude: string[] = []) {
   const excluded = new Set(exclude);
   for (let attempt = 0; attempt < 20; attempt += 1) {
@@ -256,12 +255,16 @@ export async function POST(req: NextRequest) {
               allowCooldownOverride: body.settings?.allowCooldownOverride ?? false,
               allowCheckerMessages: body.settings?.allowCheckerMessages ?? false,
               allowCrossSectionView: body.settings?.allowCrossSectionView ?? false,
+              feedbackRemindersEnabled: body.settings?.feedbackRemindersEnabled ?? false,
+              feedbackReminderIntervalDays: normalizeReminderInterval(body.settings?.feedbackReminderIntervalDays),
             },
             create: {
               courseId: savedCourseId,
               allowCooldownOverride: body.settings?.allowCooldownOverride ?? false,
               allowCheckerMessages: body.settings?.allowCheckerMessages ?? false,
               allowCrossSectionView: body.settings?.allowCrossSectionView ?? false,
+              feedbackRemindersEnabled: body.settings?.feedbackRemindersEnabled ?? false,
+              feedbackReminderIntervalDays: normalizeReminderInterval(body.settings?.feedbackReminderIntervalDays),
             },
           });
 
@@ -310,6 +313,8 @@ export async function POST(req: NextRequest) {
                   allowCooldownOverride: body.settings?.allowCooldownOverride ?? false,
                   allowCheckerMessages: body.settings?.allowCheckerMessages ?? false,
                   allowCrossSectionView: body.settings?.allowCrossSectionView ?? false,
+                  feedbackRemindersEnabled: body.settings?.feedbackRemindersEnabled ?? false,
+                  feedbackReminderIntervalDays: normalizeReminderInterval(body.settings?.feedbackReminderIntervalDays),
                 },
               },
             },

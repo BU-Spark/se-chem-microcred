@@ -1,17 +1,20 @@
 import { NextResponse } from 'next/server';
 import { currentUser } from '@clerk/nextjs/server';
-import { BadgeStatus, CourseRole, MessageAudience } from '@prisma/client';
+import { BadgeStatus, CourseRole, EmailStatus, MessageAudience, MessageChannel } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
 import { canSendCourseMessages, isInstructorEquivalent, scopeRecipientsToSender } from '@/lib/messaging/audience';
 import { buildBlastReceipts, buildDirectReceipts } from '@/lib/messaging/receipts.service';
+import { filterToBadgeGroup } from '@/lib/messaging/badgeGroups';
 import {
-  badgeMessageGroupMatches,
-  deriveBadgeAnalytics,
-  isBadgeMessageGroup,
-  type BadgeMessageGroup,
-  type StoredBadgeStatus,
-} from '@/lib/badgeAnalyticsStatus';
+  channelIncludesEmail,
+  emailMessageToStudents,
+  IN_APP_CHANNELS,
+  isMessageChannel,
+  NO_EMAIL_DELIVERY,
+  type EmailDeliverySummary,
+} from '@/lib/messaging/emailDelivery';
+import { isBadgeMessageGroup, type BadgeMessageGroup } from '@/lib/badgeAnalyticsStatus';
 
 function normalize(value?: string | null) {
   const trimmed = value?.trim();
@@ -26,6 +29,7 @@ type SendMessagePayload = {
   badgeGroup?: string | null;
   subject?: string | null;
   body?: string | null;
+  channel?: string | null;
 };
 
 const GROUP_AUDIENCE: Record<BadgeMessageGroup, MessageAudience> = {
@@ -34,45 +38,6 @@ const GROUP_AUDIENCE: Record<BadgeMessageGroup, MessageAudience> = {
   READY_TO_ASSESS: MessageAudience.BADGE_READY_TO_ASSESS,
   NEEDS_FEEDBACK_REVIEW: MessageAudience.BADGE_NEEDS_FEEDBACK_REVIEW,
 };
-
-async function filterToBadgeGroup(options: {
-  courseId: string;
-  badgeId: string;
-  group: BadgeMessageGroup;
-  studentIds: string[];
-}) {
-  const { courseId, badgeId, group, studentIds } = options;
-  const students = await prisma.user.findMany({
-    where: { id: { in: studentIds } },
-    select: {
-      id: true,
-      badgeProgress: { where: { badgeId }, take: 1, select: { status: true } },
-      assessmentAttempts: {
-        where: { courseId, badgeId },
-        orderBy: [{ completedAt: 'asc' }, { createdAt: 'asc' }],
-        select: { passed: true },
-      },
-      surveyResponses: { where: { prompt: { badgeId, context: 'BADGE' } }, select: { id: true } },
-      lessonProgress: {
-        where: { lesson: { badgeRequirements: { some: { badgeId } } } },
-        select: { status: true, startedAt: true, completedAt: true, percentComplete: true },
-      },
-    },
-  });
-
-  return students
-    .filter((student) => {
-      const progress = student.badgeProgress[0] ?? null;
-      const analytics = deriveBadgeAnalytics({
-        progress: progress ? { status: progress.status as StoredBadgeStatus } : null,
-        lessonProgress: student.lessonProgress,
-        assessmentAttempts: student.assessmentAttempts,
-        surveyResponseCount: student.surveyResponses.length,
-      });
-      return badgeMessageGroupMatches(group, analytics);
-    })
-    .map((student) => student.id);
-}
 
 async function sentBox(senderId: string, direction: 'asc' | 'desc') {
   const messages = await prisma.message.findMany({
@@ -84,6 +49,7 @@ async function sentBox(senderId: string, direction: 'asc' | 'desc') {
       subject: true,
       body: true,
       audience: true,
+      channel: true,
       createdAt: true,
       course: { select: { title: true } },
       badge: { select: { name: true } },
@@ -98,7 +64,7 @@ async function sentBox(senderId: string, direction: 'asc' | 'desc') {
   });
 
   const messageIds = messages.map((message) => message.id);
-  const [totals, reads] = messageIds.length
+  const [totals, reads, emailFailures] = messageIds.length
     ? await Promise.all([
         prisma.messageReceipt.groupBy({
           by: ['messageId'],
@@ -110,11 +76,17 @@ async function sentBox(senderId: string, direction: 'asc' | 'desc') {
           where: { messageId: { in: messageIds }, isObserver: false, readAt: { not: null } },
           _count: { _all: true },
         }),
+        prisma.messageReceipt.groupBy({
+          by: ['messageId'],
+          where: { messageId: { in: messageIds }, emailStatus: EmailStatus.FAILED },
+          _count: { _all: true },
+        }),
       ])
-    : [[], []];
+    : [[], [], []];
 
   const totalByMessage = new Map(totals.map((row) => [row.messageId, row._count._all]));
   const readByMessage = new Map(reads.map((row) => [row.messageId, row._count._all]));
+  const emailFailedByMessage = new Map(emailFailures.map((row) => [row.messageId, row._count._all]));
 
   return NextResponse.json(
     {
@@ -124,9 +96,11 @@ async function sentBox(senderId: string, direction: 'asc' | 'desc') {
         subject: message.subject,
         body: message.body,
         audience: message.audience,
+        channel: message.channel,
         createdAt: message.createdAt.toISOString(),
         courseTitle: message.course?.title ?? null,
         badgeName: message.badge?.name ?? null,
+        emailFailedCount: emailFailedByMessage.get(message.id) ?? 0,
         recipientName: message.receipts[0]?.user.name ?? message.receipts[0]?.user.email ?? null,
         recipientCount: totalByMessage.get(message.id) ?? 0,
         readCount: readByMessage.get(message.id) ?? 0,
@@ -161,7 +135,7 @@ export async function GET(req: Request) {
     // Receipts are what this user can see; the message body is shared with
     // everyone else the same send reached.
     const receipts = await prisma.messageReceipt.findMany({
-      where: { userId: recipient.id },
+      where: { userId: recipient.id, message: { channel: IN_APP_CHANNELS } },
       orderBy: { createdAt: direction },
       take: 100,
       select: {
@@ -214,7 +188,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const sender = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    const sender = await prisma.user.findUnique({ where: { email }, select: { id: true, name: true } });
     if (!sender) {
       return NextResponse.json({ error: 'User record not found.' }, { status: 404 });
     }
@@ -226,6 +200,11 @@ export async function POST(req: Request) {
     const recipientId = normalize(payload.recipientId);
     const badgeId = normalize(payload.badgeId);
     const allStudents = payload.allStudents === true;
+    const rawChannel = payload.channel ?? MessageChannel.IN_APP;
+    if (!isMessageChannel(rawChannel)) {
+      return NextResponse.json({ error: 'Unknown delivery channel.' }, { status: 400 });
+    }
+    const channel = rawChannel;
     const rawBadgeGroup = normalize(payload.badgeGroup);
     const badgeGroup = isBadgeMessageGroup(rawBadgeGroup) ? rawBadgeGroup : null;
 
@@ -259,6 +238,7 @@ export async function POST(req: Request) {
         ],
       },
       select: {
+        title: true,
         createdById: true,
         settings: { select: { allowCheckerMessages: true, allowCrossSectionView: true } },
         enrollments: {
@@ -347,7 +327,7 @@ export async function POST(req: Request) {
     }
 
     if (recipientIds.length === 0) {
-      return NextResponse.json({ sent: 0 }, { status: 200 });
+      return NextResponse.json({ sent: 0, ...NO_EMAIL_DELIVERY }, { status: 200 });
     }
 
     // A blast copies course staff as observers; a 1:1 stays between the two
@@ -358,12 +338,13 @@ export async function POST(req: Request) {
 
     // One authored row plus a receipt per recipient, written together so a
     // message can never exist with a partial audience.
-    await prisma.message.create({
+    const message = await prisma.message.create({
       data: {
         senderId: sender.id,
         courseId,
         badgeId,
         audience,
+        channel,
         subject,
         body,
         receipts: { create: receipts },
@@ -371,9 +352,28 @@ export async function POST(req: Request) {
       select: { id: true },
     });
 
+    let delivery: EmailDeliverySummary = NO_EMAIL_DELIVERY;
+    if (channelIncludesEmail(channel)) {
+      try {
+        delivery = await emailMessageToStudents({
+          messageId: message.id,
+          studentIds: recipientIds,
+          courseTitle: course.title,
+          senderName: sender.name,
+          subject,
+          body,
+        });
+      } catch (error) {
+        // The message is already saved; report the emails as failed rather
+        // than failing a send the students can already see.
+        console.error('POST /api/messages email delivery failed:', error);
+        delivery = { ...NO_EMAIL_DELIVERY, emailFailed: recipientIds.length };
+      }
+    }
+
     // The reported count is students reached, not receipts written — staff
     // copies are not "sends".
-    return NextResponse.json({ sent: recipientIds.length }, { status: 201 });
+    return NextResponse.json({ sent: recipientIds.length, ...delivery }, { status: 201 });
   } catch (error) {
     console.error('POST /api/messages failed:', error);
     return NextResponse.json({ error: 'Failed to send message.' }, { status: 500 });

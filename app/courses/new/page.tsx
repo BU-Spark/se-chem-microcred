@@ -18,6 +18,21 @@ import { COURSE_COLORS, ICON_FG_LIGHT } from '@/lib/courseImage';
 import { resolveName } from '@/lib/text/name';
 import { parseRosterCsv } from '@/lib/csv';
 import { uniqueSections, unifySectionSpellings } from '@/lib/sections';
+import {
+  DEFAULT_REMINDER_INTERVAL_DAYS,
+  describeReminderInterval,
+  REMINDER_INTERVAL_OPTIONS,
+} from '@/lib/reminders/settings';
+
+const REMINDER_INFO_TEXT = (
+  <>
+    <p>
+      Emails students who passed their in-person assessment but have not reviewed their feedback and finalized the
+      badge. Each reminder also appears in their Messages.
+    </p>
+    <p>Reminders stop as soon as the student finalizes the badge.</p>
+  </>
+);
 
 const steps = ['Course Info', 'Course Image', 'Upload Class Roster', 'Upload Checker Roster', 'Review'];
 
@@ -84,6 +99,8 @@ type EditableCourseResponse = {
       allowCooldownOverride: boolean;
       allowCheckerMessages: boolean;
       allowCrossSectionView: boolean;
+      feedbackRemindersEnabled?: boolean;
+      feedbackReminderIntervalDays?: number;
     } | null;
     contacts: Array<{
       id: string;
@@ -209,6 +226,9 @@ export default function CourseNewPage() {
   const [allowCooldownOverride, setAllowCooldownOverride] = useState(true);
   const [allowCheckerMessages, setAllowCheckerMessages] = useState(true);
   const [allowCrossSectionView, setAllowCrossSectionView] = useState(true);
+  const [feedbackRemindersEnabled, setFeedbackRemindersEnabled] = useState(false);
+  const [feedbackReminderIntervalDays, setFeedbackReminderIntervalDays] =
+    useState<number>(DEFAULT_REMINDER_INTERVAL_DAYS);
 
   // csv upload
   const [studentRows, setStudentRows] = useState<RosterRow[]>([]);
@@ -271,6 +291,8 @@ export default function CourseNewPage() {
         allowCooldownOverride,
         allowCheckerMessages,
         allowCrossSectionView,
+        feedbackRemindersEnabled,
+        feedbackReminderIntervalDays,
         studentRows,
         checkerRows,
       }),
@@ -282,6 +304,8 @@ export default function CourseNewPage() {
       allowCooldownOverride,
       allowCheckerMessages,
       allowCrossSectionView,
+      feedbackRemindersEnabled,
+      feedbackReminderIntervalDays,
       studentRows,
       checkerRows,
     ]
@@ -363,6 +387,10 @@ export default function CourseNewPage() {
         setAllowCooldownOverride(course.settings?.allowCooldownOverride ?? false);
         setAllowCheckerMessages(course.settings?.allowCheckerMessages ?? false);
         setAllowCrossSectionView(course.settings?.allowCrossSectionView ?? false);
+        setFeedbackRemindersEnabled(course.settings?.feedbackRemindersEnabled ?? false);
+        setFeedbackReminderIntervalDays(
+          course.settings?.feedbackReminderIntervalDays ?? DEFAULT_REMINDER_INTERVAL_DAYS
+        );
         const loadedStudents = studentEnrollments.map((enrollment) =>
           toRosterRow({
             name: enrollment.student.name,
@@ -575,6 +603,8 @@ export default function CourseNewPage() {
         allowCooldownOverride,
         allowCheckerMessages,
         allowCrossSectionView,
+        feedbackRemindersEnabled,
+        feedbackReminderIntervalDays,
       },
       contacts: checkerRows.map((checker) => ({
         type: 'CHECKER',
@@ -1093,6 +1123,35 @@ export default function CourseNewPage() {
                   ))}
                 </div>
               </section>
+
+              <section className={styles.card}>
+                <h2 className={styles.cardTitle}>Student Reminders</h2>
+
+                <div className={styles.configList}>
+                  <ConfigRow
+                    label="Send automated feedback-review reminders?"
+                    checked={feedbackRemindersEnabled}
+                    onChange={setFeedbackRemindersEnabled}
+                    infoText={REMINDER_INFO_TEXT}
+                  />
+                  {feedbackRemindersEnabled && (
+                    <label className={styles.configLabelWrap}>
+                      <span className={styles.configLabel}>Reminder frequency</span>
+                      <select
+                        className={styles.dropdown}
+                        value={feedbackReminderIntervalDays}
+                        onChange={(e) => setFeedbackReminderIntervalDays(Number(e.target.value))}
+                      >
+                        {REMINDER_INTERVAL_OPTIONS.map((days) => (
+                          <option key={days} value={days}>
+                            {describeReminderInterval(days)}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                </div>
+              </section>
             </div>
           </>
         )}
@@ -1233,6 +1292,27 @@ export default function CourseNewPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+
+            <div className={styles.reviewDivider} />
+
+            <div className={styles.reviewSection}>
+              <div className={styles.reviewHeaderRow}>
+                <h3 className={styles.reviewTitle}>Student Reminders</h3>
+                <button type="button" className={styles.editLink} onClick={() => goToStep(STEP_CHECKER)}>
+                  <span className={styles.editLabel}>Edit</span>
+                  <Image src="/assets/profile/edit.png" alt="Edit" width={18} height={18} className={styles.editIcon} />
+                </button>
+              </div>
+
+              <div className={styles.reviewConfigList}>
+                <div className={styles.reviewConfigItem}>
+                  <span className={styles.reviewConfigLabel}>Automated feedback-review reminders</span>
+                  <span className={styles.toggleText}>
+                    {feedbackRemindersEnabled ? `On, ${describeReminderInterval(feedbackReminderIntervalDays)}` : 'Off'}
+                  </span>
+                </div>
               </div>
             </div>
           </section>

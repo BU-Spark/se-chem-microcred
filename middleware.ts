@@ -10,6 +10,8 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/qr/assessment(.*)',
   '/api/health',
+  // Authenticated by CRON_SECRET in the route itself; the scheduler has no session.
+  '/api/cron/(.*)',
 ]);
 
 export default clerkMiddleware(async (auth, request) => {

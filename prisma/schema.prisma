@@ -39,6 +39,7 @@ model User {
   sentMessages        Message[]            @relation("MessageSender")
   qevWaiversGranted   StudentBadge[]       @relation("BadgeQevWaiver")
   gradeOverridesGiven StudentBadge[]       @relation("BadgeGradeOverride")
+  feedbackReminders   FeedbackReminder[]
 
   @@map("Student")
 }
@@ -49,6 +50,9 @@ model Message {
   courseId  String?
   badgeId   String?
   audience  MessageAudience @default(DIRECT)
+  // How the message was delivered (#323). EMAIL-only messages are kept for the
+  // author's Sent list but stay out of recipients' inboxes.
+  channel   MessageChannel  @default(IN_APP)
   subject   String
   body      String
   createdAt DateTime        @default(now())
@@ -73,13 +77,30 @@ enum MessageAudience {
   BADGE_NEEDS_FEEDBACK_REVIEW
 }
 
+enum MessageChannel {
+  IN_APP
+  EMAIL
+  BOTH
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+  SKIPPED // no address on file, or email is not configured in this environment
+}
+
 model MessageReceipt {
-  id         String    @id @default(cuid())
-  messageId  String
-  userId     String
-  readAt     DateTime?
-  isObserver Boolean   @default(false)
-  createdAt  DateTime  @default(now())
+  id          String       @id @default(cuid())
+  messageId   String
+  userId      String
+  readAt      DateTime?
+  isObserver  Boolean      @default(false)
+  createdAt   DateTime     @default(now())
+  // Email delivery for this recipient; null when the message was in-app only.
+  emailStatus EmailStatus?
+  emailId     String? // Resend message id
+  emailError  String?
+  emailedAt   DateTime?
 
   message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id])
@@ -143,26 +164,54 @@ model Course {
   createdById String?
   createdBy   User?   @relation("CourseCreator", fields: [createdById], references: [id])
 
-  enrollments Enrollment[]
-  lessons     Lesson[]
-  contacts    CourseContact[]
-  settings    CourseSettings?
-  assessments AssessmentAttempt[]
-  messages    Message[]
+  enrollments       Enrollment[]
+  lessons           Lesson[]
+  contacts          CourseContact[]
+  settings          CourseSettings?
+  assessments       AssessmentAttempt[]
+  messages          Message[]
+  feedbackReminders FeedbackReminder[]
 
   @@index([createdById])
 }
 
 model CourseSettings {
-  id                    String   @id @default(cuid())
-  courseId              String   @unique
-  allowCooldownOverride Boolean  @default(false)
-  allowCheckerMessages  Boolean  @default(false) @map("allowAssessorMessages")
-  allowCrossSectionView Boolean  @default(false)
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  id                           String   @id @default(cuid())
+  courseId                     String   @unique
+  allowCooldownOverride        Boolean  @default(false)
+  allowCheckerMessages         Boolean  @default(false) @map("allowAssessorMessages")
+  allowCrossSectionView        Boolean  @default(false)
+  // Automated email + in-app reminders for students who passed an assessment
+  // but have not finalized the badge (#323).
+  feedbackRemindersEnabled     Boolean  @default(false)
+  feedbackReminderIntervalDays Int      @default(3)
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
 
   course Course @relation(fields: [courseId], references: [id])
+}
+
+// One row per reminder sent. The unique key is the dedupe guard: a student is
+// reminded about a badge at most once per cycle, even if the badge is in two
+// courses or two runs overlap.
+model FeedbackReminder {
+  id          String       @id @default(cuid())
+  studentId   String
+  badgeId     String
+  courseId    String
+  cycleKey    String
+  messageId   String?
+  emailStatus EmailStatus?
+  emailError  String?
+  createdAt   DateTime     @default(now())
+
+  student User   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  badge   Badge  @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, badgeId, cycleKey])
+  @@index([courseId])
+  @@index([badgeId])
 }
 
 model CourseContact {
@@ -473,6 +522,7 @@ model Badge {
   surveys                SurveyPrompt[]
   assessments            AssessmentAttempt[]
   messages               Message[]
+  feedbackReminders      FeedbackReminder[]
   rubricGoal             RubricGoal?
   resources              BadgeResource[]
   outgoingRelations      BadgeRelation[]     @relation("BadgeRelationFrom")
