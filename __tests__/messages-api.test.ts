@@ -138,8 +138,9 @@ describe('GET /api/messages', () => {
     expect(response.status).toBe(200);
     expect(body.count).toBe(1);
     expect(body.messages[0]).toMatchObject({ id: 'm1', read: false, senderName: 'Prof', courseTitle: 'Chem 101' });
+    // Email-only messages reached the student by email, not the inbox.
     expect(mockPrisma.messageReceipt.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { userId: 'sender-1' } })
+      expect.objectContaining({ where: { userId: 'sender-1', message: { channel: { in: ['IN_APP', 'BOTH'] } } } })
     );
   });
 
@@ -184,6 +185,7 @@ describe('GET /api/messages?box=sent', () => {
         subject: 'Notice',
         body: 'Body',
         audience: 'ALL_STUDENTS',
+        channel: 'BOTH',
         createdAt: new Date('2026-07-01T00:00:00.000Z'),
         course: { title: 'Chem 101' },
         badge: null,
@@ -192,13 +194,20 @@ describe('GET /api/messages?box=sent', () => {
     ]);
     mockPrisma.messageReceipt.groupBy
       .mockResolvedValueOnce([{ messageId: 'm1', _count: { _all: 3 } }])
-      .mockResolvedValueOnce([{ messageId: 'm1', _count: { _all: 1 } }]);
+      .mockResolvedValueOnce([{ messageId: 'm1', _count: { _all: 1 } }])
+      .mockResolvedValueOnce([{ messageId: 'm1', _count: { _all: 2 } }]);
 
     const response = await GET(getRequest('sent'));
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.messages[0]).toMatchObject({ id: 'm1', recipientCount: 3, readCount: 1 });
+    expect(body.messages[0]).toMatchObject({
+      id: 'm1',
+      recipientCount: 3,
+      readCount: 1,
+      channel: 'BOTH',
+      emailFailedCount: 2,
+    });
     // Both counts must exclude the observers copied on the blast.
     expect(mockPrisma.messageReceipt.groupBy).toHaveBeenCalledWith(
       expect.objectContaining({ where: expect.objectContaining({ isObserver: false }) })
@@ -235,7 +244,7 @@ describe('GET /api/messages/unread', () => {
 
     expect(body.count).toBe(4);
     expect(mockPrisma.messageReceipt.count).toHaveBeenCalledWith({
-      where: { userId: 'sender-1', readAt: null },
+      where: { userId: 'sender-1', readAt: null, message: { channel: { in: ['IN_APP', 'BOTH'] } } },
     });
   });
 

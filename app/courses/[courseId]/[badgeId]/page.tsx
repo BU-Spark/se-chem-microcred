@@ -12,6 +12,7 @@ import BadgeRatings, { type BadgeRatingsData } from './BadgeRatings';
 import BadgeRosterPanel, { type RosterCohort, type RosterStage } from './BadgeRosterPanel';
 import { CourseBlastModal } from '../CourseBlastModal';
 import type { BadgeMessageGroup } from '@/lib/badgeAnalyticsStatus';
+import { DEFAULT_REMINDER_INTERVAL_DAYS, describeReminderInterval } from '@/lib/reminders/settings';
 import styles from './page.module.css';
 
 type BadgeStatus = 'LEARNING' | 'READY_FOR_ASSESSMENT' | 'IN_REVIEW' | 'COMPLETED' | 'LOCKED' | 'NOT_STARTED';
@@ -37,7 +38,11 @@ type CourseDetail = {
     email: string | null;
     externalId: string | null;
   } | null;
-  settings?: { allowCheckerMessages?: boolean | null } | null;
+  settings?: {
+    allowCheckerMessages?: boolean | null;
+    feedbackRemindersEnabled?: boolean | null;
+    feedbackReminderIntervalDays?: number | null;
+  } | null;
 };
 
 type ProgressSummary = {
@@ -511,6 +516,21 @@ export default function CourseBadgeProgress() {
                                           >
                                             Message
                                           </button>
+                                        ) : null}
+                                        {'group' in item &&
+                                        item.group === 'NEEDS_FEEDBACK_REVIEW' &&
+                                        isInstructorFlag ? (
+                                          <span
+                                            className={styles.reminderStatus}
+                                            title="Change this in the course settings."
+                                          >
+                                            {course?.settings?.feedbackRemindersEnabled
+                                              ? `Auto-reminders on · ${describeReminderInterval(
+                                                  course.settings.feedbackReminderIntervalDays ??
+                                                    DEFAULT_REMINDER_INTERVAL_DAYS
+                                                )}`
+                                              : 'Auto-reminders off'}
+                                          </span>
                                         ) : null}
                                       </span>
                                       <strong>

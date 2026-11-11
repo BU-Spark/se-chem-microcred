@@ -62,6 +62,8 @@ type SentMessage = {
   recipientName: string | null;
   recipientCount: number;
   readCount: number;
+  channel?: 'IN_APP' | 'EMAIL' | 'BOTH';
+  emailFailedCount?: number;
 };
 
 type Box = 'received' | 'sent';
@@ -234,9 +236,20 @@ export default function MessagesPage() {
               </div>
               <p className={styles.itemMeta}>To: {sentAudienceLabel(message)}</p>
               <p className={styles.itemMeta}>
-                <span className={styles.readCount}>
-                  {message.readCount} of {message.recipientCount} read
-                </span>
+                {/* An email-only send never reaches the inbox, so it has no read count. */}
+                {message.channel === 'EMAIL' ? (
+                  <span className={styles.readCount}>Email only</span>
+                ) : (
+                  <span className={styles.readCount}>
+                    {message.readCount} of {message.recipientCount} read
+                  </span>
+                )}
+                {message.channel === 'BOTH' ? <span className={styles.readCount}>Also emailed</span> : null}
+                {message.emailFailedCount ? (
+                  <span className={`${styles.readCount} ${styles.emailFailed}`}>
+                    {message.emailFailedCount} email{message.emailFailedCount === 1 ? '' : 's'} failed
+                  </span>
+                ) : null}
               </p>
               <p className={styles.itemBody}>{message.body}</p>
             </li>

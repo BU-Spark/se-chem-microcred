@@ -5,15 +5,6 @@ import { randomUUID } from 'crypto';
 import { normalizeEmail } from '@/lib/text/email';
 import prisma from '@/lib/prisma';
 
-/**
- * Deep-copies a course the caller owns into a brand-new course owned by the caller.
- * Copies structure (settings, lessons + segments/checkpoints/questions/skills,
- * badges + requirements + rubrics, survey prompts) but resets all state: no
- * student/checker enrollments, no checker contacts, no progress, no attempts,
- * no StudentBadges, no survey responses. Lesson due dates and badge
- * availability windows carry over verbatim from the source course — the
- * frontend prompts the instructor to review/update them after duplicating.
- */
 export async function POST(_req: NextRequest, context: { params: Promise<{ courseId: string }> }) {
   try {
     const clerkUser = await currentUser();
@@ -90,6 +81,8 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
                 allowCooldownOverride: source.settings?.allowCooldownOverride ?? false,
                 allowCheckerMessages: source.settings?.allowCheckerMessages ?? false,
                 allowCrossSectionView: source.settings?.allowCrossSectionView ?? false,
+                feedbackRemindersEnabled: source.settings?.feedbackRemindersEnabled ?? false,
+                feedbackReminderIntervalDays: source.settings?.feedbackReminderIntervalDays ?? 3,
               },
             },
           },
@@ -104,22 +97,6 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ cours
             role: CourseRole.INSTRUCTOR,
           },
         });
-
-        // ---------------------------------------------------------------------
-        // Deep-copy is rewritten to batch every entity type with createMany +
-        // a read-back findMany to recover generated ids, instead of issuing one
-        // .create() per row. This keeps the whole copy within a handful of
-        // round-trips so it stays under Prisma Accelerate's 15s tx cap.
-        //
-        // Read-back natural keys (all backed by @@unique in schema.prisma):
-        //   lessons      -> slug (globally @unique)
-        //   segments     -> (lessonId, sortOrder)
-        //   checkpoints  -> (lessonId, sortOrder)
-        //   badges       -> slug (globally @unique)
-        // skills, questions, surveyPrompts and badgeRequirements need no
-        // read-back (nothing references their generated ids), so they are pure
-        // createMany.
-        // ---------------------------------------------------------------------
 
         // 1. Lessons. Precompute a unique slug per source lesson and remember
         //    the mapping so we can recover new ids by slug after createMany.
