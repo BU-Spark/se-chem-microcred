@@ -5,6 +5,7 @@ import prisma from '../../../../../lib/prisma';
 import { syncLessonBadgesForStudent } from '../../../../../lib/badgeProgress';
 import { normalizeCheckpointQuestion } from '../../../../../lib/checkpointQuestions';
 import { evaluateCheckpointAttempt } from '../../../../../lib/checkpointGrading';
+import { readQuestionFeedbackSource } from '../../../../../lib/checkpointFeedback';
 import { findLessonPrerequisiteLock, prerequisiteLockResponseBody } from '@/lib/badges/badge-relations.service';
 import { isLessonClosed } from '../../../../../lib/badgeAvailability';
 
@@ -77,7 +78,10 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({ error: 'Checkpoint not found.' }, { status: 404 });
   }
 
-  const normalizedQuestions = checkpoint.questions.map((question) => normalizeCheckpointQuestion(question));
+  const normalizedQuestions = checkpoint.questions.map((question) => ({
+    ...normalizeCheckpointQuestion(question),
+    feedbackSource: readQuestionFeedbackSource(question.options),
+  }));
   const evaluation = evaluateCheckpointAttempt(payload.answers, normalizedQuestions);
   const isPassing = normalizedQuestions.length === 0 || evaluation.every((entry) => entry.isCorrect === true);
 
@@ -87,7 +91,8 @@ export async function POST(request: Request, context: RouteContext) {
     return NextResponse.json({
       attemptId: null,
       isPassing,
-      questions: evaluation,
+      // Per-answer feedback is for graded runs only (issue #320).
+      questions: evaluation.map((entry) => ({ ...entry, feedback: null })),
       practice: true,
     });
   }

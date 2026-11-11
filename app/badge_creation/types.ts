@@ -16,7 +16,8 @@ export type CheckpointQuestionDraft = {
   numericRangeMax: string;
   // Optional unit for short-answer numeric questions. Blank => no unit assigned.
   unit: string;
-  // Optional feedback shown when a learner answers incorrectly.
+  optionFeedback?: string[];
+  correctFeedback?: string;
   incorrectFeedback: string;
   incorrectFeedbackEnabled: boolean;
   points: number;

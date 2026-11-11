@@ -1,5 +1,6 @@
 import { buildQuestionOptions } from '@/lib/checkpoints/normalizeWrite';
 import { normalizeCheckpointQuestion } from '@/lib/checkpointQuestions';
+import { readQuestionFeedbackSource } from '@/lib/checkpointFeedback';
 import type { Prisma } from '@prisma/client';
 
 import type { LessonRecord } from '../../hooks/useStudentData';
@@ -26,13 +27,19 @@ function toPreviewCheckpoint(checkpoint: CheckpointDraft, index: number): Lesson
     // student page uses. Anything the instructor sees here is what a real
     // student would get — no parallel interpretation of the draft shape.
     const { options, correctIndex } = buildQuestionOptions(question);
-    return normalizeCheckpointQuestion({
-      id: previewQuestionId(checkpoint.id, question.id, questionIndex),
-      prompt: question.question ?? '',
-      options: options as unknown as Prisma.JsonValue,
-      correctIndex,
-      points: question.points,
-    });
+    const storedOptions = options as unknown as Prisma.JsonValue;
+    return {
+      ...normalizeCheckpointQuestion({
+        id: previewQuestionId(checkpoint.id, question.id, questionIndex),
+        prompt: question.question ?? '',
+        options: storedOptions,
+        correctIndex,
+        points: question.points,
+      }),
+      // Preview grades in the browser, so it shows the same per-answer
+      // feedback a graded student run would (issue #320).
+      feedbackSource: readQuestionFeedbackSource(storedOptions),
+    };
   });
 
   return {

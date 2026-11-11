@@ -1476,6 +1476,18 @@
   gap: 14px;
 }
 
+/* Per-answer feedback inputs (issue #320) */
+
+.cpFieldWide {
+  grid-column: 1 / -1;
+}
+
+.cpFeedbackInput {
+  margin-top: 6px;
+  font-size: 14px;
+  resize: vertical;
+}
+
 .cpModalFooter {
   display: flex;
   align-items: center;
@@ -2269,7 +2281,6 @@
 }
 
 @media (max-width: 720px) {
-
   .canvasCard,
   .editorCard,
   .timelineRail {

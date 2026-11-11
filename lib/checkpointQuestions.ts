@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import type { QuestionFeedbackSource } from './checkpointFeedback';
 
 export type QuestionType = 'multipleChoice' | 'shortAnswer';
 
@@ -30,6 +31,9 @@ export type NormalizedCheckpointQuestion = {
   acceptedRange: { min: number; max: number } | null;
   // Weights this question in lesson (QEV) grading (issue #248).
   points: number;
+  // Per-answer feedback (issue #320). Never set by normalizeCheckpointQuestion,
+  // so it can't leak to students before they answer; callers that grade attach it.
+  feedbackSource?: QuestionFeedbackSource;
 };
 
 export type RawCheckpointQuestion = {

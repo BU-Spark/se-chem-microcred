@@ -2,6 +2,7 @@ import { useCallback, useMemo } from 'react';
 import useSWR, { useSWRConfig } from 'swr';
 
 import { fetcher } from './lib/fetcher';
+import type { QuestionFeedbackSource } from '@/lib/checkpointFeedback';
 
 type LessonStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
 type SegmentStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'COMPLETED';
@@ -149,6 +150,8 @@ export interface LessonRecord {
       acceptedRange: { min: number; max: number } | null;
       // Weights this question in lesson (QEV) grading (issue #248).
       points: number;
+      // Only set by the instructor preview, which grades in the browser (issue #320).
+      feedbackSource?: QuestionFeedbackSource;
     }>;
   }>;
   badgeRequirements: Array<{

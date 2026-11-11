@@ -434,6 +434,42 @@
   font-size: 1.4rem;
 }
 
+/* Checkpoint summary: per-answer feedback under each question (issue #320) */
+
+.questionList li.summaryItem {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+}
+
+.summaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.questionList .feedbackList {
+  display: grid;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.questionList .feedbackList li {
+  display: block;
+  padding: 0 0 0 0.75rem;
+  border: none;
+  border-left: 3px solid rgb(var(--checkd-blue-rgb) / 0.35);
+  border-radius: 0;
+  background: none;
+  color: #4b5563;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  text-align: left;
+}
+
 /* Short answer fields */
 
 .shortAnswerField {
@@ -1211,7 +1247,6 @@
 .lessonSurveyFaceSelected {
   transform: translateY(-4px);
 }
-
 
 .lessonSurveyFaceImage {
   width: 44px;

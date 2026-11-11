@@ -26,6 +26,26 @@ export function normalizeOptions(options?: string[] | null, CAPPED = true, MAX_O
   }
 }
 
+// Per-choice feedback (issue #320) is stored index-aligned with the options, so
+// blank options must be dropped together with their feedback, not separately.
+export function normalizeOptionsWithFeedback(
+  options?: string[] | null,
+  feedback?: Array<string | null> | null,
+  MAX_OPTIONS = 8
+): { options: string[]; optionFeedback: Array<string | null> } {
+  const pairs = (options ?? [])
+    .map((option, index) => ({
+      option: normalizeRichTextOption(option),
+      feedback: normalizeString(feedback?.[index]),
+    }))
+    .filter((pair): pair is { option: string; feedback: string | null } => Boolean(pair.option))
+    .slice(0, MAX_OPTIONS);
+  while (pairs.length < 2) {
+    pairs.push({ option: pairs.length === 0 ? 'Yes' : 'No', feedback: null });
+  }
+  return { options: pairs.map((pair) => pair.option), optionFeedback: pairs.map((pair) => pair.feedback) };
+}
+
 export function normalizeCorrectIndices(question: CheckpointQuestionPayload, optionCount: number) {
   const rawIndices =
     Array.isArray(question.correctIndices) && question.correctIndices.length > 0
@@ -43,8 +63,6 @@ export function buildQuestionOptions(question: CheckpointQuestionPayload) {
   const questionType = question.questionType === 'shortAnswer' ? 'shortAnswer' : 'multipleChoice';
 
   const unit = normalizeString(question.unit);
-  const incorrectFeedback = normalizeString(question.incorrectFeedback);
-  const feedbackEntry = incorrectFeedback ? { incorrectFeedback } : {};
 
   if (questionType === 'shortAnswer') {
     const expectedAnswer = parseFiniteNumber(question.numericAnswer);
@@ -58,19 +76,22 @@ export function buildQuestionOptions(question: CheckpointQuestionPayload) {
           }
         : null;
     const acceptedRange = baseRange ? (unit ? { ...baseRange, unit } : baseRange) : unit ? { unit } : null;
+    const correctFeedback = normalizeString(question.correctFeedback);
+    const incorrectFeedback = normalizeString(question.incorrectFeedback);
 
     return {
       options: {
         type: 'shortAnswer',
         expectedAnswer,
         acceptedRange,
-        ...feedbackEntry,
+        ...(correctFeedback ? { correctFeedback } : {}),
+        ...(incorrectFeedback ? { incorrectFeedback } : {}),
       },
       correctIndex: null,
     };
   }
 
-  const options = normalizeOptions(question.options);
+  const { options, optionFeedback } = normalizeOptionsWithFeedback(question.options, question.optionFeedback);
   const correctIndices = normalizeCorrectIndices(question, options.length);
 
   return {
@@ -78,7 +99,7 @@ export function buildQuestionOptions(question: CheckpointQuestionPayload) {
       type: 'multipleChoice',
       options,
       correctIndices: correctIndices.length > 0 ? correctIndices : [0],
-      ...feedbackEntry,
+      ...(optionFeedback.some(Boolean) ? { optionFeedback } : {}),
     },
     correctIndex: correctIndices[0] ?? 0,
   };

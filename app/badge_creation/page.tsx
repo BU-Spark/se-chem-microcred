@@ -73,11 +73,13 @@ function makeDefaultCheckpointQuestion(id = `question-${Date.now()}`): Checkpoin
     question: '',
     questionType: 'multipleChoice',
     options: ['', ''],
+    optionFeedback: ['', ''],
     correctIndices: [0],
     numericAnswer: '',
     numericRangeMin: '',
     numericRangeMax: '',
     unit: '',
+    correctFeedback: '',
     incorrectFeedback: '',
     incorrectFeedbackEnabled: false,
     points: 1,
@@ -348,6 +350,31 @@ export default function BadgeCreationPage() {
     );
   };
 
+  // Per-choice feedback (issue #320) is kept parallel to options; older drafts
+  // may not have it yet, so pad it to the option count before editing.
+  const updateCheckpointQuestionOptionFeedback = (
+    checkpointId: string,
+    questionId: string,
+    optionIndex: number,
+    value: string
+  ) => {
+    mutateCheckpoints((checkpoints) =>
+      checkpoints.map((checkpoint) => {
+        if (checkpoint.id !== checkpointId) return checkpoint;
+        const nextQuestions = checkpoint.questions.map((question) => {
+          if (question.id !== questionId) return question;
+          return {
+            ...question,
+            optionFeedback: question.options.map((_, index) =>
+              index === optionIndex ? value : (question.optionFeedback?.[index] ?? '')
+            ),
+          };
+        });
+        return withMirroredFirstQuestion(checkpoint, nextQuestions);
+      })
+    );
+  };
+
   const toggleCheckpointQuestionCorrectOption = (checkpointId: string, questionId: string, optionIndex: number) => {
     mutateCheckpoints((checkpoints) =>
       checkpoints.map((checkpoint) => {
@@ -402,7 +429,11 @@ export default function BadgeCreationPage() {
         if (checkpoint.id !== checkpointId) return checkpoint;
         const nextQuestions = checkpoint.questions.map((question) =>
           question.id === questionId && question.options.length < 8
-            ? { ...question, options: [...question.options, ''] }
+            ? {
+                ...question,
+                options: [...question.options, ''],
+                optionFeedback: [...question.options.map((_, index) => question.optionFeedback?.[index] ?? ''), ''],
+              }
             : question
         );
         return withMirroredFirstQuestion(checkpoint, nextQuestions);
@@ -417,11 +448,14 @@ export default function BadgeCreationPage() {
         const nextQuestions = checkpoint.questions.map((question) => {
           if (question.id !== questionId || question.options.length <= 2) return question;
           const options = question.options.filter((_, index) => index !== optionIndex);
+          const optionFeedback = question.options
+            .map((_, index) => question.optionFeedback?.[index] ?? '')
+            .filter((_, index) => index !== optionIndex);
           const correctIndices = question.correctIndices
             .filter((index) => index !== optionIndex)
             .map((index) => (index > optionIndex ? index - 1 : index))
             .filter((index) => index >= 0 && index < options.length);
-          return { ...question, options, correctIndices };
+          return { ...question, options, optionFeedback, correctIndices };
         });
         return withMirroredFirstQuestion(checkpoint, nextQuestions);
       })
@@ -734,6 +768,7 @@ export default function BadgeCreationPage() {
                 updateCheckpoint={updateCheckpoint}
                 updateCheckpointQuestion={updateCheckpointQuestion}
                 updateCheckpointQuestionOption={updateCheckpointQuestionOption}
+                updateCheckpointQuestionOptionFeedback={updateCheckpointQuestionOptionFeedback}
                 toggleCheckpointQuestionCorrectOption={toggleCheckpointQuestionCorrectOption}
                 addCheckpointQuestion={addCheckpointQuestion}
                 removeCheckpointQuestion={removeCheckpointQuestion}

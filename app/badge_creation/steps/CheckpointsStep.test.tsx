@@ -54,7 +54,8 @@ function buildCheckpoint(overrides: Partial<CheckpointDraft> = {}): CheckpointDr
 function renderStep({
   draftOverrides = {},
   videoId = 'dQw4w9WgXcQ',
-}: { draftOverrides?: Partial<BadgeDraft>; videoId?: string | null } = {}) {
+  updateOptionFeedback = jest.fn(),
+}: { draftOverrides?: Partial<BadgeDraft>; videoId?: string | null; updateOptionFeedback?: jest.Mock } = {}) {
   const draft: BadgeDraft = {
     ...DEFAULT_DRAFT,
     videoTitle: 'Bunsen Burner Safety',
@@ -74,6 +75,7 @@ function renderStep({
       updateCheckpoint={jest.fn()}
       updateCheckpointQuestion={jest.fn()}
       updateCheckpointQuestionOption={jest.fn()}
+      updateCheckpointQuestionOptionFeedback={updateOptionFeedback}
       toggleCheckpointQuestionCorrectOption={jest.fn()}
       addCheckpointQuestion={jest.fn()}
       removeCheckpointQuestion={jest.fn()}
@@ -148,5 +150,30 @@ describe('CheckpointsStep Create/Preview tabs', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Preview' }));
 
     expect(screen.getByTestId('preview-player')).not.toBe(first);
+  });
+});
+
+// Issue #320: per-answer feedback is authored under each choice.
+describe('CheckpointsStep per-answer feedback', () => {
+  it('edits feedback for a specific choice', () => {
+    const updateOptionFeedback = jest.fn();
+    renderStep({
+      updateOptionFeedback,
+      draftOverrides: {
+        checkpoints: [
+          buildCheckpoint({
+            questions: [
+              { ...buildCheckpoint().questions[0], optionFeedback: ['', 'Yellow means incomplete combustion.'] },
+            ],
+          }),
+        ],
+      },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit Checkpoint 1' }));
+
+    expect(screen.getByLabelText('Question 1 choice 2 feedback')).toHaveValue('Yellow means incomplete combustion.');
+    fireEvent.change(screen.getByLabelText('Question 1 choice 1 feedback'), { target: { value: 'Right — hottest.' } });
+    expect(updateOptionFeedback).toHaveBeenCalledWith('checkpoint-1', 'question-1', 0, 'Right — hottest.');
   });
 });

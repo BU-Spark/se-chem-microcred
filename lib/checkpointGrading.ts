@@ -4,6 +4,7 @@ import {
   parseNumericAnswer,
   type NormalizedCheckpointQuestion,
 } from './checkpointQuestions';
+import { resolveQuestionFeedback, type QuestionFeedback } from './checkpointFeedback';
 
 export type CheckpointAnswerInput = {
   questionId: string;
@@ -27,6 +28,8 @@ export type EvaluatedCheckpointQuestion = {
   acceptedRange: { min: number; max: number } | null;
   isCorrect: boolean;
   points: number;
+  // Per-answer feedback (issue #320); null when the question has none.
+  feedback: QuestionFeedback | null;
 };
 
 // Grades one checkpoint submission against its normalized questions. Shared by
@@ -62,7 +65,7 @@ export function evaluateCheckpointAttempt(
             (question.expectedAnswer != null &&
               isAnswerWithinTolerance(question.expectedAnswer, numericAnswer, question.tolerancePercent)))
         : isExactMultipleChoiceAnswer;
-    return {
+    const evaluated = {
       questionId: question.id,
       prompt: question.prompt,
       options: question.options,
@@ -77,6 +80,10 @@ export function evaluateCheckpointAttempt(
       acceptedRange: question.acceptedRange,
       isCorrect,
       points: question.points,
+    };
+    return {
+      ...evaluated,
+      feedback: question.feedbackSource ? resolveQuestionFeedback(evaluated, question.feedbackSource) : null,
     };
   });
 }
