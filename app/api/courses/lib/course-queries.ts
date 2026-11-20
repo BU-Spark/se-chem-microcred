@@ -468,7 +468,12 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
     select: {
       id: true,
       title: true,
-      settings: true,
+      settings: {
+        select: {
+          allowCrossSectionView: true,
+          allowCheckerMessages: true,
+        },
+      },
       createdById: true,
       createdBy: {
         select: {
@@ -517,7 +522,7 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
       },
       enrollments: {
         where: {
-          studentId: { in: Array.from(new Set([userId, memberId])) },
+          studentId: memberId,
         },
         select: {
           id: true,
@@ -560,20 +565,12 @@ export async function fetchAccessibleCourseMemberDetail(userId: string, courseId
                   },
                 },
                 orderBy: { updatedAt: 'asc' },
+                // Badge details come from the lessons' badge requirements instead.
                 select: {
-                  id: true,
                   badgeId: true,
                   status: true,
                   awardedAt: true,
                   score: true,
-                  badge: {
-                    select: {
-                      id: true,
-                      slug: true,
-                      name: true,
-                      description: true,
-                    },
-                  },
                 },
               },
             },
@@ -760,4 +757,16 @@ export async function fetchEnrolledCourses(userId: string) {
     },
     orderBy: { createdAt: 'desc' },
   });
+}
+
+export async function fetchCourseStudentEmails(courseId: string) {
+  const enrollments = await prisma.enrollment.findMany({
+    where: { courseId, role: 'STUDENT', status: 'ACTIVE', student: { email: { not: null } } },
+    select: { studentId: true, student: { select: { email: true } } },
+  });
+
+  return enrollments.map((enrollment) => ({
+    studentId: enrollment.studentId,
+    email: enrollment.student.email,
+  }));
 }

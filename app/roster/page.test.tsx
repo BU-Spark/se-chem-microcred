@@ -22,6 +22,10 @@ jest.mock('@clerk/nextjs', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+jest.mock('./hooks/useRosterLastActive', () => ({
+  useRosterLastActive: () => ({ lastActiveById: {}, isLoading: false, error: undefined }),
+}));
+
 function createClerkState(overrides = {}) {
   return {
     isLoaded: true,
@@ -38,6 +42,37 @@ function createAuthState(overrides = {}) {
   return {
     signOut: jest.fn(),
     ...overrides,
+  };
+}
+
+function lastNameColumn() {
+  return screen
+    .getAllByRole('row')
+    .slice(1)
+    .map((tableRow) => within(tableRow).getAllByRole('cell')[0].textContent);
+}
+
+function sortingPayload(role: 'STUDENT' | 'CHECKER' = 'STUDENT') {
+  const member = (id: string, name: string, email: string, externalId: string, sections: string[]) => ({
+    id: `enrollment-${id}`,
+    role,
+    status: 'ACTIVE',
+    sections,
+    student: { id, name, email, externalId },
+  });
+  return {
+    viewerRole: 'INSTRUCTOR',
+    course: {
+      id: 'course-1',
+      title: 'Course 1',
+      createdBy: { name: 'Professor Demo', email: 'prof@example.edu' },
+      enrollments: [
+        member('s1', 'Grace Hopper', 'grace@bu.edu', 'U10', ['B1']),
+        member('s2', 'Ada Lovelace', 'ada@bu.edu', 'U9', ['A1']),
+        member('s3', 'Alan Turing', 'alan@bu.edu', 'U2', ['A1']),
+        member('s4', 'Barbara Liskov', 'barbara@bu.edu', 'U1', ['B1']),
+      ],
+    },
   };
 }
 
@@ -528,5 +563,62 @@ describe('Course roster page', () => {
         headers: { Accept: 'application/json' },
       })
     );
+  });
+
+  describe('sorting (Issue #329)', () => {
+    it('defaults to last name A–Z and marks the active column', async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
+      render(<StudentRosterPage />);
+
+      await screen.findByText('Hopper');
+      expect(lastNameColumn()).toEqual(['Hopper', 'Liskov', 'Lovelace', 'Turing']);
+      expect(screen.getByRole('columnheader', { name: 'Last Name' })).toHaveAttribute('aria-sort', 'ascending');
+      expect(screen.getByRole('columnheader', { name: 'Email' })).toHaveAttribute('aria-sort', 'none');
+    });
+
+    it('toggles direction when a header is clicked again', async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
+      render(<StudentRosterPage />);
+      await screen.findByText('Hopper');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Last Name' }));
+      expect(lastNameColumn()).toEqual(['Turing', 'Lovelace', 'Liskov', 'Hopper']);
+      expect(screen.getByRole('columnheader', { name: 'Last Name' })).toHaveAttribute('aria-sort', 'descending');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Email' }));
+      expect(lastNameColumn()).toEqual(['Lovelace', 'Turing', 'Liskov', 'Hopper']);
+      expect(screen.getByRole('columnheader', { name: 'Email' })).toHaveAttribute('aria-sort', 'ascending');
+      expect(screen.getByRole('columnheader', { name: 'Last Name' })).toHaveAttribute('aria-sort', 'none');
+
+      // ID numbers sort numerically: U1, U2, U9, U10.
+      fireEvent.click(screen.getByRole('button', { name: 'ID Number' }));
+      expect(lastNameColumn()).toEqual(['Liskov', 'Turing', 'Lovelace', 'Hopper']);
+    });
+
+    it('keeps the chosen order while searching and filtering', async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
+      render(<StudentRosterPage />);
+      await screen.findByText('Hopper');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Last Name' }));
+      fireEvent.click(screen.getByRole('button', { name: 'A1' }));
+      expect(lastNameColumn()).toEqual(['Turing', 'Lovelace']);
+
+      fireEvent.click(screen.getByRole('button', { name: 'A1' }));
+      fireEvent.change(screen.getByRole('searchbox', { name: 'Search students' }), { target: { value: 'B1' } });
+      expect(lastNameColumn()).toEqual(['Liskov', 'Hopper']);
+    });
+
+    it('sorts the checker roster without ID Number or Last Logon columns', async () => {
+      mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
+      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload('CHECKER') });
+      render(<StudentRosterPage />);
+      await screen.findByText('Hopper');
+
+      expect(screen.queryByRole('columnheader', { name: 'ID Number' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('columnheader', { name: 'Last Logon' })).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: 'First Name' }));
+      expect(lastNameColumn()).toEqual(['Lovelace', 'Turing', 'Liskov', 'Hopper']);
+    });
   });
 });
