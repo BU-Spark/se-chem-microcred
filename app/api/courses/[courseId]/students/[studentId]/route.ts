@@ -63,17 +63,37 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       return NextResponse.json({ error: 'Course id and student id are required' }, { status: 400 });
     }
 
-    if (!(await sessionMatchesEmail(email))) {
+    const [sessionOk, user] = await Promise.all([sessionMatchesEmail(email), fetchUserByEmail(email)]);
+
+    if (!sessionOk) {
       return NextResponse.json({ error: 'Session does not match the requested user.' }, { status: 403 });
     }
-
-    const user = await fetchUserByEmail(email);
 
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const course = await fetchAccessibleCourseMemberDetail(user.id, courseId, studentId);
+    const [course, courseStaff, attemptRows] = await Promise.all([
+      fetchAccessibleCourseMemberDetail(user.id, courseId, studentId),
+      prisma.enrollment.findMany({
+        where: {
+          courseId,
+          role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
+          status: 'ACTIVE',
+        },
+        select: {
+          id: true,
+          role: true,
+          studentId: true,
+          sections: { select: { section: true } },
+          student: { select: { id: true, name: true, firstName: true, lastName: true, email: true } },
+        },
+      }),
+      prisma.assessmentAttempt.findMany({
+        where: { courseId, studentId },
+        select: { badgeId: true, passed: true },
+      }),
+    ]);
 
     if (!course || course.enrollments.length === 0) {
       return NextResponse.json(
@@ -85,9 +105,11 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     }
 
     const enrollment = course.enrollments.find((entry) => entry.student.id === studentId);
-    const viewerEnrollment = course.enrollments.find((entry) => entry.student.id === user.id);
+    // courseStaff holds only ACTIVE instructor/checker enrollments, so the viewer is in
+    // it exactly when their enrollment can grant access. A creator needn't be enrolled.
+    const viewerEnrollment = courseStaff.find((entry) => entry.studentId === user.id);
     const isCourseCreator = course.createdById === user.id;
-    const viewerRole = isCourseCreator || viewerEnrollment?.status === 'ACTIVE' ? viewerEnrollment?.role : undefined;
+    const viewerRole = viewerEnrollment?.role;
     const effectiveViewerRole = isCourseCreator ? 'INSTRUCTOR' : viewerRole;
 
     if (!enrollment || !effectiveViewerRole || effectiveViewerRole === 'STUDENT') {
@@ -124,27 +146,12 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
 
     const member = enrollment.student;
 
-    // Derive the instructor/checker contacts from enrollments (the section-aware source of
-    // truth) rather than CourseContact, which has no section. This ensures a student's side
-    // "Checker" card shows the checker assigned to *their* section, not a fixed first one.
     const memberSectionSet = new Set(enrollment.sections.map((assignment) => assignment.section));
-    const courseStaff = await prisma.enrollment.findMany({
-      where: {
-        courseId,
-        role: { in: [CourseRole.INSTRUCTOR, CourseRole.CHECKER] },
-        status: 'ACTIVE',
-      },
-      include: {
-        sections: { select: { section: true } },
-        student: { select: { id: true, name: true, firstName: true, lastName: true, email: true } },
-      },
-    });
 
     const contacts = courseStaff
       .filter((staff) => {
         if (staff.role === CourseRole.INSTRUCTOR) return true;
-        // CHECKER: show those sharing the student's section. If the student has no section
-        // assigned, or the checker is course-wide (no sections of their own), show them too.
+
         if (memberSectionSet.size === 0) return true;
         if (staff.sections.length === 0) return true;
         return staff.sections.some((assignment) => memberSectionSet.has(assignment.section));
@@ -161,9 +168,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       }));
 
     const courseBadges = new Map<string, ReturnType<typeof formatBadge>>();
-    // Requirement lessons per badge, plus this member's progress on each, so the
-    // cohort rule in lib/badgeCohorts.ts can run against the same inputs the
-    // course badge page uses.
+
     const lessonIdsByBadgeId = new Map<string, string[]>();
     const lessonProgressByBadgeId = new Map<
       string,
@@ -190,18 +195,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         }
       }
     }
-
-    // Attempts are the signal that separates "finished the video" from "assessed
-    // in person and hasn't passed". Scoped to this course so another course's
-    // assessment of the same source badge can't bleed in.
-    const badgeIds = [...courseBadges.keys()];
-    const attemptRows =
-      badgeIds.length > 0
-        ? await prisma.assessmentAttempt.findMany({
-            where: { courseId, studentId, badgeId: { in: badgeIds } },
-            select: { badgeId: true, passed: true },
-          })
-        : [];
 
     const attemptsByBadgeId = new Map<string, Array<{ passed: boolean }>>();
     for (const attempt of attemptRows) {
@@ -314,9 +307,8 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
   }
 }
 
-// Remove a student from a course. Instructor-only: the signed-in user must be
-// the course creator, and only STUDENT enrollments are removable here. Deleting
-// the enrollment cascades its EnrollmentSection rows (see prisma schema).
+// Remove a student from a course. Instructor-only: the signed-in user must be coruse creator.
+
 export async function DELETE(_req: NextRequest, context: { params: Promise<{ courseId: string; studentId: string }> }) {
   try {
     const { courseId: rawCourseId, studentId: rawStudentId } = await context.params;
