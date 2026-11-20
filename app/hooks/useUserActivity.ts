@@ -12,11 +12,6 @@ function isVisible() {
   return typeof document === 'undefined' || document.visibilityState !== 'hidden';
 }
 
-/**
- * Issue #328: whether the user is actively here. True while the tab is visible and
- * the user has interacted within `idleMs`. Callers use it to gate polling, so a
- * backgrounded or abandoned tab makes no requests.
- */
 export function useUserActivity({ idleMs = DEFAULT_IDLE_MS }: { idleMs?: number } = {}) {
   const lastInteractionRef = useRef(Date.now());
   const lastHandledRef = useRef(0);

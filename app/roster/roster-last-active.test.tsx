@@ -1,7 +1,7 @@
 // Issue #328: integration test for the roster's Last Logon column. The real page,
 // useRosterLastActive, useUserActivity and SWR run together; only fetch, Clerk's
 // client hooks and Next navigation are mocked.
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import { SWRTestProvider } from '@/app/hooks/test-utils';
 import { formatLastActive } from '@/lib/time/lastActive';
@@ -146,6 +146,30 @@ describe('Roster Last Logon column', () => {
     const graceRow = screen.getByText('Hopper').closest('tr')!;
     expect(within(graceRow).getByText('Never active')).toBeInTheDocument();
     expect(lastActiveCalls()).toBe(1);
+  });
+
+  it('sorts by Last Logon, most recent first, with never-active students last (Issue #329)', async () => {
+    mockApi();
+    renderRoster();
+    const adaRow = (await screen.findByText('Lovelace')).closest('tr')!;
+    await within(adaRow).findByText(formatLastActive(ADA_ACTIVE));
+
+    const lastNames = () =>
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((tableRow) => within(tableRow).getAllByRole('cell')[0].textContent);
+    // Default order is last name A–Z.
+    expect(lastNames()).toEqual(['Hopper', 'Lovelace']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Last Logon' }));
+    expect(screen.getByRole('columnheader', { name: 'Last Logon' })).toHaveAttribute('aria-sort', 'descending');
+    expect(lastNames()).toEqual(['Lovelace', 'Hopper']);
+
+    // Never-active Grace stays last when the direction flips.
+    fireEvent.click(screen.getByRole('button', { name: 'Last Logon' }));
+    expect(screen.getByRole('columnheader', { name: 'Last Logon' })).toHaveAttribute('aria-sort', 'ascending');
+    expect(lastNames()).toEqual(['Lovelace', 'Hopper']);
   });
 
   it('shows a dash instead of "Never active" when the endpoint fails', async () => {
