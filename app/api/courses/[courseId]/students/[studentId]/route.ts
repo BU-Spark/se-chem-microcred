@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { CourseRole } from '@prisma/client';
+import { currentUser } from '@clerk/nextjs/server';
 import { fetchAccessibleCourseMemberDetail, fetchUserByEmail } from '@/app/api/courses/lib/course-queries';
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import prisma from '@/lib/prisma';
@@ -11,6 +12,14 @@ import { canSendCourseMessages } from '@/lib/messaging/audience';
 function normalizeId(value?: string | null) {
   const trimmed = value?.trim();
   return trimmed ? trimmed : null;
+}
+
+// The viewer's email arrives as a client-supplied query param; require it to
+// match the signed-in Clerk session so a caller can't read profiles as someone else.
+async function sessionMatchesEmail(email: string) {
+  const clerkUser = await currentUser();
+  const sessionEmail = normalizeEmail(clerkUser?.emailAddresses?.[0]?.emailAddress);
+  return Boolean(sessionEmail) && sessionEmail === email;
 }
 
 function formatBadge(
@@ -52,6 +61,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
 
     if (!courseId || !studentId) {
       return NextResponse.json({ error: 'Course id and student id are required' }, { status: 400 });
+    }
+
+    if (!(await sessionMatchesEmail(email))) {
+      return NextResponse.json({ error: 'Session does not match the requested user.' }, { status: 403 });
     }
 
     const user = await fetchUserByEmail(email);

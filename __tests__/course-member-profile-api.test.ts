@@ -2,11 +2,16 @@
 // Issues: #247 badge image zoom, #258 multi-word last names
 
 import { NextRequest } from 'next/server';
+import { currentUser } from '@clerk/nextjs/server';
 import { BadgeStatus, CourseRole, EnrollmentStatus, LessonStatus } from '@prisma/client';
 
 import { GET } from '../app/api/courses/[courseId]/students/[studentId]/route';
 import { fetchAccessibleCourseMemberDetail, fetchUserByEmail } from '../app/api/courses/lib/course-queries';
 import { prisma } from '../lib/prisma';
+
+jest.mock('@clerk/nextjs/server', () => ({
+  currentUser: jest.fn(),
+}));
 
 jest.mock('../app/api/courses/lib/course-queries', () => ({
   fetchAccessibleCourseMemberDetail: jest.fn(),
@@ -29,6 +34,7 @@ jest.mock('../lib/prisma', () => {
 const mockFetchAccessibleCourseMemberDetail = fetchAccessibleCourseMemberDetail as jest.MockedFunction<
   typeof fetchAccessibleCourseMemberDetail
 >;
+const mockCurrentUser = currentUser as jest.MockedFunction<typeof currentUser>;
 const mockFetchUserByEmail = fetchUserByEmail as jest.MockedFunction<typeof fetchUserByEmail>;
 const mockFindManyEnrollments = prisma.enrollment.findMany as jest.MockedFunction<typeof prisma.enrollment.findMany>;
 const mockFindManyAttempts = prisma.assessmentAttempt.findMany as jest.MockedFunction<
@@ -182,6 +188,9 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
 describe('course member profile API badge grouping', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCurrentUser.mockResolvedValue({
+      emailAddresses: [{ emailAddress: 'prof@example.edu' }],
+    } as Awaited<ReturnType<typeof currentUser>>);
     mockFindManyEnrollments.mockResolvedValue([]);
     mockFindManyAttempts.mockResolvedValue([]);
     mockFetchUserByEmail.mockResolvedValue({
@@ -290,6 +299,29 @@ describe('course member profile API badge grouping', () => {
       // The course lookup itself carries both the course id and the member id, so
       // a viewer cannot read a student who is not enrolled here.
       expect(mockFetchAccessibleCourseMemberDetail).toHaveBeenCalledWith('prof-1', 'course-1', 'student-1');
+    });
+  });
+
+  describe('session check', () => {
+    it('rejects a query email that does not match the signed-in user', async () => {
+      mockCurrentUser.mockResolvedValue({
+        emailAddresses: [{ emailAddress: 'student@example.edu' }],
+      } as Awaited<ReturnType<typeof currentUser>>);
+
+      const response = await GET(profileRequest(), routeContext());
+
+      expect(response.status).toBe(403);
+      expect(mockFetchUserByEmail).not.toHaveBeenCalled();
+      expect(mockFetchAccessibleCourseMemberDetail).not.toHaveBeenCalled();
+    });
+
+    it('rejects a request with no signed-in user', async () => {
+      mockCurrentUser.mockResolvedValue(null);
+
+      const response = await GET(profileRequest(), routeContext());
+
+      expect(response.status).toBe(403);
+      expect(mockFetchUserByEmail).not.toHaveBeenCalled();
     });
   });
 });
