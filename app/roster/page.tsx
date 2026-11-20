@@ -10,10 +10,12 @@ import BackButton from '@/app/components/BackButton/BackButton';
 import SectionChips from '@/app/components/SectionChips/SectionChips';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useCourseRoster } from './hooks/useCourseRoster';
+import { useRosterLastActive } from './hooks/useRosterLastActive';
 import styles from './page.module.css';
 import { parseRosterCsv } from '@/lib/csv';
 import { uniqueSections } from '@/lib/sections';
 import { isInstructor } from '@/lib/roles';
+import { formatLastActive, hasLastActive } from '@/lib/time/lastActive';
 
 type RosterRole = 'STUDENT' | 'CHECKER';
 type AddMode = 'single' | 'csv';
@@ -35,6 +37,8 @@ type RosterMemberRow = {
   externalId: string;
   sections: string[];
   sectionLabel: string;
+  // Issue #328: Clerk last-active time (ISO), null when none is recorded.
+  lastActiveAt: string | null;
 };
 
 type RosterFilters = {
@@ -160,6 +164,13 @@ export default function StudentRosterPage() {
   const canAddMembers = isInstructorFlag;
   const canManageSections = isInstructorFlag;
   const displayName = course?.createdBy?.name || '';
+  // Issue #328: last logon is instructor-only and shown on the student roster only.
+  const showLastActive = isInstructorFlag && !isCheckerRoster;
+  const {
+    lastActiveById,
+    isLoading: isLastActiveLoading,
+    error: lastActiveError,
+  } = useRosterLastActive(courseId, showLastActive);
 
   const pendingCheckers = useMemo(() => {
     if (!course || !isCheckerRoster || !isInstructorFlag) return [];
@@ -350,9 +361,17 @@ export default function StudentRosterPage() {
           externalId: enrollment.student.externalId?.trim() ?? '',
           sections: enrollment.sections,
           sectionLabel: enrollment.sections.join(', '),
+          lastActiveAt: lastActiveById[enrollment.student.id] ?? null,
         };
       });
-  }, [course, rosterRole]);
+  }, [course, rosterRole, lastActiveById]);
+
+  const renderLastActive = (member: RosterMemberRow) => {
+    if (hasLastActive(member)) return formatLastActive(member.lastActiveAt);
+    if (isLastActiveLoading) return '…';
+    if (lastActiveError) return '—';
+    return <span className={styles.mutedText}>{formatLastActive(null)}</span>;
+  };
 
   // The course's saved sections (kept even when nobody is left in one) plus any on enrollments.
   // Reassignment is limited to these.
@@ -725,6 +744,7 @@ export default function StudentRosterPage() {
                         <th>First Name</th>
                         {!isCheckerRoster ? <th>ID Number</th> : null}
                         <th>Email</th>
+                        {showLastActive ? <th>Last Logon</th> : null}
                         <th>Section</th>
                         {canRemoveMembers ? <th className={styles.actionsHeader}>Actions</th> : null}
                       </tr>
@@ -749,6 +769,7 @@ export default function StudentRosterPage() {
                             <td>{member.firstName || '—'}</td>
                             {!isCheckerRoster ? <td>{member.externalId || '—'}</td> : null}
                             <td>{member.email || '—'}</td>
+                            {showLastActive ? <td>{renderLastActive(member)}</td> : null}
                             <td>
                               {canManageSections ? (
                                 <div className={styles.sectionCell}>
@@ -792,7 +813,7 @@ export default function StudentRosterPage() {
                         <tr>
                           <td
                             className={styles.emptyCell}
-                            colSpan={(isCheckerRoster ? 4 : 5) + (canRemoveMembers ? 1 : 0)}
+                            colSpan={(isCheckerRoster ? 4 : 5) + (canRemoveMembers ? 1 : 0) + (showLastActive ? 1 : 0)}
                           >
                             {emptyResultsMessage}
                           </td>

@@ -22,6 +22,12 @@ jest.mock('@clerk/nextjs', () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+// Issue #328: the Last Logon fetch has its own integration test
+// (roster-last-active.test.tsx); stub it so these tests' fetch sequences stay exact.
+jest.mock('./hooks/useRosterLastActive', () => ({
+  useRosterLastActive: () => ({ lastActiveById: {}, isLoading: false, error: undefined }),
+}));
+
 function createClerkState(overrides = {}) {
   return {
     isLoaded: true,

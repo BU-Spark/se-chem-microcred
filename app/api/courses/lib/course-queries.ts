@@ -761,3 +761,15 @@ export async function fetchEnrolledCourses(userId: string) {
     orderBy: { createdAt: 'desc' },
   });
 }
+
+export async function fetchCourseStudentEmails(courseId: string) {
+  const enrollments = await prisma.enrollment.findMany({
+    where: { courseId, role: 'STUDENT', status: 'ACTIVE', student: { email: { not: null } } },
+    select: { studentId: true, student: { select: { email: true } } },
+  });
+
+  return enrollments.map((enrollment) => ({
+    studentId: enrollment.studentId,
+    email: enrollment.student.email,
+  }));
+}

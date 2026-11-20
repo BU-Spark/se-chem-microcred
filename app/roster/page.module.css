@@ -639,6 +639,11 @@
   color: #6b7280;
 }
 
+/* Issue #328: "Never active" fallback in the Last Logon column. */
+.mutedText {
+  color: #6b7280;
+}
+
 @media (max-width: 900px) {
   .page {
     flex-direction: column;
