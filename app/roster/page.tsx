@@ -10,10 +10,19 @@ import BackButton from '@/app/components/BackButton/BackButton';
 import SectionChips from '@/app/components/SectionChips/SectionChips';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useCourseRoster } from './hooks/useCourseRoster';
+import { useRosterLastActive } from './hooks/useRosterLastActive';
 import styles from './page.module.css';
 import { parseRosterCsv } from '@/lib/csv';
 import { uniqueSections } from '@/lib/sections';
 import { isInstructor } from '@/lib/roles';
+import { formatLastActive, hasLastActive } from '@/lib/time/lastActive';
+import {
+  DEFAULT_ROSTER_SORT,
+  nextSort,
+  sortRosterRows,
+  type RosterSort,
+  type RosterSortKey,
+} from '@/lib/roster/sortRoster';
 
 type RosterRole = 'STUDENT' | 'CHECKER';
 type AddMode = 'single' | 'csv';
@@ -35,6 +44,8 @@ type RosterMemberRow = {
   externalId: string;
   sections: string[];
   sectionLabel: string;
+  // Issue #328: Clerk last-active time (ISO), null when none is recorded.
+  lastActiveAt: string | null;
 };
 
 type RosterFilters = {
@@ -88,6 +99,40 @@ function FilterIcon() {
   );
 }
 
+// Issue #329: small stacked arrows; the current direction's arrow is highlighted.
+function SortArrows({ direction }: { direction: 'asc' | 'desc' | null }) {
+  return (
+    <svg className={styles.sortArrows} viewBox="0 0 8 12" width="8" height="12" aria-hidden="true">
+      <path d="M4 0 8 5H0z" data-active={direction === 'asc' || undefined} />
+      <path d="M4 12 0 7h8z" data-active={direction === 'desc' || undefined} />
+    </svg>
+  );
+}
+
+function SortableHeader({
+  label,
+  sortKey,
+  sort,
+  onSort,
+}: {
+  label: string;
+  sortKey: RosterSortKey;
+  sort: RosterSort;
+  onSort: (key: RosterSortKey) => void;
+}) {
+  const direction = sort.key === sortKey ? sort.direction : null;
+  const ariaSort = direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none';
+
+  return (
+    <th aria-sort={ariaSort}>
+      <button type="button" className={styles.sortButton} onClick={() => onSort(sortKey)}>
+        {label}
+        <SortArrows direction={direction} />
+      </button>
+    </th>
+  );
+}
+
 export default function StudentRosterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -100,6 +145,7 @@ export default function StudentRosterPage() {
   const [draftFilters, setDraftFilters] = useState<RosterFilters>(EMPTY_FILTERS);
   const [appliedFilters, setAppliedFilters] = useState<RosterFilters>(EMPTY_FILTERS);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
+  const [sort, setSort] = useState<RosterSort>(DEFAULT_ROSTER_SORT);
 
   const courseId = searchParams.get('courseId');
   const rosterRole = resolveRosterRole(searchParams.get('role'));
@@ -160,6 +206,13 @@ export default function StudentRosterPage() {
   const canAddMembers = isInstructorFlag;
   const canManageSections = isInstructorFlag;
   const displayName = course?.createdBy?.name || '';
+  // Issue #328: last logon is instructor-only and shown on the student roster only.
+  const showLastActive = isInstructorFlag && !isCheckerRoster;
+  const {
+    lastActiveById,
+    isLoading: isLastActiveLoading,
+    error: lastActiveError,
+  } = useRosterLastActive(courseId, showLastActive);
 
   const pendingCheckers = useMemo(() => {
     if (!course || !isCheckerRoster || !isInstructorFlag) return [];
@@ -350,9 +403,26 @@ export default function StudentRosterPage() {
           externalId: enrollment.student.externalId?.trim() ?? '',
           sections: enrollment.sections,
           sectionLabel: enrollment.sections.join(', '),
+          lastActiveAt: lastActiveById[enrollment.student.id] ?? null,
         };
       });
-  }, [course, rosterRole]);
+  }, [course, rosterRole, lastActiveById]);
+
+  // Issue #329: a sort on a column this roster doesn't show falls back to the default.
+  const activeSort =
+    (sort.key === 'lastActive' && !showLastActive) || (sort.key === 'externalId' && isCheckerRoster)
+      ? DEFAULT_ROSTER_SORT
+      : sort;
+  // Sort once here; the search/filter pass below keeps this order, so typing never re-sorts.
+  const sortedRows = useMemo(() => sortRosterRows(rosterRows, activeSort), [rosterRows, activeSort]);
+  const handleSort = useCallback((key: RosterSortKey) => setSort((current) => nextSort(current, key)), []);
+
+  const renderLastActive = (member: RosterMemberRow) => {
+    if (hasLastActive(member)) return formatLastActive(member.lastActiveAt);
+    if (isLastActiveLoading) return '…';
+    if (lastActiveError) return '—';
+    return <span className={styles.mutedText}>{formatLastActive(null)}</span>;
+  };
 
   // The course's saved sections (kept even when nobody is left in one) plus any on enrollments.
   // Reassignment is limited to these.
@@ -380,7 +450,7 @@ export default function StudentRosterPage() {
     const normalizedExternalId = appliedFilters.externalId.trim().toLowerCase();
     const normalizedEmail = appliedFilters.email.trim().toLowerCase();
 
-    return rosterRows.filter((member) => {
+    return sortedRows.filter((member) => {
       if (appliedFilters.section && !member.sections.includes(appliedFilters.section)) {
         return false;
       }
@@ -411,7 +481,7 @@ export default function StudentRosterPage() {
 
       return haystack.includes(normalizedQuery);
     });
-  }, [appliedFilters, rosterRows, searchValue]);
+  }, [appliedFilters, sortedRows, searchValue]);
 
   const activeFilterPills = useMemo(() => {
     const pills: string[] = [];
@@ -721,11 +791,26 @@ export default function StudentRosterPage() {
                   <table className={styles.table}>
                     <thead>
                       <tr>
-                        <th>Last Name</th>
-                        <th>First Name</th>
-                        {!isCheckerRoster ? <th>ID Number</th> : null}
-                        <th>Email</th>
-                        <th>Section</th>
+                        <SortableHeader label="Last Name" sortKey="lastName" sort={activeSort} onSort={handleSort} />
+                        <SortableHeader label="First Name" sortKey="firstName" sort={activeSort} onSort={handleSort} />
+                        {!isCheckerRoster ? (
+                          <SortableHeader
+                            label="ID Number"
+                            sortKey="externalId"
+                            sort={activeSort}
+                            onSort={handleSort}
+                          />
+                        ) : null}
+                        <SortableHeader label="Email" sortKey="email" sort={activeSort} onSort={handleSort} />
+                        {showLastActive ? (
+                          <SortableHeader
+                            label="Last Logon"
+                            sortKey="lastActive"
+                            sort={activeSort}
+                            onSort={handleSort}
+                          />
+                        ) : null}
+                        <SortableHeader label="Section" sortKey="section" sort={activeSort} onSort={handleSort} />
                         {canRemoveMembers ? <th className={styles.actionsHeader}>Actions</th> : null}
                       </tr>
                     </thead>
@@ -749,6 +834,7 @@ export default function StudentRosterPage() {
                             <td>{member.firstName || '—'}</td>
                             {!isCheckerRoster ? <td>{member.externalId || '—'}</td> : null}
                             <td>{member.email || '—'}</td>
+                            {showLastActive ? <td>{renderLastActive(member)}</td> : null}
                             <td>
                               {canManageSections ? (
                                 <div className={styles.sectionCell}>
@@ -792,7 +878,7 @@ export default function StudentRosterPage() {
                         <tr>
                           <td
                             className={styles.emptyCell}
-                            colSpan={(isCheckerRoster ? 4 : 5) + (canRemoveMembers ? 1 : 0)}
+                            colSpan={(isCheckerRoster ? 4 : 5) + (canRemoveMembers ? 1 : 0) + (showLastActive ? 1 : 0)}
                           >
                             {emptyResultsMessage}
                           </td>

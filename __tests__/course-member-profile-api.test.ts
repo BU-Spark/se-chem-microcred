@@ -2,11 +2,16 @@
 // Issues: #247 badge image zoom, #258 multi-word last names
 
 import { NextRequest } from 'next/server';
+import { currentUser } from '@clerk/nextjs/server';
 import { BadgeStatus, CourseRole, EnrollmentStatus, LessonStatus } from '@prisma/client';
 
 import { GET } from '../app/api/courses/[courseId]/students/[studentId]/route';
 import { fetchAccessibleCourseMemberDetail, fetchUserByEmail } from '../app/api/courses/lib/course-queries';
 import { prisma } from '../lib/prisma';
+
+jest.mock('@clerk/nextjs/server', () => ({
+  currentUser: jest.fn(),
+}));
 
 jest.mock('../app/api/courses/lib/course-queries', () => ({
   fetchAccessibleCourseMemberDetail: jest.fn(),
@@ -29,14 +34,21 @@ jest.mock('../lib/prisma', () => {
 const mockFetchAccessibleCourseMemberDetail = fetchAccessibleCourseMemberDetail as jest.MockedFunction<
   typeof fetchAccessibleCourseMemberDetail
 >;
+const mockCurrentUser = currentUser as jest.MockedFunction<typeof currentUser>;
 const mockFetchUserByEmail = fetchUserByEmail as jest.MockedFunction<typeof fetchUserByEmail>;
 const mockFindManyEnrollments = prisma.enrollment.findMany as jest.MockedFunction<typeof prisma.enrollment.findMany>;
 const mockFindManyAttempts = prisma.assessmentAttempt.findMany as jest.MockedFunction<
   typeof prisma.assessmentAttempt.findMany
 >;
 
-function profileRequest() {
-  return new NextRequest('http://localhost/api/courses/course-1/students/student-1?email=prof%40example.edu');
+function profileRequest(email = 'prof@example.edu') {
+  return new NextRequest(`http://localhost/api/courses/course-1/students/student-1?email=${encodeURIComponent(email)}`);
+}
+
+function signInAs(email: string) {
+  mockCurrentUser.mockResolvedValue({
+    emailAddresses: [{ emailAddress: email }],
+  } as Awaited<ReturnType<typeof currentUser>>);
 }
 
 function routeContext() {
@@ -67,15 +79,8 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
     title: 'Chem101',
     createdById: 'prof-1',
     settings: {
-      id: 'settings-1',
-      courseId: 'course-1',
       allowCheckerMessages: true,
-      allowCooldownOverride: false,
       allowCrossSectionView: true,
-      feedbackRemindersEnabled: false,
-      feedbackReminderIntervalDays: 3,
-      createdAt,
-      updatedAt: createdAt,
     },
     createdBy: {
       id: 'prof-1',
@@ -117,27 +122,6 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
     ],
     enrollments: [
       {
-        id: 'enrollment-prof',
-        role: CourseRole.INSTRUCTOR,
-        status: EnrollmentStatus.ACTIVE,
-        sections: [],
-        student: {
-          id: 'prof-1',
-          name: 'Professor Demo',
-          firstName: 'Professor',
-          lastName: 'Demo',
-          email: 'prof@example.edu',
-          externalId: 'P111',
-          gender: null,
-          raceEthnicity: null,
-          parentalEducation: null,
-          pellGrantQualified: null,
-          createdAt,
-          avatar: null,
-          badgeProgress: [],
-        },
-      },
-      {
         id: 'enrollment-student',
         role: CourseRole.STUDENT,
         status: EnrollmentStatus.ACTIVE,
@@ -157,20 +141,16 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
           avatar: null,
           badgeProgress: [
             {
-              id: 'student-badge-seeded',
               badgeId: 'badge-seeded',
               status: BadgeStatus.LEARNING,
               awardedAt: null,
               score: null,
-              badge: badge('badge-seeded', 'Seeded Learning Badge'),
             },
             {
-              id: 'student-badge-started',
               badgeId: 'badge-started',
               status: BadgeStatus.LEARNING,
               awardedAt: null,
               score: null,
-              badge: badge('badge-started', 'Actually Started Badge'),
             },
           ],
         },
@@ -182,6 +162,9 @@ function courseFixture({ seededLearningBadgeStarted }: { seededLearningBadgeStar
 describe('course member profile API badge grouping', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockCurrentUser.mockResolvedValue({
+      emailAddresses: [{ emailAddress: 'prof@example.edu' }],
+    } as Awaited<ReturnType<typeof currentUser>>);
     mockFindManyEnrollments.mockResolvedValue([]);
     mockFindManyAttempts.mockResolvedValue([]);
     mockFetchUserByEmail.mockResolvedValue({
@@ -261,13 +244,11 @@ describe('course member profile API badge grouping', () => {
       const fixture = courseFixture({ seededLearningBadgeStarted: true });
       // Simulate the query leaking a foreign progress row: the badge belongs to a
       // different instructor's course and has no requirement here.
-      fixture.enrollments[1].student.badgeProgress.push({
-        id: 'student-badge-foreign',
+      fixture.enrollments[0].student.badgeProgress.push({
         badgeId: 'badge-from-other-course',
         status: BadgeStatus.COMPLETED,
         awardedAt: new Date('2026-05-01T00:00:00.000Z'),
         score: 100,
-        badge: badge('badge-from-other-course', 'Other Course Badge'),
       } as never);
       mockFetchAccessibleCourseMemberDetail.mockResolvedValue(fixture);
 
@@ -290,6 +271,97 @@ describe('course member profile API badge grouping', () => {
       // The course lookup itself carries both the course id and the member id, so
       // a viewer cannot read a student who is not enrolled here.
       expect(mockFetchAccessibleCourseMemberDetail).toHaveBeenCalledWith('prof-1', 'course-1', 'student-1');
+    });
+  });
+
+  describe('session check', () => {
+    it('rejects a query email that does not match the signed-in user', async () => {
+      mockCurrentUser.mockResolvedValue({
+        emailAddresses: [{ emailAddress: 'student@example.edu' }],
+      } as Awaited<ReturnType<typeof currentUser>>);
+
+      const response = await GET(profileRequest(), routeContext());
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).not.toHaveProperty('member');
+    });
+
+    it('rejects a request with no signed-in user', async () => {
+      mockCurrentUser.mockResolvedValue(null);
+
+      const response = await GET(profileRequest(), routeContext());
+
+      expect(response.status).toBe(403);
+      expect(await response.json()).not.toHaveProperty('member');
+    });
+  });
+
+  // The viewer's role and sections come from the staff query, not the detail query.
+  describe('viewer standing from course staff', () => {
+    function signInChecker() {
+      signInAs('checker@example.edu');
+      mockFetchUserByEmail.mockResolvedValue({
+        id: 'checker-1',
+        email: 'checker@example.edu',
+        name: 'Casey Checker',
+        externalId: 'C111',
+        avatar: null,
+      });
+    }
+
+    function checkerStaff(sections: string[]) {
+      mockFindManyEnrollments.mockResolvedValue([
+        {
+          id: 'enrollment-checker',
+          role: CourseRole.CHECKER,
+          studentId: 'checker-1',
+          sections: sections.map((section) => ({ section })),
+          student: {
+            id: 'checker-1',
+            name: 'Casey Checker',
+            firstName: 'Casey',
+            lastName: 'Checker',
+            email: 'checker@example.edu',
+          },
+        },
+      ] as never);
+    }
+
+    function courseWithoutCrossSectionView() {
+      const course = courseFixture({ seededLearningBadgeStarted: false });
+      return { ...course, settings: { ...course.settings, allowCrossSectionView: false } };
+    }
+
+    it('lets an active checker in the same section view the student', async () => {
+      signInChecker();
+      checkerStaff(['K1']);
+      mockFetchAccessibleCourseMemberDetail.mockResolvedValue(courseWithoutCrossSectionView());
+
+      const response = await GET(profileRequest('checker@example.edu'), routeContext());
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.viewerRole).toBe(CourseRole.CHECKER);
+    });
+
+    it('hides a student in another section from a checker', async () => {
+      signInChecker();
+      checkerStaff(['K2']);
+      mockFetchAccessibleCourseMemberDetail.mockResolvedValue(courseWithoutCrossSectionView());
+
+      const response = await GET(profileRequest('checker@example.edu'), routeContext());
+
+      expect(response.status).toBe(404);
+    });
+
+    it('rejects a viewer who is neither the creator nor active staff', async () => {
+      signInChecker();
+      mockFindManyEnrollments.mockResolvedValue([]);
+      mockFetchAccessibleCourseMemberDetail.mockResolvedValue(courseFixture({ seededLearningBadgeStarted: false }));
+
+      const response = await GET(profileRequest('checker@example.edu'), routeContext());
+
+      expect(response.status).toBe(404);
     });
   });
 });

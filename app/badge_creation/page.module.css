@@ -1227,10 +1227,11 @@
   flex: 1;
 }
 
-/* ---- Checkpoint modal ---------------------------------------------------
-   Body sits between the modal's own header/footer rules: a timestamp/points
-   meta row, then one prompt-plus-settings pair per question. */
+
 .checkpointEditor {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -1295,14 +1296,36 @@
   gap: 20px;
 }
 
-/* Prompt editor on the left, answer settings in a matching card on the right.
-   Split evenly (issue #248) so the answer side — question type, points, and
-   choices — has as much room to work in as the prompt. */
+
 .cpQuestionRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 1fr);
   gap: 20px;
   align-items: start;
+}
+
+.cpCard {
+  flex-shrink: 0;
+}
+
+/* Cap the answer card so many choices + feedback don't stretch the modal;
+   the choices area scrolls inside it while type/points stay pinned. */
+.cpAnswerCard {
+  max-height: min(560px, 65vh);
+}
+
+.cpAnswerBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Stretch into the card's 20px right padding so the scrollbar lives there,
+     clear of the inputs. */
+  margin-right: -20px;
+  padding-right: 20px;
+  scrollbar-gutter: stable;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .cpCard {
@@ -1401,7 +1424,7 @@
 
 .cpChoiceRow {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: start;
   gap: 12px;
 }
@@ -1414,19 +1437,22 @@
   cursor: pointer;
 }
 
+
 .cpRemoveChoice {
+  display: block;
+  margin-top: 4px;
   border: none;
   background: transparent;
-  padding: 0 2px;
-  margin-top: 8px;
-  font-size: 18px;
-  line-height: 1;
-  color: #6b7280;
+  padding: 0;
+  font-family: 'Open Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c0392b;
   cursor: pointer;
 }
 
 .cpRemoveChoice:hover {
-  color: #c0392b;
+  text-decoration: underline;
 }
 
 /* Outlined blue pill with a circled plus, matching the rubric step's add

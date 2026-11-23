@@ -9,14 +9,11 @@
   background: rgba(15, 23, 42, 0.35);
 }
 
-/* Wide, full-bleed dialog: the header and footer rules span the whole card, so
-   padding lives on the sections rather than the modal itself. Sized generously
-   (issue #248) so the 50/50 prompt/answer split has real room to breathe
-   instead of squeezing the rich-text editors down to a sliver. */
+
 .modal {
   width: min(1440px, 96vw);
   max-height: calc(100vh - 3rem);
-  overflow: auto;
+  overflow: hidden; /* the editor body scrolls; header and footer stay pinned */
   background: var(--checkd-white);
   border-radius: 14px;
   padding: 0;
