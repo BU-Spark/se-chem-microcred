@@ -630,7 +630,7 @@ export default function CreatedCourseDetailPage() {
                           href={`/roster?courseId=${course.id}&role=STUDENT${canAssess ? '&view=checker' : ''}`}
                           className={styles.primaryButton}
                         >
-                          {canAssess ? 'Students to assess' : 'View roster'}
+                          View Roster
                         </Link>
                         {canAssess ? (
                           <button type="button" className={styles.primaryButton} onClick={openAssessmentCodeModal}>

@@ -247,7 +247,7 @@ describe('Created course detail page', () => {
     expect(screen.getByText('Waste Handling Badge')).toBeInTheDocument();
     expect(screen.getByText('Bunsen Burners Badge')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Waste Handling/i })).toHaveAttribute('href', '/courses/course-1/badge-1');
-    expect(screen.getByRole('link', { name: 'View roster' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View Roster' })).toHaveAttribute(
       'href',
       '/roster?courseId=course-1&role=STUDENT'
     );
@@ -395,7 +395,7 @@ describe('Created course detail page', () => {
     render(<CreatedCourseDetailPage />);
 
     expect(await screen.findByText('Checker')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Students to assess' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'View Roster' })).toHaveAttribute(
       'href',
       '/roster?courseId=course-1&role=STUDENT&view=checker'
     );
