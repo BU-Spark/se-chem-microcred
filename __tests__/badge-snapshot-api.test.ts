@@ -64,7 +64,17 @@ describe('GET /api/courses/[courseId]/badge-snapshot', () => {
       { studentId: 's1', badgeId: 'b1', status: BadgeStatus.COMPLETED, awardedAt: new Date() },
     ]);
     mockFindLessonProgress.mockResolvedValue([]);
-    mockFindAttempts.mockResolvedValue([{ studentId: 's2', badgeId: 'b2', passed: false }]);
+    mockFindAttempts.mockResolvedValue([
+      {
+        studentId: 's2',
+        badgeId: 'b2',
+        passed: false,
+        pointsEarned: 4,
+        pointsPossible: 10,
+        completedAt: new Date('2026-11-10'),
+        createdAt: new Date('2026-11-10'),
+      },
+    ]);
   });
 
   afterEach(() => {
@@ -90,12 +100,21 @@ describe('GET /api/courses/[courseId]/badge-snapshot', () => {
     expect(response.status).toBe(404);
   });
 
-  it('returns compact per-student states in badge order with a fixed number of queries', async () => {
+  it('returns per-student states and latest grades in badge order with a fixed number of queries', async () => {
     const response = await GET(request(), context);
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.badges.map((badge: { id: string }) => badge.id)).toEqual(['b1', 'b2']);
-    expect(body.students).toEqual({ s1: ['done', 'not_started'], s2: ['not_started', 'failed'] });
+    expect(body.students).toEqual({
+      s1: [
+        { state: 'done', attempts: 0, latest: null },
+        { state: 'not_started', attempts: 0, latest: null },
+      ],
+      s2: [
+        { state: 'not_started', attempts: 0, latest: null },
+        { state: 'failed', attempts: 1, latest: { passed: false, pointsEarned: 4, pointsPossible: 10 } },
+      ],
+    });
 
     expect(mockFindCourse).toHaveBeenCalledTimes(1);
     expect(mockFindEnrollments).toHaveBeenCalledTimes(1);
@@ -103,6 +122,8 @@ describe('GET /api/courses/[courseId]/badge-snapshot', () => {
     expect(mockFindLessonProgress).toHaveBeenCalledTimes(1);
     expect(mockFindAttempts).toHaveBeenCalledTimes(1);
     expect(mockFindStudentBadges.mock.calls[0][0].where.studentId).toEqual({ in: ['s1', 's2'] });
+    // Grades come from the same attempts query; no per-student reads.
+    expect(mockFindAttempts.mock.calls[0][0].select).toMatchObject({ pointsEarned: true, pointsPossible: true });
   });
 
   it('scopes a checker to their own sections plus unsectioned students', async () => {

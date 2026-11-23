@@ -31,7 +31,7 @@ jest.mock('./hooks/useRosterBadgeSnapshot', () => ({
   useRosterBadgeSnapshot: (...args: unknown[]) => mockUseRosterBadgeSnapshot(...args),
 }));
 
-const EMPTY_SNAPSHOT = { badges: [], statesByStudent: {}, isLoading: false, error: undefined };
+const EMPTY_SNAPSHOT = { badges: [], cellsByStudent: {}, isLoading: false, error: undefined };
 
 function createClerkState(overrides = {}) {
   return {
@@ -636,13 +636,22 @@ describe('Course roster page', () => {
       { id: 'b2', name: 'Titration', slug: 'titration' },
       { id: 'b3', name: 'Spectroscopy', slug: 'spectroscopy' },
     ];
+    const cell = (state: string, attempts = 0, latest: Record<string, unknown> | null = null) => ({
+      state,
+      attempts,
+      latest,
+    });
     const SNAPSHOT = {
       badges: BADGES,
-      statesByStudent: {
-        s1: ['done', 'done', 'failed'],
-        s2: ['done', 'progress', 'not_started'],
-        s3: ['not_started', 'not_started', 'not_started'],
-        s4: ['done', 'done', 'done'],
+      cellsByStudent: {
+        s1: [cell('done'), cell('done'), cell('failed', 1, { passed: false, pointsEarned: 3, pointsPossible: 10 })],
+        s2: [
+          cell('done', 2, { passed: true, pointsEarned: 9, pointsPossible: 10 }),
+          cell('progress'),
+          cell('not_started'),
+        ],
+        s3: [cell('not_started'), cell('not_started'), cell('not_started')],
+        s4: [cell('done'), cell('done'), cell('done')],
       },
       isLoading: false,
       error: undefined,
@@ -662,7 +671,7 @@ describe('Course roster page', () => {
       expect(lastNameColumn()).toEqual(['Liskov', 'Hopper', 'Lovelace', 'Turing']);
     });
 
-    it('expands a row into badge squares on first click and opens the profile on the second', async () => {
+    it('expands a row into badge grades on first click and opens the profile on the second', async () => {
       mockUseRosterBadgeSnapshot.mockReturnValue(SNAPSHOT);
       mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
       render(<StudentRosterPage />);
@@ -672,9 +681,14 @@ describe('Course roster page', () => {
       fireEvent.click(row);
       expect(row).toHaveAttribute('aria-expanded', 'true');
       const strip = screen.getByRole('list', { name: 'Badge progress' });
-      expect(within(strip).getByLabelText('Pipetting: Completed')).toBeInTheDocument();
+      expect(within(strip).getByLabelText('Pipetting: Completed, latest 9/10 pts, 2 attempts')).toBeInTheDocument();
       expect(within(strip).getByLabelText('Titration: In progress')).toBeInTheDocument();
       expect(within(strip).getByLabelText('Spectroscopy: Not started')).toBeInTheDocument();
+      // Visible text: latest grade and attempts, or a status where there is no attempt.
+      expect(within(strip).getByText('9/10 pts')).toBeInTheDocument();
+      expect(within(strip).getByText('2 attempts')).toBeInTheDocument();
+      expect(within(strip).getByText('Not assessed')).toBeInTheDocument();
+      expect(within(strip).getByText('Not started')).toBeInTheDocument();
       expect(mockPush).not.toHaveBeenCalled();
 
       fireEvent.click(strip);

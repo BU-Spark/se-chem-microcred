@@ -3,7 +3,10 @@ import { BadgeStatus, LessonStatus } from '@prisma/client';
 import {
   buildBadgeSnapshot,
   countSnapshotStates,
+  formatAttemptCount,
+  formatSnapshotGrade,
   snapshotStateFromCohort,
+  type SnapshotCell,
   type SnapshotInput,
 } from '@/lib/roster/badgeSnapshot';
 
@@ -58,12 +61,35 @@ describe('snapshotStateFromCohort', () => {
   });
 });
 
+const states = (cells: SnapshotCell[]) => cells.map((cell) => cell.state);
+
+function attempt(
+  badgeId: string,
+  passed: boolean,
+  at: string,
+  points: [number, number] | null = null,
+  studentId = 's1'
+): SnapshotInput['attempts'][number] {
+  return {
+    studentId,
+    badgeId,
+    passed,
+    pointsEarned: points?.[0] ?? null,
+    pointsPossible: points?.[1] ?? null,
+    completedAt: new Date(at),
+    createdAt: new Date(at),
+  };
+}
+
 describe('buildBadgeSnapshot', () => {
   it('reports not started for a bare eager LEARNING row with no activity', () => {
     const result = buildBadgeSnapshot(
       input({ studentBadges: [{ studentId: 's1', badgeId: 'b1', status: BadgeStatus.LEARNING, awardedAt: null }] })
     );
-    expect(result).toEqual({ s1: ['not_started', 'not_started'] });
+    expect(result.s1).toEqual([
+      { state: 'not_started', attempts: 0, latest: null },
+      { state: 'not_started', attempts: 0, latest: null },
+    ]);
   });
 
   it('classifies done, progress, failed and locked per badge, in badge order', () => {
@@ -75,32 +101,33 @@ describe('buildBadgeSnapshot', () => {
           { studentId: 's2', badgeId: 'b2', status: BadgeStatus.LOCKED, awardedAt: null },
         ],
         lessonProgress: [progress('s1', 'l2', LessonStatus.IN_PROGRESS)],
-        attempts: [{ studentId: 's2', badgeId: 'b1', passed: false }],
+        attempts: [attempt('b1', false, '2026-11-01', null, 's2')],
       })
     );
-    expect(result).toEqual({
-      s1: ['done', 'progress'],
-      s2: ['failed', 'failed'],
-    });
+    expect(states(result.s1)).toEqual(['done', 'progress']);
+    expect(states(result.s2)).toEqual(['failed', 'failed']);
   });
 
-  it('keeps a passed but unfinalized badge in progress', () => {
+  it('reports the latest attempt by completion time and counts every attempt', () => {
     const result = buildBadgeSnapshot(
       input({
         studentBadges: [{ studentId: 's1', badgeId: 'b1', status: BadgeStatus.IN_REVIEW, awardedAt: null }],
         lessonProgress: [progress('s1', 'l1', LessonStatus.COMPLETED)],
-        attempts: [
-          { studentId: 's1', badgeId: 'b1', passed: false },
-          { studentId: 's1', badgeId: 'b1', passed: true },
-        ],
+        // Out of order on purpose: the newest attempt wins, not the last row.
+        attempts: [attempt('b1', true, '2026-11-10', [9, 10]), attempt('b1', false, '2026-11-02', [4, 10])],
       })
     );
-    expect(result.s1[0]).toBe('progress');
+    expect(result.s1[0]).toEqual({
+      state: 'progress',
+      attempts: 2,
+      latest: { passed: true, pointsEarned: 9, pointsPossible: 10 },
+    });
+    expect(result.s1[1]).toEqual({ state: 'not_started', attempts: 0, latest: null });
   });
 
   it('does not leak lesson progress from one badge into another', () => {
     const result = buildBadgeSnapshot(input({ lessonProgress: [progress('s1', 'l1', LessonStatus.COMPLETED)] }));
-    expect(result.s1).toEqual(['progress', 'not_started']);
+    expect(states(result.s1)).toEqual(['progress', 'not_started']);
   });
 
   it('returns empty arrays when the course has no badges', () => {
@@ -110,7 +137,45 @@ describe('buildBadgeSnapshot', () => {
 
 describe('countSnapshotStates', () => {
   it('counts done and failed', () => {
-    expect(countSnapshotStates(['done', 'failed', 'progress', 'done'])).toEqual({ done: 2, failed: 1, total: 4 });
+    const cells = (['done', 'failed', 'progress', 'done'] as const).map((state) => ({
+      state,
+      attempts: 0,
+      latest: null,
+    }));
+    expect(countSnapshotStates(cells)).toEqual({ done: 2, failed: 1, total: 4 });
     expect(countSnapshotStates(undefined)).toEqual({ done: 0, failed: 0, total: 0 });
+  });
+});
+
+describe('formatSnapshotGrade', () => {
+  const cell = (state: SnapshotCell['state'], latest: SnapshotCell['latest']): SnapshotCell => ({
+    state,
+    attempts: latest ? 1 : 0,
+    latest,
+  });
+
+  it('shows rubric points for a scored attempt', () => {
+    expect(formatSnapshotGrade(cell('failed', { passed: false, pointsEarned: 4, pointsPossible: 10 }))).toBe(
+      '4/10 pts'
+    );
+  });
+
+  it('shows pass or fail when the attempt has no points, like an instructor override', () => {
+    expect(formatSnapshotGrade(cell('done', { passed: true, pointsEarned: null, pointsPossible: null }))).toBe(
+      'Passed'
+    );
+    expect(formatSnapshotGrade(cell('failed', { passed: false, pointsEarned: 0, pointsPossible: 0 }))).toBe('Failed');
+  });
+
+  it('shows a status in place of a grade when there is no attempt', () => {
+    expect(formatSnapshotGrade(cell('not_started', null))).toBe('Not started');
+    expect(formatSnapshotGrade(cell('progress', null))).toBe('Not assessed');
+    expect(formatSnapshotGrade(cell('done', null))).toBe('Completed');
+  });
+
+  it('pluralizes attempt counts and hides zero', () => {
+    expect(formatAttemptCount(0)).toBeNull();
+    expect(formatAttemptCount(1)).toBe('1 attempt');
+    expect(formatAttemptCount(3)).toBe('3 attempts');
   });
 });

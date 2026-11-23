@@ -222,7 +222,7 @@ export default function StudentRosterPage() {
   const showBadgeSnapshot = !isCheckerRoster && isStaff(data?.viewerRole);
   const {
     badges: snapshotBadges,
-    statesByStudent,
+    cellsByStudent,
     isLoading: isSnapshotLoading,
     error: snapshotError,
   } = useRosterBadgeSnapshot(courseId, appliedFilters.section || null, showBadgeSnapshot);
@@ -423,8 +423,8 @@ export default function StudentRosterPage() {
       .filter((enrollment) => enrollment.role === rosterRole && enrollment.status !== 'PENDING')
       .map((enrollment) => {
         const { first, last } = resolveName(enrollment.student);
-        const states = statesByStudent[enrollment.student.id];
-        const counts = states ? countSnapshotStates(states) : null;
+        const cells = cellsByStudent[enrollment.student.id];
+        const counts = cells ? countSnapshotStates(cells) : null;
 
         return {
           enrollmentId: enrollment.id,
@@ -440,7 +440,7 @@ export default function StudentRosterPage() {
           progressFailed: counts?.failed ?? null,
         };
       });
-  }, [course, rosterRole, lastActiveById, statesByStudent]);
+  }, [course, rosterRole, lastActiveById, cellsByStudent]);
 
   // Issue #329: a sort on a column this roster doesn't show falls back to the default.
   const activeSort =
@@ -973,7 +973,7 @@ export default function StudentRosterPage() {
                                     ) : (
                                       <BadgeSnapshotStrip
                                         badges={snapshotBadges}
-                                        states={statesByStudent[member.memberId]}
+                                        cells={cellsByStudent[member.memberId]}
                                       />
                                     )}
                                   </td>

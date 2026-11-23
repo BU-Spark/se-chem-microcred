@@ -112,7 +112,15 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       }),
       prisma.assessmentAttempt.findMany({
         where: { courseId, studentId: { in: studentIds }, badgeId: { in: badgeIds } },
-        select: { studentId: true, badgeId: true, passed: true },
+        select: {
+          studentId: true,
+          badgeId: true,
+          passed: true,
+          pointsEarned: true,
+          pointsPossible: true,
+          completedAt: true,
+          createdAt: true,
+        },
       }),
     ]);
 

@@ -1,6 +1,3 @@
-// Issue #328: integration test for the roster's Last Logon column. The real page,
-// useRosterLastActive, useUserActivity and SWR run together; only fetch, Clerk's
-// client hooks and Next navigation are mocked.
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 
 import { SWRTestProvider } from '@/app/hooks/test-utils';
@@ -29,7 +26,7 @@ jest.mock('@clerk/nextjs', () => ({
 
 // The badge snapshot has its own tests; keep its request out of this file's fetch counts.
 jest.mock('./hooks/useRosterBadgeSnapshot', () => ({
-  useRosterBadgeSnapshot: () => ({ badges: [], statesByStudent: {}, isLoading: false, error: undefined }),
+  useRosterBadgeSnapshot: () => ({ badges: [], cellsByStudent: {}, isLoading: false, error: undefined }),
 }));
 
 const MINUTE = 60_000;
