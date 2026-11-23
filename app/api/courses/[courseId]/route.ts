@@ -5,6 +5,7 @@ import prisma from '@/lib/prisma';
 import { normalizeEmail } from '@/lib/text/email';
 import { BadgeRelationType } from '@prisma/client';
 import { loadRelationsByRoot, resolveFamilyRootId } from '@/lib/badges/badge-relations.service';
+import { visibleEnrollmentsFor } from '@/lib/sections';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -108,10 +109,17 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
               },
             })),
           })),
-          enrollments: course.enrollments.map((enrollment) => ({
-            ...enrollment,
-            sections: enrollment.sections.map((assignment) => assignment.section),
-          })),
+          enrollments: visibleEnrollmentsFor(
+            course.enrollments.map((enrollment) => ({
+              ...enrollment,
+              sections: enrollment.sections.map((assignment) => assignment.section),
+            })),
+            {
+              userId: user.id,
+              role: viewerRole,
+              allowCrossSectionView: course.settings?.allowCrossSectionView ?? false,
+            }
+          ),
         },
       },
       { status: 200 }

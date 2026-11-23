@@ -1,11 +1,4 @@
-// Issue #329: roster column sorting.
-//
-// Decorate–sort–undecorate on the engine's Array.prototype.sort (TimSort in V8:
-// O(n log n), stable, near O(n) on already-sorted runs such as a direction flip).
-// Each row's keys are derived once up front, so the comparator, which runs
-// ~n log n times, only compares precomputed values with one shared Intl.Collator.
-
-export type RosterSortKey = 'lastName' | 'firstName' | 'externalId' | 'email' | 'lastActive' | 'section';
+export type RosterSortKey = 'lastName' | 'firstName' | 'externalId' | 'email' | 'lastActive' | 'section' | 'progress';
 export type RosterSortDirection = 'asc' | 'desc';
 export type RosterSort = { key: RosterSortKey; direction: RosterSortDirection };
 
@@ -17,6 +10,8 @@ export type SortableRosterRow = {
   externalId: string;
   sectionLabel: string;
   lastActiveAt?: string | null;
+  progressDone?: number | null;
+  progressFailed?: number | null;
 };
 
 export const DEFAULT_ROSTER_SORT: RosterSort = { key: 'lastName', direction: 'asc' };
@@ -29,6 +24,7 @@ export const FIRST_CLICK_DIRECTION: Record<RosterSortKey, RosterSortDirection> =
   email: 'asc',
   section: 'asc',
   lastActive: 'desc',
+  progress: 'desc',
 };
 
 // Case- and accent-insensitive, and numeric-aware so "A2" < "A10" and "U9" < "U10".
@@ -37,6 +33,11 @@ const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: tr
 type SortValue = string | number | null;
 
 function keyFor(row: SortableRosterRow, key: RosterSortKey): SortValue {
+  if (key === 'progress') {
+    if (row.progressDone == null) return null;
+    // Most badges done first; among equals, fewer failures rank higher.
+    return row.progressDone * 10_000 - (row.progressFailed ?? 0);
+  }
   if (key === 'lastActive') {
     const time = row.lastActiveAt ? Date.parse(row.lastActiveAt) : NaN;
     return Number.isNaN(time) ? null : time;

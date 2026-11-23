@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
@@ -11,10 +11,13 @@ import SectionChips from '@/app/components/SectionChips/SectionChips';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useCourseRoster } from './hooks/useCourseRoster';
 import { useRosterLastActive } from './hooks/useRosterLastActive';
+import { useRosterBadgeSnapshot } from './hooks/useRosterBadgeSnapshot';
+import BadgeSnapshotStrip, { BadgeSnapshotLegend } from './components/BadgeSnapshotStrip';
 import styles from './page.module.css';
 import { parseRosterCsv } from '@/lib/csv';
 import { uniqueSections } from '@/lib/sections';
-import { isInstructor } from '@/lib/roles';
+import { isChecker, isInstructor, isStaff } from '@/lib/roles';
+import { countSnapshotStates } from '@/lib/roster/badgeSnapshot';
 import { formatLastActive, hasLastActive } from '@/lib/time/lastActive';
 import {
   DEFAULT_ROSTER_SORT,
@@ -44,8 +47,9 @@ type RosterMemberRow = {
   externalId: string;
   sections: string[];
   sectionLabel: string;
-  // Issue #328: Clerk last-active time (ISO), null when none is recorded.
   lastActiveAt: string | null;
+  progressDone: number | null;
+  progressFailed: number | null;
 };
 
 type RosterFilters = {
@@ -99,7 +103,6 @@ function FilterIcon() {
   );
 }
 
-// Issue #329: small stacked arrows; the current direction's arrow is highlighted.
 function SortArrows({ direction }: { direction: 'asc' | 'desc' | null }) {
   return (
     <svg className={styles.sortArrows} viewBox="0 0 8 12" width="8" height="12" aria-hidden="true">
@@ -146,6 +149,8 @@ export default function StudentRosterPage() {
   const [appliedFilters, setAppliedFilters] = useState<RosterFilters>(EMPTY_FILTERS);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   const [sort, setSort] = useState<RosterSort>(DEFAULT_ROSTER_SORT);
+  const [expandAll, setExpandAll] = useState(false);
+  const appliedCheckerSectionDefault = useRef(false);
 
   const courseId = searchParams.get('courseId');
   const rosterRole = resolveRosterRole(searchParams.get('role'));
@@ -213,6 +218,31 @@ export default function StudentRosterPage() {
     isLoading: isLastActiveLoading,
     error: lastActiveError,
   } = useRosterLastActive(courseId, showLastActive);
+  // Staff see each student's badge progress; loaded per section, separately from the roster.
+  const showBadgeSnapshot = !isCheckerRoster && isStaff(data?.viewerRole);
+  const {
+    badges: snapshotBadges,
+    statesByStudent,
+    isLoading: isSnapshotLoading,
+    error: snapshotError,
+  } = useRosterBadgeSnapshot(courseId, appliedFilters.section || null, showBadgeSnapshot);
+
+  // A checker arriving from "Students to assess" starts on their first section, so the
+  // first snapshot request is section-sized. Applied once; the chips switch freely after.
+  useEffect(() => {
+    if (appliedCheckerSectionDefault.current || !course || !isChecker(data?.viewerRole) || isCheckerRoster) return;
+    appliedCheckerSectionDefault.current = true;
+    if (!returnToCheckerView) return;
+    const viewerEmail = email?.trim().toLowerCase();
+    const ownSections = course.enrollments.find(
+      (enrollment) => enrollment.role === 'CHECKER' && enrollment.student.email?.trim().toLowerCase() === viewerEmail
+    )?.sections;
+    const firstSection = [...(ownSections ?? [])].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))[0];
+    if (firstSection) {
+      setAppliedFilters((current) => (current.section ? current : { ...current, section: firstSection }));
+      setDraftFilters((current) => (current.section ? current : { ...current, section: firstSection }));
+    }
+  }, [course, data?.viewerRole, email, isCheckerRoster, returnToCheckerView]);
 
   const pendingCheckers = useMemo(() => {
     if (!course || !isCheckerRoster || !isInstructorFlag) return [];
@@ -393,6 +423,8 @@ export default function StudentRosterPage() {
       .filter((enrollment) => enrollment.role === rosterRole && enrollment.status !== 'PENDING')
       .map((enrollment) => {
         const { first, last } = resolveName(enrollment.student);
+        const states = statesByStudent[enrollment.student.id];
+        const counts = states ? countSnapshotStates(states) : null;
 
         return {
           enrollmentId: enrollment.id,
@@ -404,13 +436,17 @@ export default function StudentRosterPage() {
           sections: enrollment.sections,
           sectionLabel: enrollment.sections.join(', '),
           lastActiveAt: lastActiveById[enrollment.student.id] ?? null,
+          progressDone: counts?.done ?? null,
+          progressFailed: counts?.failed ?? null,
         };
       });
-  }, [course, rosterRole, lastActiveById]);
+  }, [course, rosterRole, lastActiveById, statesByStudent]);
 
   // Issue #329: a sort on a column this roster doesn't show falls back to the default.
   const activeSort =
-    (sort.key === 'lastActive' && !showLastActive) || (sort.key === 'externalId' && isCheckerRoster)
+    (sort.key === 'lastActive' && !showLastActive) ||
+    (sort.key === 'externalId' && isCheckerRoster) ||
+    (sort.key === 'progress' && !showBadgeSnapshot)
       ? DEFAULT_ROSTER_SORT
       : sort;
   // Sort once here; the search/filter pass below keeps this order, so typing never re-sorts.
@@ -424,8 +460,30 @@ export default function StudentRosterPage() {
     return <span className={styles.mutedText}>{formatLastActive(null)}</span>;
   };
 
-  // The course's saved sections (kept even when nobody is left in one) plus any on enrollments.
-  // Reassignment is limited to these.
+  const renderProgress = (member: RosterMemberRow) => {
+    if (member.progressDone === null) {
+      if (isSnapshotLoading) return '…';
+      return '—';
+    }
+    const total = snapshotBadges.length;
+    return (
+      <span className={styles.progressCell}>
+        {member.progressDone}/{total}
+        {member.progressFailed ? (
+          <span
+            className={styles.progressFailedDot}
+            role="img"
+            aria-label={`${member.progressFailed} failed`}
+            title={`${member.progressFailed} failed`}
+          />
+        ) : null}
+      </span>
+    );
+  };
+
+  const columnCount =
+    (isCheckerRoster ? 4 : 5) + (canRemoveMembers ? 1 : 0) + (showLastActive ? 1 : 0) + (showBadgeSnapshot ? 1 : 0);
+
   const courseSections = useMemo(
     () =>
       uniqueSections([
@@ -786,6 +844,25 @@ export default function StudentRosterPage() {
                 </section>
               ) : null}
 
+              {showBadgeSnapshot ? (
+                <div className={styles.snapshotToolbar}>
+                  {snapshotError ? <span className={styles.snapshotEmpty}>Badge progress is unavailable.</span> : null}
+                  <BadgeSnapshotLegend />
+                  <button
+                    type="button"
+                    className={styles.snapshotToggle}
+                    aria-pressed={expandAll}
+                    onClick={() => {
+                      // Collapse all closes every strip, including the one opened by a row click.
+                      if (expandAll) setSelectedMemberId(null);
+                      setExpandAll(!expandAll);
+                    }}
+                  >
+                    {expandAll ? 'Collapse all' : 'Expand all'}
+                  </button>
+                </div>
+              ) : null}
+
               <section className={styles.tableCard}>
                 <div className={styles.tableScroll}>
                   <table className={styles.table}>
@@ -810,76 +887,104 @@ export default function StudentRosterPage() {
                             onSort={handleSort}
                           />
                         ) : null}
+                        {showBadgeSnapshot ? (
+                          <SortableHeader label="Progress" sortKey="progress" sort={activeSort} onSort={handleSort} />
+                        ) : null}
                         <SortableHeader label="Section" sortKey="section" sort={activeSort} onSort={handleSort} />
                         {canRemoveMembers ? <th className={styles.actionsHeader}>Actions</th> : null}
                       </tr>
                     </thead>
                     <tbody>
                       {filteredRows.length > 0 ? (
-                        filteredRows.map((member) => (
-                          <tr
-                            key={member.enrollmentId}
-                            className={styles.selectableRow}
-                            data-selected={selectedMemberId === member.memberId}
-                            tabIndex={0}
-                            onClick={() => handleRosterRowClick(member.memberId)}
-                            onKeyDown={(event) => {
-                              if (event.key === 'Enter' || event.key === ' ') {
-                                event.preventDefault();
-                                handleRosterRowClick(member.memberId);
-                              }
-                            }}
-                          >
-                            <td>{member.lastName || '—'}</td>
-                            <td>{member.firstName || '—'}</td>
-                            {!isCheckerRoster ? <td>{member.externalId || '—'}</td> : null}
-                            <td>{member.email || '—'}</td>
-                            {showLastActive ? <td>{renderLastActive(member)}</td> : null}
-                            <td>
-                              {canManageSections ? (
-                                <div className={styles.sectionCell}>
-                                  {member.sectionLabel ? <span>{member.sectionLabel}</span> : null}
-                                  <button
-                                    type="button"
-                                    className={
-                                      member.sectionLabel ? styles.editSectionButton : styles.assignSectionButton
-                                    }
-                                    onClick={(event) => {
-                                      event.stopPropagation();
-                                      openSectionModal(member);
-                                    }}
-                                  >
-                                    {member.sectionLabel ? 'Edit' : 'Assign section'}
-                                  </button>
-                                </div>
-                              ) : (
-                                member.sectionLabel || '—'
-                              )}
-                            </td>
-                            {canRemoveMembers ? (
-                              <td className={styles.actionsCell}>
-                                <button
-                                  type="button"
-                                  className={styles.removeButton}
-                                  disabled={removingId === member.memberId}
-                                  onClick={(event) => {
-                                    event.stopPropagation();
-                                    setRemoveError(null);
-                                    setMemberToRemove(member);
-                                  }}
+                        filteredRows.map((member) => {
+                          const isSelected = selectedMemberId === member.memberId;
+                          const isExpanded = showBadgeSnapshot && (expandAll || isSelected);
+                          return (
+                            <Fragment key={member.enrollmentId}>
+                              <tr
+                                className={styles.selectableRow}
+                                data-selected={isSelected}
+                                aria-expanded={showBadgeSnapshot ? isExpanded : undefined}
+                                tabIndex={0}
+                                onClick={() => handleRosterRowClick(member.memberId)}
+                                onKeyDown={(event) => {
+                                  if (event.key === 'Enter' || event.key === ' ') {
+                                    event.preventDefault();
+                                    handleRosterRowClick(member.memberId);
+                                  }
+                                }}
+                              >
+                                <td>{member.lastName || '—'}</td>
+                                <td>{member.firstName || '—'}</td>
+                                {!isCheckerRoster ? <td>{member.externalId || '—'}</td> : null}
+                                <td>{member.email || '—'}</td>
+                                {showLastActive ? <td>{renderLastActive(member)}</td> : null}
+                                {showBadgeSnapshot ? <td>{renderProgress(member)}</td> : null}
+                                <td>
+                                  {canManageSections ? (
+                                    <div className={styles.sectionCell}>
+                                      {member.sectionLabel ? <span>{member.sectionLabel}</span> : null}
+                                      <button
+                                        type="button"
+                                        className={
+                                          member.sectionLabel ? styles.editSectionButton : styles.assignSectionButton
+                                        }
+                                        onClick={(event) => {
+                                          event.stopPropagation();
+                                          openSectionModal(member);
+                                        }}
+                                      >
+                                        {member.sectionLabel ? 'Edit' : 'Assign section'}
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    member.sectionLabel || '—'
+                                  )}
+                                </td>
+                                {canRemoveMembers ? (
+                                  <td className={styles.actionsCell}>
+                                    <button
+                                      type="button"
+                                      className={styles.removeButton}
+                                      disabled={removingId === member.memberId}
+                                      onClick={(event) => {
+                                        event.stopPropagation();
+                                        setRemoveError(null);
+                                        setMemberToRemove(member);
+                                      }}
+                                    >
+                                      Remove
+                                    </button>
+                                  </td>
+                                ) : null}
+                              </tr>
+                              {isExpanded ? (
+                                <tr
+                                  className={styles.snapshotRow}
+                                  onClick={() => handleRosterRowClick(member.memberId)}
                                 >
-                                  Remove
-                                </button>
-                              </td>
-                            ) : null}
-                          </tr>
-                        ))
+                                  <td colSpan={columnCount}>
+                                    {member.progressDone === null ? (
+                                      <span className={styles.snapshotEmpty}>
+                                        {isSnapshotLoading
+                                          ? 'Loading badge progress…'
+                                          : 'Badge progress is unavailable.'}
+                                      </span>
+                                    ) : (
+                                      <BadgeSnapshotStrip
+                                        badges={snapshotBadges}
+                                        states={statesByStudent[member.memberId]}
+                                      />
+                                    )}
+                                  </td>
+                                </tr>
+                              ) : null}
+                            </Fragment>
+                          );
+                        })
                       ) : (
                         <tr>
-                          <td
-                            className={styles.emptyCell}
-                            colSpan={(isCheckerRoster ? 4 : 5) + (canRemoveMembers ? 1 : 0) + (showLastActive ? 1 : 0)}
-                          >
+                          <td className={styles.emptyCell} colSpan={columnCount}>
                             {emptyResultsMessage}
                           </td>
                         </tr>

@@ -1,4 +1,3 @@
-// Issue #329: roster column sorting.
 import {
   DEFAULT_ROSTER_SORT,
   nextSort,
@@ -61,6 +60,29 @@ describe('sortRosterRows', () => {
 
     expect(ids(sortRosterRows(rows, { key: 'lastActive', direction: 'desc' }))).toEqual(['new', 'mid', 'old']);
     expect(ids(sortRosterRows(rows, { key: 'lastActive', direction: 'asc' }))).toEqual(['old', 'mid', 'new']);
+  });
+
+  it('sorts progress by badges done, fewer failures first among ties, unloaded rows last', () => {
+    const rows = [
+      row('low', { progressDone: 1, progressFailed: 0 }),
+      row('unknown', { progressDone: null }),
+      row('high-failed', { progressDone: 3, progressFailed: 2 }),
+      row('high-clean', { progressDone: 3, progressFailed: 0 }),
+    ];
+
+    expect(ids(sortRosterRows(rows, { key: 'progress', direction: 'desc' }))).toEqual([
+      'high-clean',
+      'high-failed',
+      'low',
+      'unknown',
+    ]);
+    expect(ids(sortRosterRows(rows, { key: 'progress', direction: 'asc' }))).toEqual([
+      'low',
+      'high-failed',
+      'high-clean',
+      'unknown',
+    ]);
+    expect(nextSort(DEFAULT_ROSTER_SORT, 'progress')).toEqual({ key: 'progress', direction: 'desc' });
   });
 
   it('puts missing values last in both directions without throwing', () => {

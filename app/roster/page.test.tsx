@@ -26,6 +26,13 @@ jest.mock('./hooks/useRosterLastActive', () => ({
   useRosterLastActive: () => ({ lastActiveById: {}, isLoading: false, error: undefined }),
 }));
 
+const mockUseRosterBadgeSnapshot = jest.fn();
+jest.mock('./hooks/useRosterBadgeSnapshot', () => ({
+  useRosterBadgeSnapshot: (...args: unknown[]) => mockUseRosterBadgeSnapshot(...args),
+}));
+
+const EMPTY_SNAPSHOT = { badges: [], statesByStudent: {}, isLoading: false, error: undefined };
+
 function createClerkState(overrides = {}) {
   return {
     isLoaded: true,
@@ -83,6 +90,7 @@ describe('Course roster page', () => {
     mockUsePathname.mockReturnValue('/roster');
     mockUseUser.mockReturnValue(createClerkState());
     mockUseAuth.mockReturnValue(createAuthState());
+    mockUseRosterBadgeSnapshot.mockReturnValue(EMPTY_SNAPSHOT);
     global.fetch = mockFetch as unknown as typeof fetch;
   });
 
@@ -619,6 +627,128 @@ describe('Course roster page', () => {
       expect(screen.queryByRole('columnheader', { name: 'Last Logon' })).not.toBeInTheDocument();
       fireEvent.click(screen.getByRole('button', { name: 'First Name' }));
       expect(lastNameColumn()).toEqual(['Lovelace', 'Turing', 'Liskov', 'Hopper']);
+    });
+  });
+
+  describe('badge snapshot', () => {
+    const BADGES = [
+      { id: 'b1', name: 'Pipetting', slug: 'pipetting' },
+      { id: 'b2', name: 'Titration', slug: 'titration' },
+      { id: 'b3', name: 'Spectroscopy', slug: 'spectroscopy' },
+    ];
+    const SNAPSHOT = {
+      badges: BADGES,
+      statesByStudent: {
+        s1: ['done', 'done', 'failed'],
+        s2: ['done', 'progress', 'not_started'],
+        s3: ['not_started', 'not_started', 'not_started'],
+        s4: ['done', 'done', 'done'],
+      },
+      isLoading: false,
+      error: undefined,
+    };
+
+    it('shows a Progress column and sorts by it, most done first', async () => {
+      mockUseRosterBadgeSnapshot.mockReturnValue(SNAPSHOT);
+      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
+      render(<StudentRosterPage />);
+      await screen.findByText('Hopper');
+
+      const hopperRow = screen.getByText('Hopper').closest('tr')!;
+      expect(within(hopperRow).getByText('2/3')).toBeInTheDocument();
+      expect(within(hopperRow).getByRole('img', { name: '1 failed' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Progress' }));
+      expect(lastNameColumn()).toEqual(['Liskov', 'Hopper', 'Lovelace', 'Turing']);
+    });
+
+    it('expands a row into badge squares on first click and opens the profile on the second', async () => {
+      mockUseRosterBadgeSnapshot.mockReturnValue(SNAPSHOT);
+      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
+      render(<StudentRosterPage />);
+      const row = (await screen.findByText('Lovelace')).closest('tr')!;
+
+      expect(screen.queryByRole('list', { name: 'Badge progress' })).not.toBeInTheDocument();
+      fireEvent.click(row);
+      expect(row).toHaveAttribute('aria-expanded', 'true');
+      const strip = screen.getByRole('list', { name: 'Badge progress' });
+      expect(within(strip).getByLabelText('Pipetting: Completed')).toBeInTheDocument();
+      expect(within(strip).getByLabelText('Titration: In progress')).toBeInTheDocument();
+      expect(within(strip).getByLabelText('Spectroscopy: Not started')).toBeInTheDocument();
+      expect(mockPush).not.toHaveBeenCalled();
+
+      fireEvent.click(strip);
+      expect(mockPush).toHaveBeenCalledWith('/roster/s2?courseId=course-1');
+    });
+
+    it('expands every row with Expand all', async () => {
+      mockUseRosterBadgeSnapshot.mockReturnValue(SNAPSHOT);
+      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
+      render(<StudentRosterPage />);
+      await screen.findByText('Hopper');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
+      expect(screen.getAllByRole('list', { name: 'Badge progress' })).toHaveLength(4);
+      fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+      expect(screen.queryByRole('list', { name: 'Badge progress' })).not.toBeInTheDocument();
+    });
+
+    it('closes a row opened by clicking when Collapse all is used', async () => {
+      mockUseRosterBadgeSnapshot.mockReturnValue(SNAPSHOT);
+      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
+      render(<StudentRosterPage />);
+      const row = (await screen.findByText('Lovelace')).closest('tr')!;
+
+      fireEvent.click(row);
+      fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
+
+      expect(screen.queryByRole('list', { name: 'Badge progress' })).not.toBeInTheDocument();
+      expect(row).toHaveAttribute('aria-expanded', 'false');
+      expect(row).toHaveAttribute('data-selected', 'false');
+    });
+
+    it('requests the snapshot for the selected section only', async () => {
+      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
+      render(<StudentRosterPage />);
+      await screen.findByText('Hopper');
+      expect(mockUseRosterBadgeSnapshot).toHaveBeenLastCalledWith('course-1', null, true);
+
+      fireEvent.click(screen.getByRole('button', { name: 'A1' }));
+      expect(mockUseRosterBadgeSnapshot).toHaveBeenLastCalledWith('course-1', 'A1', true);
+    });
+
+    it('starts a checker from "Students to assess" on their first section', async () => {
+      mockSearchParams = new URLSearchParams('courseId=course-1&role=STUDENT&view=checker');
+      mockUseUser.mockReturnValue(
+        createClerkState({ user: { fullName: 'Checker', primaryEmailAddress: { emailAddress: 'checker@bu.edu' } } })
+      );
+      const payload = sortingPayload();
+      payload.viewerRole = 'CHECKER';
+      payload.course.enrollments.push({
+        id: 'enrollment-checker',
+        role: 'CHECKER',
+        status: 'ACTIVE',
+        sections: ['B1', 'A1'],
+        student: { id: 'checker-1', name: 'Checker Person', email: 'checker@bu.edu', externalId: 'C1' },
+      } as (typeof payload.course.enrollments)[number]);
+      mockFetch.mockResolvedValue({ ok: true, json: async () => payload });
+      render(<StudentRosterPage />);
+      await screen.findByText('Turing');
+
+      expect(lastNameColumn()).toEqual(['Lovelace', 'Turing']);
+      expect(screen.getByRole('button', { name: 'A1' })).toHaveAttribute('aria-pressed', 'true');
+      expect(mockUseRosterBadgeSnapshot).toHaveBeenLastCalledWith('course-1', 'A1', true);
+    });
+
+    it('hides the Progress column on the checker roster', async () => {
+      mockSearchParams = new URLSearchParams('courseId=course-1&role=CHECKER');
+      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload('CHECKER') });
+      render(<StudentRosterPage />);
+      await screen.findByText('Hopper');
+
+      expect(screen.queryByRole('columnheader', { name: 'Progress' })).not.toBeInTheDocument();
+      expect(mockUseRosterBadgeSnapshot).toHaveBeenLastCalledWith('course-1', null, false);
     });
   });
 });

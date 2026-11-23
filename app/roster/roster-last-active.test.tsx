@@ -27,6 +27,11 @@ jest.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ signOut: jest.fn() }),
 }));
 
+// The badge snapshot has its own tests; keep its request out of this file's fetch counts.
+jest.mock('./hooks/useRosterBadgeSnapshot', () => ({
+  useRosterBadgeSnapshot: () => ({ badges: [], statesByStudent: {}, isLoading: false, error: undefined }),
+}));
+
 const MINUTE = 60_000;
 const LAST_ACTIVE_URL = '/api/courses/course-1/last-active';
 const ADA_ACTIVE = '2026-11-19T15:30:00.000Z';
@@ -140,7 +145,8 @@ describe('Roster Last Logon column', () => {
     const adaRow = (await screen.findByText('Lovelace')).closest('tr')!;
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
     expect(headers.indexOf('Last Logon')).toBe(headers.indexOf('Email') + 1);
-    expect(headers.indexOf('Section')).toBe(headers.indexOf('Last Logon') + 1);
+    expect(headers.indexOf('Progress')).toBe(headers.indexOf('Last Logon') + 1);
+    expect(headers.indexOf('Section')).toBe(headers.indexOf('Progress') + 1);
 
     expect(await within(adaRow).findByText(formatLastActive(ADA_ACTIVE))).toBeInTheDocument();
     const graceRow = screen.getByText('Hopper').closest('tr')!;

@@ -8,6 +8,7 @@ import { normalizeEmail } from '@/lib/text/email';
 import { youtubeUrlFromSummary } from '@/lib/video';
 import { classifyStudentBadgeCohort } from '@/lib/badgeCohorts';
 import { canSendCourseMessages } from '@/lib/messaging/audience';
+import { sharesSectionWith } from '@/lib/sections';
 
 function normalizeId(value?: string | null) {
   const trimmed = value?.trim();
@@ -122,10 +123,10 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     }
 
     if (effectiveViewerRole === 'CHECKER' && !course.settings?.allowCrossSectionView) {
-      const viewerSections = new Set(viewerEnrollment?.sections.map((assignment) => assignment.section) ?? []);
-      const memberSections = enrollment.sections.map((assignment) => assignment.section);
-      const canViewSection =
-        memberSections.length === 0 || memberSections.some((section) => viewerSections.has(section));
+      const canViewSection = sharesSectionWith(
+        viewerEnrollment?.sections.map((assignment) => assignment.section) ?? [],
+        enrollment.sections.map((assignment) => assignment.section)
+      );
 
       if (enrollment.role !== 'STUDENT' || !canViewSection) {
         return NextResponse.json(
