@@ -3,7 +3,7 @@ import { CourseRole, Prisma } from '@prisma/client';
 
 import { ensureCurrentUser } from '@/app/api/courses/lib/ensure-user';
 import prisma from '@/lib/prisma';
-import { buildBadgeSnapshot, type BadgeSnapshotResponse, type SnapshotBadge } from '@/lib/roster/badgeSnapshot';
+import { countCompletedBadges, type BadgeSnapshotResponse } from '@/lib/roster/badgeSnapshot';
 
 export type { BadgeSnapshotResponse } from '@/lib/roster/badgeSnapshot';
 
@@ -34,7 +34,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
             id: true,
             badgeRequirements: {
               orderBy: { createdAt: 'asc' },
-              select: { badge: { select: { id: true, name: true, slug: true } } },
+              select: { badgeId: true },
             },
           },
         },
@@ -49,20 +49,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       return NextResponse.json({ error: NOT_FOUND }, { status: 404 });
     }
 
-    // Course badges in course order; a badge can be required by several lessons.
-    const badges: SnapshotBadge[] = [];
+    // Course badges and their requirement lessons; a badge can be required by several lessons.
     const requirementLessonIds = new Map<string, string[]>();
     for (const lesson of course.lessons) {
-      for (const { badge } of lesson.badgeRequirements) {
-        const lessons = requirementLessonIds.get(badge.id);
-        if (lessons) {
-          lessons.push(lesson.id);
-        } else {
-          requirementLessonIds.set(badge.id, [lesson.id]);
-          badges.push({ id: badge.id, name: badge.name, slug: badge.slug });
-        }
+      for (const { badgeId } of lesson.badgeRequirements) {
+        requirementLessonIds.set(badgeId, [...(requirementLessonIds.get(badgeId) ?? []), lesson.id]);
       }
     }
+    const badgeIds = [...requirementLessonIds.keys()];
 
     // Same visibility rule as the student profile route: a section-scoped checker
     // sees students in one of their sections, plus students with no section.
@@ -71,7 +65,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
     let sectionWhere: Prisma.EnrollmentWhereInput = {};
     if (requestedSection) {
       if (sectionScoped && !viewerSections.has(requestedSection)) {
-        return NextResponse.json(emptyResponse(badges));
+        return NextResponse.json(emptyResponse(badgeIds.length));
       }
       sectionWhere = { sections: { some: { section: requestedSection } } };
     } else if (sectionScoped) {
@@ -85,14 +79,13 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       select: { studentId: true },
     });
     const studentIds = enrollments.map((enrollment) => enrollment.studentId);
-    if (studentIds.length === 0 || badges.length === 0) {
+    if (studentIds.length === 0 || badgeIds.length === 0) {
       return NextResponse.json({
-        ...emptyResponse(badges),
-        students: Object.fromEntries(studentIds.map((id) => [id, []])),
+        ...emptyResponse(badgeIds.length),
+        completed: Object.fromEntries(studentIds.map((id) => [id, 0])),
       });
     }
 
-    const badgeIds = badges.map((badge) => badge.id);
     const lessonIds = [...new Set([...requirementLessonIds.values()].flat())];
     const [studentBadges, lessonProgress, attempts] = await Promise.all([
       prisma.studentBadge.findMany({
@@ -112,22 +105,14 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       }),
       prisma.assessmentAttempt.findMany({
         where: { courseId, studentId: { in: studentIds }, badgeId: { in: badgeIds } },
-        select: {
-          studentId: true,
-          badgeId: true,
-          passed: true,
-          pointsEarned: true,
-          pointsPossible: true,
-          completedAt: true,
-          createdAt: true,
-        },
+        select: { studentId: true, badgeId: true, passed: true },
       }),
     ]);
 
     const body: BadgeSnapshotResponse = {
-      badges,
-      students: buildBadgeSnapshot({
-        badges,
+      badgeCount: badgeIds.length,
+      completed: countCompletedBadges({
+        badgeIds,
         requirementLessonIds,
         studentIds,
         studentBadges,
@@ -143,6 +128,6 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
   }
 }
 
-function emptyResponse(badges: SnapshotBadge[]): BadgeSnapshotResponse {
-  return { badges, students: {}, fetchedAt: new Date().toISOString() };
+function emptyResponse(badgeCount: number): BadgeSnapshotResponse {
+  return { badgeCount, completed: {}, fetchedAt: new Date().toISOString() };
 }

@@ -62,24 +62,24 @@ describe('sortRosterRows', () => {
     expect(ids(sortRosterRows(rows, { key: 'lastActive', direction: 'asc' }))).toEqual(['old', 'mid', 'new']);
   });
 
-  it('sorts progress by badges done, fewer failures first among ties, unloaded rows last', () => {
+  it('sorts progress by badges completed, most first, with unloaded rows last', () => {
     const rows = [
-      row('low', { progressDone: 1, progressFailed: 0 }),
+      row('low', { progressDone: 1 }),
       row('unknown', { progressDone: null }),
-      row('high-failed', { progressDone: 3, progressFailed: 2 }),
-      row('high-clean', { progressDone: 3, progressFailed: 0 }),
+      row('high', { progressDone: 3 }),
+      row('none', { progressDone: 0 }),
     ];
 
     expect(ids(sortRosterRows(rows, { key: 'progress', direction: 'desc' }))).toEqual([
-      'high-clean',
-      'high-failed',
+      'high',
       'low',
+      'none',
       'unknown',
     ]);
     expect(ids(sortRosterRows(rows, { key: 'progress', direction: 'asc' }))).toEqual([
+      'none',
       'low',
-      'high-failed',
-      'high-clean',
+      'high',
       'unknown',
     ]);
     expect(nextSort(DEFAULT_ROSTER_SORT, 'progress')).toEqual({ key: 'progress', direction: 'desc' });

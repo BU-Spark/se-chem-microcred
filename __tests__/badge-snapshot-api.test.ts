@@ -32,8 +32,8 @@ const mockFindAttempts = prisma.assessmentAttempt.findMany as unknown as jest.Mo
 const VIEWER = { id: 'viewer-1', email: 'viewer@example.edu' } as Awaited<ReturnType<typeof ensureCurrentUser>>;
 
 const LESSONS = [
-  { id: 'l1', badgeRequirements: [{ badge: { id: 'b1', name: 'Pipetting', slug: 'pipetting' } }] },
-  { id: 'l2', badgeRequirements: [{ badge: { id: 'b2', name: 'Titration', slug: 'titration' } }] },
+  { id: 'l1', badgeRequirements: [{ badgeId: 'b1' }] },
+  { id: 'l2', badgeRequirements: [{ badgeId: 'b2' }] },
 ];
 
 function course(overrides: Record<string, unknown> = {}) {
@@ -64,17 +64,7 @@ describe('GET /api/courses/[courseId]/badge-snapshot', () => {
       { studentId: 's1', badgeId: 'b1', status: BadgeStatus.COMPLETED, awardedAt: new Date() },
     ]);
     mockFindLessonProgress.mockResolvedValue([]);
-    mockFindAttempts.mockResolvedValue([
-      {
-        studentId: 's2',
-        badgeId: 'b2',
-        passed: false,
-        pointsEarned: 4,
-        pointsPossible: 10,
-        completedAt: new Date('2026-11-10'),
-        createdAt: new Date('2026-11-10'),
-      },
-    ]);
+    mockFindAttempts.mockResolvedValue([{ studentId: 's2', badgeId: 'b2', passed: false }]);
   });
 
   afterEach(() => {
@@ -100,21 +90,12 @@ describe('GET /api/courses/[courseId]/badge-snapshot', () => {
     expect(response.status).toBe(404);
   });
 
-  it('returns per-student states and latest grades in badge order with a fixed number of queries', async () => {
+  it('returns badges completed per student with a fixed number of queries', async () => {
     const response = await GET(request(), context);
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.badges.map((badge: { id: string }) => badge.id)).toEqual(['b1', 'b2']);
-    expect(body.students).toEqual({
-      s1: [
-        { state: 'done', attempts: 0, latest: null },
-        { state: 'not_started', attempts: 0, latest: null },
-      ],
-      s2: [
-        { state: 'not_started', attempts: 0, latest: null },
-        { state: 'failed', attempts: 1, latest: { passed: false, pointsEarned: 4, pointsPossible: 10 } },
-      ],
-    });
+    expect(body.badgeCount).toBe(2);
+    expect(body.completed).toEqual({ s1: 1, s2: 0 });
 
     expect(mockFindCourse).toHaveBeenCalledTimes(1);
     expect(mockFindEnrollments).toHaveBeenCalledTimes(1);
@@ -122,8 +103,6 @@ describe('GET /api/courses/[courseId]/badge-snapshot', () => {
     expect(mockFindLessonProgress).toHaveBeenCalledTimes(1);
     expect(mockFindAttempts).toHaveBeenCalledTimes(1);
     expect(mockFindStudentBadges.mock.calls[0][0].where.studentId).toEqual({ in: ['s1', 's2'] });
-    // Grades come from the same attempts query; no per-student reads.
-    expect(mockFindAttempts.mock.calls[0][0].select).toMatchObject({ pointsEarned: true, pointsPossible: true });
   });
 
   it('scopes a checker to their own sections plus unsectioned students', async () => {
@@ -139,7 +118,7 @@ describe('GET /api/courses/[courseId]/badge-snapshot', () => {
   it('returns no students when a scoped checker asks for another section', async () => {
     const response = await GET(request('B2'), context);
     const body = await response.json();
-    expect(body.students).toEqual({});
+    expect(body.completed).toEqual({});
     expect(mockFindEnrollments).not.toHaveBeenCalled();
   });
 
@@ -167,7 +146,7 @@ describe('GET /api/courses/[courseId]/badge-snapshot', () => {
     mockFindCourse.mockResolvedValue(course({ lessons: [] }));
     const response = await GET(request(), context);
     const body = await response.json();
-    expect(body).toMatchObject({ badges: [], students: { s1: [], s2: [] } });
+    expect(body).toMatchObject({ badgeCount: 0, completed: { s1: 0, s2: 0 } });
     expect(mockFindStudentBadges).not.toHaveBeenCalled();
   });
 });

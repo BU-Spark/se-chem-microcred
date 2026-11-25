@@ -31,7 +31,7 @@ jest.mock('./hooks/useRosterBadgeSnapshot', () => ({
   useRosterBadgeSnapshot: (...args: unknown[]) => mockUseRosterBadgeSnapshot(...args),
 }));
 
-const EMPTY_SNAPSHOT = { badges: [], cellsByStudent: {}, isLoading: false, error: undefined };
+const EMPTY_SNAPSHOT = { badgeCount: 0, completedByStudent: {}, isLoading: false, error: undefined };
 
 function createClerkState(overrides = {}) {
   return {
@@ -630,96 +630,41 @@ describe('Course roster page', () => {
     });
   });
 
-  describe('badge snapshot', () => {
-    const BADGES = [
-      { id: 'b1', name: 'Pipetting', slug: 'pipetting' },
-      { id: 'b2', name: 'Titration', slug: 'titration' },
-      { id: 'b3', name: 'Spectroscopy', slug: 'spectroscopy' },
-    ];
-    const cell = (state: string, attempts = 0, latest: Record<string, unknown> | null = null) => ({
-      state,
-      attempts,
-      latest,
-    });
+  describe('badge progress', () => {
     const SNAPSHOT = {
-      badges: BADGES,
-      cellsByStudent: {
-        s1: [cell('done'), cell('done'), cell('failed', 1, { passed: false, pointsEarned: 3, pointsPossible: 10 })],
-        s2: [
-          cell('done', 2, { passed: true, pointsEarned: 9, pointsPossible: 10 }),
-          cell('progress'),
-          cell('not_started'),
-        ],
-        s3: [cell('not_started'), cell('not_started'), cell('not_started')],
-        s4: [cell('done'), cell('done'), cell('done')],
-      },
+      badgeCount: 3,
+      completedByStudent: { s1: 2, s2: 1, s3: 0, s4: 3 },
       isLoading: false,
       error: undefined,
     };
 
-    it('shows a Progress column and sorts by it, most done first', async () => {
+    it('shows badges completed out of the course total and sorts by it, most first', async () => {
       mockUseRosterBadgeSnapshot.mockReturnValue(SNAPSHOT);
       mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
       render(<StudentRosterPage />);
       await screen.findByText('Hopper');
 
-      const hopperRow = screen.getByText('Hopper').closest('tr')!;
-      expect(within(hopperRow).getByText('2/3')).toBeInTheDocument();
-      expect(within(hopperRow).getByRole('img', { name: '1 failed' })).toBeInTheDocument();
+      expect(within(screen.getByText('Hopper').closest('tr')!).getByText('2/3')).toBeInTheDocument();
+      expect(within(screen.getByText('Turing').closest('tr')!).getByText('0/3')).toBeInTheDocument();
 
       fireEvent.click(screen.getByRole('button', { name: 'Progress' }));
       expect(lastNameColumn()).toEqual(['Liskov', 'Hopper', 'Lovelace', 'Turing']);
     });
 
-    it('expands a row into badge grades on first click and opens the profile on the second', async () => {
-      mockUseRosterBadgeSnapshot.mockReturnValue(SNAPSHOT);
+    it('shows a placeholder while progress loads and keeps the two-click profile flow', async () => {
+      mockUseRosterBadgeSnapshot.mockReturnValue({ ...EMPTY_SNAPSHOT, isLoading: true });
       mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
       render(<StudentRosterPage />);
       const row = (await screen.findByText('Lovelace')).closest('tr')!;
 
-      expect(screen.queryByRole('list', { name: 'Badge progress' })).not.toBeInTheDocument();
-      fireEvent.click(row);
-      expect(row).toHaveAttribute('aria-expanded', 'true');
-      const strip = screen.getByRole('list', { name: 'Badge progress' });
-      expect(within(strip).getByLabelText('Pipetting: Completed, latest 9/10 pts, 2 attempts')).toBeInTheDocument();
-      expect(within(strip).getByLabelText('Titration: In progress')).toBeInTheDocument();
-      expect(within(strip).getByLabelText('Spectroscopy: Not started')).toBeInTheDocument();
-      // Visible text: latest grade and attempts, or a status where there is no attempt.
-      expect(within(strip).getByText('9/10 pts')).toBeInTheDocument();
-      expect(within(strip).getByText('2 attempts')).toBeInTheDocument();
-      expect(within(strip).getByText('Not assessed')).toBeInTheDocument();
-      expect(within(strip).getByText('Not started')).toBeInTheDocument();
-      expect(mockPush).not.toHaveBeenCalled();
+      expect(within(row).getByText('…')).toBeInTheDocument();
+      expect(screen.getAllByRole('row')).toHaveLength(5);
 
-      fireEvent.click(strip);
+      fireEvent.click(row);
+      expect(row).toHaveAttribute('data-selected', 'true');
+      expect(screen.getAllByRole('row')).toHaveLength(5);
+      fireEvent.click(row);
       expect(mockPush).toHaveBeenCalledWith('/roster/s2?courseId=course-1');
-    });
-
-    it('expands every row with Expand all', async () => {
-      mockUseRosterBadgeSnapshot.mockReturnValue(SNAPSHOT);
-      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
-      render(<StudentRosterPage />);
-      await screen.findByText('Hopper');
-
-      fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
-      expect(screen.getAllByRole('list', { name: 'Badge progress' })).toHaveLength(4);
-      fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
-      expect(screen.queryByRole('list', { name: 'Badge progress' })).not.toBeInTheDocument();
-    });
-
-    it('closes a row opened by clicking when Collapse all is used', async () => {
-      mockUseRosterBadgeSnapshot.mockReturnValue(SNAPSHOT);
-      mockFetch.mockResolvedValue({ ok: true, json: async () => sortingPayload() });
-      render(<StudentRosterPage />);
-      const row = (await screen.findByText('Lovelace')).closest('tr')!;
-
-      fireEvent.click(row);
-      fireEvent.click(screen.getByRole('button', { name: 'Expand all' }));
-      fireEvent.click(screen.getByRole('button', { name: 'Collapse all' }));
-
-      expect(screen.queryByRole('list', { name: 'Badge progress' })).not.toBeInTheDocument();
-      expect(row).toHaveAttribute('aria-expanded', 'false');
-      expect(row).toHaveAttribute('data-selected', 'false');
     });
 
     it('requests the snapshot for the selected section only', async () => {

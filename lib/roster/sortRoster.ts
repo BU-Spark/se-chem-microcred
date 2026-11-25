@@ -11,7 +11,6 @@ export type SortableRosterRow = {
   sectionLabel: string;
   lastActiveAt?: string | null;
   progressDone?: number | null;
-  progressFailed?: number | null;
 };
 
 export const DEFAULT_ROSTER_SORT: RosterSort = { key: 'lastName', direction: 'asc' };
@@ -34,9 +33,7 @@ type SortValue = string | number | null;
 
 function keyFor(row: SortableRosterRow, key: RosterSortKey): SortValue {
   if (key === 'progress') {
-    if (row.progressDone == null) return null;
-    // Most badges done first; among equals, fewer failures rank higher.
-    return row.progressDone * 10_000 - (row.progressFailed ?? 0);
+    return row.progressDone ?? null;
   }
   if (key === 'lastActive') {
     const time = row.lastActiveAt ? Date.parse(row.lastActiveAt) : NaN;

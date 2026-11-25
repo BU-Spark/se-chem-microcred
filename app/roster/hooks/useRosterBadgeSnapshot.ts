@@ -4,12 +4,15 @@ import useSWR from 'swr';
 
 import type { BadgeSnapshotResponse } from '@/app/api/courses/[courseId]/badge-snapshot/route';
 import { fetcher } from '@/app/hooks/lib/fetcher';
-import type { SnapshotBadge, SnapshotCell } from '@/lib/roster/badgeSnapshot';
 
 const SNAPSHOT_DEDUPE_MS = 60_000;
-const EMPTY_BADGES: SnapshotBadge[] = [];
-const EMPTY_STUDENTS: Record<string, SnapshotCell[]> = {};
+const EMPTY_COMPLETED: Record<string, number> = {};
 
+/**
+ * Badges completed per student for the roster's Progress column, one request per
+ * course + section. SWR caches each section's result, so switching back to a
+ * section never refetches.
+ */
 export function useRosterBadgeSnapshot(
   courseId: string | null | undefined,
   section: string | null | undefined,
@@ -25,8 +28,8 @@ export function useRosterBadgeSnapshot(
   });
 
   return {
-    badges: data?.badges ?? EMPTY_BADGES,
-    cellsByStudent: data?.students ?? EMPTY_STUDENTS,
+    badgeCount: data?.badgeCount ?? 0,
+    completedByStudent: data?.completed ?? EMPTY_COMPLETED,
     isLoading,
     error,
   };

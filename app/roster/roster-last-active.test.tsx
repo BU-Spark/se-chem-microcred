@@ -26,7 +26,7 @@ jest.mock('@clerk/nextjs', () => ({
 
 // The badge snapshot has its own tests; keep its request out of this file's fetch counts.
 jest.mock('./hooks/useRosterBadgeSnapshot', () => ({
-  useRosterBadgeSnapshot: () => ({ badges: [], cellsByStudent: {}, isLoading: false, error: undefined }),
+  useRosterBadgeSnapshot: () => ({ badgeCount: 0, completedByStudent: {}, isLoading: false, error: undefined }),
 }));
 
 const MINUTE = 60_000;
