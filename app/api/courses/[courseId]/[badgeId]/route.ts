@@ -11,6 +11,7 @@ import { fetchBadgeRatings } from '@/app/api/courses/lib/badge-ratings';
 import { deriveBadgeAnalytics, type StoredBadgeStatus } from '@/lib/badgeAnalyticsStatus';
 import { loadEarnedVia } from '@/lib/badges/badge-relations.service';
 import prisma from '@/lib/prisma';
+import { sharesSectionWith, visibleEnrollmentsFor } from '@/lib/sections';
 
 function normalizeCourseId(courseId?: string | null) {
   const trimmed = courseId?.trim();
@@ -142,8 +143,28 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
       videoLength: formatDuration(primarySegment?.duration) ?? parsedAssessment.videoLength,
       checkpoints: lessonCheckpoints.length > 0 ? lessonCheckpoints : parsedAssessment.checkpoints,
     };
+    // Mirror the course-detail route: course owner is the instructor, otherwise
+    // fall back to the viewer's active enrollment role (STUDENT/CHECKER).
+    const viewerEnrollment = course.enrollments.find(
+      (enrollment) => enrollment.student.id === user.id && enrollment.status === 'ACTIVE'
+    );
+    const viewerRole = course.createdById === user.id ? 'INSTRUCTOR' : (viewerEnrollment?.role ?? null);
+    const allowCrossSectionView = course.settings?.allowCrossSectionView ?? false;
+    // A checker without cross-section view sees only their own sections' students
+    // (plus unsectioned ones), so the badge roster and every count below match.
+    const sectionScoped = viewerRole === 'CHECKER' && !allowCrossSectionView;
+    const viewerSections = viewerEnrollment?.sections.map((assignment) => assignment.section) ?? [];
+    const visibleBadgeEnrollments = sectionScoped
+      ? badge.enrollments.filter((enrollment) =>
+          sharesSectionWith(
+            viewerSections,
+            enrollment.sections.map((assignment) => assignment.section)
+          )
+        )
+      : badge.enrollments;
+
     const requirementLessonIds = badge.lessons.map((lesson) => lesson.id);
-    const students = badge.enrollments.map((enrollment) => {
+    const students = visibleBadgeEnrollments.map((enrollment) => {
       const progress = enrollment.student.badgeProgress[0] ?? null;
       const assessmentAttempts = enrollment.student.assessmentAttempts ?? [];
       const surveyResponses = enrollment.student.surveyResponses ?? [];
@@ -257,22 +278,21 @@ export async function GET(req: NextRequest, context: { params: Promise<{ courseI
         ? Math.round((feedbackRows.reduce((sum, response) => sum + response.rating, 0) / feedbackRows.length) * 10) / 10
         : null;
 
-    // Mirror the course-detail route: course owner is the instructor, otherwise
-    // fall back to the viewer's active enrollment role (STUDENT/CHECKER).
-    const viewerEnrollment = course.enrollments.find(
-      (enrollment) => enrollment.student.id === user.id && enrollment.status === 'ACTIVE'
-    );
-    const viewerRole = course.createdById === user.id ? 'INSTRUCTOR' : (viewerEnrollment?.role ?? null);
-
     return NextResponse.json(
       {
         viewerRole,
+        sectionScoped,
         course: {
           ...course,
-          enrollments: course.enrollments.map((enrollment) => ({
-            ...enrollment,
-            sections: enrollment.sections.map((assignment) => assignment.section),
-          })),
+          enrollments: viewerRole
+            ? visibleEnrollmentsFor(
+                course.enrollments.map((enrollment) => ({
+                  ...enrollment,
+                  sections: enrollment.sections.map((assignment) => assignment.section),
+                })),
+                { userId: user.id, role: viewerRole, allowCrossSectionView }
+              )
+            : [],
         },
         badge: badgeDetail
           ? {

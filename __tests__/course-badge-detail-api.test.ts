@@ -604,4 +604,81 @@ describe('course badge detail API', () => {
     expect(body.earnableThroughOtherBadge).toBe(false);
     expect(body.students.every((student: { earnedVia: string | null }) => student.earnedVia === null)).toBe(true);
   });
+
+  describe('section scoping for checkers', () => {
+    function courseWithViewer(role: 'CHECKER' | null, allowCrossSectionView = false) {
+      return {
+        id: 'course-1',
+        title: 'Chemistry 101',
+        createdById: 'instructor-1',
+        settings: { allowCrossSectionView },
+        enrollments: [
+          ...(role
+            ? [
+                {
+                  id: 'enrollment-viewer',
+                  role,
+                  status: 'ACTIVE',
+                  studentId: 'checker-1',
+                  sections: [{ section: 'A' }],
+                  student: { id: 'checker-1', email: 'checker@example.edu' },
+                },
+              ]
+            : []),
+          {
+            id: 'enrollment-1',
+            role: 'STUDENT',
+            status: 'ACTIVE',
+            studentId: 'student-1',
+            sections: [{ section: 'A' }],
+            student: { id: 'student-1', email: 'student1@example.edu' },
+          },
+          {
+            id: 'enrollment-2',
+            role: 'STUDENT',
+            status: 'ACTIVE',
+            studentId: 'student-2',
+            sections: [{ section: 'B' }],
+            student: { id: 'student-2', email: 'student2@example.edu' },
+          },
+        ],
+      };
+    }
+    const studentIds = (body: { students: Array<{ student: { id: string } }> }) =>
+      body.students.map((row) => row.student.id);
+
+    it("limits a checker's badge roster and counts to their sections plus unsectioned students", async () => {
+      mockFetchUserByEmail.mockResolvedValue({ id: 'checker-1' });
+      mockFetchAccessibleCourseDetail.mockResolvedValue(courseWithViewer('CHECKER'));
+
+      const body = await (await getBadgeDetail()).json();
+
+      expect(body.viewerRole).toBe('CHECKER');
+      expect(body.sectionScoped).toBe(true);
+      expect(studentIds(body)).toEqual(['student-1', 'student-3']);
+      expect(body.summary.totalStudents).toBe(2);
+      expect(JSON.stringify(body)).not.toContain('student2@example.edu');
+    });
+
+    it('shows a checker every student when the course allows cross-section view', async () => {
+      mockFetchUserByEmail.mockResolvedValue({ id: 'checker-1' });
+      mockFetchAccessibleCourseDetail.mockResolvedValue(courseWithViewer('CHECKER', true));
+
+      const body = await (await getBadgeDetail()).json();
+
+      expect(body.sectionScoped).toBe(false);
+      expect(studentIds(body)).toEqual(['student-1', 'student-2', 'student-3']);
+    });
+
+    it('shows the instructor every student', async () => {
+      mockFetchAccessibleCourseDetail.mockResolvedValue(courseWithViewer(null));
+
+      const body = await (await getBadgeDetail()).json();
+
+      expect(body.viewerRole).toBe('INSTRUCTOR');
+      expect(body.sectionScoped).toBe(false);
+      expect(studentIds(body)).toEqual(['student-1', 'student-2', 'student-3']);
+      expect(body.course.enrollments).toHaveLength(2);
+    });
+  });
 });

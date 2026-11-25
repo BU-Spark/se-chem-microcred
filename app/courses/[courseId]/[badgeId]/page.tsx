@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { useSignOut } from '@/app/hooks/useSignOut';
-import { isInstructor } from '@/lib/roles';
+import { isInstructor, isStaff } from '@/lib/roles';
 
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
@@ -133,6 +133,7 @@ type StudentProgressRow = {
 
 type BadgeDetailResponse = {
   viewerRole: 'STUDENT' | 'INSTRUCTOR' | 'CHECKER' | null;
+  sectionScoped?: boolean;
   badge: BadgeDetail | null;
   course: CourseDetail;
   summary: ProgressSummary;
@@ -260,13 +261,12 @@ export default function CourseBadgeProgress() {
   const summary = data?.summary ?? null;
   const assessment = data?.assessment ?? null;
   const isInstructorFlag = isInstructor(data?.viewerRole);
-  // Same rule as the course page's Remind button: instructors always, checkers
-  // only while the course allows it. POST /api/messages enforces it again.
+  const canViewBadgeRoster = isStaff(data?.viewerRole);
+
   const canSendMessages =
     isInstructorFlag || (data?.viewerRole === 'CHECKER' && course?.settings?.allowCheckerMessages === true);
   const displayName = course?.createdBy?.name || user?.fullName || '';
 
-  // Progress breakdown bars driven by the real summary percentages.
   const breakdownBars = useMemo(
     () =>
       summary
@@ -298,10 +298,8 @@ export default function CourseBadgeProgress() {
     return null;
   }
 
-  // Completion ring uses the real completed percentage.
   const completionPercent = summary?.completedPercent ?? 0;
-  // Three-segment donut (completed / in-progress / not-started) matching the
-  // breakdown bars and the design, with a neutral grey remainder.
+
   const completionRingGradient = (() => {
     const completedDeg = (summary?.completedPercent ?? 0) * 3.6;
     const inProgressDeg = (summary?.inProgressPercent ?? 0) * 3.6;
@@ -376,10 +374,10 @@ export default function CourseBadgeProgress() {
                   <div>
                     <h2 className={styles.cardTitle}>Student Progress</h2>
                     <p className={styles.showingFor}>
-                      Showing progress for: <strong>All students</strong>
+                      Showing progress for: <strong>{data?.sectionScoped ? 'Your sections' : 'All students'}</strong>
                     </p>
                   </div>
-                  {isInstructorFlag ? (
+                  {canViewBadgeRoster ? (
                     <button type="button" className={styles.primaryButton} onClick={() => setIsRosterOpen(true)}>
                       View badge roster
                     </button>
@@ -619,7 +617,7 @@ export default function CourseBadgeProgress() {
         </div>
       </main>
 
-      {isInstructorFlag && isRosterOpen && badge && courseId && badgeId ? (
+      {canViewBadgeRoster && isRosterOpen && badge && courseId && badgeId ? (
         <BadgeRosterPanel
           badgeName={badge.name}
           courseId={courseId}
