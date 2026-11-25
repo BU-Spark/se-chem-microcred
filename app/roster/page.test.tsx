@@ -31,7 +31,7 @@ jest.mock('./hooks/useRosterBadgeSnapshot', () => ({
   useRosterBadgeSnapshot: (...args: unknown[]) => mockUseRosterBadgeSnapshot(...args),
 }));
 
-const EMPTY_SNAPSHOT = { badgeCount: 0, completedByStudent: {}, isLoading: false, error: undefined };
+const EMPTY_SNAPSHOT = { badgeCount: 0, completedByStudent: null, isLoading: false, error: undefined };
 
 function createClerkState(overrides = {}) {
   return {
@@ -633,7 +633,8 @@ describe('Course roster page', () => {
   describe('badge progress', () => {
     const SNAPSHOT = {
       badgeCount: 3,
-      completedByStudent: { s1: 2, s2: 1, s3: 0, s4: 3 },
+      // s3 (Turing) has completed none, so the API leaves them out.
+      completedByStudent: { s1: 2, s2: 1, s4: 3 },
       isLoading: false,
       error: undefined,
     };

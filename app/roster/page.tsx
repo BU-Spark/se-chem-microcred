@@ -207,7 +207,6 @@ export default function StudentRosterPage() {
   const canAddMembers = isInstructorFlag;
   const canManageSections = isInstructorFlag;
   const displayName = course?.createdBy?.name || '';
-  // Issue #328: last logon is instructor-only and shown on the student roster only.
   const showLastActive = isInstructorFlag && !isCheckerRoster;
   const {
     lastActiveById,
@@ -430,12 +429,11 @@ export default function StudentRosterPage() {
           sections: enrollment.sections,
           sectionLabel: enrollment.sections.join(', '),
           lastActiveAt: lastActiveById[enrollment.student.id] ?? null,
-          progressDone: completedByStudent[enrollment.student.id] ?? null,
+          progressDone: completedByStudent ? (completedByStudent[enrollment.student.id] ?? 0) : null,
         };
       });
   }, [course, rosterRole, lastActiveById, completedByStudent]);
 
-  // Issue #329: a sort on a column this roster doesn't show falls back to the default.
   const activeSort =
     (sort.key === 'lastActive' && !showLastActive) ||
     (sort.key === 'externalId' && isCheckerRoster) ||

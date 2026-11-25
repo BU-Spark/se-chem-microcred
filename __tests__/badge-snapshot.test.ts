@@ -1,76 +1,54 @@
 import { BadgeStatus, LessonStatus } from '@prisma/client';
 
-import { countCompletedBadges, type SnapshotInput } from '@/lib/roster/badgeSnapshot';
+import { classifyStudentBadgeCohort } from '@/lib/badgeCohorts';
+import { COMPLETED_BADGE_WHERE, isCompletedBadge } from '@/lib/roster/badgeSnapshot';
 
-function input(overrides: Partial<SnapshotInput> = {}): SnapshotInput {
-  return {
-    badgeIds: ['b1', 'b2'],
-    requirementLessonIds: new Map([
-      ['b1', ['l1']],
-      ['b2', ['l2']],
-    ]),
-    studentIds: ['s1'],
-    studentBadges: [],
-    lessonProgress: [],
-    attempts: [],
-    ...overrides,
-  };
-}
+const STATUSES: Array<BadgeStatus | null> = [null, ...Object.values(BadgeStatus)];
+const AWARDED: Array<Date | null> = [null, new Date('2026-11-01')];
+const ATTEMPTS: Array<Array<{ passed: boolean }>> = [[], [{ passed: false }], [{ passed: false }, { passed: true }]];
+const PROGRESS = [
+  [],
+  [
+    {
+      lessonId: 'l1',
+      status: LessonStatus.COMPLETED,
+      startedAt: new Date('2026-10-01'),
+      completedAt: new Date('2026-10-02'),
+      percentComplete: 100,
+    },
+  ],
+];
 
-function progress(studentId: string, lessonId: string, status: LessonStatus) {
-  return {
-    studentId,
-    lessonId,
-    status,
-    startedAt: new Date('2026-11-01'),
-    completedAt: status === LessonStatus.COMPLETED ? new Date('2026-11-02') : null,
-    percentComplete: status === LessonStatus.COMPLETED ? 100 : 40,
-  };
-}
-
-describe('countCompletedBadges', () => {
-  it('counts a badge as completed when it is COMPLETED or awarded', () => {
-    const result = countCompletedBadges(
-      input({
-        studentIds: ['s1', 's2'],
-        studentBadges: [
-          { studentId: 's1', badgeId: 'b1', status: BadgeStatus.COMPLETED, awardedAt: null },
-          { studentId: 's1', badgeId: 'b2', status: BadgeStatus.LEARNING, awardedAt: new Date() },
-          { studentId: 's2', badgeId: 'b1', status: BadgeStatus.COMPLETED, awardedAt: new Date() },
-        ],
-      })
-    );
-    expect(result).toEqual({ s1: 2, s2: 1 });
+describe('roster completed-badge rule', () => {
+  // The roster counts completed badges straight from StudentBadge; this guards that
+  // it can never drift from the cohort rule the profile and badge pages use.
+  it('agrees with classifyStudentBadgeCohort for every status, award, attempt and progress combination', () => {
+    for (const status of STATUSES) {
+      for (const awardedAt of AWARDED) {
+        for (const attempts of ATTEMPTS) {
+          for (const lessonProgress of PROGRESS) {
+            const { cohort } = classifyStudentBadgeCohort({
+              badgeStatus: status,
+              awardedAt,
+              requirementLessonIds: ['l1'],
+              lessonProgress,
+              attempts,
+            });
+            expect([status, awardedAt, attempts.length, isCompletedBadge({ status, awardedAt })]).toEqual([
+              status,
+              awardedAt,
+              attempts.length,
+              cohort === 'PROFICIENT',
+            ]);
+          }
+        }
+      }
+    }
   });
 
-  it('does not count in-progress, failed, locked, or passed-but-unfinalized badges', () => {
-    const result = countCompletedBadges(
-      input({
-        studentBadges: [
-          { studentId: 's1', badgeId: 'b1', status: BadgeStatus.IN_REVIEW, awardedAt: null },
-          { studentId: 's1', badgeId: 'b2', status: BadgeStatus.LOCKED, awardedAt: null },
-        ],
-        lessonProgress: [progress('s1', 'l1', LessonStatus.COMPLETED)],
-        attempts: [
-          { studentId: 's1', badgeId: 'b1', passed: true },
-          { studentId: 's1', badgeId: 'b2', passed: false },
-        ],
-      })
-    );
-    expect(result).toEqual({ s1: 0 });
-  });
-
-  it('reports zero for students with no activity or records', () => {
-    const result = countCompletedBadges(
-      input({
-        studentIds: ['s1', 's2'],
-        studentBadges: [{ studentId: 's1', badgeId: 'b1', status: BadgeStatus.LEARNING, awardedAt: null }],
-      })
-    );
-    expect(result).toEqual({ s1: 0, s2: 0 });
-  });
-
-  it('returns zero for every student when the course has no badges', () => {
-    expect(countCompletedBadges(input({ badgeIds: [], studentIds: ['s1', 's2'] }))).toEqual({ s1: 0, s2: 0 });
+  it('expresses the same rule as a Prisma filter', () => {
+    expect(COMPLETED_BADGE_WHERE).toEqual({
+      OR: [{ status: BadgeStatus.COMPLETED }, { awardedAt: { not: null } }],
+    });
   });
 });

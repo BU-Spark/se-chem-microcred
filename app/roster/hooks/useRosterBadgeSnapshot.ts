@@ -6,7 +6,6 @@ import type { BadgeSnapshotResponse } from '@/app/api/courses/[courseId]/badge-s
 import { fetcher } from '@/app/hooks/lib/fetcher';
 
 const SNAPSHOT_DEDUPE_MS = 60_000;
-const EMPTY_COMPLETED: Record<string, number> = {};
 
 /**
  * Badges completed per student for the roster's Progress column, one request per
@@ -29,7 +28,8 @@ export function useRosterBadgeSnapshot(
 
   return {
     badgeCount: data?.badgeCount ?? 0,
-    completedByStudent: data?.completed ?? EMPTY_COMPLETED,
+    /** null until loaded; once loaded, a missing student id means 0 completed. */
+    completedByStudent: data?.completed ?? null,
     isLoading,
     error,
   };
