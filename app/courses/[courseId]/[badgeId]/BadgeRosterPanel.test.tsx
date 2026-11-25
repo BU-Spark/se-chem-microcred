@@ -91,6 +91,66 @@ describe('BadgeRosterPanel', () => {
     expect(within(bodyRows[1]).getByText('Not Started')).toBeInTheDocument();
   });
 
+  describe('sorting', () => {
+    const studentColumn = () =>
+      screen
+        .getAllByRole('row')
+        .slice(1)
+        .map((row) => within(row).getByRole('link').textContent);
+
+    it('starts on Student A–Z and marks that column', () => {
+      renderPanel();
+
+      expect(screen.getByRole('columnheader', { name: 'Student' })).toHaveAttribute('aria-sort', 'ascending');
+      expect(screen.getByRole('columnheader', { name: 'Progress' })).toHaveAttribute('aria-sort', 'none');
+    });
+
+    it('flips Student to Z–A on a second click', () => {
+      renderPanel();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Student' }));
+      expect(studentColumn()).toEqual(['Ada Zimmer', 'carl@bu.edu', 'Bea Adams']);
+      expect(screen.getByRole('columnheader', { name: 'Student' })).toHaveAttribute('aria-sort', 'descending');
+    });
+
+    it('sorts by ID and by section, with missing values last', () => {
+      renderPanel();
+
+      fireEvent.click(screen.getByRole('button', { name: 'ID' }));
+      expect(studentColumn()).toEqual(['Bea Adams', 'Ada Zimmer', 'carl@bu.edu']);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Sections' }));
+      expect(studentColumn()).toEqual(['Bea Adams', 'Ada Zimmer', 'carl@bu.edu']);
+      fireEvent.click(screen.getByRole('button', { name: 'Sections' }));
+      expect(studentColumn()).toEqual(['Ada Zimmer', 'Bea Adams', 'carl@bu.edu']);
+    });
+
+    it('sorts by progress, furthest along first, then least', () => {
+      renderPanel();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Progress' }));
+      expect(studentColumn()).toEqual(['Bea Adams', 'Ada Zimmer', 'carl@bu.edu']);
+      expect(screen.getByRole('columnheader', { name: 'Progress' })).toHaveAttribute('aria-sort', 'descending');
+
+      fireEvent.click(screen.getByRole('button', { name: 'Progress' }));
+      expect(studentColumn()).toEqual(['carl@bu.edu', 'Ada Zimmer', 'Bea Adams']);
+    });
+
+    it('exports in the order on screen', () => {
+      renderPanel();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Progress' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Progress' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Export CSV' }));
+
+      expect(mockBuildCsv.mock.calls[0][0].map((row: Record<string, string>) => row.Email)).toEqual([
+        'carl@bu.edu',
+        'ada@bu.edu',
+        'bea@bu.edu',
+      ]);
+    });
+  });
+
   it('links each student to their profile scoped to this course and badge', () => {
     renderPanel();
 

@@ -85,6 +85,14 @@ describe('sortRosterRows', () => {
     expect(nextSort(DEFAULT_ROSTER_SORT, 'progress')).toEqual({ key: 'progress', direction: 'desc' });
   });
 
+  it('sorts status by rank, furthest along first on the first click', () => {
+    const rows = [row('mid', { statusRank: 2 }), row('top', { statusRank: 5 }), row('none', { statusRank: 0 })];
+
+    expect(nextSort(DEFAULT_ROSTER_SORT, 'status')).toEqual({ key: 'status', direction: 'desc' });
+    expect(ids(sortRosterRows(rows, { key: 'status', direction: 'desc' }))).toEqual(['top', 'mid', 'none']);
+    expect(ids(sortRosterRows(rows, { key: 'status', direction: 'asc' }))).toEqual(['none', 'mid', 'top']);
+  });
+
   it('puts missing values last in both directions without throwing', () => {
     const rows = [
       row('never', { lastName: 'A', lastActiveAt: null }),

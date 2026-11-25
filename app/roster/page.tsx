@@ -8,6 +8,7 @@ import { resolveName } from '@/lib/text/name';
 import Sidebar, { SIDEBAR_NAV } from '@/app/components/Navigation/Sidebar';
 import BackButton from '@/app/components/BackButton/BackButton';
 import SectionChips from '@/app/components/SectionChips/SectionChips';
+import SortableHeader from '@/app/components/SortableHeader/SortableHeader';
 import { useFocusTrap } from '../hooks/useFocusTrap';
 import { useCourseRoster } from './hooks/useCourseRoster';
 import { useRosterLastActive } from './hooks/useRosterLastActive';
@@ -97,39 +98,6 @@ function FilterIcon() {
     <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
       <path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
     </svg>
-  );
-}
-
-function SortArrows({ direction }: { direction: 'asc' | 'desc' | null }) {
-  return (
-    <svg className={styles.sortArrows} viewBox="0 0 8 12" width="8" height="12" aria-hidden="true">
-      <path d="M4 0 8 5H0z" data-active={direction === 'asc' || undefined} />
-      <path d="M4 12 0 7h8z" data-active={direction === 'desc' || undefined} />
-    </svg>
-  );
-}
-
-function SortableHeader({
-  label,
-  sortKey,
-  sort,
-  onSort,
-}: {
-  label: string;
-  sortKey: RosterSortKey;
-  sort: RosterSort;
-  onSort: (key: RosterSortKey) => void;
-}) {
-  const direction = sort.key === sortKey ? sort.direction : null;
-  const ariaSort = direction === 'asc' ? 'ascending' : direction === 'desc' ? 'descending' : 'none';
-
-  return (
-    <th aria-sort={ariaSort}>
-      <button type="button" className={styles.sortButton} onClick={() => onSort(sortKey)}>
-        {label}
-        <SortArrows direction={direction} />
-      </button>
-    </th>
   );
 }
 

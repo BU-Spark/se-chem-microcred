@@ -1,11 +1,19 @@
 // Issues: #258 multi-word last names
 'use client';
 
-import { useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import Link from 'next/link';
 
+import SortableHeader from '@/app/components/SortableHeader/SortableHeader';
 import { useFocusTrap } from '@/app/hooks/useFocusTrap';
 import { buildCsv, csvFilename, downloadCsv } from '@/lib/csv';
+import {
+  DEFAULT_ROSTER_SORT,
+  nextSort,
+  sortRosterRows,
+  type RosterSort,
+  type RosterSortKey,
+} from '@/lib/roster/sortRoster';
 import { resolveName } from '@/lib/text/name';
 
 import styles from './BadgeRosterPanel.module.css';
@@ -49,6 +57,22 @@ const STAGE_LABEL: Record<NonNullable<RosterStage>, string> = {
   AWAITING_AWARD: 'Passed, awaiting award',
 };
 
+// Sort order for the Progress column, from least to furthest along this badge.
+const STATUS_RANK: Record<RosterCohort | NonNullable<RosterStage>, number> = {
+  NOT_STARTED: 0,
+  VIDEO_INCOMPLETE: 1,
+  VIDEO_COMPLETE: 2,
+  ATTEMPT_FAILED: 3,
+  AWAITING_AWARD: 4,
+  STILL_LEARNING: 1,
+  PROFICIENT: 5,
+};
+
+function statusRankOf(row: BadgeRosterRow) {
+  const cohort = cohortOf(row);
+  return cohort === 'STILL_LEARNING' && row.stage ? STATUS_RANK[row.stage] : STATUS_RANK[cohort];
+}
+
 function cohortOf(row: BadgeRosterRow): RosterCohort {
   return row.cohort ?? 'NOT_STARTED';
 }
@@ -78,25 +102,31 @@ export default function BadgeRosterPanel({
   onClose: () => void;
 }) {
   const panelRef = useFocusTrap<HTMLDivElement>(true, onClose);
+  const [sort, setSort] = useState<RosterSort>(DEFAULT_ROSTER_SORT);
+  const handleSort = useCallback((key: RosterSortKey) => setSort((current) => nextSort(current, key)), []);
 
-  // Roster order matches the course roster: last name, then first, then email.
-  // A student with no name on file sorts under the email shown in their row, so
-  // the visible order always reads alphabetically.
-  const sortedRows = useMemo(() => {
-    const sortKey = (row: BadgeRosterRow) => {
-      const { first, last } = resolveName(row.student);
-      const email = row.student.email ?? '';
-
-      return last || first ? [last, first, email] : [email, '', email];
-    };
-
-    return [...rows].sort((a, b) => {
-      const left = sortKey(a);
-      const right = sortKey(b);
-
-      return left[0].localeCompare(right[0]) || left[1].localeCompare(right[1]) || left[2].localeCompare(right[2]);
-    });
-  }, [rows]);
+  // Same sorting as the course roster (lib/roster/sortRoster). Student sorts by last
+  // name, then first, then email; a student with no name sorts under their email,
+  // which is what their row shows.
+  const sortableRows = useMemo(
+    () =>
+      rows.map((row) => {
+        const { first, last } = resolveName(row.student);
+        const email = row.student.email ?? '';
+        return {
+          row,
+          memberId: row.student.id,
+          lastName: last || first || email,
+          firstName: last ? first : '',
+          email,
+          externalId: row.student.externalId ?? '',
+          sectionLabel: row.sections.join(', '),
+          statusRank: statusRankOf(row),
+        };
+      }),
+    [rows]
+  );
+  const sortedRows = useMemo(() => sortRosterRows(sortableRows, sort).map((entry) => entry.row), [sortableRows, sort]);
 
   const handleExport = () => {
     const csvRows = sortedRows.map((row) => {
@@ -154,10 +184,10 @@ export default function BadgeRosterPanel({
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th scope="col">Student</th>
-                  <th scope="col">ID</th>
-                  <th scope="col">Sections</th>
-                  <th scope="col">Progress</th>
+                  <SortableHeader label="Student" sortKey="lastName" sort={sort} onSort={handleSort} />
+                  <SortableHeader label="ID" sortKey="externalId" sort={sort} onSort={handleSort} />
+                  <SortableHeader label="Sections" sortKey="section" sort={sort} onSort={handleSort} />
+                  <SortableHeader label="Progress" sortKey="status" sort={sort} onSort={handleSort} />
                 </tr>
               </thead>
               <tbody>

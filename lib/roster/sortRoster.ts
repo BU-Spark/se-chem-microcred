@@ -1,4 +1,12 @@
-export type RosterSortKey = 'lastName' | 'firstName' | 'externalId' | 'email' | 'lastActive' | 'section' | 'progress';
+export type RosterSortKey =
+  | 'lastName'
+  | 'firstName'
+  | 'externalId'
+  | 'email'
+  | 'lastActive'
+  | 'section'
+  | 'progress'
+  | 'status';
 export type RosterSortDirection = 'asc' | 'desc';
 export type RosterSort = { key: RosterSortKey; direction: RosterSortDirection };
 
@@ -11,6 +19,8 @@ export type SortableRosterRow = {
   sectionLabel: string;
   lastActiveAt?: string | null;
   progressDone?: number | null;
+  /** How far along one badge the student is (higher = further), for the badge roster. */
+  statusRank?: number | null;
 };
 
 export const DEFAULT_ROSTER_SORT: RosterSort = { key: 'lastName', direction: 'asc' };
@@ -24,6 +34,7 @@ export const FIRST_CLICK_DIRECTION: Record<RosterSortKey, RosterSortDirection> =
   section: 'asc',
   lastActive: 'desc',
   progress: 'desc',
+  status: 'desc',
 };
 
 // Case- and accent-insensitive, and numeric-aware so "A2" < "A10" and "U9" < "U10".
@@ -32,6 +43,9 @@ const collator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: tr
 type SortValue = string | number | null;
 
 function keyFor(row: SortableRosterRow, key: RosterSortKey): SortValue {
+  if (key === 'status') {
+    return row.statusRank ?? null;
+  }
   if (key === 'progress') {
     return row.progressDone ?? null;
   }

@@ -638,43 +638,6 @@
 }
 
 /* Issue #329: sortable column headers with small direction arrows. */
-.sortButton {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  letter-spacing: inherit;
-  text-transform: inherit;
-  cursor: pointer;
-}
-
-.sortButton:focus-visible {
-  outline: 2px solid var(--checkd-blue);
-  outline-offset: 3px;
-  border-radius: 2px;
-}
-
-.sortArrows {
-  flex-shrink: 0;
-}
-
-.sortArrows path {
-  fill: currentColor;
-  opacity: 0.28;
-}
-
-.sortArrows path[data-active] {
-  opacity: 1;
-}
-
-.sortButton:hover .sortArrows path:not([data-active]) {
-  opacity: 0.5;
-}
-
 /* Issue #328: "Never active" fallback in the Last Logon column. */
 .mutedText {
   color: #6b7280;
