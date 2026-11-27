@@ -61,5 +61,6 @@ describe('email links', () => {
       badgeSlug: 'titration',
     });
     expect(email.text).toContain('https://chem.example.edu/badges/titration/feedback');
+    expect(email.subject).toBe('Review your feedback to finish your badge - Chem 101');
   });
 });

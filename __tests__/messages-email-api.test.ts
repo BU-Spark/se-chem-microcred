@@ -123,7 +123,7 @@ describe('POST /api/messages delivery channel', () => {
     );
     const [emails, prefix] = mockSendEmails.mock.calls[0];
     expect(emails.map((email) => email.to)).toEqual(['s1@bu.edu', 's2@bu.edu']);
-    expect(emails[0].subject).toBe('A message from your course Chem 101');
+    expect(emails[0].subject).toBe('Lab - Chem 101');
     expect(emails[0].text).toContain('Bring goggles.');
     expect(emails[0].text).toContain('/course_dashboard?courseId=');
     expect(prefix).toBe('msg-m1');

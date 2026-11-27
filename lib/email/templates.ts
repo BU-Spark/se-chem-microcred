@@ -48,7 +48,7 @@ export function instructorMessageEmail(options: {
   const footer = `Sent from Checkd by ${from}.`;
   return {
     to: options.to,
-    subject: `A message from your course ${options.courseTitle}`,
+    subject: `${options.subject} - ${options.courseTitle}`,
     html: layout({ heading: options.subject, paragraphs: [options.body], link, linkLabel: 'Open Checkd', footer }),
     text: `${options.subject}\n\n${options.body}\n\nOpen Checkd: ${link}\n\n${footer}`,
   };
@@ -71,7 +71,7 @@ export function feedbackReminderEmail(options: {
   const footer = `Automated reminder from ${options.courseTitle}. Reminders stop once the badge is finalized.`;
   return {
     to: options.to,
-    subject: `[${options.courseTitle}] ${FEEDBACK_REMINDER_SUBJECT}`,
+    subject: `${FEEDBACK_REMINDER_SUBJECT} - ${options.courseTitle}`,
     html: layout({
       heading: FEEDBACK_REMINDER_SUBJECT,
       paragraphs: [body],
