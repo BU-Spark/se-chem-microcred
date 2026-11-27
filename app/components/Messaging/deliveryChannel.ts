@@ -2,7 +2,7 @@ export type DeliveryChannel = 'IN_APP' | 'EMAIL' | 'BOTH';
 
 export const DELIVERY_OPTIONS: Array<{ value: DeliveryChannel; label: string }> = [
   { value: 'IN_APP', label: 'In-app message' },
-  { value: 'EMAIL', label: 'Email (BU address)' },
+  { value: 'EMAIL', label: 'Email' },
   { value: 'BOTH', label: 'In-app and email' },
 ];
 
