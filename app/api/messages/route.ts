@@ -3,6 +3,7 @@ import { currentUser } from '@clerk/nextjs/server';
 import { BadgeStatus, CourseRole, EmailStatus, MessageAudience, MessageChannel } from '@prisma/client';
 
 import prisma from '@/lib/prisma';
+import { getPublicOrigin } from '@/lib/requestOrigin';
 import { canSendCourseMessages, isInstructorEquivalent, scopeRecipientsToSender } from '@/lib/messaging/audience';
 import { buildBlastReceipts, buildDirectReceipts } from '@/lib/messaging/receipts.service';
 import { filterToBadgeGroup } from '@/lib/messaging/badgeGroups';
@@ -358,10 +359,12 @@ export async function POST(req: Request) {
         delivery = await emailMessageToStudents({
           messageId: message.id,
           studentIds: recipientIds,
+          courseId,
           courseTitle: course.title,
           senderName: sender.name,
           subject,
           body,
+          origin: getPublicOrigin(req),
         });
       } catch (error) {
         // The message is already saved; report the emails as failed rather

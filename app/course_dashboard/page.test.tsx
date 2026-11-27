@@ -32,10 +32,27 @@ jest.mock('next/image', () => ({
   },
 }));
 
+// The page signs out an account that isn't enrolled in ?courseId (the API returns
+// course: null). Fixtures that don't mention a course are treated as enrolled;
+// pass course: null explicitly to exercise the not-enrolled path.
+const mockEnrolledCourse = {
+  id: 'course-2',
+  code: 'CHEM 101',
+  section: null,
+  title: 'General Chemistry',
+  description: '',
+  contacts: [],
+};
+
+function mockWithEnrolledCourse(result: { data?: Record<string, unknown> | null } | undefined) {
+  if (!result?.data || 'course' in result.data) return result;
+  return { ...result, data: { ...result.data, course: mockEnrolledCourse } };
+}
+
 jest.mock('../hooks/useStudentData', () => {
   const refreshAllStudentData = jest.fn();
   return {
-    useStudentData: (...args: unknown[]) => mockUseStudentData(...args),
+    useStudentData: (...args: unknown[]) => mockWithEnrolledCourse(mockUseStudentData(...args)),
     useRefreshAllStudentData: () => refreshAllStudentData,
   };
 });
@@ -73,6 +90,54 @@ describe('Course dashboard page', () => {
     await waitFor(() => {
       expect(mockUseStudentData).toHaveBeenCalledWith('student@example.edu', 'course-2');
     });
+  });
+
+  it('signs out an account that is not enrolled in the course and sends it to sign in, returning here', async () => {
+    const signOut = jest.fn().mockResolvedValue(undefined);
+    mockUseAuth.mockReturnValue({ signOut });
+    mockUseStudentData.mockReturnValue({
+      data: {
+        student: { name: 'Other Instructor', email: 'instructor@example.edu' },
+        course: null,
+        lessons: { upNext: [], inProgress: [] },
+        badges: { inReview: [] },
+        surveys: { pendingBadge: [] },
+      },
+      isLoading: false,
+      refresh: jest.fn(),
+    });
+
+    render(<CourseDashboardPage />);
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith(
+        `/sign-in?redirect_url=${encodeURIComponent('/course_dashboard?courseId=course-2')}`
+      );
+    });
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not sign out while the course data is still loading', async () => {
+    const signOut = jest.fn().mockResolvedValue(undefined);
+    mockUseAuth.mockReturnValue({ signOut });
+    mockUseStudentData.mockReturnValue({ data: null, isLoading: true, refresh: jest.fn() });
+
+    render(<CourseDashboardPage />);
+
+    await waitFor(() => {
+      expect(mockUseStudentData).toHaveBeenCalled();
+    });
+    expect(signOut).not.toHaveBeenCalled();
+  });
+
+  it('keeps an enrolled student signed in', async () => {
+    const signOut = jest.fn().mockResolvedValue(undefined);
+    mockUseAuth.mockReturnValue({ signOut });
+
+    render(<CourseDashboardPage />);
+
+    await screen.findByRole('heading', { name: 'General Chemistry' });
+    expect(signOut).not.toHaveBeenCalled();
   });
 
   it('places course details inside the title box', async () => {

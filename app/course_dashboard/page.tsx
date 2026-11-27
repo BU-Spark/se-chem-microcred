@@ -517,11 +517,36 @@ function HomePageContent() {
     };
   }, [badgesById, startedBadgeSlugs, studentData, waivedBadgeNamesById]);
 
+  // Where sign-in should bring the user back to: this course's dashboard.
+  const signInHere = useMemo(() => {
+    const query = searchParams.toString();
+    const returnTo = query ? `${pathname}?${query}` : pathname;
+    return `/sign-in?redirect_url=${encodeURIComponent(returnTo)}`;
+  }, [pathname, searchParams]);
+
   useEffect(() => {
     if (isLoaded && !isSignedIn && !isSigningOut) {
-      router.replace('/sign-in');
+      router.replace(signInHere);
     }
-  }, [isLoaded, isSignedIn, isSigningOut, router]);
+  }, [isLoaded, isSignedIn, isSigningOut, router, signInHere]);
+
+  // Students reach this page from course emails. The student API resolves the
+  // signed-in account through ensureCurrentUser and returns no course when that
+  // account isn't enrolled as a student in ?courseId. In that case the wrong
+  // account is signed in: sign it out and send them to sign in again, returning
+  // here afterwards.
+  useEffect(() => {
+    if (!courseId || !isSignedIn || isLoading || !studentData || studentData.course || isSigningOut) {
+      return;
+    }
+    setIsSigningOut(true);
+    signOut()
+      .then(() => router.replace(signInHere))
+      .catch((error) => {
+        console.error('Failed to sign out a user who is not in this course', error);
+        setIsSigningOut(false);
+      });
+  }, [courseId, isSignedIn, isLoading, studentData, isSigningOut, signOut, router, signInHere]);
 
   const handleSignOut = async () => {
     if (isSigningOut) {

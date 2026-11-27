@@ -52,10 +52,12 @@ export function receiptEmailFields(result: EmailResult, now: Date) {
 export async function emailMessageToStudents(options: {
   messageId: string;
   studentIds: string[];
+  courseId: string;
   courseTitle: string;
   senderName: string | null;
   subject: string;
   body: string;
+  origin?: string | null;
 }): Promise<EmailDeliverySummary> {
   const { messageId, studentIds } = options;
   const students = await prisma.user.findMany({
@@ -68,10 +70,12 @@ export async function emailMessageToStudents(options: {
     reachable.map((student) =>
       instructorMessageEmail({
         to: student.email,
+        courseId: options.courseId,
         courseTitle: options.courseTitle,
         senderName: options.senderName,
         subject: options.subject,
         body: options.body,
+        origin: options.origin,
       })
     ),
     `msg-${messageId}`

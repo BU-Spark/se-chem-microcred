@@ -1,4 +1,5 @@
 import type { OutgoingEmail } from '@/lib/email/resend';
+import { getConfiguredPublicOrigin } from '@/lib/requestOrigin';
 
 function escapeHtml(value: string) {
   return value
@@ -9,8 +10,15 @@ function escapeHtml(value: string) {
     .replace(/'/g, '&#39;');
 }
 
-export function appUrl(path: string) {
-  const base = (process.env.APP_BASE_URL ?? 'http://localhost:3000').replace(/\/+$/, '');
+const LOCAL_ORIGIN = 'http://localhost:3000';
+
+// Builds an absolute link for an email. `origin` is the request's public
+// origin (getPublicOrigin, the same one QR codes use) when the email is sent
+// from a user request. Without a request (cron, scripts) it falls back to the
+// configured public origin (NEXT_PUBLIC_APP_URL / APP_URL /
+// RAILWAY_PUBLIC_DOMAIN), then to the local dev server.
+export function appUrl(path: string, origin?: string | null) {
+  const base = (origin || getConfiguredPublicOrigin() || LOCAL_ORIGIN).replace(/\/+$/, '');
   return `${base}${path}`;
 }
 
@@ -28,19 +36,21 @@ ${body}
 
 export function instructorMessageEmail(options: {
   to: string;
+  courseId: string;
   courseTitle: string;
   senderName: string | null;
   subject: string;
   body: string;
+  origin?: string | null;
 }): OutgoingEmail {
-  const from = options.senderName ? `${options.senderName} (${options.courseTitle})` : options.courseTitle;
-  const link = appUrl('/messages');
-  const footer = `Sent from Chem Skills by ${from}.`;
+  const from = options.senderName ? `${options.senderName}` : options.courseTitle;
+  const link = appUrl(`/course_dashboard?courseId=${encodeURIComponent(options.courseId)}`, options.origin);
+  const footer = `Sent from Checkd by ${from}.`;
   return {
     to: options.to,
-    subject: `[${options.courseTitle}] ${options.subject}`,
-    html: layout({ heading: options.subject, paragraphs: [options.body], link, linkLabel: 'Open Chem Skills', footer }),
-    text: `${options.subject}\n\n${options.body}\n\nOpen Chem Skills: ${link}\n\n${footer}`,
+    subject: `A message from your course ${options.courseTitle}`,
+    html: layout({ heading: options.subject, paragraphs: [options.body], link, linkLabel: 'Open Checkd', footer }),
+    text: `${options.subject}\n\n${options.body}\n\nOpen Checkd: ${link}\n\n${footer}`,
   };
 }
 

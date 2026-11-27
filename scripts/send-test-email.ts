@@ -17,6 +17,7 @@ async function main() {
     [
       instructorMessageEmail({
         to,
+        courseId: 'test-course',
         courseTitle: 'Chem Skills test',
         senderName: null,
         subject: 'Test email',
