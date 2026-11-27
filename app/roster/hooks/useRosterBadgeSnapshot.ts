@@ -7,11 +7,6 @@ import { fetcher } from '@/app/hooks/lib/fetcher';
 
 const SNAPSHOT_DEDUPE_MS = 60_000;
 
-/**
- * Badges completed per student for the roster's Progress column, one request per
- * course + section. SWR caches each section's result, so switching back to a
- * section never refetches.
- */
 export function useRosterBadgeSnapshot(
   courseId: string | null | undefined,
   section: string | null | undefined,
@@ -28,7 +23,6 @@ export function useRosterBadgeSnapshot(
 
   return {
     badgeCount: data?.badgeCount ?? 0,
-    /** null until loaded; once loaded, a missing student id means 0 completed. */
     completedByStudent: data?.completed ?? null,
     isLoading,
     error,
